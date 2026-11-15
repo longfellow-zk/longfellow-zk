@@ -13,7 +13,8 @@ use crate::{
         v2::{
             proto::sumcheck::SumcheckProof,
             sumcheck::{
-                sample_pads, split::split_layers, top_and_derive as derive, top_and_prove as prove,
+                sample_pads_for_test, split::split_layers, top_and_derive as derive,
+                top_and_prove as prove,
             },
             transcript::Transcript,
         },
@@ -256,7 +257,7 @@ fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling
             rng.elt_field(f)
         };
         let inputs = vec![f.mulf(&x, &y), x, y, f.zero()];
-        let (pads, _) = sample_pads(&schedule.geometry, &mut rng, f);
+        let (pads, _) = sample_pads_for_test(&schedule.geometry, &mut rng, f);
         let mut tp = Transcript::for_test(b"shared-wires");
         let mut tv = Transcript::for_test(b"shared-wires");
         let (proof, c) = prove(&circuits, inputs.clone(), &pads, &mut tp.borrow(), f).unwrap();
@@ -422,7 +423,7 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + RegisteredField + Support
     let expected =
         super::super::eval::eval_split_circuit(inputs.clone(), &merged, &merged_splits, f).unwrap();
     assert_eq!(actual, expected);
-    let (pads, _) = sample_pads(&schedule.geometry, &mut rng, f);
+    let (pads, _) = sample_pads_for_test(&schedule.geometry, &mut rng, f);
     let mut fragmented_t = Transcript::for_test(b"same-global-circuit");
     let mut merged_t = Transcript::for_test(b"same-global-circuit");
     prove(
@@ -605,7 +606,7 @@ fn check_prefix_widths<const W: usize, F: RuntimeField<W> + RegisteredField + Su
     let (x, y) = (rng.elt_field(f), rng.elt_field(f));
     let xy = f.mulf(&x, &y);
     let inputs = vec![xy.clone(), x, y, rng.elt_field(f), xy];
-    let (pads, _) = sample_pads(&schedule.geometry, &mut rng, f);
+    let (pads, _) = sample_pads_for_test(&schedule.geometry, &mut rng, f);
     let circuits = [&narrow, &wide];
     let (proof, c) = prove(
         &circuits,

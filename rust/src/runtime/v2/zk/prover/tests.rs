@@ -200,7 +200,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let w_layers = sumcheck::eval_circuit(inputs, &prover.circuit, &f).unwrap();
     let (proof, constraints) = sumcheck::prove_core(
         w_layers,
-        &reference.state.pads,
+        reference.state.pads.as_proof(),
         &prover.circuit,
         &mut numerical,
         &f,

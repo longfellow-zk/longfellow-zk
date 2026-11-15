@@ -16,7 +16,7 @@ use crate::{
         random::{DeterministicRng, RandomEngine},
         v2::{
             sumcheck::{
-                circuit_geometry, eval_circuit, prove, prover::sample_pads,
+                circuit_geometry, eval_circuit, prove, prover::sample_pads_for_test,
                 tests::diagnostic::verify,
             },
             transcript::Transcript,
@@ -77,7 +77,7 @@ fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling
         assert!(CircuitReader::new(f).from_bytes(&bytes[..i]).is_err());
     }
     let mut rng = DeterministicRng::new(42);
-    let (pads, _) = sample_pads(&circuit_geometry(&[&circuit]).unwrap(), &mut rng, f);
+    let (pads, _) = sample_pads_for_test(&circuit_geometry(&[&circuit]).unwrap(), &mut rng, f);
     let witnesses = eval_circuit(inputs.clone(), &circuit, f).unwrap();
     let (proof, constraints) = prove(
         witnesses,
@@ -158,7 +158,7 @@ fn v2_compiler_removes_one_and_evaluates_multiple_layers() {
     ];
     let witnesses = eval_circuit(inputs.clone(), &c, &f).unwrap();
     let mut rng = DeterministicRng::new(42);
-    let (pads, _) = sample_pads(&circuit_geometry(&[&c]).unwrap(), &mut rng, &f);
+    let (pads, _) = sample_pads_for_test(&circuit_geometry(&[&c]).unwrap(), &mut rng, &f);
     let (proof, _) = prove(
         witnesses,
         &pads,
@@ -200,7 +200,7 @@ fn v2_scalar_linear_layer_has_no_rounds_or_one_input() {
     let inputs = vec![f.neg(&f.u64_to_element(9))];
     let w = eval_circuit(inputs.clone(), &c, &f).unwrap();
     let mut rng = DeterministicRng::new(38);
-    let (pads, _) = sample_pads(&circuit_geometry(&[&c]).unwrap(), &mut rng, &f);
+    let (pads, _) = sample_pads_for_test(&circuit_geometry(&[&c]).unwrap(), &mut rng, &f);
     let (proof, _) = prove(w, &pads, &c, &mut Transcript::for_test(b"v2-scalar"), &f);
     assert!(proof.layers[0].rounds.is_empty());
     verify(
@@ -373,7 +373,7 @@ where
     let inputs = vec![x, y, value, f.zero()];
     let w = eval_circuit(inputs.clone(), &c, f).unwrap();
     let mut rng = DeterministicRng::new(93);
-    let (pads, _) = sample_pads(&circuit_geometry(&[&c]).unwrap(), &mut rng, f);
+    let (pads, _) = sample_pads_for_test(&circuit_geometry(&[&c]).unwrap(), &mut rng, f);
     let (proof, constraints) = prove(
         w,
         &pads,
@@ -479,7 +479,7 @@ fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
     let inputs = vec![f.zero(), f.u64_to_element(7), f.zero()];
     let w = eval_circuit(inputs.clone(), &c, &f).unwrap();
     let mut rng = DeterministicRng::new(51);
-    let (pads, _) = sample_pads(&circuit_geometry(&[&c]).unwrap(), &mut rng, &f);
+    let (pads, _) = sample_pads_for_test(&circuit_geometry(&[&c]).unwrap(), &mut rng, &f);
     let (proof, _) = prove(
         w,
         &pads,
@@ -525,7 +525,7 @@ fn assertion_kinds_remove_product_wires_and_reject_false_inputs() {
     assert_eq!(c.term_breakdown(&f)[1][0], 2);
     let inputs = vec![f.zero(), f.zero()];
     let w = eval_circuit(inputs.clone(), &c, &f).unwrap();
-    let (pads, _) = sample_pads(&circuit_geometry(&[&c]).unwrap(), &mut rng, &f);
+    let (pads, _) = sample_pads_for_test(&circuit_geometry(&[&c]).unwrap(), &mut rng, &f);
     let (proof, _) = prove(
         w,
         &pads,

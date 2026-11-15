@@ -17,7 +17,7 @@ use crate::{
                 witness_selection::{FingerprintResponse, FINGERPRINTS},
                 zk::{CircuitProof, ZkProof, ZkProofGeometry},
             },
-            sumcheck::{self, TopWeights},
+            sumcheck::{self, SumcheckPads, TopWeights},
             transcript::{Bound, Challenge, Transcript, ZkStatement},
             zk::{
                 context::private_input_count,
@@ -34,7 +34,7 @@ use crate::{
 /// Owned private inputs and masks for reduction after the shared commitment.
 pub struct CircuitState<const W: usize, F: ZkField<W> + PackingField> {
     private: Vec<CircuitInput<F>>,
-    pads: SumcheckProof<W, F>,
+    pads: SumcheckPads<W, F>,
     packing: PackingState<F::E>,
     id: [u8; 32],
     config: PolygeroConfig,
@@ -113,7 +113,7 @@ pub fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W
     let (sumcheck_proof, constraints) = sumcheck::evaluate_and_prove_circuits(
         &part.circuits,
         inputs,
-        &state.pads,
+        state.pads,
         top,
         &mut t.transcript(),
         f,
@@ -258,7 +258,7 @@ mod tests;
 
 /// Prover state of a split participant between commitment and reduction.
 pub struct SplitState<const W: usize, F: ZkField<W>> {
-    pads: SumcheckProof<W, F>,
+    pads: SumcheckPads<W, F>,
     /// `[private inputs | pads]`, in value order.
     values: Vec<F::E>,
     mask: Option<F::E>,
@@ -328,7 +328,7 @@ pub fn prove_split<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDo
     let (proof, constraints) = sumcheck::evaluate_and_prove_circuits(
         &part.circuits,
         inputs,
-        &state.pads,
+        state.pads,
         top,
         &mut t.transcript(),
         f,

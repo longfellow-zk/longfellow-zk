@@ -22,7 +22,7 @@ pub(crate) fn prove_core<
         &[circuit],
         vec![layers],
         w_layers,
-        pads,
+        SumcheckPads::from_proof(pads.clone()),
         Schedule::new(&[circuit]).unwrap(),
         top,
         transcript,

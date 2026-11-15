@@ -63,9 +63,9 @@ cfg_prover! {
     #[cfg(test)]
     pub(crate) use eval::eval_circuit;
     pub use dense::bind;
-    pub(crate) use prover::{evaluate_and_prove_circuits, sample_pads};
+    pub(crate) use prover::{evaluate_and_prove_circuits, sample_pads, SumcheckPads};
     #[cfg(test)]
-    pub(crate) use prover::{evaluate_and_prove, top_and_prove};
+    pub(crate) use prover::{evaluate_and_prove, sample_pads_for_test, top_and_prove};
 }
 
 #[cfg(test)]

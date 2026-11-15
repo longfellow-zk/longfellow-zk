@@ -90,20 +90,43 @@ pub(crate) fn top_and_prove<
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
     let top = super::transcript::top_weights(circuits, t, f)?;
-    evaluate_and_prove_circuits(circuits, inputs, pads, top, t, f)
+    let owned = SumcheckPads::from_proof(pads.clone());
+    evaluate_and_prove_circuits(circuits, inputs, owned, top, t, f)
+}
+
+/// One proof's additive sumcheck pads, laid out as the proof's round and
+/// claim slots. They are sampled with their committed copy (`sample_pads`)
+/// and used once: proving consumes them, and the type is neither `Clone` nor
+/// a `SumcheckProof`, so the same pads cannot mask two runs (sumcheck I6).
+pub(crate) struct SumcheckPads<const W: usize, F: SerializableField>(SumcheckProof<W, F>);
+impl<const W: usize, F: SerializableField> SumcheckPads<W, F> {
+    /// Check that the pads have `geometry`'s shape.
+    pub(crate) fn validate(&self, geometry: &SumcheckProofGeometry) -> std::io::Result<()> {
+        self.0.validate(geometry)
+    }
+    /// Test fixtures: pads with chosen values, such as a proof reused as pads.
+    #[cfg(test)]
+    pub(crate) fn from_proof(pads: SumcheckProof<W, F>) -> Self {
+        Self(pads)
+    }
+    /// Test diagnostics: the pad values, in proof layout.
+    #[cfg(test)]
+    pub(crate) fn as_proof(&self) -> &SumcheckProof<W, F> {
+        &self.0
+    }
 }
 
 /// The caller binds all circuit statements and shared public inputs, then
 /// draws `top` (`top_weights`). Split each circuit once for both evaluation
 /// and proving; consume its split layers and witnesses as the shared schedule
-/// advances toward the inputs.
+/// advances toward the inputs, and the pads.
 pub(crate) fn evaluate_and_prove_circuits<
     const W: usize,
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     circuits: &[impl CircuitSource<F>],
     inputs: Vec<F::E>,
-    pads: &SumcheckProof<W, F>,
+    pads: SumcheckPads<W, F>,
     top: Challenge<TopWeights<F::E>>,
     t: &mut TranscriptRef<'_>,
     f: &F,
@@ -125,7 +148,7 @@ fn prove_split<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSa
     circuits: &[impl CircuitSource<F>],
     layers: Vec<Vec<SplitLayer<'_>>>,
     witnesses: Vec<Vec<F::E>>,
-    pads: &SumcheckProof<W, F>,
+    pads: SumcheckPads<W, F>,
     schedule: Schedule,
     top: Challenge<TopWeights<F::E>>,
     t: &mut TranscriptRef<'_>,
@@ -144,9 +167,10 @@ fn prove_split<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSa
         weights = std::mem::take(&mut entering.outputs);
     }
     let mut claim = f.zero();
-    let mut proof_layers = Vec::with_capacity(pads.layers.len());
-    let mut challenges = Vec::with_capacity(pads.layers.len());
-    for ((stage, w), pp) in witnesses.into_iter().enumerate().zip(&pads.layers) {
+    let layer_pads = pads.0.layers;
+    let mut proof_layers = Vec::with_capacity(layer_pads.len());
+    let mut challenges = Vec::with_capacity(layer_pads.len());
+    for ((stage, w), pp) in witnesses.into_iter().enumerate().zip(&layer_pads) {
         let layout = &schedule.layers[stage];
         assert_eq!(w.len(), layout.nw);
         let mut active: Vec<_> = layout
@@ -381,7 +405,7 @@ pub(crate) fn sample_pads<
     geometry: &SumcheckProofGeometry,
     rng: &mut R,
     f: &F,
-) -> (SumcheckProof<W, F>, Vec<F::E>) {
+) -> (SumcheckPads<W, F>, Vec<F::E>) {
     let mut witness = Vec::with_capacity(geometry.pad_count());
     let mut proof_layers = Vec::with_capacity(geometry.layers().len());
     for &logw in geometry.layers() {
@@ -405,11 +429,27 @@ pub(crate) fn sample_pads<
         });
     }
     (
-        SumcheckProof {
+        SumcheckPads(SumcheckProof {
             layers: proof_layers,
-        },
+        }),
         witness,
     )
+}
+
+/// Test fixtures: `sample_pads`, with the pads as proof-shaped values for
+/// the fixtures and diagnostics that take them so.
+#[cfg(test)]
+pub(crate) fn sample_pads_for_test<
+    const W: usize,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
+    R: PrivateRandom,
+>(
+    geometry: &SumcheckProofGeometry,
+    rng: &mut R,
+    f: &F,
+) -> (SumcheckProof<W, F>, Vec<F::E>) {
+    let (pads, witness) = sample_pads(geometry, rng, f);
+    (pads.0, witness)
 }
 
 #[cfg(test)]

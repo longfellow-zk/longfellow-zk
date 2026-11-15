@@ -46,7 +46,7 @@ impl<const W: usize, F: SerializableField> Clone for RoundPoly<W, F> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct LayerProof<const W: usize, F: SerializableField> {
     pub rounds: Vec<RoundPoly<W, F>>,
     /// Masked cross coefficient, fixed before the terminal mask scale is sampled.
@@ -69,9 +69,27 @@ pub struct LayerProof<const W: usize, F: SerializableField> {
 /// let g = SumcheckProofGeometry::new(vec![]).unwrap();
 /// let _ = SumcheckProof::<4, P256Field>::read(&mut &[][..], &g, &P256Field::new());
 /// ```
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SumcheckProof<const W: usize, F: SerializableField> {
     pub layers: Vec<LayerProof<W, F>>,
+}
+// Cloning copies elements; it does not need the field descriptor `F` itself
+// to be `Clone`.
+impl<const W: usize, F: SerializableField> Clone for LayerProof<W, F> {
+    fn clone(&self) -> Self {
+        Self {
+            rounds: self.rounds.clone(),
+            cross: self.cross.clone(),
+            claims: self.claims.clone(),
+        }
+    }
+}
+impl<const W: usize, F: SerializableField> Clone for SumcheckProof<W, F> {
+    fn clone(&self) -> Self {
+        Self {
+            layers: self.layers.clone(),
+        }
+    }
 }
 /// The round count of each layer, outputs to inputs. Every value is valid:
 /// each count is at most `MAX_LOGW` and the pad and element counts fit

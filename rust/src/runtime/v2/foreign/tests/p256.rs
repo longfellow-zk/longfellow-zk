@@ -136,7 +136,8 @@ fn tree_leaves_authenticate_claim_bits_and_masked_quotients() {
         };
         let inputs = with_leaves(&committed);
         let geometry = sumcheck::circuit_geometry(&[&c]).unwrap();
-        let (pads_sc, _) = sumcheck::sample_pads(&geometry, &mut DeterministicRng::new(5), &f);
+        let (pads_sc, _) =
+            sumcheck::sample_pads_for_test(&geometry, &mut DeterministicRng::new(5), &f);
         let (proof, claim_sc) = sumcheck::top_and_prove(
             &[&c],
             inputs.clone(),

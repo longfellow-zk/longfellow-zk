@@ -19,7 +19,7 @@ use crate::{
                 eval_circuit,
                 monomial::weights,
                 prove,
-                prover::sample_pads,
+                prover::sample_pads_for_test,
                 quad::{affine_constant, bind_l, bind_r, weights_next_affine},
                 split::SplitLayer,
                 tests::diagnostic::verify,
@@ -170,7 +170,7 @@ fn three_streams<
         .build(),
     );
     let mut rng = DeterministicRng::new(1234);
-    let (pads, _) = sample_pads(&circuit_geometry(&[&c]).unwrap(), &mut rng, f);
+    let (pads, _) = sample_pads_for_test(&circuit_geometry(&[&c]).unwrap(), &mut rng, f);
     let witnesses = eval_circuit(inputs.clone(), &c, f).unwrap();
     let (proof, constraints) = prove(
         witnesses,
@@ -439,7 +439,7 @@ where
     let inputs = vec![x, y, target];
     let witnesses = eval_circuit(inputs.clone(), &c, f).unwrap();
     let mut rng = DeterministicRng::new(334);
-    let (pads, _) = sample_pads(&circuit_geometry(&[&c]).unwrap(), &mut rng, f);
+    let (pads, _) = sample_pads_for_test(&circuit_geometry(&[&c]).unwrap(), &mut rng, f);
     let (proof, _) = prove(
         witnesses,
         &pads,

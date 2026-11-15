@@ -52,7 +52,8 @@ fn batching_uses_widths_instead_of_cached_logw() {
         assert_eq!(geometry.layers(), [2]);
         let public = [f.u64_to_element(6)];
         let private = vec![f.u64_to_element(2), f.u64_to_element(3), f.zero()];
-        let (pads, suffix) = sumcheck::sample_pads(&geometry, &mut DeterministicRng::new(42), &f);
+        let (pads, suffix) =
+            sumcheck::sample_pads_for_test(&geometry, &mut DeterministicRng::new(42), &f);
         let mut values = private.clone();
         values.extend(suffix);
         let mut inputs = public.to_vec();

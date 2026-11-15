@@ -306,7 +306,7 @@ where F: RuntimeField<W> + RegisteredField + SupportsSampling {
         runtime::{
             random::DeterministicRng,
             v2::{
-                sumcheck::{self, circuit_geometry, prover::sample_pads},
+                sumcheck::{self, circuit_geometry, prover::sample_pads_for_test},
                 transcript::Transcript,
             },
         },
@@ -390,7 +390,7 @@ where F: RuntimeField<W> + RegisteredField + SupportsSampling {
         witnesses
     );
     let mut rng = DeterministicRng::new(44);
-    let (pads, _) = sample_pads(&circuit_geometry(&[&circuit]).unwrap(), &mut rng, f);
+    let (pads, _) = sample_pads_for_test(&circuit_geometry(&[&circuit]).unwrap(), &mut rng, f);
     let mut actual = Transcript::for_test(b"private-layer-split");
     let got =
         sumcheck::evaluate_and_prove(inputs.clone(), &pads, &circuit, &mut actual.borrow(), f)
@@ -501,7 +501,7 @@ where F: RuntimeField<W> + RegisteredField + SupportsSampling {
         runtime::{
             random::DeterministicRng,
             v2::{
-                sumcheck::{self, circuit_geometry, prover::sample_pads},
+                sumcheck::{self, circuit_geometry, prover::sample_pads_for_test},
                 transcript::Transcript,
             },
         },
@@ -549,7 +549,7 @@ where F: RuntimeField<W> + RegisteredField + SupportsSampling {
     assert_eq!(circuit.raw.layers[0].assertion_counts(), [0, 0]);
     assert_eq!(circuit.raw.layers[1].assertion_counts(), [1, 1]);
     let geometry = circuit_geometry(&[&circuit]).unwrap();
-    let (pads, _) = sample_pads(&geometry, &mut rng, f);
+    let (pads, _) = sample_pads_for_test(&geometry, &mut rng, f);
     let mut actual = Transcript::for_test(b"two-layer-schedule");
     let got =
         sumcheck::evaluate_and_prove(inputs.clone(), &pads, &circuit, &mut actual.borrow(), f)
