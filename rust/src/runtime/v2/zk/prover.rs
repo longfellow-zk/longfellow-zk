@@ -142,7 +142,7 @@ pub fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W
         .parameters
         .extension()
         .into_input_elements(f, state.private);
-    let mut inputs = prepare_inputs(&part.public, private);
+    let mut inputs = prepare_inputs(&part.public, private, virtual_inputs.entries.len());
     for v in &virtual_inputs.entries {
         let value = f.addf(&v.constant, &f.mulf(&v.coefficient, &inputs[v.source]));
         inputs.push(value);
@@ -282,8 +282,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         ))
     }
 }
-fn prepare_inputs<E: Clone>(public: &[E], private: Vec<E>) -> Vec<E> {
-    let mut inputs = Vec::with_capacity(public.len() + private.len());
+/// Lays out the public and private inputs, reserving room for `nvirtual`
+/// virtual inputs: sumcheck keeps this vector while it proves the layers,
+/// so growing it afterwards would keep twice its capacity alive.
+fn prepare_inputs<E: Clone>(public: &[E], private: Vec<E>, nvirtual: usize) -> Vec<E> {
+    let mut inputs = Vec::with_capacity(public.len() + private.len() + nvirtual);
     inputs.extend_from_slice(public);
     inputs.extend(private);
     inputs
