@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.StrandMerkleSelector
 import LfzkV2.Current.Soundness.OracleBounds
 

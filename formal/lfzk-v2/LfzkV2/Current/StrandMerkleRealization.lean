@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.StrandCommitment
 import TranscriptV2.CompositionTransport
 import LfzkV2.Current.StrandRuntime

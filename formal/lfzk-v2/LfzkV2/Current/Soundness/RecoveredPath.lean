@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.Soundness.OracleTransport
 
 /-! Recover accepted logical paths from the common raw execution view.

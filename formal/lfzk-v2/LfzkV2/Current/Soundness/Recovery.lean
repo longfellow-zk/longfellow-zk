@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.StrandMerkleBounds
 import LfzkV2.Current.StrandMerkleRealization
 import LfzkV2.Current.Soundness.RecoveredPath

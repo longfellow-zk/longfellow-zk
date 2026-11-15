@@ -1,4 +1,4 @@
-import LfzkV2.Current.CanonicalPrefix
+import LfzkV2.Current.PublicRequest
 
 /-! The first mdoc boundary contains the public presentation bits, participant
 layouts and joint root. Later prime-field public inputs are deliberately absent
@@ -157,10 +157,7 @@ theorem read_canonical (setup : Setup) (publicCount : ℕ) (input : Bytes) (key 
 
 /-- Requests may contain later public values, but the initial context is
 computed from the early projection alone. This permits shared early prefixes. -/
-structure Request (publicCount primeCount : ℕ) (Prime : Type) where
-  session : BoundedBytes CanonicalPrefix.maxLength
-  publicBits : Fin publicCount → Bool
-  primeInputs : Fin primeCount → Prime
+abbrev Request (publicCount primeCount : ℕ) (Prime : Type) := PublicRequest publicCount primeCount Prime
 
 def context {publicCount primeCount : ℕ} {Prime : Type}
     (request : Request publicCount primeCount Prime) (root : Digest) : Key publicCount :=

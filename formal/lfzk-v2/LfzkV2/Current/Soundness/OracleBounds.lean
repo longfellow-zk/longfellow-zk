@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.Soundness.OracleTransport
 import LfzkV2.Current.StrandOriginalSeal
 import TranscriptV2.StrandMissingQueries

@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.StrandReplay
 import LfzkV2.Current.Protocol.Observation
 import LfzkV2.Current.StrandCutObservation

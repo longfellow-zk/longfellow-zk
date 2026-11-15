@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.StrandVerifier
 import LfzkV2.Current.CanonicalReplay
 import LfzkV2.Current.CanonicalRuntime
