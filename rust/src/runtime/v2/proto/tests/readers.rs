@@ -115,6 +115,8 @@ fn composed_writer_and_reader_agree_on_every_constructible_geometry() {
     impl AdapterMessage for Empty {
         const BYTES: usize = 0;
         fn write(&self, _: &mut Vec<u8>) {}
+    }
+    impl super::super::composed::sealed::Read for Empty {
         fn read(_: &mut &[u8]) -> Result<Self, String> {
             Ok(Self)
         }

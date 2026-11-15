@@ -5,7 +5,10 @@
 //! `Otp<N>` is a uniform pad committed with the binary witness. The proof
 //! carries only `MaskedWord<N>`: an element of GF(2)^N, neither an integer nor
 //! a field element, whose canonical encoding is defined once here.
-use crate::runtime::{random::PrivateRandom, v2::proto::composed::AdapterMessage};
+use crate::runtime::{
+    random::PrivateRandom,
+    v2::proto::composed::{sealed, AdapterMessage},
+};
 
 const fn mask(n: usize) -> u64 {
     if n == 64 {
@@ -96,6 +99,8 @@ impl<const N: usize> AdapterMessage for [MaskedWord<N>; 2] {
             m.write(out);
         }
     }
+}
+impl<const N: usize> sealed::Read for [MaskedWord<N>; 2] {
     fn read(b: &mut &[u8]) -> Result<Self, String> {
         Ok([MaskedWord::read(b)?, MaskedWord::read(b)?])
     }

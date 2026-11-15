@@ -25,11 +25,18 @@ use crate::{
 };
 
 /// The adapter's message in a composed proof, with its canonical encoding
-/// of exactly `BYTES` bytes.
-pub trait AdapterMessage: Sized {
+/// of exactly `BYTES` bytes. Its reader is sealed: only the crate's
+/// complete readers parse it, after the whole proof's length check (proto
+/// I2), and no type outside the crate implements it.
+pub trait AdapterMessage: sealed::Read {
     const BYTES: usize;
     fn write(&self, out: &mut Vec<u8>);
-    fn read(b: &mut &[u8]) -> Result<Self, String>;
+}
+pub(crate) mod sealed {
+    /// The adapter message's reader: exactly `AdapterMessage::BYTES` bytes.
+    pub trait Read: Sized {
+        fn read(b: &mut &[u8]) -> Result<Self, String>;
+    }
 }
 
 /// Public dimensions of a composed proof: the host and split circuit
@@ -86,27 +93,41 @@ impl ComposedGeometry {
 /// ```compile_fail,E0624
 /// use longfellow_zk::runtime::{
 ///     algebra::gf2_128::Gf2_128Field,
-///     v2::proto::{
-///         composed::{AdapterMessage, ComposedGeometry, ComposedProof},
-///         polygero::PolygeroConfig,
-///         sumcheck::SumcheckProofGeometry,
-///         zk::CircuitGeometry,
+///     v2::{
+///         foreign::word::MaskedWord,
+///         proto::{
+///             composed::{ComposedGeometry, ComposedProof},
+///             polygero::PolygeroConfig,
+///             sumcheck::SumcheckProofGeometry,
+///             zk::CircuitGeometry,
+///         },
 ///     },
 /// };
-/// struct Empty;
-/// impl AdapterMessage for Empty {
-///     const BYTES: usize = 0;
-///     fn write(&self, _: &mut Vec<u8>) {}
-///     fn read(_: &mut &[u8]) -> Result<Self, String> {
-///         Ok(Self)
-///     }
-/// }
 /// let c = || CircuitGeometry::new(SumcheckProofGeometry::new(vec![]).unwrap(), 1, 0).unwrap();
 /// let config = PolygeroConfig { k: 2, s: 0, n: 4, t: 1 };
 /// let g = ComposedGeometry::new(c(), c(), config).unwrap();
 /// let f = Gf2_128Field::new();
-/// type Body = ComposedProof<2, Gf2_128Field, 2, Gf2_128Field, Empty>;
+/// type Body = ComposedProof<2, Gf2_128Field, 2, Gf2_128Field, [MaskedWord<10>; 2]>;
 /// let _ = Body::read(&[], &g, &f, &f);
+/// ```
+///
+/// Nor is the adapter message read on its own outside the crate:
+///
+/// ```compile_fail,E0599
+/// use longfellow_zk::runtime::v2::{foreign::word::MaskedWord, proto::composed::AdapterMessage};
+/// let mut b: &[u8] = &[0; 4];
+/// let _ = <[MaskedWord<10>; 2]>::read(&mut b);
+/// ```
+///
+/// and no type outside the crate is an adapter message:
+///
+/// ```compile_fail,E0277
+/// use longfellow_zk::runtime::v2::proto::composed::AdapterMessage;
+/// struct Empty;
+/// impl AdapterMessage for Empty {
+///     const BYTES: usize = 0;
+///     fn write(&self, _: &mut Vec<u8>) {}
+/// }
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComposedProof<
