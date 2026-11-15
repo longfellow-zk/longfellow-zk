@@ -8,8 +8,9 @@ terminator, 0 (ROUND) or 1 (SEAL). Parsing needs only the registries, and a
 concatenation of nodes is an injective encoding of its node sequence.
 
 The deployed format, `TaggedFormat`, writes its nodes with the typed codecs
-of `TaggedCodec`; `Tests.TaggedFormat` checks their bytes against the Rust
-vectors. -/
+of `TaggedCodec`. `TaggedGrammar` proves that their bytes are this grammar
+over the deployed registry, and `Tests.TaggedFormat` and `Tests.TaggedGrammar`
+check the Rust vectors. -/
 namespace LfzkV2.Current.Grammar
 open TranscriptV2.Framing (Byte encodeLE take take_length_append take_sound)
 

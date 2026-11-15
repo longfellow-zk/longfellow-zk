@@ -63,6 +63,7 @@ import LfzkV2.Current.Tests.QueryCodec
 import LfzkV2.Current.Tests.Format
 import LfzkV2.Current.Tests.TaggedFormat
 import LfzkV2.Current.Tests.Grammar
+import LfzkV2.Current.Tests.TaggedGrammar
 import LfzkV2.Current.Tests.OpeningSampling
 import LfzkV2.Current.Tests.ReplayCongruence
 import LfzkV2.Current.Tests.Tightness

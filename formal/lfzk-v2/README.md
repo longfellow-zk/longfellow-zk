@@ -236,7 +236,12 @@ such role.
 format: node 0 is the statement (setup constants, both circuits' public
 inputs and the commitment), each later node is the tagged prover messages of
 its boundary (`TaggedCodec`), and the seal node is the `Seal` message of the
-whole body. Its body is the canonical MDA7 body, including the terminal
+whole body. [`TaggedGrammar`](LfzkV2/Current/TaggedGrammar.lean) proves
+that these nodes are [`Grammar`](LfzkV2/Current/Grammar.lean) nodes over the
+deployed tag and field registries: each message's bytes are the grammar
+encoding of values that determine it, so the grammar's injectivity applies to
+the deployed bytes; node 0 has the setup's statement bytes before its
+messages. Its body is the canonical MDA7 body, including the terminal
 authentication frontier, its u64 count first. The body is the
 composed proof in physical order: shared root, both fingerprint responses,
 the prime reduction, `mu`, the two masked quotients, the binary reduction and
