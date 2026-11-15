@@ -379,6 +379,24 @@ establish that a cryptographic implementation satisfies their premises.
   the same oracle; unreachable policy branches impose no validity obligation.
   Witness selection is fixed at that context before proof generation; the
   simulator remains witness-free.
+- **Evaluation domain.** No transcript message binds the evaluation-domain
+  identity: the verifier fixes it (`EvaluationDomain`), and Merkle hashing
+  uses a fixed domain. Its correctness is a trusted-configuration premise.
+- **Pure-foreign storage.** Pure-foreign storage is specified, and its row
+  batching is modeled (`RowBatching`, `PureHandoff`, `PureComposition`). No
+  application may use it until an application model lists its events and
+  charges them in its schedule, an adapter budget covers its larger quotient
+  width, and a zero-knowledge endpoint covers a participant with no prime
+  commitment.
+- **Unbound surfaces.** Static Polygero statements (`LinearStatement::new`),
+  the bare Polygero body codec and standalone verify, and
+  `Transcript::bound_for_test` exist only in test and tooling builds, and the
+  transcript does not bind them. The traits `Statement`, `SetupMessage` and
+  `Message` are open, and an implementation outside the crate is trusted. No
+  prove, verify or read entry point accepts an outside `Statement`; the
+  composition driver accepts any `SetupMessage` as its identity message
+  (`Composition::statement`), so an application's identity encoding is
+  trusted.
 - **Efficiency and implementation.** Extraction uses mathematical finite
   search; no polynomial-time extractor bound is proved. The explicit public
   simulator has no witness argument, but its running time is not formally
