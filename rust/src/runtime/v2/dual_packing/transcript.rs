@@ -53,7 +53,7 @@ where
         w.write_elt_field_slice(u, p.field());
         let mut r = w.begin_squeeze();
         let value = (0..p.degree())
-            .map(|_| p.field().sample(|n| r.bytes(n)))
+            .map(|_| p.field().sample(|out| r.fill(out)))
             .collect();
         r.end_round(value)
     })

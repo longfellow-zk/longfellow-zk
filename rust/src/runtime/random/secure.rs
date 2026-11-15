@@ -28,8 +28,11 @@ impl SecureRandomEngine {
 impl RandomEngine for SecureRandomEngine {
     fn bytes(&mut self, len: usize) -> Vec<u8> {
         let mut buf = vec![0u8; len];
-        getrandom::fill(&mut buf).expect("Failed to generate secure random bytes from OS CSPRNG");
+        self.fill(&mut buf);
         buf
+    }
+    fn fill(&mut self, out: &mut [u8]) {
+        getrandom::fill(out).expect("Failed to generate secure random bytes from OS CSPRNG");
     }
 }
 

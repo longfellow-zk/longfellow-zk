@@ -189,8 +189,12 @@ impl<'a> Reading<'a> {
         self.reader.read(&mut bytes);
         bytes
     }
+    /// Fill `out` with the next bytes of the stream.
+    pub fn fill(&mut self, out: &mut [u8]) {
+        self.reader.read(out);
+    }
     pub fn elt_field<F: SupportsSampling>(&mut self, f: &F) -> F::E {
-        f.sample(|n| self.bytes(n))
+        f.sample(|out| self.reader.read(out))
     }
     pub fn elt_field_slice<F: SupportsSampling>(&mut self, n: usize, f: &F) -> Vec<F::E> {
         (0..n).map(|_| self.elt_field(f)).collect()

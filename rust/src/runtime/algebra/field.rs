@@ -58,7 +58,9 @@ pub trait RuntimeField<const W: usize>: AlgebraicField {
 }
 
 pub trait SupportsSampling: AlgebraicField {
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, rng: R) -> Self::E;
+    /// Draw one element. `fill` writes fresh random bytes into the buffer it is
+    /// given; the field owns the buffer, so its length is the field's to choose.
+    fn sample<R: FnMut(&mut [u8])>(&self, fill: R) -> Self::E;
 }
 
 pub trait RuntimeBinaryField<const W: usize>: RuntimeField<W> {}

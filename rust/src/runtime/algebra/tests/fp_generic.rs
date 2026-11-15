@@ -22,7 +22,7 @@ use crate::{
     runtime::algebra::{
         fp_generic::{FpGenericElement, FpGenericField, MontgomeryStrategy},
         limb::LIMBS_PER_U64,
-        RuntimeField, RuntimeNat, SupportsSampling,
+        RuntimeField, RuntimeNat,
     },
 };
 
@@ -285,16 +285,6 @@ fn test_invert_zero_panics() {
             0xffff_ffff_ffff_ffc5,
         ]);
     field.invert(&field.zero());
-}
-
-#[test]
-#[should_panic(expected = "sampling callback returned an unexpected number of bytes")]
-fn test_sampling_rejects_wrong_byte_count() {
-    let field =
-        FpGenericField::<1, { LIMBS_PER_U64 }, { 2 * LIMBS_PER_U64 + 1 }, ()>::new_generic([
-            0xffff_ffff_ffff_ffc5,
-        ]);
-    field.sample(|requested| vec![0; requested - 1]);
 }
 
 #[test]

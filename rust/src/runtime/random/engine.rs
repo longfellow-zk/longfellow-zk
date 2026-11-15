@@ -19,9 +19,15 @@ pub trait RandomEngine {
     /// Generates raw pseudorandom bytes of the specified length.
     fn bytes(&mut self, len: usize) -> Vec<u8>;
 
+    /// Fill `out` with the next `out.len()` bytes, exactly as `bytes` would
+    /// return them. Engines override it to avoid the allocation.
+    fn fill(&mut self, out: &mut [u8]) {
+        out.copy_from_slice(&self.bytes(out.len()));
+    }
+
     /// Generates a random field element.
     fn elt_field<F: SupportsSampling>(&mut self, f: &F) -> F::E {
-        f.sample(|len| self.bytes(len))
+        f.sample(|out| self.fill(out))
     }
 
     /// Generates a slice of field elements with random values.

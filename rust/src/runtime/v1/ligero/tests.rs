@@ -154,8 +154,8 @@ fn ligero_test<
     let mut w = vec![f.zero(); nw];
     let mut a = vec![f.zero(); nw];
     for i in 0..nw {
-        w[i] = f.sample(|buf| rng.bytes(buf));
-        a[i] = f.sample(|buf| rng.bytes(buf));
+        w[i] = rng.elt_field(f);
+        a[i] = rng.elt_field(f);
     }
 
     let mut lqc = vec![LigeroQuadraticConstraint { x: 0, y: 0, z: 0 }; nq];
@@ -318,8 +318,8 @@ fn test_ligero_verifier_failures_generic<
     let mut w = vec![f.zero(); nw];
     let mut a = vec![f.zero(); nw];
     for i in 0..nw {
-        w[i] = f.sample(|buf| rng.bytes(buf));
-        a[i] = f.sample(|buf| rng.bytes(buf));
+        w[i] = rng.elt_field(f);
+        a[i] = rng.elt_field(f);
     }
 
     let mut lqc = vec![LigeroQuadraticConstraint { x: 0, y: 0, z: 0 }; nq];

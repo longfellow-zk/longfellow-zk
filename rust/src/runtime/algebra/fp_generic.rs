@@ -612,17 +612,16 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
 impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>
     SupportsSampling for FpGenericField<W, L, ACCUM_L, Tag, S>
 {
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
+    fn sample<R: FnMut(&mut [u8])>(&self, mut fill: R) -> Self::E {
+        // Large enough for every supported modulus (W <= 16 words).
+        let mut buf = [0u8; 128];
+        let raw = &mut buf[..W * 8];
         loop {
-            let mut raw = rng(self.sample_byte_count);
-            assert_eq!(
-                raw.len(),
-                self.sample_byte_count,
-                "sampling callback returned an unexpected number of bytes"
-            );
-            *raw.last_mut().unwrap() &= self.sample_high_mask;
-            raw.resize(W * 8, 0);
-            if let Ok(x) = self.bytes_to_element(&raw) {
+            raw.fill(0);
+            let drawn = &mut raw[..self.sample_byte_count];
+            fill(drawn);
+            *drawn.last_mut().unwrap() &= self.sample_high_mask;
+            if let Ok(x) = self.bytes_to_element(raw) {
                 return x;
             }
         }

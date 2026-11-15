@@ -69,7 +69,7 @@ fn prime_sampling_masks_exact_bits_and_ignores_storage_padding() {
             *padded.last_mut().unwrap() |= u8::MAX << (bits % 8);
         }
         let mut draws = Draws::new([bound, padded]);
-        let x = f.sample(|n| draws.bytes(n));
+        let x = f.sample(|out| out.copy_from_slice(&draws.bytes(out.len())));
         draws.exhausted();
         assert_eq!(draws.requests, vec![byte_count, byte_count]);
         assert_eq!(
@@ -86,7 +86,7 @@ fn full_width_prime<F: SupportsSampling + SerializableField>(f: &F) {
     let max =
         (num_bigint::BigUint::from_bytes_le(&p) - num_bigint::BigUint::from(1u8)).to_bytes_le();
     let mut draws = Draws::new([p, max.clone()]);
-    let x = f.sample(|n| draws.bytes(n));
+    let x = f.sample(|out| out.copy_from_slice(&draws.bytes(out.len())));
     draws.exhausted();
     assert_eq!(draws.requests, [32, 32]);
     assert_eq!(f.to_bytes(&x), max);
@@ -113,7 +113,7 @@ fn binary_field_and_subfields_use_all_and_only_the_required_bits() {
     };
     let mut draws = Draws::new([vec![0xff; 16]]);
     assert_eq!(
-        Gf2_128Field::new().sample(|n| draws.bytes(n)),
+        Gf2_128Field::new().sample(|out| out.copy_from_slice(&draws.bytes(out.len()))),
         Gf2_128::from(u128::MAX)
     );
     draws.exhausted();

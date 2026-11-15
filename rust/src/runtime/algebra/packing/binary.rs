@@ -39,14 +39,10 @@ impl AlgebraicField for Gf2 {
     }
 }
 impl SupportsSampling for Gf2 {
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> bool {
-        let bytes = rng(1);
-        assert_eq!(
-            bytes.len(),
-            1,
-            "sampling callback returned an unexpected number of bytes"
-        );
-        bytes[0] & 1 != 0
+    fn sample<R: FnMut(&mut [u8])>(&self, mut fill: R) -> bool {
+        let mut byte = [0u8];
+        fill(&mut byte);
+        byte[0] & 1 != 0
     }
 }
 impl SerializableField for Gf2 {
@@ -244,14 +240,10 @@ impl AlgebraicField for Gf256 {
     }
 }
 impl SupportsSampling for Gf256 {
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
-        let bytes = rng(1);
-        assert_eq!(
-            bytes.len(),
-            1,
-            "sampling callback returned an unexpected number of bytes"
-        );
-        self.element(bytes[0])
+    fn sample<R: FnMut(&mut [u8])>(&self, mut fill: R) -> Self::E {
+        let mut byte = [0u8];
+        fill(&mut byte);
+        self.element(byte[0])
     }
 }
 impl SerializableField for Gf256 {

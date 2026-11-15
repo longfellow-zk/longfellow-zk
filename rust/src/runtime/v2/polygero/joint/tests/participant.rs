@@ -102,7 +102,7 @@ impl RuntimeField<4> for EncodingWidth {
     }
 }
 impl SupportsSampling for EncodingWidth {
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, rng: R) -> Self::E {
+    fn sample<R: FnMut(&mut [u8])>(&self, rng: R) -> Self::E {
         self.field.sample(rng)
     }
 }

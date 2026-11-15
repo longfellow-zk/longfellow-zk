@@ -130,12 +130,12 @@ impl<const P: u8> AlgebraicField for Prime<P> {
     }
 }
 impl<const P: u8> SupportsSampling for Prime<P> {
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> u8 {
+    fn sample<R: FnMut(&mut [u8])>(&self, mut fill: R) -> u8 {
         let mask = u8::MAX >> (P - 1).leading_zeros();
         loop {
-            let bytes = rng(1);
-            assert_eq!(bytes.len(), 1);
-            let n = bytes[0] & mask;
+            let mut byte = [0u8];
+            fill(&mut byte);
+            let n = byte[0] & mask;
             if n < P {
                 return n;
             }
@@ -211,12 +211,12 @@ impl<const P: u8, const A: u8, const B: u8> AlgebraicField for Quad<P, A, B> {
     }
 }
 impl<const P: u8, const A: u8, const B: u8> SupportsSampling for Quad<P, A, B> {
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
+    fn sample<R: FnMut(&mut [u8])>(&self, mut fill: R) -> Self::E {
         let mask = u8::MAX >> (P * P - 1).leading_zeros();
         loop {
-            let bytes = rng(1);
-            assert_eq!(bytes.len(), 1);
-            let n = bytes[0] & mask;
+            let mut byte = [0u8];
+            fill(&mut byte);
+            let n = byte[0] & mask;
             if n < P * P {
                 return [n % P, n / P];
             }
@@ -729,9 +729,9 @@ fn sparse_prime_codec_samples_uniformly_without_padding_grinding() {
     let mut rng = DeterministicRng::new(217);
     let mut calls = 0;
     for _ in 0..100 {
-        let x = field.sample(|n| {
+        let x = field.sample(|out| {
             calls += 1;
-            rng.bytes(n)
+            rng.fill(out);
         });
         assert!(field.bytes_to_element(&field.to_bytes(&x)).is_ok());
     }

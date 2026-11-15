@@ -21,15 +21,18 @@ pub struct DeterministicRng {
 
 impl RandomEngine for DeterministicRng {
     fn bytes(&mut self, len: usize) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(len);
-        for _ in 0..len {
+        let mut buf = vec![0u8; len];
+        self.fill(&mut buf);
+        buf
+    }
+    fn fill(&mut self, out: &mut [u8]) {
+        for b in out {
             self.state = self
                 .state
                 .wrapping_mul(6_364_136_223_846_793_005)
                 .wrapping_add(1);
-            buf.push((self.state >> 56) as u8);
+            *b = (self.state >> 56) as u8;
         }
-        buf
     }
 }
 

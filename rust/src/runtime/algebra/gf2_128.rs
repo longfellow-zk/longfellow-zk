@@ -219,15 +219,10 @@ impl RuntimeField<2> for Gf2_128Field {
 }
 
 impl SupportsSampling for Gf2_128Field {
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
-        let buf = rng(16);
-        assert_eq!(
-            buf.len(),
-            16,
-            "sampling callback returned an unexpected number of bytes"
-        );
-        let val = u128::from_le_bytes(buf.try_into().unwrap());
-        Gf2_128::from(val)
+    fn sample<R: FnMut(&mut [u8])>(&self, mut fill: R) -> Self::E {
+        let mut buf = [0u8; 16];
+        fill(&mut buf);
+        Gf2_128::from(u128::from_le_bytes(buf))
     }
 }
 

@@ -46,7 +46,9 @@ impl SubfieldV1 for P256SubfieldV1<'_> {
         SerializableField::bytes_to_element(self.field, bytes)
     }
 
-    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, rng: R) -> Self::E {
-        SupportsSampling::sample(self.field, rng)
+    fn sample<R: FnMut(usize) -> Vec<u8>>(&self, mut rng: R) -> Self::E {
+        SupportsSampling::sample(self.field, |out: &mut [u8]| {
+            out.copy_from_slice(&rng(out.len()))
+        })
     }
 }
