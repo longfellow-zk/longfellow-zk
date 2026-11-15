@@ -158,6 +158,24 @@ fn frontend_cannot_address_fingerprint_masks_and_bad_lengths_do_not_consume_mask
             .unwrap(),
         "frontend constraint outside original witness layout"
     );
+    // A term on an equation the frontend did not create (c >= b.len()).
+    let mut unknown_t = Transcript::for_test(b"shape");
+    let unknown_a = param.challenges(&mut unknown_t.borrow());
+    let mut unknown = statement(&unknown_t);
+    unknown.b.push(f.zero());
+    unknown.a.push(PolygeroLinearTerm {
+        c: 1,
+        w: 0,
+        k: f.one(),
+    });
+    assert_eq!(
+        param
+            .fields
+            .authenticate((unknown, ()), unknown_a, &response, &stamp(&unknown_t))
+            .err()
+            .unwrap(),
+        "frontend term on an equation it did not create"
+    );
     assert!(witness_count(usize::MAX).is_err());
 }
 /// The identity of `t`'s session.

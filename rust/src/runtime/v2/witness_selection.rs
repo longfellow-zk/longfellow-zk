@@ -64,13 +64,14 @@ impl<
         if statements.0.session != *session {
             return Err("frontend equations derived on another session".into());
         }
-        if statements
-            .0
-            .a
-            .iter()
-            .any(|term| term.w >= n || term.c >= statements.0.b.len())
-        {
-            return Err("frontend constraint outside original witness layout".into());
+        let equations = statements.0.b.len();
+        for term in &statements.0.a {
+            if term.w >= n {
+                return Err("frontend constraint outside original witness layout".into());
+            }
+            if term.c >= equations {
+                return Err("frontend term on an equation it did not create".into());
+            }
         }
         for (j, (a, response)) in coefficients
             .0
