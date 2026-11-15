@@ -14,8 +14,6 @@
 
 //! Owned logical bits, independent of fields and proof protocols.
 
-use std::ops::Range;
-
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct PackedBits {
     words: Vec<u64>,
@@ -23,56 +21,12 @@ pub struct PackedBits {
 }
 
 impl PackedBits {
-    fn with_capacity(bits: usize) -> Self {
-        Self {
-            words: Vec::with_capacity(bits.div_ceil(64)),
-            len: 0,
-        }
-    }
-
-    pub fn from_le_bytes(bytes: &[u8], bit_len: usize) -> Result<Self, String> {
-        if bytes.len() != bit_len.div_ceil(8) {
-            return Err("logical bit byte length mismatch".into());
-        }
-        if !bit_len.is_multiple_of(8) && bytes.last().is_some_and(|last| last >> (bit_len % 8) != 0)
-        {
-            return Err("noncanonical logical bit padding".into());
-        }
-        let mut result = Self::with_capacity(bit_len);
-        for i in 0..bit_len {
-            result.push((bytes[i / 8] >> (i % 8)) & 1 != 0);
-        }
-        Ok(result)
-    }
-
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.len
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len == 0
-    }
-
-    #[inline]
-    pub fn get(&self, index: usize) -> bool {
-        assert!(index < self.len, "logical bit index out of range");
-        (self.words[index / 64] >> (index % 64)) & 1 != 0
-    }
-
     fn push(&mut self, bit: bool) {
         if self.len.is_multiple_of(64) {
             self.words.push(0);
         }
         self.words[self.len / 64] |= u64::from(bit) << (self.len % 64);
         self.len += 1;
-    }
-
-    pub fn slice(&self, range: Range<usize>) -> Result<Self, String> {
-        if range.start > range.end || range.end > self.len {
-            return Err("logical bit range out of bounds".into());
-        }
-        Ok(range.map(|i| self.get(i)).collect())
     }
 
     /// Raw logical coordinates, not a field's polynomial-basis encoding.

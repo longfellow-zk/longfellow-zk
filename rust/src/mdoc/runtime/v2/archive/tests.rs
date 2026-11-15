@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use crate::mdoc::v2::archive::*;
+use crate::{core::proto::archive::CircuitArchiveBuilder, mdoc::v2::archive::*};
 
 #[test]
 fn compressed_file_reads_stop_at_the_named_limit() {
@@ -15,7 +15,7 @@ fn compressed_file_reads_stop_at_the_named_limit() {
 }
 #[test]
 fn compressed_archive_checks_trailing_data_and_window_size() {
-    let mut builder = CircuitArchive::builder();
+    let mut builder = CircuitArchiveBuilder::new();
     builder.circuit_version = Some(12);
     let archive = builder.build().to_bytes();
     let compressed = zstd::encode_all(archive.as_slice(), 19).unwrap();
@@ -35,7 +35,7 @@ fn compressed_archive_checks_trailing_data_and_window_size() {
 
 #[test]
 fn compressed_archive_rejects_extra_frames_and_skippable_data() {
-    let archive = CircuitArchive::builder().build().to_bytes();
+    let archive = CircuitArchiveBuilder::new().build().to_bytes();
     let compressed = zstd::encode_all(archive.as_slice(), 1).unwrap();
     for extra in [
         zstd::encode_all(&[][..], 1).unwrap(),

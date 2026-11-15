@@ -216,12 +216,6 @@ fn test_ec_properties() {
         &inf,
     );
 
-    // scalar_mul_bytes test
-    let mut bytes = [0u8; 32];
-    bytes[0] = 3;
-    let g3_mul_bytes = scalar_mul_bytes(&curve, &f, &bytes, &g_proj);
-    assert_eq_pts(f, &g3, &g3_mul_bytes);
-
     // additive inverses: P + (-P) = inf
     // For affine point (x, y), inverse is (x, -y).
     // g = (1, 3). neg_g = (1, -3) = (1, 14).

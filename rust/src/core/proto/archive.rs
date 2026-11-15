@@ -112,11 +112,6 @@ pub fn compute_combined_id(entries: &[ArchiveEntry]) -> [u8; 32] {
 
 impl CircuitArchive {
     #[must_use]
-    pub fn builder() -> CircuitArchiveBuilder {
-        CircuitArchiveBuilder::new()
-    }
-
-    #[must_use]
     pub fn get(&self, name: &str) -> Option<&ArchiveEntry> {
         self.entries.iter().find(|e| e.name == name)
     }

@@ -161,24 +161,3 @@ pub fn scalar_mul<F: AlgebraicField, const W: usize, C: Curve<W, F = F>>(
     }
     res
 }
-
-pub fn scalar_mul_bytes<F: AlgebraicField, const W: usize, C: Curve<W, F = F>>(
-    curve: &C,
-    f: &F,
-    scalar_bytes: &[u8],
-    pt: &Pt3<F>,
-) -> Pt3<F> {
-    let mut res = zero(f);
-    let mut temp = pt.clone();
-    for &byte in scalar_bytes {
-        let mut cur_byte = byte;
-        for _ in 0..8 {
-            if (cur_byte & 1) != 0 {
-                res = add(curve, f, &res, &temp);
-            }
-            temp = double(curve, f, &temp);
-            cur_byte >>= 1;
-        }
-    }
-    res
-}

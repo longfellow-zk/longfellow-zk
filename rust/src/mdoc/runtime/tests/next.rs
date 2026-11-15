@@ -18,7 +18,10 @@ use crate::{
     compile::algebra::CompileNat,
     core::{
         algebra::Nat,
-        proto::{archive::CircuitArchive, v2::CircuitReader},
+        proto::{
+            archive::{CircuitArchive, CircuitArchiveBuilder},
+            v2::CircuitReader,
+        },
     },
     mdoc::{
         circuits::cbor::{mdoc::ParsedMdoc, test_utils::parse_test_data},
@@ -1169,7 +1172,7 @@ fn run_next_error_table(test_circuits: &TestCircuits) {
     let own = entries(provided);
     let other = entries(test_circuits.get(req_attrs.len() % 4 + 1).unwrap());
     let (sig, hash) = (own.get("sig").unwrap(), other.get("hash").unwrap());
-    let mut builder = CircuitArchive::builder();
+    let mut builder = CircuitArchiveBuilder::new();
     builder.circuit_version = Some(NEXT_VERSION as u32);
     builder.add_entry("sig", sig.circuit_id, sig.payload.clone());
     builder.add_entry("hash", hash.circuit_id, hash.payload.clone());
