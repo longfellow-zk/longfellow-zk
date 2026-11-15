@@ -37,7 +37,7 @@
 use super::super::symbolic::{Constraints, Pad, PadExpression};
 use crate::{
     core::{
-        algebra::{ElementOf, SerializableField},
+        algebra::{ElementOf, RegisteredField, SerializableField},
         proto::v2::Circuit,
     },
     runtime::{
@@ -55,7 +55,7 @@ use crate::{
 /// `pads` has the proof's shape and stores the secret pads instead of messages.
 pub(in super::super) fn verify<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     inputs: Vec<ElementOf<F>>,
     pads: &SumcheckProof<W, F>,
@@ -75,7 +75,7 @@ pub(in super::super) fn verify<
 /// and pads, then check the layer residuals followed by the final input residual.
 pub(in super::super) fn verify_core<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     inputs: Vec<ElementOf<F>>,
     pads: &SumcheckProof<W, F>,

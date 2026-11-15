@@ -101,6 +101,15 @@ pub trait SerializableField: BareField {
     fn field_id(&self) -> FieldID;
 }
 
+/// A field with a registered `FieldID`: no other field uses its ID, and its
+/// canonical serialization has one fixed width, so the ID alone tells a
+/// reader which field an element belongs to and how to parse it. Only such
+/// a field's elements may be absorbed into a v2 transcript, whose Elements
+/// value names its field by the ID (transcript I5). `FieldID::None` is never
+/// registered. The registered fields are P-256 (`FieldID::P256`, 32 bytes)
+/// and GF(2^128) (`FieldID::Gf2_128`, 16 bytes).
+pub trait RegisteredField: SerializableField {}
+
 /// Identifies the field a circuit's constants and arithmetic belong to. The
 /// numeric values appear in LFC circuit files and in v2 circuit identities.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

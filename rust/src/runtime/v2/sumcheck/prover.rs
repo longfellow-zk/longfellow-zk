@@ -49,7 +49,7 @@ use super::{
     transcript::{end_layer, round_challenge, TopWeights},
 };
 use crate::{
-    core::algebra::SerializableField,
+    core::algebra::{RegisteredField, SerializableField},
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
         random::PrivateRandom,
@@ -65,7 +65,7 @@ use crate::{
 #[cfg(test)]
 pub(crate) fn evaluate_and_prove<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     inputs: Vec<F::E>,
     pads: &SumcheckProof<W, F>,
@@ -81,7 +81,7 @@ pub(crate) fn evaluate_and_prove<
 #[cfg(test)]
 pub(crate) fn top_and_prove<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     circuits: &[impl CircuitSource<F>],
     inputs: Vec<F::E>,
@@ -99,7 +99,7 @@ pub(crate) fn top_and_prove<
 /// advances toward the inputs.
 pub(crate) fn evaluate_and_prove_circuits<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     circuits: &[impl CircuitSource<F>],
     inputs: Vec<F::E>,
@@ -121,7 +121,7 @@ pub(crate) fn evaluate_and_prove_circuits<
 }
 
 #[allow(clippy::too_many_arguments)]
-fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+fn prove_split<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
     circuits: &[impl CircuitSource<F>],
     layers: Vec<Vec<SplitLayer<'_>>>,
     witnesses: Vec<Vec<F::E>>,
@@ -207,7 +207,7 @@ fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + Supports
 /// same combine answer with input assertion coefficients, using only a reader.
 pub(super) fn prove_dot_product<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     mut w: Vec<F::E>,
     mut q_l: Vec<F::E>,
@@ -271,7 +271,7 @@ pub(super) fn prove_dot_product<
 ///
 /// After binding, claim' = sum_i q_l'[i]*w'[i], with one fewer index bit.
 /// Return the masked message, z, and the next claim.
-fn round<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+fn round<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
     w: &mut Vec<F::E>,
     q_l: &mut Vec<F::E>,
     pads: &RoundPoly<W, F>,
@@ -288,7 +288,7 @@ fn round<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
 /// Shared masking, challenge sampling and claim update for every numerical kernel.
 pub(super) fn mask_round<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     p: RoundPoly<W, F>,
     pads: &RoundPoly<W, F>,
@@ -375,7 +375,7 @@ pub(super) fn quad_round_poly<const W: usize, F: RuntimeField<W> + SerializableF
 /// and fresh terminal scale check a random-point identity instead.
 pub(crate) fn sample_pads<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
     R: PrivateRandom,
 >(
     geometry: &SumcheckProofGeometry,

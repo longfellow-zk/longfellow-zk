@@ -4,7 +4,7 @@
 //! The `(Field, Tail)` traversal stays in `lib`, beside the transcript framing
 //! it calls.
 use crate::{
-    core::algebra::SerializableField,
+    core::algebra::RegisteredField,
     runtime::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
@@ -32,13 +32,13 @@ pub(in crate::runtime::v2) fn witness_count(cells: usize) -> Result<usize, Strin
         .ok_or_else(|| "fingerprint witness layout overflow".into())
 }
 
-pub struct Field<'a, const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling, D> {
+pub struct Field<'a, const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling, D> {
     pub(super) backend: Participant<'a, W, F, D>,
     pub(super) f: &'a F,
     pub(super) field_id: Vec<u8>,
     pub(super) cells: usize,
 }
-impl<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling, D> Clone
+impl<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling, D> Clone
     for Field<'_, W, F, D>
 {
     fn clone(&self) -> Self {
@@ -53,7 +53,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling, 
 impl<
         'a,
         const W: usize,
-        F: RuntimeField<W> + SerializableField + SupportsSampling,
+        F: RuntimeField<W> + RegisteredField + SupportsSampling,
         D: EvaluationDomain<W, F>,
     > Field<'a, W, F, D>
 {

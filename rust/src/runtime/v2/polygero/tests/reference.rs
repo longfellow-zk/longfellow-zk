@@ -46,7 +46,7 @@ pub(super) fn snapshot<E: Clone>(
 /// original linear equations, even with consistently recomputed responses.
 pub(super) fn check_recommitted_wrong_witness<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
     D: EvaluationDomain<W, F>,
 >(
     joint: &JointPolygeroParam<(Participant<'_, W, F, D>, ())>,
@@ -143,7 +143,7 @@ fn vanish<F: AlgebraicField>(nodes: &[F::E], f: &F) -> Vec<F::E> {
 #[allow(clippy::too_many_arguments)]
 pub(super) fn check<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
     D: crate::runtime::algebra::range_interpolation::EvaluationDomain<W, F>,
 >(
     joint: &JointPolygeroParam<(Participant<'_, W, F, D>, ())>,

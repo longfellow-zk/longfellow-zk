@@ -8,7 +8,7 @@ use super::{
     ZkContext,
 };
 use crate::{
-    core::proto::v2::Circuit,
+    core::{algebra::RegisteredField, proto::v2::Circuit},
     runtime::{
         algebra::{
             packing::{PackingExtension, PackingField},
@@ -30,11 +30,11 @@ use crate::{
 
 /// One frontend's full committed cell vector. The sibling selection protocol
 /// owns the two extra masks; they are never logical circuit inputs.
-pub struct SelectedField<'a, const W: usize, F: ZkField<W>, D> {
+pub struct SelectedField<'a, const W: usize, F: ZkField<W> + RegisteredField, D> {
     selection: witness_selection::Field<'a, W, F, D>,
     geometry: PolygeroGeometry,
 }
-impl<const W: usize, F: ZkField<W>, D> Clone for SelectedField<'_, W, F, D> {
+impl<const W: usize, F: ZkField<W> + RegisteredField, D> Clone for SelectedField<'_, W, F, D> {
     fn clone(&self) -> Self {
         Self {
             selection: self.selection.clone(),
@@ -42,7 +42,9 @@ impl<const W: usize, F: ZkField<W>, D> Clone for SelectedField<'_, W, F, D> {
         }
     }
 }
-impl<'a, const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>> SelectedField<'a, W, F, D> {
+impl<'a, const W: usize, F: ZkField<W> + RegisteredField, D: EvaluationDomain<W, F>>
+    SelectedField<'a, W, F, D>
+{
     /// Derive the augmented backend geometry from the original frontend cells.
     pub fn new(
         cells: usize,
@@ -65,7 +67,7 @@ impl<'a, const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>> SelectedField
     }
 }
 
-impl<const W: usize, F: ZkField<W>, D> SelectedField<'_, W, F, D> {
+impl<const W: usize, F: ZkField<W> + RegisteredField, D> SelectedField<'_, W, F, D> {
     pub fn geometry(&self) -> PolygeroGeometry {
         self.geometry
     }
@@ -83,8 +85,8 @@ impl Fields for () {
     type Selection = ();
     fn selection(&self) {}
 }
-impl<'a, const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>, T: Fields> Fields
-    for (SelectedField<'a, W, F, D>, T)
+impl<'a, const W: usize, F: ZkField<W> + RegisteredField, D: EvaluationDomain<W, F>, T: Fields>
+    Fields for (SelectedField<'a, W, F, D>, T)
 {
     type Selection = (witness_selection::Field<'a, W, F, D>, T::Selection);
     fn selection(&self) -> Self::Selection {

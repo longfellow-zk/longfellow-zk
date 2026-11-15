@@ -434,11 +434,11 @@ fn prime_zk_comparison() {
     exercise(&f, &d);
 }
 #[test]
-fn q256_zk_comparison() {
+fn p256_scalar_zk_comparison() {
     use crate::runtime::algebra::{
-        q256::Q256Field, range_interpolation::ScalarInterpolatorFactory,
+        p256::P256Field, range_interpolation::ScalarInterpolatorFactory,
     };
-    let f = Q256Field::new();
+    let f = P256Field::new();
     let d = ScalarInterpolatorFactory::new(&f, 128);
     exercise(&f, &d);
 }

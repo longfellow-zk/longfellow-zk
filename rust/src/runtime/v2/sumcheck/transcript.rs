@@ -33,7 +33,7 @@ use super::{
     fragments::{Schedule, SplitFragment},
 };
 use crate::{
-    core::algebra::{ElementOf, SerializableField},
+    core::algebra::{ElementOf, RegisteredField, SerializableField},
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
         v2::{
@@ -45,50 +45,50 @@ use crate::{
 
 /// `SumcheckRound` (48): Elements(F, 2), the masked coefficients c0 - s0 and
 /// c1 - s1 of one round.
-pub(super) struct RoundMessage<'a, F: SerializableField> {
+pub(super) struct RoundMessage<'a, F: RegisteredField> {
     pub(super) f: &'a F,
     pub(super) coefficients: &'a [F::E; 2],
 }
-impl<F: SerializableField> Message for RoundMessage<'_, F> {
+impl<F: RegisteredField> Message for RoundMessage<'_, F> {
     const TAG: Tag = Tag::SumcheckRound;
     fn encode(&self, e: &mut Encoder<'_>) {
         e.elements(self.f, self.coefficients);
     }
 }
-impl<F: SerializableField> ProverMessage for RoundMessage<'_, F> {}
+impl<F: RegisteredField> ProverMessage for RoundMessage<'_, F> {}
 
 /// `SumcheckCross` (49): Elements(F, 1), the masked cross coefficient.
-pub(super) struct CrossMessage<'a, F: SerializableField> {
+pub(super) struct CrossMessage<'a, F: RegisteredField> {
     pub(super) f: &'a F,
     pub(super) cross: &'a F::E,
 }
-impl<F: SerializableField> Message for CrossMessage<'_, F> {
+impl<F: RegisteredField> Message for CrossMessage<'_, F> {
     const TAG: Tag = Tag::SumcheckCross;
     fn encode(&self, e: &mut Encoder<'_>) {
         e.elements(self.f, std::slice::from_ref(self.cross));
     }
 }
-impl<F: SerializableField> ProverMessage for CrossMessage<'_, F> {}
+impl<F: RegisteredField> ProverMessage for CrossMessage<'_, F> {}
 
 /// `SumcheckClaims` (50): Elements(F, 2), the two masked final claims.
-pub(super) struct ClaimsMessage<'a, F: SerializableField> {
+pub(super) struct ClaimsMessage<'a, F: RegisteredField> {
     pub(super) f: &'a F,
     pub(super) claims: &'a [F::E; 2],
 }
-impl<F: SerializableField> Message for ClaimsMessage<'_, F> {
+impl<F: RegisteredField> Message for ClaimsMessage<'_, F> {
     const TAG: Tag = Tag::SumcheckClaims;
     fn encode(&self, e: &mut Encoder<'_>) {
         e.elements(self.f, self.claims);
     }
 }
-impl<F: SerializableField> ProverMessage for ClaimsMessage<'_, F> {}
+impl<F: RegisteredField> ProverMessage for ClaimsMessage<'_, F> {}
 
 /// Send m = [c0-s0,c1-s1] before drawing the round challenge z.
 /// With the pads already committed, fixing both messages determines the
 /// quadratic p(x): its third coefficient is c2 = claim - c0.
 pub(super) fn round_challenge<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     m: &RoundPoly<W, F>,
     transcript: &mut TranscriptRef<'_>,
@@ -104,10 +104,7 @@ pub(super) fn round_challenge<
 /// Send the masked final claims before drawing alpha for A + alpha*B.
 /// Both roles use this step so the layer boundary has one transcript encoding.
 /// Input-level zero assertions extend this same answer after alpha is read.
-pub(super) fn end_layer<
-    const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
->(
+pub(super) fn end_layer<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
     claims: &[F::E; 2],
     transcript: &mut TranscriptRef<'_>,
     f: &F,
@@ -124,7 +121,7 @@ pub(super) fn end_layer<
 /// Fix d before drawing the nonzero mask scale r. The resulting equation
 /// C+r*(d+p_D)+r^2*p_AB=(A+r*p_A)*(B+r*p_B) is affine in committed
 /// cells once the masked factors are messages. Excluding zero keeps both masked.
-pub(super) fn terminal_challenge<F: SerializableField + SupportsSampling>(
+pub(super) fn terminal_challenge<F: RegisteredField + SupportsSampling>(
     cross: &F::E,
     transcript: &mut TranscriptRef<'_>,
     f: &F,

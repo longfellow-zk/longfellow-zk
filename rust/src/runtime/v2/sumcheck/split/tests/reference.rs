@@ -3,7 +3,7 @@
 // coefficients, including +/-1, take precisely the general field operations.
 use crate::{
     core::{
-        algebra::SerializableField,
+        algebra::{RegisteredField, SerializableField},
         proto::v2::{Circuit, Constant, Layer, Linear, Quadratic},
     },
     runtime::{
@@ -133,7 +133,7 @@ pub(in super::super) fn affine_constant<const W: usize, F: RuntimeField<W> + Ser
 /// Frozen three-stream layer loop used only to check proof/transcript identity.
 pub(in super::super) fn prove_core<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     witnesses: Vec<Vec<F::E>>,
     pads: &SumcheckProof<W, F>,

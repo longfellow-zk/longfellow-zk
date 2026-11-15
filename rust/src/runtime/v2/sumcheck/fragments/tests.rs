@@ -1,8 +1,11 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::{
-    core::proto::v2::{
-        classify_constants, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream,
+    core::{
+        algebra::RegisteredField,
+        proto::v2::{
+            classify_constants, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream,
+        },
     },
     runtime::{
         algebra::{p256::P256Field, SupportsSampling},
@@ -18,7 +21,7 @@ use crate::{
 };
 
 /// Draw stage `stage`'s weights from a fresh boundary and enter the stage.
-fn draw_and_enter<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+fn draw_and_enter<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
     schedule: &Schedule,
     stage: usize,
     entering: &mut Vec<F::E>,
@@ -229,7 +232,7 @@ fn fixture<const W: usize, F: RuntimeField<W> + SerializableField>(f: &F) -> [Ci
     );
     [long, short, wide, circuit(vec![], 4)]
 }
-fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(f: &F) {
+fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(f: &F) {
     let all = fixture(f);
     let mut rng = DeterministicRng::new(8191);
     for pattern in [
@@ -352,9 +355,7 @@ fn depth_order_uses_the_bound_input_index_for_ties_and_duplicates() {
 
 // Materialize the same concatenation independently by shifting raw gate indices.
 // Compare every saved witness, both contractions and the affine correction.
-fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
-    f: &F,
-) {
+fn compare_merged<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(f: &F) {
     let all = fixture(f);
     let circuits = [&all[0], &all[2], &all[0]];
     let schedule = Schedule::new(&circuits).unwrap();
@@ -543,10 +544,7 @@ fn quad_fragments_match_a_physically_merged_circuit() {
 
 /// Components may declare different input widths. Each reads a prefix of the
 /// shared input array, whose width is the largest declared width.
-fn check_prefix_widths<
-    const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
->(
+fn check_prefix_widths<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
     f: &F,
 ) {
     let layer = |nw: usize, quadratic: Vec<Quadratic>, linear: Vec<Linear>| {

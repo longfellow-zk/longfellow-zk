@@ -308,8 +308,8 @@ fn tag_name(tag: u64) -> &'static str {
 /// the registry alone, one line per header, value and terminator, and check
 /// that the node is consumed exactly. Integers are decimal; bytes, elements
 /// and packed bits are lowercase hex (elements in their canonical
-/// encodings, `width` bytes each, from the FieldID: 16 for GF(2^128), 32 for
-/// P-256).
+/// encodings, each as wide as the registered FieldID says: 16 bytes for
+/// GF(2^128), 32 for P-256).
 pub(crate) fn describe_node(node: &[u8]) -> String {
     use std::fmt::Write;
     let mut at = 0;
@@ -371,16 +371,14 @@ pub(crate) fn describe_node(node: &[u8]) -> String {
                 E => {
                     let field = u64_at(take(8));
                     let n = u64_at(take(8)) as usize;
-                    let width = match field {
-                        1 => 32,
-                        4 => 16,
-                        _ => panic!("field {field} has no known width"),
-                    };
+                    let &(_, width, name) = crate::runtime::v2::transcript::REGISTERED_FIELDS
+                        .iter()
+                        .find(|(registered, ..)| *registered as u64 == field)
+                        .unwrap_or_else(|| panic!("field {field} is not registered"));
                     let xs: Vec<String> = (0..n).map(|_| hex::encode(take(width))).collect();
                     writeln!(
                         out,
-                        "  value {i}: u64 kind=2 Elements, u64 field={field} ({}), u64 count={n}: [{}]",
-                        if field == 1 { "P256" } else { "GF2_128" },
+                        "  value {i}: u64 kind=2 Elements, u64 field={field} ({name}), u64 count={n}: [{}]",
                         xs.join(", ")
                     )
                     .unwrap();

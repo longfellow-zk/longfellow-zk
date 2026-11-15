@@ -16,7 +16,7 @@
 use std::time::Instant;
 
 use longfellow_zk::{
-    core::algebra::SerializableField,
+    core::algebra::RegisteredField,
     runtime::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         random::{DeterministicRng, RandomEngine},
@@ -25,7 +25,7 @@ use longfellow_zk::{
 };
 fn run<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
     D: EvaluationDomain<W, F>,
 >(
     name: &str,
@@ -92,7 +92,6 @@ fn main() {
         fp2::Fp2Field,
         gf2_128::Gf2_128Field,
         p256::P256Field,
-        q256::Q256Field,
         range_interpolation::{
             BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             ScalarInterpolatorFactory,
@@ -113,10 +112,10 @@ fn main() {
         run("p256", &f, &d, BENCH_CONFIG, 8192);
     }
     {
-        let f = Q256Field::new();
+        let f = P256Field::new();
         let d = ScalarInterpolatorFactory::new(&f, 128);
         run(
-            "q256 scalar reference (small workload)",
+            "p256 scalar reference (small workload)",
             &f,
             &d,
             PolygeroConfig {

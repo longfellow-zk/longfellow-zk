@@ -3,7 +3,9 @@
 use crate::{
     compile::algebra::CompileField,
     core::{
-        algebra::{AlgebraicField, FieldID, SerializableField, SupportsU64Conversions},
+        algebra::{
+            AlgebraicField, FieldID, RegisteredField, SerializableField, SupportsU64Conversions,
+        },
         proto::v2::{
             classify_constants, compute_id, Circuit, CircuitReader, CircuitWriter,
             CoefficientClass, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream,
@@ -22,7 +24,7 @@ use crate::{
     },
 };
 
-fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(f: &F) {
+fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(f: &F) {
     // x*y + k*x + c - z = 0. No circuit input is a reserved constant.
     let mut random = DeterministicRng::new(197);
     let x = random.elt_field(f);
@@ -320,7 +322,7 @@ fn binary_lfc3_classifies_both_signs_as_one() {
 fn check_coefficients<const W: usize, FC, FR>(cf: &FC, f: &FR)
 where
     FC: CompileField + SerializableField + Clone,
-    FR: RuntimeField<W> + SerializableField + SupportsSampling,
+    FR: RuntimeField<W> + RegisteredField + SupportsSampling,
 {
     use crate::compile::{
         compiler::{compile_v2, segment_circuit_v2},

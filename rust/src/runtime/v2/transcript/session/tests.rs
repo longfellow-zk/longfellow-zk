@@ -2,7 +2,8 @@
 use super::*;
 use crate::{
     core::algebra::{
-        AlgebraicField, BareField, FieldID, SerializableField, SupportsU64Conversions,
+        AlgebraicField, BareField, FieldID, RegisteredField, SerializableField,
+        SupportsU64Conversions,
     },
     runtime::{
         algebra::p256::P256Field,
@@ -10,6 +11,7 @@ use crate::{
             proto::tags::Tag,
             transcript::{
                 message::ZkStatement, Encoder, Event, Message, ProverMessage, TestMessage,
+                REGISTERED_FIELDS,
             },
         },
     },
@@ -326,6 +328,23 @@ fn each_value_kind_has_its_documented_encoding() {
     assert_eq!(recorded.payload, payload);
 }
 
+/// Each registered field has the ID and width the registry lists, which is
+/// all a reader needs to parse its Elements (transcript I5).
+#[test]
+fn registered_fields_have_the_registry_id_and_width() {
+    use crate::runtime::algebra::gf2_128::Gf2_128Field;
+    fn entry<F: RegisteredField>(f: &F) -> (FieldID, usize) {
+        (f.field_id(), f.serialized_size_bytes())
+    }
+    let fields = [entry(&P256Field::new()), entry(&Gf2_128Field::new())];
+    let registry: Vec<_> = REGISTERED_FIELDS
+        .iter()
+        .map(|&(id, w, _)| (id, w))
+        .collect();
+    assert_eq!(registry, fields);
+    assert!(fields.iter().all(|(id, _)| *id != FieldID::None));
+}
+
 struct Bits(Vec<bool>);
 impl Message for Bits {
     const TAG: Tag = Tag::P256AdapterQuotients;
@@ -507,6 +526,8 @@ struct WideEncoding {
 impl BareField for WideEncoding {
     type E = <P256Field as BareField>::E;
 }
+/// Test-only: a wide encoding under `FieldID::None`, to reach the heap path.
+impl RegisteredField for WideEncoding {}
 impl SerializableField for WideEncoding {
     fn is_binary(&self) -> bool {
         false

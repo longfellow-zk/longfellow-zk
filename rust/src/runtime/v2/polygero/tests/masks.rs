@@ -23,7 +23,7 @@ impl PrivateRandom for MaskRng {}
 
 fn ambient_rows<const W: usize, F, D>(f: &F, domain: &D)
 where
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
     D: EvaluationDomain<W, F>,
 {
     let config = PolygeroConfig {

@@ -14,7 +14,7 @@
 
 use crate::{
     core::{
-        algebra::{SerializableField, SupportsU128Conversions, SupportsU64Conversions},
+        algebra::{RegisteredField, SupportsU128Conversions, SupportsU64Conversions},
         proto::{
             v1::{Layer, TermDelta},
             v2::quadratic_layer_fixture,
@@ -37,7 +37,7 @@ use crate::{
 fn sample_assertions<
     'a,
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     layer: SplitLayer<'a>,
     stage: usize,
@@ -51,7 +51,7 @@ fn sample_assertions<
     (layer, rho)
 }
 
-fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
     f: &F,
     element: impl Fn(u64) -> F::E,
 ) {
@@ -104,7 +104,7 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
 
 fn check_repeated_output<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     f: &F,
 ) {
@@ -149,7 +149,7 @@ fn check_repeated_output<
     assert_ne!(q_l[0], f.zero());
 }
 
-fn check_quad_order<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+fn check_quad_order<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
     f: &F,
     element: impl Fn(u64) -> F::E,
 ) {
@@ -217,7 +217,7 @@ fn functional_transition_and_independent_assertions_binary() {
 /// sampling bug. Include a scalar output, which receives one independent weight.
 fn check_output_sampling<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     f: &F,
 ) {

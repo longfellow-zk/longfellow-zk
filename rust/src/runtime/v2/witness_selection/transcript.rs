@@ -7,7 +7,7 @@
 //! enclosing frontend starts. The typed field traversal stays in `lib`.
 use super::{Field, Fields, Param};
 use crate::{
-    core::algebra::SerializableField,
+    core::algebra::RegisteredField,
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
         v2::{
@@ -22,21 +22,21 @@ use crate::{
 
 /// `FingerprintResponse` (33): Elements(F, 2), one field's masked
 /// fingerprints.
-struct ResponseMessage<'a, F: SerializableField> {
+struct ResponseMessage<'a, F: RegisteredField> {
     f: &'a F,
     response: &'a FingerprintResponse<F::E>,
 }
-impl<F: SerializableField> Message for ResponseMessage<'_, F> {
+impl<F: RegisteredField> Message for ResponseMessage<'_, F> {
     const TAG: Tag = Tag::FingerprintResponse;
     fn encode(&self, e: &mut Encoder<'_>) {
         e.elements(self.f, &self.response.values);
     }
 }
-impl<F: SerializableField> ProverMessage for ResponseMessage<'_, F> {}
+impl<F: RegisteredField> ProverMessage for ResponseMessage<'_, F> {}
 
 pub(super) fn field_coefficients<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
     D,
 >(
     field: &Field<'_, W, F, D>,
@@ -49,7 +49,7 @@ pub(super) fn field_coefficients<
 
 pub(super) fn send_field_response<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
     D,
 >(
     field: &Field<'_, W, F, D>,

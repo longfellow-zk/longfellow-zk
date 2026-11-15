@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    core::algebra::SerializableField,
-    runtime::algebra::{
-        fp_generic::{FpGenericElement, FpGenericField},
-        limb::LIMBS_PER_U64,
-        packing::{IdentityExtension, PackingField},
-    },
+//! The P-256 scalar field. Its FieldID is not registered (`FieldID::None`),
+//! so it is not a `PackingField` and its elements never enter a v2
+//! transcript.
+use crate::runtime::algebra::{
+    fp_generic::{FpGenericElement, FpGenericField},
+    limb::LIMBS_PER_U64,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -44,17 +43,5 @@ impl Q256Field {
     #[must_use]
     pub fn new() -> Self {
         Self::new_generic(Q256_MODULUS)
-    }
-}
-
-impl PackingField for Q256Field {
-    type Packing = IdentityExtension<Self>;
-    fn packing_extension(&self) -> Self::Packing {
-        IdentityExtension::new(self.clone())
-    }
-    fn packing_id(&self) -> Vec<u8> {
-        let mut id = b"prime/canonical-integer/v1/".to_vec();
-        id.extend_from_slice(&SerializableField::serialized_mone(self));
-        id
     }
 }

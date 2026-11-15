@@ -5,7 +5,7 @@
 //! dual packing absorbs only its two messages: `PackingU`, then the delta
 //! challenges, then `PackingA`.
 use crate::{
-    core::algebra::SerializableField,
+    core::algebra::{RegisteredField, SerializableField},
     runtime::{
         algebra::packing::{AmbientElement as E, PackingExtension, PackingParameters},
         v2::{
@@ -17,30 +17,30 @@ use crate::{
 
 /// `PackingU` (80): Elements(F, m), the trace-zero responses, m the packing
 /// degree.
-struct UMessage<'a, F: SerializableField> {
+struct UMessage<'a, F: RegisteredField> {
     f: &'a F,
     u: &'a [F::E],
 }
-impl<F: SerializableField> Message for UMessage<'_, F> {
+impl<F: RegisteredField> Message for UMessage<'_, F> {
     const TAG: Tag = Tag::PackingU;
     fn encode(&self, e: &mut Encoder<'_>) {
         e.elements(self.f, self.u);
     }
 }
-impl<F: SerializableField> ProverMessage for UMessage<'_, F> {}
+impl<F: RegisteredField> ProverMessage for UMessage<'_, F> {}
 
 /// `PackingA` (81): Elements(F, 1), the trace-zero mask response.
-struct AMessage<'a, F: SerializableField> {
+struct AMessage<'a, F: RegisteredField> {
     f: &'a F,
     a: &'a F::E,
 }
-impl<F: SerializableField> Message for AMessage<'_, F> {
+impl<F: RegisteredField> Message for AMessage<'_, F> {
     const TAG: Tag = Tag::PackingA;
     fn encode(&self, e: &mut Encoder<'_>) {
         e.elements(self.f, std::slice::from_ref(self.a));
     }
 }
-impl<F: SerializableField> ProverMessage for AMessage<'_, F> {}
+impl<F: RegisteredField> ProverMessage for AMessage<'_, F> {}
 
 /// Send U, then draw the m independent delta challenges from its boundary.
 pub(super) fn challenges<X: PackingExtension>(

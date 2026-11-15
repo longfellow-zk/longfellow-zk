@@ -72,6 +72,18 @@ fn response_codec_is_canonical_and_requires_both_coordinates() {
     assert!(FingerprintResponse::read(&mut &[255u8; 64][..], &p).is_err());
 }
 
+/// Test-only: this generic prime field has `FieldID::None`, so Elements of
+/// it would not identify it; the test needs only its sampling.
+impl crate::core::algebra::RegisteredField
+    for crate::runtime::algebra::fp_generic::FpGenericField<
+        1,
+        { crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        { 3 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
+        (),
+    >
+{
+}
+
 #[test]
 fn generic_sampling_and_three_fields_need_no_packing_capability() {
     use crate::runtime::algebra::{fp_generic::FpGenericField, limb::LIMBS_PER_U64};

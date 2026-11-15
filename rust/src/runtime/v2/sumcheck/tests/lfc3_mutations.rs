@@ -8,7 +8,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use crate::{
     core::{
-        algebra::SerializableField,
+        algebra::{RegisteredField, SerializableField},
         proto::v2::{
             Circuit, CircuitReader, CircuitWriter, Constant, Layer, Linear, Quadratic,
             RawCircuitBuilder, Stream,
@@ -83,7 +83,7 @@ fn base<const W: usize, F: RuntimeField<W> + SerializableField>(f: &F) -> Circui
     Circuit::from_raw(f, raw)
 }
 
-fn random_proof<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+fn random_proof<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
     logw: &[usize],
     rng: &mut DeterministicRng,
     f: &F,
@@ -107,7 +107,7 @@ fn random_proof<const W: usize, F: RuntimeField<W> + SerializableField + Support
 /// Mutate the encoded body (header excluded, stale ID ignored), and run the
 /// verifier on every reader-accepted result, alone and combined with the
 /// original. Returns the number of accepted mutants; panics propagate.
-fn check_mutations<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+fn check_mutations<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
     f: &F,
     iterations: usize,
     seed: u64,

@@ -1,13 +1,12 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::{
-    core::algebra::AlgebraicField,
+    core::algebra::{AlgebraicField, RegisteredField},
     runtime::{
         algebra::{
             blas,
             gf2_128::Gf2_128Field,
             p256::P256Field,
-            q256::Q256Field,
             range_interpolation::{BinaryInterpolatorFactory, ScalarInterpolatorFactory},
         },
         random::{DeterministicRng, RandomEngine},
@@ -40,7 +39,7 @@ fn config() -> PolygeroConfig {
 fn field<
     'a,
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
     D: EvaluationDomain<W, F>,
 >(
     f: &'a F,
@@ -105,11 +104,9 @@ fn recursive_one_two_three_and_repeated_fields() {
     let d = BinaryInterpolatorFactory::full_field(&f);
     let p = P256Field::new();
     let pd = ScalarInterpolatorFactory::new(&p, 128);
-    let q = Q256Field::new();
-    let qd = ScalarInterpolatorFactory::new(&q, 128);
     let (a, wa, sa) = field(&f, &d, 17, config());
     let (b, wb, sb) = field(&p, &pd, 5, config());
-    let (c, wc, sc) = field(&q, &qd, 0, config());
+    let (c, wc, sc) = field(&p, &pd, 0, config());
     roundtrip(
         JointPolygeroParam::new((a.clone(), ())).unwrap(),
         (wa.clone(), ()),

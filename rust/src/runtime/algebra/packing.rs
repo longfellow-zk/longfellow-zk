@@ -2,14 +2,16 @@
 //! Finite extensions and explicitly owned packing parameters. These interfaces
 //! describe an extension F/K, independently of legacy V1 serialization hints.
 
-use crate::core::algebra::{AlgebraicField, BareField, SerializableField};
+use crate::core::algebra::{AlgebraicField, BareField, RegisteredField, SerializableField};
 
 pub mod binary;
 pub mod binary128;
 
-/// Explicit packing support. Other arithmetic fields need not implement this trait.
+/// Explicit packing support. Other arithmetic fields need not implement this
+/// trait. A packed field's elements are absorbed into the v2 transcript, so
+/// its `FieldID` must be registered.
 pub trait PackingField:
-    AlgebraicField + SerializableField + super::SupportsSampling + Clone + Sized
+    AlgebraicField + RegisteredField + super::SupportsSampling + Clone + Sized
 {
     type Packing: PackingExtension<Ambient = Self>;
     fn packing_extension(&self) -> Self::Packing;

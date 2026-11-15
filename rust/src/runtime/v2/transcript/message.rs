@@ -18,13 +18,25 @@
 //! `Transcript::new` runs (transcript I1, I3); every other message is a
 //! `ProverMessage`.
 use super::strand::Strand;
-use crate::{core::algebra::SerializableField, runtime::v2::proto::tags::Tag};
+#[cfg(test)]
+use crate::core::algebra::FieldID;
+use crate::{core::algebra::RegisteredField, runtime::v2::proto::tags::Tag};
 
 /// Value kinds of the byte grammar.
 const BYTES: u64 = 0;
 const NATS: u64 = 1;
 const ELEMENTS: u64 = 2;
 const BITS: u64 = 3;
+
+/// The registered fields: each FieldID an Elements value may carry, with the
+/// width of its canonical serialization and its name. With this table and
+/// the tag registry a reader parses every node. `RegisteredField` is
+/// implemented exactly for these fields.
+#[cfg(test)]
+pub(crate) const REGISTERED_FIELDS: [(FieldID, usize, &str); 2] = [
+    (FieldID::P256, 32, "P256"),
+    (FieldID::Gf2_128, 16, "GF2_128"),
+];
 
 /// Serialized values are staged through a stack buffer of this many bytes,
 /// so a long vector costs few strand writes. A wider field element uses a
@@ -99,8 +111,9 @@ impl<'a> Encoder<'a> {
             self.payload(&stage[..8 * chunk.len()]);
         }
     }
-    /// A vector of elements of `f`, after `f`'s FieldID.
-    pub fn elements<F: SerializableField>(&mut self, f: &F, xs: &[F::E]) {
+    /// A vector of elements of `f`, after `f`'s FieldID. Only a registered
+    /// field qualifies, so the ID identifies the field and its encoding.
+    pub fn elements<F: RegisteredField>(&mut self, f: &F, xs: &[F::E]) {
         self.strand.write(&ELEMENTS.to_le_bytes());
         self.strand.write(&(f.field_id() as u64).to_le_bytes());
         self.strand.write(&(xs.len() as u64).to_le_bytes());

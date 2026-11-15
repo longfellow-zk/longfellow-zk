@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::{
-    core::{algebra::SerializableField, proto::v2::CircuitReader},
+    core::{algebra::RegisteredField, proto::v2::CircuitReader},
     runtime::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field, RuntimeField, SupportsSampling},
         random::RandomEngine,
@@ -174,7 +174,7 @@ fn private_split_preserves_shared_segment_tokens_and_deltas() {
 }
 
 fn check_bindings<const W: usize, F>(f: &F)
-where F: RuntimeField<W> + SerializableField + SupportsSampling {
+where F: RuntimeField<W> + RegisteredField + SupportsSampling {
     use crate::runtime::{random::DeterministicRng, v2::sumcheck::quad};
     let mut rng = DeterministicRng::new(318);
     let scalar = |n: u8| {
@@ -300,7 +300,7 @@ fn split_bindings_match_three_stream_binary() {
 }
 
 fn check_proof<const W: usize, F>(f: &F)
-where F: RuntimeField<W> + SerializableField + SupportsSampling {
+where F: RuntimeField<W> + RegisteredField + SupportsSampling {
     use crate::{
         core::proto::v2::{compute_id, Circuit, CircuitWriter, RawCircuitBuilder},
         runtime::{
@@ -495,7 +495,7 @@ fn split_preserves_proof_transcript_and_circuit_binary() {
 /// a two-layer proof matches the reference schedule byte for byte, with one
 /// boundary for the top weights and none for the second layer.
 fn check_two_layers<const W: usize, F>(f: &F)
-where F: RuntimeField<W> + SerializableField + SupportsSampling {
+where F: RuntimeField<W> + RegisteredField + SupportsSampling {
     use crate::{
         core::proto::v2::{Circuit, RawCircuitBuilder},
         runtime::{

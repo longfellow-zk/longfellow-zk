@@ -30,7 +30,7 @@ use super::{
     PolygeroParam,
 };
 use crate::{
-    core::algebra::SerializableField,
+    core::algebra::{RegisteredField, SerializableField},
     runtime::{
         algebra::SupportsSampling,
         v2::{
@@ -58,18 +58,18 @@ impl ProverMessage for CommitmentMessage<'_> {}
 
 /// `PolygeroResponse` (96): Elements(F, k + s), H on the first k + s oracle
 /// nodes; then Elements(F, 2k), Z on the first 2k nodes.
-struct ResponseMessage<'a, F: SerializableField> {
+struct ResponseMessage<'a, F: RegisteredField> {
     f: &'a F,
     body: &'a FieldProof<F::E>,
 }
-impl<F: SerializableField> Message for ResponseMessage<'_, F> {
+impl<F: RegisteredField> Message for ResponseMessage<'_, F> {
     const TAG: Tag = Tag::PolygeroResponse;
     fn encode(&self, e: &mut Encoder<'_>) {
         e.elements(self.f, &self.body.h);
         e.elements(self.f, &self.body.z);
     }
 }
-impl<F: SerializableField> ProverMessage for ResponseMessage<'_, F> {}
+impl<F: RegisteredField> ProverMessage for ResponseMessage<'_, F> {}
 
 /// Draw one field's batching challenges after the last message every
 /// participant statement depends on.
@@ -93,7 +93,7 @@ pub(super) fn challenges<F: SupportsSampling + SerializableField>(
     }
 }
 
-pub(super) fn send_response<F: SerializableField>(
+pub(super) fn send_response<F: RegisteredField>(
     t: &mut TranscriptRef<'_>,
     body: &FieldProof<F::E>,
     f: &F,

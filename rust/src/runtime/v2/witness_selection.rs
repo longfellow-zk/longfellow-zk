@@ -9,7 +9,7 @@
 //! The early responses fix targets; only the final backend check authenticates
 //! them. Complete-proof sealing remains the enclosing protocol's responsibility.
 use crate::{
-    core::algebra::SerializableField,
+    core::algebra::RegisteredField,
     runtime::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
@@ -28,7 +28,7 @@ pub use fields::{Bodies, Field, Fields, Param, Statements, Weights, Witnesses};
 impl<
         'a,
         const W: usize,
-        F: RuntimeField<W> + SerializableField + SupportsSampling,
+        F: RuntimeField<W> + RegisteredField + SupportsSampling,
         D: EvaluationDomain<W, F>,
         T: Fields,
     > Fields for (Field<'a, W, F, D>, T)

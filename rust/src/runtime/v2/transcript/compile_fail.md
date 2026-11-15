@@ -135,3 +135,77 @@ fn bad<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>(f: &F, domain: 
     let _ = ZkContext { f, domain };
 }
 ```
+
+Elements carry only registered fields (`RegisteredField`), whose FieldID
+names one field and one encoding width. GF(2) and GF(256) share
+`FieldID::None` and the same one-byte encoding of one, and the P-256
+scalar field has no registered ID, so none of them can be absorbed:
+
+```compile_fail,E0277
+use longfellow_zk::runtime::{
+    algebra::packing::binary::Gf2,
+    v2::{proto::tags::Tag, transcript::{Encoder, Message}},
+};
+struct One;
+impl Message for One {
+    const TAG: Tag = Tag::PublicInputs;
+    fn encode(&self, e: &mut Encoder<'_>) { e.elements(&Gf2, &[true]); }
+}
+```
+
+```compile_fail,E0277
+use longfellow_zk::{
+    core::algebra::AlgebraicField,
+    runtime::{
+        algebra::packing::binary::Gf256,
+        v2::{proto::tags::Tag, transcript::{Encoder, Message}},
+    },
+};
+struct One;
+impl Message for One {
+    const TAG: Tag = Tag::PublicInputs;
+    fn encode(&self, e: &mut Encoder<'_>) {
+        let f = Gf256::new();
+        e.elements(&f, &[f.one()]);
+    }
+}
+```
+
+```compile_fail,E0277
+use longfellow_zk::{
+    core::algebra::AlgebraicField,
+    runtime::{
+        algebra::q256::Q256Field,
+        v2::{proto::tags::Tag, transcript::{Encoder, Message}},
+    },
+};
+struct One;
+impl Message for One {
+    const TAG: Tag = Tag::PublicInputs;
+    fn encode(&self, e: &mut Encoder<'_>) {
+        let f = Q256Field::new();
+        e.elements(&f, &[f.one()]);
+    }
+}
+```
+
+Positive control: P-256 and GF(2^128) are registered.
+
+```
+use longfellow_zk::{
+    core::algebra::AlgebraicField,
+    runtime::{
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field},
+        v2::{proto::tags::Tag, transcript::{Encoder, Message}},
+    },
+};
+struct Ones;
+impl Message for Ones {
+    const TAG: Tag = Tag::PublicInputs;
+    fn encode(&self, e: &mut Encoder<'_>) {
+        let (p, b) = (P256Field::new(), Gf2_128Field::new());
+        e.elements(&p, &[p.one()]);
+        e.elements(&b, &[b.one()]);
+    }
+}
+```

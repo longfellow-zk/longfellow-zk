@@ -3,7 +3,7 @@
 //! `mu`, and the pure-foreign row weights. The split's derived weights are
 //! never absorbed.
 use crate::{
-    core::algebra::SerializableField,
+    core::algebra::RegisteredField,
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
         v2::{
@@ -29,17 +29,17 @@ pub struct RowWeights<E>(pub(super) Vec<E>);
 
 /// `SplitOpening` (64): Elements(F, 1), the split message mu (F is P-256 in
 /// mdoc).
-struct OpeningMessage<'a, F: SerializableField> {
+struct OpeningMessage<'a, F: RegisteredField> {
     f: &'a F,
     mu: &'a F::E,
 }
-impl<F: SerializableField> Message for OpeningMessage<'_, F> {
+impl<F: RegisteredField> Message for OpeningMessage<'_, F> {
     const TAG: Tag = Tag::SplitOpening;
     fn encode(&self, e: &mut Encoder<'_>) {
         e.elements(self.f, std::slice::from_ref(self.mu));
     }
 }
-impl<F: SerializableField> ProverMessage for OpeningMessage<'_, F> {}
+impl<F: RegisteredField> ProverMessage for OpeningMessage<'_, F> {}
 
 /// The mixed split's nonzero rescaling challenge, drawn by the driver right
 /// after the split frontend: it reads further from the frontend's last answer
@@ -74,6 +74,6 @@ pub fn row_weights<F: SupportsSampling, P: ?Sized>(
 
 /// Send the split message before any adapter challenge. The split's derived
 /// weights are reconstructed by both roles and never absorbed.
-pub fn send_mu<F: SerializableField>(t: &mut TranscriptRef<'_>, mu: &F::E, f: &F) {
+pub fn send_mu<F: RegisteredField>(t: &mut TranscriptRef<'_>, mu: &F::E, f: &F) {
     t.send(&OpeningMessage { f, mu });
 }

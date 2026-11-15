@@ -14,7 +14,7 @@
 
 use super::*;
 use crate::{
-    core::algebra::{AlgebraicField, SerializableField},
+    core::algebra::{AlgebraicField, RegisteredField, SerializableField},
     runtime::{
         algebra::{
             batch_inverse,
@@ -136,7 +136,7 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> EvaluationDo
 
 fn exercise<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
     D: EvaluationDomain<W, F>,
 >(
     f: &F,
@@ -492,11 +492,11 @@ fn quadratic_extension_fft_reference_and_failures() {
     exercise(&f, &d);
 }
 #[test]
-fn q256_scalar_reference_and_failures() {
+fn p256_scalar_reference_and_failures() {
     use crate::runtime::algebra::{
-        q256::Q256Field, range_interpolation::ScalarInterpolatorFactory,
+        p256::P256Field, range_interpolation::ScalarInterpolatorFactory,
     };
-    let f = Q256Field::new();
+    let f = P256Field::new();
     let d = ScalarInterpolatorFactory::new(&f, 128);
     exercise(&f, &d);
 }

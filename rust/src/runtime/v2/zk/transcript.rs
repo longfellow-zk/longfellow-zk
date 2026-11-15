@@ -9,7 +9,10 @@ use super::{
     storage::{Group, Run},
 };
 use crate::{
-    core::{algebra::SerializableField, proto::v2::Circuit},
+    core::{
+        algebra::{RegisteredField, SerializableField},
+        proto::v2::Circuit,
+    },
     runtime::{
         algebra::{packing::PackingField, ZkField},
         v2::{
@@ -124,17 +127,17 @@ impl SetupMessage for JointGeometryMessage {}
 
 /// `PublicInputs` (21): Elements(F, npublic), a primary circuit's public
 /// inputs as elements of its field, the representation the circuit reads.
-struct PublicInputsMessage<'a, F: SerializableField> {
+struct PublicInputsMessage<'a, F: RegisteredField> {
     f: &'a F,
     inputs: &'a [F::E],
 }
-impl<F: SerializableField> Message for PublicInputsMessage<'_, F> {
+impl<F: RegisteredField> Message for PublicInputsMessage<'_, F> {
     const TAG: Tag = Tag::PublicInputs;
     fn encode(&self, e: &mut Encoder<'_>) {
         e.elements(self.f, self.inputs);
     }
 }
-impl<F: SerializableField> SetupMessage for PublicInputsMessage<'_, F> {}
+impl<F: RegisteredField> SetupMessage for PublicInputsMessage<'_, F> {}
 
 impl<const W: usize, F: ZkField<W> + PackingField> FrontendPart<'_, W, F> {
     /// One `Circuit` message per circuit of this frontend, primary first.

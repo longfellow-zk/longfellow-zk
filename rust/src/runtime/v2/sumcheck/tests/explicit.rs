@@ -3,7 +3,7 @@
 use crate::{
     compile::algebra::CompileField,
     core::{
-        algebra::SerializableField,
+        algebra::{RegisteredField, SerializableField},
         proto::{
             read_uleb128_max4,
             v2::{Circuit, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
@@ -30,7 +30,7 @@ use crate::{
 };
 fn three_streams<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling + Clone,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling + Clone,
 >(
     f: &F,
 ) {
@@ -388,7 +388,7 @@ fn lfc3_accepts_explicit_unit_constants_and_checks_the_semantic_id() {
 fn explicit_units<const W: usize, CF, RF>(cf: &CF, f: &RF)
 where
     CF: CompileField + SerializableField,
-    RF: RuntimeField<W> + SerializableField + SupportsSampling,
+    RF: RuntimeField<W> + RegisteredField + SupportsSampling,
 {
     use crate::{
         compile::{

@@ -33,7 +33,7 @@ impl ProverFields for () {
 impl<
         'a,
         const W: usize,
-        F: RuntimeField<W> + SerializableField + SupportsSampling,
+        F: RuntimeField<W> + RegisteredField + SupportsSampling,
         D: EvaluationDomain<W, F>,
         T: ProverFields,
     > ProverFields for (Field<'a, W, F, D>, T)

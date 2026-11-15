@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use longfellow_zk::{
-    core::algebra::SerializableField,
+    core::algebra::RegisteredField,
     runtime::{
         algebra::{
             fp2::Fp2Field,
@@ -128,7 +128,7 @@ fn admitted_profiles_encode_and_verify() {
 
 fn admitted_profiles_roundtrip<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
     D: EvaluationDomain<W, F>,
 >(
     f: &F,
@@ -152,7 +152,7 @@ fn admitted_profiles_roundtrip<
 
 fn roundtrip_profiles<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
     D: EvaluationDomain<W, F>,
 >(
     f: &F,

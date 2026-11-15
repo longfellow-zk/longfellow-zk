@@ -10,7 +10,7 @@ use super::{
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::random::PrivateRandom;
 use crate::{
-    core::algebra::SerializableField,
+    core::algebra::{RegisteredField, SerializableField},
     runtime::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
@@ -34,7 +34,7 @@ fn append_values<F: SerializableField>(
 }
 impl<
         const W: usize,
-        F: RuntimeField<W> + SerializableField + SupportsSampling,
+        F: RuntimeField<W> + RegisteredField + SupportsSampling,
         D: EvaluationDomain<W, F>,
         T: Participants,
     > Participants for (Participant<'_, W, F, D>, T)

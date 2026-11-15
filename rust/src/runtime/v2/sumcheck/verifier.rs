@@ -29,7 +29,7 @@ use super::{
     transcript::{end_layer, round_challenge, terminal_challenge, TopWeights},
 };
 use crate::{
-    core::{algebra::SerializableField, proto::v2::classify_constants},
+    core::{algebra::RegisteredField, proto::v2::classify_constants},
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
         v2::{
@@ -43,7 +43,7 @@ use crate::{
 #[cfg(test)]
 pub(crate) fn derive_constraints<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     circuit: &crate::core::proto::v2::Circuit<F>,
     proof: &SumcheckProof<W, F>,
@@ -58,7 +58,7 @@ pub(crate) fn derive_constraints<
 #[cfg(test)]
 pub(crate) fn top_and_derive<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     circuits: &[impl CircuitSource<F>],
     proof: &SumcheckProof<W, F>,
@@ -74,7 +74,7 @@ pub(crate) fn top_and_derive<
 /// already have been bound by the caller, and `top` drawn after them.
 pub(crate) fn derive_constraints_for_circuits<
     const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     circuits: &[impl CircuitSource<F>],
     proof: &SumcheckProof<W, F>,

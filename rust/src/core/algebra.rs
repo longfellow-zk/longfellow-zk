@@ -15,7 +15,7 @@
 mod field;
 pub use field::{
     AlgebraicField, BareField, Comparable, ElementOf, FieldElement, FieldID, HasLookupPoints,
-    NatOf, SerializableField, SupportsNatConversions, SupportsU128Conversions,
+    NatOf, RegisteredField, SerializableField, SupportsNatConversions, SupportsU128Conversions,
     SupportsU64Conversions,
 };
 
