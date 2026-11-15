@@ -157,12 +157,13 @@ theorem history_seal_input {roles : List Role}
   | cons role tail => exact ⟨TranscriptV2.Strand.continuation
       (history wire bodyCodec (Input.finalSeal (roles := role::tail) past body)).id past.2.2,rfl⟩
 
-/-- The deployed seal is the final node of `TranscriptV2.StrandTranscript`. -/
+/-- The seal is the final node of `TranscriptV2.StrandTranscript` under the
+wire's seal frame; for `NodeWire.current` that is `finalNodeInput`. -/
 theorem history_final_input {roles : List Role}
     (past : History Key (Block capacity Fresh) Digest roles.length) (body : Body) :
-    ∃ state, (history NodeWire.current bodyCodec (Input.finalSeal (roles := roles) past body)).input.encode =
-      TranscriptV2.StrandTranscript.finalNodeInput state (bodyCodec.encode body) :=
-  history_seal_input NodeWire.current bodyCodec past body
+    ∃ state, (history wire bodyCodec (Input.finalSeal (roles := roles) past body)).input.encode =
+      TranscriptV2.StrandTranscript.sealNodeInput wire.sealFrame state (bodyCodec.encode body) :=
+  history_seal_input wire bodyCodec past body
 
 /-- Parsing a predecessor and then rebuilding its cache agrees with taking
 the predecessor of the rebuilt verifier input. -/
@@ -361,23 +362,23 @@ end Replay
 
 section CompleteBody
 variable {g : Geometry} {fields : Fields} {Advice Authentication Key Fresh C : Type} {capacity : ℕ}
-variable (bodyCodec : PrefixCodec (Current.Body g fields Advice Authentication))
+variable (wire : NodeWire) (bodyCodec : PrefixCodec (Current.Body g fields Advice Authentication))
 variable (encoding : Replay.Encoding g fields Advice Authentication Key (Block capacity Fresh) C)
 
 /-- The existing complete-proof replay owns the body used by the strand
 seal. A caller cannot replace it with a separately chosen final message. -/
 theorem complete_body_node (initial : Digest) (proof : Replay.Output g fields Advice Authentication)
     (H : Replay.Point g fields Advice Authentication Key (Block capacity Fresh) → Digest × C) :
-    ∃ state, (history NodeWire.current bodyCodec ((encoding.chain initial).finalSealPoint proof H)).input.encode =
-      TranscriptV2.StrandTranscript.finalNodeInput state (bodyCodec.encode proof.body) := by
+    ∃ state, (history wire bodyCodec ((encoding.chain initial).finalSealPoint proof H)).input.encode =
+      TranscriptV2.StrandTranscript.sealNodeInput wire.sealFrame state (bodyCodec.encode proof.body) := by
   obtain ⟨past,equal⟩ := encoding.finalSealPoint_body initial proof H
   rw [equal]
-  exact history_final_input bodyCodec past proof.body
+  exact history_final_input wire bodyCodec past proof.body
 
 end CompleteBody
 
 namespace Runtime
-variable {g : Geometry} {fields : Fields} {Advice : Type}
+variable {g : Geometry} {fields : Fields} {Advice : Type} (wire : NodeWire)
 variable (repr : ProofBodyCodec.Representations fields Advice)
 variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup) (publicCount : ℕ)
 
@@ -389,12 +390,12 @@ local notation "toPoint" => QueryRuntime.Runtime.toPoint repr shape setup public
 
 /-- This is instantiated with the existing first-fingerprint packet and
 every role-local runtime packet, including the complete canonical proof body. -/
-def schema : TranscriptV2.Strand.History.Codec Value := StrandQueryCodec.schema NodeWire.current bodyCodec blocks
+def schema : TranscriptV2.Strand.History.Codec Value := StrandQueryCodec.schema wire bodyCodec blocks
 
 /-- The actual runtime serializer is the same encoding recognized by the
 online decoder. No assumption about arbitrary cache serialization is needed. -/
 theorem toPoint_history (value : Value) :
-    StrandRuntime.history NodeWire.current bodyCodec (toPoint value) = (schema repr shape setup publicCount).encode value := by
+    StrandRuntime.history wire bodyCodec (toPoint value) = (schema wire repr shape setup publicCount).encode value := by
   unfold QueryRuntime.Runtime.toPoint
   rw [history_reindex,history_embed]
   rfl
@@ -417,9 +418,9 @@ theorem toPoint_parent (value earlier : Value)
 
 theorem history_parent (value earlier : Value)
     (previous : StrandQueryCodec.parent bodyCodec blocks value = some earlier) :
-    ∃ digest message, (schema repr shape setup publicCount).encode value =
-      .child ((schema repr shape setup publicCount).encode earlier) digest message :=
-  StrandQueryCodec.history_parent NodeWire.current bodyCodec blocks value earlier previous
+    ∃ digest message, (schema wire repr shape setup publicCount).encode value =
+      .child ((schema wire repr shape setup publicCount).encode earlier) digest message :=
+  StrandQueryCodec.history_parent wire bodyCodec blocks value earlier previous
 
 /-- Parsed packet values and canonical runtime points are the same finite
 objects. The verifier's redundant caches add no independent coordinates. -/
@@ -474,7 +475,7 @@ strand node starts with type word one. Even a forged logical annotation
 cannot make these raw bytes spend an ordinary protocol-query allowance. -/
 theorem pointCodec_merkle_auxiliary (fits : g.roles.length < 2^64) (locate : Value → P)
     (bytes : P → Bytes)
-    (located : ∀ value, bytes (locate value) = ((schema repr shape setup publicCount).encode value).input.encode)
+    (located : ∀ value, bytes (locate value) = ((schema wire repr shape setup publicCount).encode value).input.encode)
     (raw : P) (value : Option Value) (merkle : (bytes raw).head? = some 112) :
     (pointCodec repr shape setup publicCount fits locate).decode (.inl (raw,value)) = none := by
   cases value with
@@ -483,8 +484,8 @@ theorem pointCodec_merkle_auxiliary (fits : g.roles.length < 2^64) (locate : Val
       have different : raw ≠ locate value := by
         intro same
         rw [same,located value] at merkle
-        have first : (((schema repr shape setup publicCount).encode value).input.encode).head? = some 1 := by
-          cases (schema repr shape setup publicCount).encode value <;> rfl
+        have first : (((schema wire repr shape setup publicCount).encode value).input.encode).head? = some 1 := by
+          cases (schema wire repr shape setup publicCount).encode value <;> rfl
         rw [first] at merkle
         exact (by decide : (1 : TranscriptV2.Framing.Byte) ≠ 112) (Option.some.inj merkle)
       simp only [pointCodec,if_neg different]
@@ -494,13 +495,13 @@ canonical image. The raw-byte equality follows from parsing, not a promise
 about how a caller constructed its cache. -/
 theorem pointCodec_ordinary (fits : g.roles.length < 2^64) (locate : Value → P)
     (bytes : P → Bytes) (injective : Function.Injective bytes)
-    (located : ∀ value, bytes (locate value) = ((schema repr shape setup publicCount).encode value).input.encode)
+    (located : ∀ value, bytes (locate value) = ((schema wire repr shape setup publicCount).encode value).input.encode)
     (past : List TranscriptV2.Strand.Entry) (raw : P) (value : Value)
-    (parsed : StrandSearch.decode (schema repr shape setup publicCount) bytes past raw = some value) :
+    (parsed : StrandSearch.decode (schema wire repr shape setup publicCount) bytes past raw = some value) :
     ((pointCodec repr shape setup publicCount fits locate).decode (.inl (raw,some value))).map Subtype.val =
       some (toPoint value) := by
   have same : raw = locate value := injective
-    ((StrandSearch.decode_erases (schema repr shape setup publicCount) bytes past raw value parsed).symm.trans
+    ((StrandSearch.decode_erases (schema wire repr shape setup publicCount) bytes past raw value parsed).symm.trans
       (located value).symm)
   simp only [pointCodec,if_pos same,Option.map_some,valuesEquiv]
   rfl

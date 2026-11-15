@@ -58,6 +58,6 @@ theorem final_body (proof : Proof) (SHA : Strand.Oracle) :
       ((e.encoding.chain initial).finalSealPoint proof
         (StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample fallback SHA))).input.encode =
       StrandTranscript.finalNodeInput state (bodyCodec.encode proof.body) :=
-  StrandRuntime.complete_body_node bodyCodec e.encoding initial proof _
+  StrandRuntime.complete_body_node NodeWire.current bodyCodec e.encoding initial proof _
 
 end LfzkV2.Current.ZeroKnowledge.StrandCompletion

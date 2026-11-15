@@ -341,7 +341,7 @@ variable (publicCount : ℕ) (fits : g.roles.length < 2^64)
 variable (locate : QueryRuntime.Runtime.Value repr shape setup publicCount → Raw)
 variable (bytes : Raw → Framing.Bytes)
 variable (located : ∀ value, bytes (locate value) =
-  ((StrandRuntime.Runtime.schema repr shape setup publicCount).encode value).input.encode)
+  ((StrandRuntime.Runtime.schema NodeWire.current repr shape setup publicCount).encode value).input.encode)
 include located
 
 /-- The concrete codecs establish the auxiliary classification required
@@ -350,7 +350,7 @@ theorem wire_receives_auxiliary
     (raw : Raw) (value : Option (QueryRuntime.Runtime.Value repr shape setup publicCount))
     (receiving : receives (MerkleWireCodec.codec P R repr binary prime context columnsFit) bytes (.inl (raw,value))) :
     (StrandRuntime.Runtime.pointCodec repr shape setup publicCount fits locate).decode (.inl (raw,value)) = none := by
-  apply StrandRuntime.Runtime.pointCodec_merkle_auxiliary repr shape setup publicCount fits locate bytes located
+  apply StrandRuntime.Runtime.pointCodec_merkle_auxiliary NodeWire.current repr shape setup publicCount fits locate bytes located
   rcases receiving with ⟨leaf,equal⟩ | ⟨index,children,equal⟩
   · rw [equal]
     rfl

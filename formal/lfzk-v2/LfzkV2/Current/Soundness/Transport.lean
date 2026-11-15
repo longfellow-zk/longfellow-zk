@@ -99,7 +99,7 @@ theorem normalizedOracle_eq {Raw T : Type} (fallback : E.Answer)
 /-- The same named search used by the physical realization, before its
 complete verifier replay. This is the extractor's query-counted prefix. -/
 def searchTree :=
-  StrandReplay.search (StrandRuntime.Runtime.schema E.repr E.shape E.fingerprint E.binary.nPublic)
+  StrandReplay.search (StrandRuntime.Runtime.schema NodeWire.current E.repr E.shape E.fingerprint E.binary.nPublic)
     (StrandWindow.Node.bytes (other := Other))
     (mapQueries (StrandWindow.decode (Other)
       (Soundness.OracleTransport.fallback E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits D.execution.sample E.merkleCodec id prog.tree)) prog.tree)
@@ -121,7 +121,7 @@ theorem analysis_fresh (residual : Tagged → Residual) :
   apply LfzkV2.Current.Soundness.RuntimeFresh.mapQueries_fresh (names).tag (names).tag_injective
   apply LfzkV2.Current.Soundness.RuntimeFresh.pad_fresh
   exact LfzkV2.Current.Soundness.RuntimeFresh.replay_search_fresh
-    (StrandRuntime.Runtime.schema E.repr E.shape E.fingerprint E.binary.nPublic)
+    (StrandRuntime.Runtime.schema NodeWire.current E.repr E.shape E.fingerprint E.binary.nPublic)
     (StrandWindow.Node.bytes (other := Other)) _
 
 /-- The extractor uses exactly the physical stopped cut, with its actual

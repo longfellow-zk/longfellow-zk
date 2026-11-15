@@ -49,7 +49,7 @@ local notation "Output" => CanonicalRuntime.Output (Advice := Advice) binary sha
 local notation "Earlier" => CanonicalRuntime.earlier binary prime P R repr shape setup cfg binaryCount metadata
 local notation "E" => RuntimeAdaptiveVerifier.encodings binary prime P R (W) (Earlier)
 local notation "bodyCodec" => ProofBodyCodec.codec repr g
-local notation "schema" => StrandRuntime.Runtime.schema repr shape setup binary.nPublic
+local notation "schema" => StrandRuntime.Runtime.schema NodeWire.current repr shape setup binary.nPublic
 local notation "context" => QueryRuntime.Runtime.key repr shape setup binary.nPublic
 variable {fuel : ℕ} (program : Merkle.RandomOracle.Tree Bytes Digest
   (CanonicalRuntime.Output (Advice := Advice) binary shape) fuel)

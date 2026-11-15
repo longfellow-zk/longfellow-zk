@@ -64,8 +64,9 @@ theorem finalSeal_body (output : Output) (G : TranscriptV2.Strand.Oracle) :
         state.id
         (G (TranscriptV2.StrandTranscript.finalNodeInput state (bodyCodec.encode output.proof.body))) 0).encode := by
   let e := RuntimeAdaptiveVerifier.encodings binary prime P R cfg earlier output.request
-  obtain ⟨state,encoded⟩ := StrandRuntime.complete_body_node bodyCodec e cfg.initialLink output.proof
+  obtain ⟨state,encoded⟩ := StrandRuntime.complete_body_node NodeWire.current bodyCodec e cfg.initialLink output.proof
     (oracle binary prime P R cfg bodyCodec sample G)
+  change _ = TranscriptV2.StrandTranscript.finalNodeInput state _ at encoded
   have ids := TranscriptV2.StrandTranscript.finalNodeInput_id _ state _
     (TranscriptV2.Strand.History.valid _) encoded
   rw [TranscriptV2.Strand.History.input_id] at ids

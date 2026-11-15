@@ -1,4 +1,5 @@
 import LfzkV2.Current.CanonicalPrefix
+import TranscriptV2.StrandTranscript
 
 /-! The bytes that close a strand node, as a parameter of the strand
 codecs. A node at a challenge boundary ends with its terminator; the final
@@ -93,6 +94,13 @@ theorem current_sealFrame (body : Bytes) :
     current.sealFrame body = frame finalDomain ++ frame body := rfl
 
 theorem current_sealCodec : current.sealCodec = bytes.prefixed (frame finalDomain) := rfl
+
+/-- The deployed seal frame is the final frame of `TranscriptV2.StrandTranscript`,
+so its seal node is `finalNodeInput`. -/
+theorem current_sealFrame_eq : current.sealFrame = TranscriptV2.StrandTranscript.finalFrame := rfl
+
+theorem current_sealNodeInput :
+    TranscriptV2.StrandTranscript.sealNodeInput current.sealFrame = TranscriptV2.StrandTranscript.finalNodeInput := rfl
 
 /-- The sealed body codec is the earlier framed body behind the final
 footer, so its encoder is unchanged as a function. -/

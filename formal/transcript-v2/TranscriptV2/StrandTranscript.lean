@@ -65,16 +65,48 @@ def Reading.endRound {A : Type} (state : Reading) (value : A) : Absorbing × A :
 theorem Reading.endRound_does_not_absorb {A : Type} (state : Reading) (a b : A) :
     (state.endRound a).1 = (state.endRound b).1 := rfl
 
+/-! The final node writes a seal frame of the complete body. The frame is a
+parameter, so that a transcript format chooses it; `finalState` and
+`finalNodeInput` are the deployed frame `finalFrame`. -/
+
+/-- The deployed seal frame: the final domain, then the framed body. -/
+def finalFrame (body : Bytes) : Bytes := frame finalDomain ++ frame body
+
+theorem finalFrame_injective : Function.Injective finalFrame := fun _ _ h =>
+  frame_injective (List.append_cancel_left h)
+
+/-- The final node under seal frame `close`. -/
+def sealState (close : Bytes → Bytes) (state : Absorbing) (body : Bytes) : Absorbing :=
+  state.write (close body)
+
+def sealNodeInput (close : Bytes → Bytes) (state : Absorbing) (body : Bytes) : Bytes :=
+  (sealState close state body).input.encode
+
+theorem sealNodeInput_id (close : Bytes → Bytes) (input : Input) (state : Absorbing) (body : Bytes)
+    (valid : input.Valid) (encoded : input.encode = sealNodeInput close state body) :
+    input.id = state.id := by
+  have equal := Input.encode_injective valid (sealState close state body).valid encoded
+  simpa only [Absorbing.input_id,sealState,Absorbing.write_id] using congrArg Input.id equal
+
+/-- An injective seal frame makes the final node injective in the body. -/
+theorem sealNodeInput_injective {close : Bytes → Bytes} (injective : Function.Injective close)
+    (state : Absorbing) : Function.Injective (sealNodeInput close state) := by
+  intro a b h
+  simp only [sealNodeInput,sealState,Absorbing.write_input] at h
+  exact injective (List.append_cancel_left h)
+
 def finalState (state : Absorbing) (body : Bytes) : Absorbing :=
   state.write (frame finalDomain ++ frame body)
 
 def finalNodeInput (state : Absorbing) (body : Bytes) : Bytes := (finalState state body).input.encode
 
+/-- The deployed final node is the seal node of `finalFrame`, definitionally. -/
+theorem sealNodeInput_finalFrame : sealNodeInput finalFrame = finalNodeInput := rfl
+
 theorem finalNodeInput_id (input : Input) (state : Absorbing) (body : Bytes)
     (valid : input.Valid) (encoded : input.encode = finalNodeInput state body) :
-    input.id = state.id := by
-  have equal := Input.encode_injective valid (finalState state body).valid encoded
-  simpa only [Absorbing.input_id,finalState,Absorbing.write_id] using congrArg Input.id equal
+    input.id = state.id :=
+  sealNodeInput_id finalFrame input state body valid encoded
 
 def finalSealInput (state : Absorbing) (body : Bytes) (H : Oracle) : Bytes :=
   (Input.prf state.id (H (finalNodeInput state body)) 0).encode

@@ -157,7 +157,7 @@ theorem opening_disagreement_cover (G : Raw → Digest) (accepted : decision (ra
   exact covered
 
 variable (bodyFits : ProofBodyBounds.bodyBound repr g ≤ CanonicalPrefix.maxLength)
-local notation "schema" => StrandRuntime.Runtime.schema repr shape setup binary.nPublic
+local notation "schema" => StrandRuntime.Runtime.schema NodeWire.current repr shape setup binary.nPublic
 local notation "bytes" => StrandWindow.Node.bytes (other := O)
 local notation "searchTree" => StrandReplay.search (schema) bytes compiled
 local notation "Value" => QueryRuntime.Runtime.Value repr shape setup binary.nPublic

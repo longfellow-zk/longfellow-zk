@@ -57,7 +57,7 @@ local notation "M" => RuntimeAdaptiveVerifier.chain binary prime P R (W) (Earlie
 local notation "Value" => QueryRuntime.Runtime.Value repr shape setup binary.nPublic
 local notation "Output" => CanonicalRuntime.Output (Advice := Advice) binary shape
 local notation "bodyCodec" => ProofBodyCodec.codec repr g
-local notation "schema" => StrandRuntime.Runtime.schema repr shape setup binary.nPublic
+local notation "schema" => StrandRuntime.Runtime.schema NodeWire.current repr shape setup binary.nPublic
 local notation "history" => StrandRuntime.history NodeWire.current bodyCodec
 local notation "beforeSeal" => TranscriptV2.StrandVerifier.beforeSeal history sample cfg.fallback (M)
 local notation "fullReplay" => StrandAuthentication.replay binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
