@@ -235,8 +235,7 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
     assert!(witness.is_empty());
     let public = [f.one()];
     let frontend = FrontendPart::new(&part, &[&c], &public).unwrap();
-    // `late` sends a message between the draw of the row weights and their use.
-    let run = |late: bool| {
+    let run = || {
         let (state, _) = part
             .prepare_split(
                 vec![f.u64_to_element(5), f.zero()],
@@ -256,17 +255,23 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
         let eta = f.one();
         assert!(part.split_message(&pending, &eta, &f).is_err());
         assert!(part.foreign_claim(&claim, &eta, &eta, &f).is_err());
-        let rho = transcript::row_weights(&mut prover, pending.claim.row_weight_count(), &f);
-        if late {
-            prover.transcript().send(&TestMessage(b"late"));
-        }
+        // `batch` reads its row weights from the frontend's last stream, as
+        // `elements(F, L+1)` (transcript I7), and nothing else.
+        let count = pending.claim.row_weight_count();
+        let mut reference = prover.transcript().fork_for_test();
+        reference
+            .borrow()
+            .draw(|r| r.elements(&f, count).for_each(drop));
         let witness_values = pending.values.clone();
-        let batched = pending.claim.batch(&mut prover, rho, &f);
-        let verifier_rho = transcript::row_weights(&mut verifier, claim.row_weight_count(), &f);
-        let checked = claim.batch(&mut verifier, verifier_rho, &f).unwrap();
+        let batched = pending.claim.batch(&mut prover, &f);
+        assert_eq!(
+            prover.transcript().fork_for_test().bytes(32),
+            reference.bytes(32)
+        );
+        let checked = claim.batch(&mut verifier, &f).unwrap();
         (batched, checked, witness_values)
     };
-    let (batched, checked, honest) = run(false);
+    let (batched, checked, honest) = run();
     let modular = batched.unwrap();
     // The whole claim is foreign, over every value, with its public target,
     // and the honest values satisfy it.
@@ -278,8 +283,6 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
         f.add(&mut sum, &f.mulf(w, v));
     }
     assert_eq!(sum, modular.target);
-    // The row weights are accepted only where they were drawn.
-    assert!(run(true).0.is_err());
 }
 
 #[test]

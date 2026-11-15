@@ -93,12 +93,14 @@ writes, which comes from the same participant (`Opened::geometry`).
 *Enforced by:* function signatures (type); `FrontendPart::new` (runtime,
 before `Opened::new`).
 
-**I4. Every leading challenge another component consumes is an input; the
-batching weights are not.** The sumcheck top weights, eta and the row weights
-of pure-foreign storage are `Challenge<T>` values (transcript I8). The caller
-draws each from the boundary closed by the previous message; the consumer
-accepts it. The Polygero batching weights are drawn and consumed by the
-opening itself: `JointProver::finish` and `JointVerifier::finish` take each
+**I4. Every leading challenge another component consumes is an input; a
+step's own weights are not.** The sumcheck top weights and eta are
+`Challenge<T>` values (transcript I8). The caller draws each from the
+boundary closed by the previous message; the consumer accepts it. The
+pure-foreign row weights are drawn by the pure split step itself
+(`SplitClaim::batch`), at the frontend's last boundary, and used in the same
+call. The Polygero batching weights are drawn and consumed by the opening
+itself: `JointProver::finish` and `JointVerifier::finish` take each
 field's frontend equations (`Statements<L>`, typed per field, in participant
 order) after the last frontend message of every participant (`PackingA`, or
 the last `SumcheckClaims` when every participant has degree one), consume
@@ -191,8 +193,8 @@ its application model charges those events. The composition driver
 (`foreign::compose::Composition`) supports mixed storage only; a
 pure-foreign composition is future work.
 *Enforced by:* `Split::mask` is `None` exactly for pure storage, and
-`SplitClaim::batch`, the only consumer of a `Challenge<RowWeights>`,
-rejects mixed storage (runtime); `participant()` fails for pure storage, so
+`SplitClaim::batch`, the only step that draws and uses row weights, rejects
+mixed storage before it draws them (runtime); `participant()` fails for pure storage, so
 it cannot join a `JointParam` (runtime; test
 `pure_foreign_participant_cannot_join_the_joint_backend`); Lean
 `ApplicationCharging` (no row batching in the mdoc schedule).
@@ -228,7 +230,7 @@ listed for position only.
 | | prover | `PackingA` | Elements(F, 1) |
 | Split, mixed | draw | eta (*input*), after the last stage's alpha and input assertions | nonzero(F) |
 | | prover | `SplitOpening` | Elements(F, 1): mu |
-| Batching, pure | draw | rho (*input*), after the last stage's alpha and input assertions | elements(F, L+1) |
+| Batching, pure | draw | rho, drawn and used by `SplitClaim::batch`, after the last stage's alpha and input assertions | elements(F, L+1) |
 | Authenticate | draw | Polygero batching weights, drawn and used inside `finish`, after the last frontend message | joint Polygero |
 | | prover, draw | `PolygeroResponse` per field, then t column indices | joint Polygero |
 
@@ -244,8 +246,9 @@ Polygero batching weights. In mdoc the order is: commit, prime frontend, eta,
 `SplitOpening`,
 the adapter's conversion pair and `P256AdapterQuotients`, the host frontend
 over the hash circuit and the adapter fragment, `PackingU`, `PackingA`, then
-joint Polygero. For pure foreign storage, rho is drawn at the frontend's
-last boundary, before the adapter's conversion pair, from the same stream;
+joint Polygero. For pure foreign storage, `SplitClaim::batch` draws rho at
+the frontend's last boundary, before the adapter's conversion pair, from the
+same stream;
 no composition runs this schedule (I11).
 
 ### Reductions
@@ -447,14 +450,12 @@ impl<E> SplitClaim<E> {
 // zk::split, both roles; the draws live in zk::split::transcript (transcript I9)
 pub struct SplitClaim<E> { pub claim: LinearClaim<E>, .. }  // rows unbatched
 impl<E> SplitClaim<E> {
-    pub fn row_weight_count(&self) -> usize;              // L + 1
-    pub fn batch(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>, rho: Challenge<RowWeights<E>>,
-                 f: &F) -> Result<ModularClaim<E>, String>;  // pure foreign only (I11)
+    // pure foreign only (I11): draws rho = elements(F, L+1) and uses it (I4)
+    pub fn batch(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>, f: &F)
+        -> Result<ModularClaim<E>, String>;
 }
 pub struct Eta<E>(..);                                    // nonzero; no public constructor
 pub fn eta(t: &mut Bound<'_, P>, f: &F) -> Challenge<Eta<F::E>>;          // nonzero(F)
-pub struct RowWeights<E>(..);
-pub fn row_weights(t: &mut Bound<'_, P>, count: usize, f: &F) -> Challenge<RowWeights<F::E>>;
 #[must_use] pub struct SplitOutput<E> { pub statement: LinearStatement<E>, pub foreign: ModularClaim<E> }
 pub struct LinearClaim<E> { pub weights: Vec<E>, pub target: E }    // zk::LinearClaim
 #[must_use] pub struct ModularClaim<E> { pub terms: Vec<(Group, E)>, pub target: E }  // zk::storage

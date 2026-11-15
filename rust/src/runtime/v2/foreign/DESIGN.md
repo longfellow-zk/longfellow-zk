@@ -89,15 +89,16 @@ Code comments and the rest of this document cite these as "foreign I1" and
 so on.
 
 **I1. The driver owns every cross-protocol hand-off.** Four challenges cross
-a sub-protocol boundary inside the composition: the prime top weights, the
-split's challenge (eta for mixed storage, the row weights for pure-foreign
-storage), the conversion pair and the host top weights. The driver draws
-each one as a `Challenge<T>`, right after the message that closes the
+a sub-protocol boundary inside the composition: the prime top weights, eta
+(mixed storage), the conversion pair and the host top weights. The driver
+draws each one as a `Challenge<T>`, right after the message that closes the
 previous sub-protocol, and hands it to the next. No sub-protocol draws its
 own leading challenge; each takes it as an input and `accept`s it
-(transcript I8). The Polygero batching weights cross no boundary: the joint
-opening (`JointProver::finish`, `JointVerifier::finish`) takes both fields'
-statements, draws them and uses them in the same call.
+(transcript I8). Two weight vectors cross no boundary, because the step that
+draws them uses them in the same call: the pure-foreign row weights
+(`SplitClaim::batch`) and the Polygero batching weights (the joint opening,
+`JointProver::finish` or `JointVerifier::finish`, on both fields'
+statements).
 *Enforced by:* the sumcheck, split and adapter entry points take
 `Challenge<T>` parameters (type); the stamp check in `accept` rejects a
 challenge drawn at the wrong boundary in both roles (runtime); the
@@ -122,7 +123,8 @@ role-trace test (transcript I9); `check_mdoc_round_shapes`.
 
 **I3. Each adapter input is fixed before the challenge that follows it.**
 The modular claim is a function of the statement, the split frontend's
-messages and the split's challenge, plus `mu` for mixed storage. For mixed
+messages and the split's challenge (eta, or the row weights the pure split
+step draws), plus `mu` for mixed storage. For mixed
 storage the conversion pair is drawn after `SplitOpening`; for pure-foreign
 storage it is read after the row weights, from the same stream. The virtual
 leaves are a function of the claim, the conversion pair and the masked
@@ -250,7 +252,7 @@ runs it (I2).
 |---|---|---|---|---|---|
 | 1 | witness selection (opening message) | `Commitment`: Bytes(32) | witness-selection coefficients, binary only | witness selection | witness selection |
 | 2 | witness selection | `FingerprintResponse`: Elements(GF2_128, 2) | prime top weights (*input*) | driver | prime sumcheck |
-| 3 | prime frontend over `C_S` | per layer: `SumcheckRound` x logw, `SumcheckCross`, `SumcheckClaims` | the sumcheck's own draws; after the last `SumcheckClaims` the row weights = `elements(P256, L+1)` (*input*), then the conversion pair = `nonzero(P256)` x 2 (*input*) | sumcheck; driver | sumcheck; split; adapter |
+| 3 | prime frontend over `C_S` | per layer: `SumcheckRound` x logw, `SumcheckCross`, `SumcheckClaims` | the sumcheck's own draws; after the last `SumcheckClaims` the row weights = `elements(P256, L+1)`, then the conversion pair = `nonzero(P256)` x 2 (*input*) | sumcheck; split; driver | sumcheck; split; adapter |
 | 4 | adapter | `P256AdapterQuotients`: Bits(Q) m_0, Bits(Q) m_1 | host top weights (*input*) | driver | host sumcheck |
 | 5 | host frontend over `[C_H, fragment]`, then binary dual packing | sumcheck messages, `PackingU`, `PackingA` | sumcheck and packing draws; after `PackingA` the Polygero batching weights | host; joint opening | host; joint opening |
 | 6 | joint opening | `PolygeroResponse` | t column indices | joint | Polygero |
@@ -541,10 +543,10 @@ storage, the prover's `PendingSplit::open` accepts `Challenge<Eta<F::E>>`,
 sends `SplitOpening` and returns `mu`, the `ModularClaim` and the prime
 statement; the verifier's `SplitClaim::receive` accepts the same challenge
 and sends the proof's `mu`. For pure-foreign storage, `SplitClaim::batch`
-accepts `Challenge<RowWeights<F::E>>`, sends nothing and returns the
-`ModularClaim` with its public target. `Eta<E>` and `RowWeights<E>` have no
-public constructor; `zk::split::transcript::eta` (a `nonzero(F)` draw) and
-`zk::split::transcript::row_weights` (`elements(F, L+1)`) build them. The
+draws the row weights (`elements(F, L+1)`) and uses them, sends nothing and
+returns the `ModularClaim` with its public target. `Eta<E>` has no public
+constructor; `zk::split::transcript::eta` (a `nonzero(F)` draw) builds it.
+The
 driver draws both top weights with `zk::joint::top_weights` on the receiving
 frontend's `Bound`.
 

@@ -205,8 +205,8 @@ commitment and commits no cells of its own. Its statement part is a
 `CommitmentLayout` with zero committed private cells, zero pad cells and zero
 fingerprint mask cells, and it is not a joint field: it has no Polygero
 geometry, no fingerprint masks and no rows. It needs no mask `R`, so there is
-no split opening; its row weights are a `Challenge` input drawn at the
-frontend's last boundary (transcript I8).
+no split opening; its row weights are drawn and used by the pure split step
+at the frontend's last boundary (transcript I8).
 
 `ComposedProof` is the body of the mixed composition only: it always holds
 two fingerprint responses, `mu` and two field bodies. A composition with a

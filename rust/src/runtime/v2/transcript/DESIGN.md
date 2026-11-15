@@ -115,8 +115,8 @@ draws a challenge (sumcheck, the split, the adapter, witness selection, dual
 packing, Polygero) begins by sending. A sumcheck whose circuits all have zero
 layers sends and draws nothing; its top weights are its input assertions.
 A challenge that one component draws and another consumes before its first
-message is an input: the sumcheck top weights, eta, the row weights of
-pure-foreign storage and the adapter's conversion pair. The caller draws it
+message is an input: the sumcheck top weights, eta and the adapter's
+conversion pair. The caller draws it
 as a `Challenge<T>`, stamped with the session and the boundary it came from.
 The consumer rejects it if it was drawn on another session, even one with an
 equal history, if the transcript has moved past that boundary, or if any
@@ -124,8 +124,9 @@ message was sent since. A `Challenge` is not `Clone` and is consumed on use.
 A challenge drawn and consumed by the same step is internal to that step and
 never a value: the Polygero batching weights are drawn by the joint opening
 (`JointProver::finish`, `JointVerifier::finish`, through Polygero's `prove`
-and `reduce`) and used in the same call, so no caller holds them between the
-draw and the use. The stamp proves only that no message boundary was crossed
+and `reduce`), and the row weights of pure-foreign storage by the pure split
+step (`SplitClaim::batch`), each used in the same call, so no caller holds
+them between the draw and the use. The stamp proves only that no message boundary was crossed
 between the draw and its use: it does not record which values the consumer
 derives from earlier messages. Those derivations are deterministic functions
 of the absorbed messages and challenges. A derived system that a challenge
@@ -276,8 +277,8 @@ from the preceding node (I7). Likewise a sumcheck with zero layers sends
 nothing after its top weights, which are its input assertions, and the
 draws after it read further from the node that precedes it; a zero-layer
 frontend of packing degree above one still sends its packing messages.
-Pure-foreign storage (no native cells) adds its row weights as an input
-drawn at the frontend's last boundary, before the conversion pair. The four
+Pure-foreign storage (no native cells) adds its row weights, drawn by the
+pure split step at the frontend's last boundary, before the conversion pair. The four
 supported mdoc shapes (one to four attributes) have 457/461/466/469
 boundaries; four attributes: 400 + 2 x 31 + 7 = 469. The boundary count
 enters the soundness bound only as r/2^256.

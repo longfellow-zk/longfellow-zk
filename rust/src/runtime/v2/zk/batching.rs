@@ -2,9 +2,9 @@
 //! Batch the complete masked sumcheck rows into one authenticated linear claim.
 //!
 //! Fresh independent row weights cover every layer equation and the final
-//! input equation. The caller draws them after every frontend message, as a
-//! `Challenge` input (`split::transcript::row_weights`, transcript I8); the
-//! resulting claim is reconstructed locally by both parties, and derived
+//! input equation. The pure split step (`split::SplitClaim::batch`) draws
+//! them after every frontend message and uses them at once (transcript I8);
+//! the resulting claim is reconstructed locally by both parties, and derived
 //! coefficients are not absorbed.
 use crate::{
     core::{algebra::SerializableField, proto::v2::Circuit},

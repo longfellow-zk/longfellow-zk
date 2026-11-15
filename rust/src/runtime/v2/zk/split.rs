@@ -15,8 +15,9 @@
 //!   - a foreign claim `<eta*w_F, v_F> + R_bits = mu (mod p)` for the adapter.
 //!
 //!   R is uniform and used only here, so `mu` hides `<w_F, v_F>`.
-//! - Pure foreign: the participant commits nothing. Fresh weights batch every layer row and the
-//!   input equation into one foreign claim with a public target (`batching`).
+//! - Pure foreign: the participant commits nothing. Fresh weights, drawn and used by the pure split
+//!   step (`SplitClaim::batch`), batch every layer row and the input equation into one foreign
+//!   claim with a public target (`batching`).
 use super::{
     batching::LinearClaim,
     joint::{CircuitParticipant, FrontendPart},
@@ -38,7 +39,7 @@ use crate::{
 };
 
 pub mod transcript;
-use transcript::{Eta, RowWeights};
+use transcript::Eta;
 
 /// A split participant's frontend claim over `[private inputs | pads]`.
 pub struct SplitClaim<E> {
@@ -67,8 +68,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         let (p, circuit, public) = (part.participant, part.circuits[0], &part.public[..]);
         let split = p.split()?;
         if split.mask.is_none() {
-            // Pure foreign storage: `batch` combines these rows with the
-            // row weights the caller draws next.
+            // Pure foreign storage: `batch` draws the row weights next and
+            // combines these rows with them.
             let (rows, claim) = super::batching::rows(circuit, public, constraints, f)?;
             return Ok(SplitClaim { rows, claim });
         }
@@ -196,27 +197,28 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
 impl<E> SplitClaim<E> {
     /// The number of pure-foreign row weights: one per layer row, one for the
     /// input equation.
-    pub fn row_weight_count(&self) -> usize {
+    fn row_weight_count(&self) -> usize {
         self.rows.1.len() + 1
     }
-    /// Pure foreign storage only: accept the row weights `rho`, drawn by
-    /// `transcript::row_weights` since the frontend's last message, and
-    /// batch every row and the input equation into one foreign claim with a
-    /// public target. Mixed storage takes `eta` instead (`open`, `receive`).
+    /// Pure foreign storage only: draw the row weights rho_0..rho_L at the
+    /// current boundary, right after the frontend's last message, and batch
+    /// every row and the input equation with them into one foreign claim
+    /// with a public target. The weights are internal to this step
+    /// (transcript I8). Mixed storage takes `eta` instead (`open`,
+    /// `receive`).
     pub fn batch<const W: usize, F>(
         self,
         t: &mut Bound<'_, FrontendPart<'_, W, F>>,
-        rho: Challenge<RowWeights<E>>,
         f: &F,
     ) -> Result<ModularClaim<E>, String>
     where
         F: ZkField<W> + PackingField + BareField<E = E>,
     {
-        let RowWeights(weights) = t.accept(rho).map_err(|e| e.to_string())?;
         let p = t.part().participant;
         if p.split()?.mask.is_some() {
             return Err("row weights batch only pure foreign storage".into());
         }
+        let weights = transcript::row_weights(&mut t.transcript(), self.row_weight_count(), f);
         let claim = super::batching::batch((self.rows, self.claim), &weights, f)?;
         p.pure_claim(claim)
     }
