@@ -169,8 +169,9 @@ impl Fields {
 }
 
 /// The request rows of the error table in `mdoc/runtime/v2/DESIGN.md`, in
-/// both roles, with their numeric codes. A request failure gets the same code
-/// in both roles, except the attribute count, which only the verifier names.
+/// both roles, with their numeric codes. A request failure gets the same named
+/// error in both roles, except the attribute count, which only the verifier
+/// names; the numeric codes differ.
 #[test]
 fn request_errors_follow_the_error_table() {
     use MdocProverErrorCode as P;

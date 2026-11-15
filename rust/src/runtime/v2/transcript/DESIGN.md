@@ -59,13 +59,14 @@ node hashes use the fixed domain `DOMAIN` (`runtime/v2/merkle/hash.rs`), so the 
 the only place the parameters are bound. The verifier fixes the evaluation
 domain, and no message binds it.
 *Enforced by:* Rust. Setup messages implement `SetupMessage`, which only a
-statement's `Header` writes (type), and the writers derive every statement
-value from the same objects the verifier uses to parse and check the proof.
-Tests check that the absorbed geometry equals the parsing geometry (the mdoc
-trace test, for the profile against the parsing geometry's and the spec's),
-that the statement precedes every prover message, that every message has its
-tag's schema, and the golden pins of the standalone transcript and the mdoc
-first node. Lean does not prove I3: its model takes the statement messages
+statement's `Header` writes (type). The geometry messages are written from
+the participants themselves; the parsing geometry (`ZkProofGeometry`,
+`ComposedGeometry`) is a copy derived from the same participants, so it
+agrees with them by construction. Tests check that the absorbed geometry
+equals the parsing geometry (the mdoc trace test, for the profile against
+the parsing geometry's and the spec's), that the statement precedes every
+prover message, that every message has its tag's schema, and the golden
+pins of the standalone transcript and the mdoc first node. Lean does not prove I3: its model takes the statement messages
 after the combined hash as fixed setup bytes.
 
 **I4. Every prover message is absorbed exactly once, when sent.** Each
@@ -259,17 +260,19 @@ values handed to the next sub-protocol (I8).
 | `PolygeroResponse` x 2 | t distinct column indices out of n | Polygero |
 | `Seal` | seal block | proof encoder |
 
-**Boundary count.** Sumcheck rounds (the sum of layer widths), plus 2 per
-layer (cross, claims), plus 7 others; the seal is not counted. A participant
-whose packing degree is one sends no packing messages and has no packing
-boundaries; the next draws then read further from the preceding node (I7).
-Likewise a frontend with zero layers sends nothing, and the draws after it
-read further from the node that precedes it. Pure-foreign storage (no native
-cells) adds its row weights as an input drawn at the frontend's last
-boundary, before the conversion pair. The four supported mdoc shapes (one to
-four attributes) have 457/461/466/469 boundaries; four attributes:
-400 + 2 x 31 + 7 = 469. The boundary count enters the soundness bound only as
-r/2^256.
+**Boundary count.** Sumcheck rounds (the sum of the layers' log-widths, one
+round each), plus 2 per layer (cross, claims), plus 7 others; the seal is
+not counted. A participant whose packing degree is one sends no packing
+messages and has no packing boundaries; the next draws then read further
+from the preceding node (I7). Likewise a sumcheck with zero layers sends
+nothing after its top weights, which are its input assertions, and the
+draws after it read further from the node that precedes it; a zero-layer
+frontend of packing degree above one still sends its packing messages.
+Pure-foreign storage (no native cells) adds its row weights as an input
+drawn at the frontend's last boundary, before the conversion pair. The four
+supported mdoc shapes (one to four attributes) have 457/461/466/469
+boundaries; four attributes: 400 + 2 x 31 + 7 = 469. The boundary count
+enters the soundness bound only as r/2^256.
 
 ### Draw kinds
 

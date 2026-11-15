@@ -19,8 +19,8 @@ which receives a `VerifiedProof`.
 
 ### The request
 
-An application request has six parts. The verifier supplies all of them
-except the proof; the prover supplies the same five plus the document.
+An application request has the six parts below. Both roles supply all
+six; the verifier also takes the proof, and the prover the document.
 
 | Part | Rust parameter | Constraint (checked before any circuit is loaded) |
 |---|---|---|
@@ -131,9 +131,11 @@ its bits are taken from the least significant.
 | Adapter fragment ID | the ID of the product-tree fragment that `foreign::adapter` rebuilds from the hash circuit's shape | absorbed in its `Circuit` message |
 
 A spec names its circuits through the combined hash, and the statement
-absorbs the combined hash and all three circuit IDs (transcript I3). A
-`Circuit<F>` exists only as returned by `CircuitReader`, which verified its
-ID; it has no public constructor and no mutable access.
+absorbs the combined hash and all three circuit IDs (transcript I3). The
+application circuits come only from `CircuitReader`, which recomputes their
+IDs from the archive. The adapter fragment is generated:
+`Circuit::from_raw` builds it and computes its ID. Neither path lets a
+caller supply an ID, and `Circuit` has no public mutable access.
 
 ## Invariants
 
@@ -154,12 +156,18 @@ validates every row of the request table and is the only way to obtain a
 `Request`. Circuit loading, public-input derivation, document parsing and
 witness construction take a `Request`, and sampling and proof parsing need
 the statement built from them, so none of them runs on an unchecked
-request. On accepted requests the encoding into public inputs is injective
-(up to the case of `T` and `Z`): no field is truncated, every length is
-encoded, and the single namespace slot is correct because all attributes
-share it. The session transcript is one CBOR item, so the
-`DeviceAuthentication` bytes inside `e2` determine the (transcript, document
-type) pair.
+request. The checked request is semantic: the time keeps its fourteen
+digits (`T`/`t` and `Z`/`z` are one request), and the issuer key's spellings
+(`1`, `01`, `0x1`, either letter case) become field elements. On accepted
+requests the fixed-width, non-hashed public-input fields are not truncated,
+every length is encoded, and the single namespace slot is correct because
+all attributes share it. The session is represented in `PublicInputs` by
+`e2`, a cryptographic digest, and the spec not at all; the complete
+statement binds the spec and the raw session transcript separately
+(`MdocStatement`). So neither `e2` nor `PublicInputs` alone is an injective
+encoding of the request. The session transcript is one CBOR item, so the
+`DeviceAuthentication` preimage of `e2` is self-delimiting: it determines
+the (transcript, document type) pair.
 *Enforced by:* `Request` has private fields and one constructor (type);
 `rejects_invalid_public_inputs_before_loading_or_sampling`,
 `namespace_capacity_and_encoding_are_checked_before_proving`,
@@ -503,10 +511,10 @@ the C library's codes. The v2 entry points return:
 | Proof does not parse | | `HashParsingFailure` (3) |
 | Composition, proving, verification or seal fails | `GeneralFailure` (6) | `GeneralFailure` (5) |
 
-A request failure gets the same code in both roles. The only exception is
-the attribute count, which only the verifier's enum names. Document and
-witness failures are listed under Prover steps. The provider
-returns `InvalidZkSpecVersion` for an unknown spec, `GeneralFailure` for a
+A request failure gets the same named error in both roles; the numeric
+codes differ. The only exception is the attribute count, which only the
+verifier's enum names. Document and witness failures are listed under
+Prover steps. The provider returns `InvalidZkSpecVersion` for an unknown spec, `GeneralFailure` for a
 missing file, `CircuitParsingFailure` for a malformed archive and
 `HashParsingFailure` for an archive whose metadata does not match the spec.
 
@@ -515,7 +523,7 @@ missing file, `CircuitParsingFailure` for a malformed archive and
 | Mistake | What stops it |
 |---|---|
 | Prover and verifier computing `e2` differently, or the prover taking it from the document | I1: one derivation from the request |
-| Two requests with the same public inputs (a truncated identifier, a namespace missing from the encoding) | I2: `Request::check` before encoding |
+| Two requests that differ in an encoded field but have the same public inputs (a truncated identifier, a namespace missing from the encoding) | I2: `Request::check` before encoding |
 | Loading circuits, parsing a document or sampling for an invalid request | I2: those steps take a `Request` |
 | Verifying against circuits the spec does not name | I3: combined hash checked; the statement absorbs it and every circuit ID |
 | An archive payload edited under its original ID | I3: IDs recomputed on load |
@@ -540,8 +548,8 @@ missing file, `CircuitParsingFailure` for a malformed archive and
 | Check | Purpose | Model |
 |---|---|---|
 | Spec version, combined hash, recomputed IDs | the circuits are the trusted ones the spec names | premise: trusted application circuits and archives |
-| `Request::check` | the request determines the public inputs injectively | outside the model (request encoding) |
-| Statement | Fiat–Shamir binds the instance and every public input before the commitment | Rust, not Lean (transcript I3): the writers derive every statement value from the objects the verifier uses, and tests check that the absorbed geometry equals the parsing geometry, that the statement comes first, every message's schema, and the golden pins; the Lean model takes the statement messages after the combined hash as fixed setup bytes |
+| `Request::check` | the public inputs are canonical: no truncation, every length encoded; with the statement's spec and session they bind the request | outside the model (request encoding) |
+| Statement | Fiat–Shamir binds the instance and every public input before the commitment | Rust, not Lean (transcript I3): the geometry messages are written from the participants, and the parsing geometry is a copy derived from them; tests check that the absorbed geometry equals the parsing geometry, that the statement comes first, every message's schema, and the golden pins; the Lean model takes the statement messages after the combined hash as fixed setup bytes |
 | Composition | extraction of one witness pair satisfying both circuits at the requested public inputs | `CanonicalRuntime.decoded_true_at_request`, `MdocWitness.valid_at_request` |
 | Exact envelope and seal | the accepted bytes are one complete canonical proof | `ProofBodyCodec`, `ProofOutput` |
 

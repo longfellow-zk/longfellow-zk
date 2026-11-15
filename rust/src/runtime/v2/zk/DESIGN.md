@@ -144,10 +144,14 @@ the verifier's transcript leaves the handle only through it (type).
 
 **I8. Virtual inputs are substituted, never committed and never absorbed.**
 The primary circuit ends before the virtual suffix and cannot read it. Each
-definition's source lies in the committed range. Definitions are arguments
-fixed before the frontend's first message, so they cannot depend on that
-frontend's messages, and the caller derives them only from statement values
-and earlier messages and challenges.
+definition's source lies in the committed range. The definitions must be
+deterministic functions of the prior protocol (statement values and earlier
+messages and challenges), fixed before the caller draws this frontend's top
+weights: if they could depend on those weights, the weighted output test
+would not test one fixed circuit instance. This provenance is the caller's
+obligation: the shape and source checks below do not enforce it, since
+`VirtualInputs` are plain data (open question 1). The foreign drivers
+compute the leaves before they draw the host top weights.
 *Enforced by:* `InputLayout::new` and `VirtualInputs::validate` (runtime);
 `compile_packed`; test `binary_virtual_inputs_are_substituted_not_committed`;
 Lean `LfzkV2.InputBinding` (virtual inputs).
@@ -226,9 +230,12 @@ listed for position only.
 | | prover, draw | `PolygeroResponse` per field, then t column indices | joint Polygero |
 
 `d = 1` packing has no messages and no boundary: it yields one direct row.
-A frontend whose circuits all have zero layers sends and draws nothing; its
-top weights are its input assertions (transcript I8), and eta or rho is then
-read from the boundary closed by the previous message. Every frontend of
+A frontend whose circuits all have zero layers still draws its top weights,
+which are its input assertions (transcript I8); its sumcheck then sends and
+draws nothing. With `d > 1` its packing still sends `PackingU`, draws the
+packing challenges and sends `PackingA`. With `d = 1` the frontend sends
+nothing, and the next draw (eta or rho for a split participant) reads
+further from the boundary closed by the previous message. Every frontend of
 every participant finishes before the caller draws the Polygero batching
 weights. In mdoc the order is: commit, prime frontend, eta, `SplitOpening`,
 the adapter's conversion pair and `P256AdapterQuotients`, the host frontend
@@ -539,10 +546,14 @@ Zero knowledge:
   hides the cross coefficient (sumcheck design).
 - Packing masks hide `U` and `A`; fingerprint masks hide the fingerprint
   responses.
-- `mu = eta*<w_F, v_F> + R` with R uniform in `F_p` and used only here, so
-  `mu` is uniform and independent of the witness. R's prime cell is hidden by
-  Polygero, its bits by the binary commitment. Lean
-  `ZeroKnowledge.Frontend.Adapter.Mdoc.coupling_mu` gives the coin bijection.
+- `mu = eta*<w_F, v_F> + R` with R uniform in `F_p`. `mu` is the only
+  directly published value that R masks, so it is uniform and independent of
+  the witness. R also enters the native row and the modular claim, and its
+  committed bits feed the adapter; hiding of the whole view rests on the
+  joint simulation (`Mdoc.ZeroKnowledge.statClose`), not on R being used
+  once. R's prime cell is hidden by Polygero, its bits by the binary
+  commitment. Lean `ZeroKnowledge.Frontend.Adapter.Mdoc.coupling_mu` gives
+  the coin bijection.
 - Virtual inputs and row-batching weights are public functions of the
   transcript; they reveal nothing.
 - The frontend adds no statistical term. The complete view is within

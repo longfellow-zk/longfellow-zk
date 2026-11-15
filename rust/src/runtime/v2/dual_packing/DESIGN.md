@@ -162,7 +162,9 @@ the shape check in `append_equations` (runtime); Lean
 
 ## Protocol
 
-Definitions, all public except the committed W, P, t, r, b:
+Definitions. W, P, t, r and b are committed. B_k, T and the dependent t_0
+are computed from them: they are private intermediate values, computed only
+by the prover. U and A are the messages; the rest are public:
 
 ```text
 D_ik   = sum_(j<m) alpha_j * coord_k(rho_(i*m+j))      ; rho beyond n is zero
@@ -398,9 +400,11 @@ statement (transcript I3).
 
 ## Soundness and zero knowledge
 
-**Trace check (I5).** Tr(U_k) = 0 for all k lets the error vector
-U - honestU be nonzero exactly when the claim is false
-(`DualPacking.ArtinSchreier.Instance.error_ne_zero`).
+**Trace check (I5).** With Tr(U_k) = 0 for all k, a false claim implies a
+nonzero error vector U - honestU
+(`DualPacking.ArtinSchreier.Instance.error_ne_zero`). The converse does not
+hold: for a true claim, U = honestU + V passes the trace checks for any
+nonzero trace-zero V, with error V.
 
 **Challenge delta.** For a fixed false claim, fixed committed cells (any b,
 any masks) and fixed U, and any A chosen after delta, both native equations

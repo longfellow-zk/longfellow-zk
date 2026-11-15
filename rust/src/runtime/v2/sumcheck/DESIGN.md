@@ -396,10 +396,11 @@ The zk frontends call these entry points: `joint::top_weights` draws the top
 weights from the frontend's `Bound`, and `zk::prove`, `zk::prove_split`,
 `zk::reduce` and `zk::reduce_split` pass the circuits of their bound part.
 Both `evaluate_and_prove_circuits` and `derive_constraints_for_circuits`
-accept the top weights (`Schedule::accept_top`) before anything else. Each
-role then runs its own stage loop (I2): the prover computes each stage's
-messages from `W` and the pads, the verifier takes them from the proof, and
-both loops send and draw only through the shared steps of
+accept the top weights (`Schedule::accept_top`) before the first message
+(both validate their inputs first, and the prover evaluates the circuits
+first). Each role then runs its own stage loop (I2): the prover computes
+each stage's messages from `W` and the pads, the verifier takes them from
+the proof, and both loops send and draw only through the shared steps of
 `sumcheck/transcript.rs` and the shared `Schedule` methods. The prover's
 internals (`dense`, `eval`, `bind_r_into`) are under `cfg_prover!`; the
 verifier loop is under `cfg_verifier!`; the schedule, `symbolic`,
@@ -448,9 +449,13 @@ of that answer. Lean covers an answer that carries a combine coordinate and
 weight coordinates with the same affine test it uses for the input weights at
 the last combine (`FrontendReplay.layer_final_entry_at_combine`), and
 charges any one answer at most `2/(|F|-1)`
-(`FrontendReplay.QueryTest.bad_card_mul_le`), and
-`Chained.failure_bound` lifts per-answer bounds to `2Q/|F| + (Q+1)/|Link|`
-over an adaptive query tree. The complete mdoc bound
+(`FrontendReplay.QueryTest.bad_card_mul_le`). `Chained.failure_bound` is
+the ordinary-round result: for rounds sampled over all of `F` it lifts
+per-answer bounds to `2Q/|F| + (Q+1)/|Link|` over an adaptive query tree.
+It does not model the terminal challenge, sampled over nonzero `F`. For the
+current schedule the application's oracle charging (`ApplicationCharging`,
+at the rate `Soundness.Rate7.rate = 2/(q-1)`) lifts the `2/(|F|-1)`
+per-answer bound and keeps its denominator. The complete mdoc bound
 (`Mdoc.Soundness.averaged_linear_ratio_le`) is
 `2Q/(2^128-1) + (choose(Q,2) + R + 15)/2^256`, where `R` is the boundary
 count and GF(2^128), the smaller field, sets the leading term. Completeness is

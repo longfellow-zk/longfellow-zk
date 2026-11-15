@@ -82,8 +82,9 @@ positions `n..2n`, internal nodes at `1..n`, node `i` has children `2i` and
 `2i+1`, and the root is position 1. This holds for every `n >= 1`, powers of
 two or not. The verifier takes `n` from the absorbed geometry, never from the
 proof (transcript I2).
-*Enforced by:* `MerkleHeap::new` and `verify_proof` share
-`mark_paths_to_root` (runtime); the test
+*Enforced by:* `MerkleHeap::new` builds the heap for `n`, and
+`MerkleHeap::generate_proof` and `verify_proof` share `mark_paths_to_root`
+(runtime); the test
 `indexed_heaps_support_unbalanced_trees_and_unsorted_openings`; `Merkle.Heap`.
 
 **I7. Each opening has exactly one frontier.** The frontier is the set of
@@ -96,7 +97,9 @@ traversal consumes every frontier digest (runtime); the test
 `Merkle.Heap.frontier`.
 
 **I8. Opened indices are distinct and in range.** The verifier rejects an
-empty list, a repeated index or an index `>= n` before it touches the heap.
+empty list, a repeated index or an index `>= n` before it indexes the heap
+or the path mask with it. Both arrays are sized from the trusted geometry
+before the check.
 *Enforced by:* `mark_paths_to_root` (runtime); the test
 `verification_rejects_leaf_indices_at_or_beyond_the_leaf_count`.
 
@@ -246,8 +249,9 @@ pub(in crate::runtime::v2) enum MerkleError {
 
 `MerkleHeap` is built under the `prover` feature and `verify_proof` under the
 `verifier` feature; neither role links the other's code. Leaf indices passed
-to `generate_proof` come from the transcript's `indices` draw, which yields
-distinct indices in range, so a violation is a prover bug and panics.
+to `generate_proof` come from the transcript's `indices` draw
+(`Reading::choose`), which yields distinct indices in range, so a violation
+is a prover bug and panics.
 `verify_proof` takes untrusted indices and returns an error instead.
 
 ## Mistakes the design prevents

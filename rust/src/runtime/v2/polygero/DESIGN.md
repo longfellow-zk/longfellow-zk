@@ -195,7 +195,7 @@ row count. Tags are from the transcript registry.
 | | | *frontends run* | | |
 | 2 | draw (*input*) | batching, per field in tuple order | `elements(F, m_F)`: alpha; then for each row `i` in `0..nrow_F-1`: `elements(F, s+1)`: samples of `B_i` at `x_k..x_{k+s+1}` | `m_F + (nrow_F-1)(s+1)` elements |
 | 3 | prover | `PolygeroResponse` (96), once per field in tuple order | Elements(F, k+s): H; Elements(F, 2k): Z | `3k+s` elements |
-| 4 | draw | queries | `indices(n, out)` with `out.len() = t`: distinct columns, in draw order | `t` indices |
+| 4 | draw | queries | `indices(n, out)` (`Reading::choose`) with `out.len() = t`: distinct columns, in draw order | `t` indices |
 | 5 | prover | terminal, the tail of the body | rows of each field, nonces, frontier count, frontier | see Formats |
 
 Step 1 closes the first node together with the statement. Step 2 reads from

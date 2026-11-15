@@ -177,10 +177,10 @@ In mdoc `r = 2` (GF(2^128) host, then P-256 split participant), so the
 first draw row of the transcript schedule reads `2 x Elements(GF2_128, n_1),
 2 x Elements(P256, n_2)`, and the node holding both responses closes with the
 prime top weights. In a standalone ZK proof `r = 1`, and the node closes at
-the caller's next draw: the circuit's top weights, or for a circuit with zero
-layers, which sends and draws nothing, the next sub-protocol's first draw
-(the Polygero batching weights when the packing degree is one). Later draws
-before the next message continue the same stream (transcript I7).
+the caller's next draw, the circuit's top weights. For a circuit with zero
+layers they are its input-assertion weights: that draw still closes the
+node, and the zero-layer sumcheck then sends nothing. Later draws before the
+next message continue the same stream (transcript I7).
 
 Completion runs after every frontend message:
 
@@ -282,7 +282,7 @@ impl Field<'a, W, F, D> {
 /// Typed list (Field, Tail) ending in (); sealed. Keeps each field's element type.
 pub trait Fields: Sealed + Clone {
     type Backend: Participants + Clone;
-    type Coefficients;                 // ([Vec<F::E>; 2], Tail::Coefficients), never public data
+    type Coefficients;                 // ([Vec<F::E>; 2], Tail::Coefficients), derived, not serialized
     type Responses: Clone;             // (FingerprintResponse<F::E>, Tail::Responses)
     fn backend(&self) -> Self::Backend;
     fn coefficients(&self, r: &mut Reading<'_>) -> Self::Coefficients;                 // I3
@@ -298,7 +298,7 @@ pub type Batched<L>    = polygero::Batched<<L as Fields>::Backend>;   // weights
 /// Statement part: the field list and the joint Polygero parameter.
 pub struct Param<L: Fields> { fields: L, backend: JointPolygeroParam<L::Backend> }
 impl<L: Fields> Param<L> {
-    pub fn new(fields: L) -> Result<Self, String>;
+    pub(crate) fn new(fields: L) -> Result<Self, String>;  // only zk's JointParam::new builds one
     pub fn config(&self) -> PolygeroConfig;
     /// Batching weights for the augmented system: e_i + FINGERPRINTS per field,
     /// carrying the frontend statements `s`. The caller draws them after the

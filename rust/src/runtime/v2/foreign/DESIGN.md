@@ -171,9 +171,10 @@ The host circuit is archived at its natural width. R and the pads lie in a
 start at the suffix's end. Every foreign group lies in the host private
 range. Each sumcheck component reads only its own input prefix, so `C_H`
 cannot address R, the pads or the leaves. The mode writes `Q`, the tree
-count, the virtual leaf count and the positions of R and the pads into the
-statement as its `AdapterLayout` (transcript I3), from the same geometry it
-then uses.
+count, the virtual leaf count and the positions of the quotient pads into
+the statement as its `AdapterLayout` (transcript I3), from the same
+geometry it then uses. R's position is in the split participant's
+`CommitmentLayout`.
 *Enforced by:* `ReservedSuffix::new(ninput)`, the group check in
 `Composition::new` and `InputLayout::new` (runtime); the mode writes
 `AdapterLayout` from the geometry it then uses (`AdapterMode::write_layout`);
@@ -331,8 +332,8 @@ asserts it zero. All terms use the constant one.
 - the host sumcheck over `[C_H, fragment]`, with the leaves substituted;
 - the joint opening of the affine statements, then the application's seal.
 
-The verifier never checks a tree directly: the trees hold exactly when the
-host statement does.
+The verifier never checks a tree directly: the host statement includes
+the tree checks, beside `C_H`, so it implies them.
 
 ### mdoc instance
 
@@ -617,7 +618,7 @@ The Lean model fixes the field pair and the budget to mdoc
 
 | Published value | Why it reveals nothing | Lean |
 |---|---|---|
-| `mu` (mixed) | R is uniform in `F_p` and used only in `mu` (I8), so `mu` is uniform and independent of `<w_F, v_F>` | `Mdoc.ZeroKnowledge.statClose` |
+| `mu` (mixed) | R is uniform in `F_p`, and `mu` is the only directly published value it masks, so `mu` is uniform and independent of `<w_F, v_F>`. R also enters the native row and the modular claim, and its bits feed the adapter (I8); hiding of the whole view rests on the joint simulation, not on R being used once | `Mdoc.ZeroKnowledge.statClose` |
 | claim target (pure) | a public function of the statement, the frontend's messages and the row weights | none needed |
 | `m_t` | `o_t` is uniform in GF(2)^Q and used only here, so `k_t xor o_t` is uniform | `FrontendAdapterBits.rawOtpEquiv` |
 | Leaf definitions | public functions of public values; never absorbed | `Adapter.Leaves` |
