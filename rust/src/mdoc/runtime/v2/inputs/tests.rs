@@ -104,6 +104,188 @@ fn session_transcript_must_be_one_cbor_item() {
     }
 }
 
+/// One request for the circuit-free error-table checks; each row changes
+/// one field of a valid request.
+#[derive(Clone)]
+struct Request {
+    spec: crate::mdoc::v2::ZkSpecStruct,
+    pkx: String,
+    pky: String,
+    transcript: Vec<u8>,
+    attrs: Vec<crate::mdoc::v2::RequestedAttribute>,
+    now: String,
+    doc_type: String,
+}
+impl Request {
+    /// Run both roles with no circuits, no document and no proof, so a valid
+    /// request stops at circuit loading. The prover must not draw randomness.
+    fn codes(&self) -> (MdocProverErrorCode, MdocVerifierErrorCode) {
+        let mut rng = DeterministicRng::new(42);
+        let prover = run_mdoc_prover_inner(
+            &self.spec,
+            &[],
+            &[],
+            &self.pkx,
+            &self.pky,
+            &self.transcript,
+            &self.attrs,
+            &self.now,
+            &self.doc_type,
+            &mut rng,
+        )
+        .unwrap_err();
+        assert_eq!(rng.state, 42, "a rejected request consumed randomness");
+        let verifier = run_mdoc_verifier(
+            &self.spec,
+            &[],
+            &self.pkx,
+            &self.pky,
+            &self.transcript,
+            &self.attrs,
+            &self.now,
+            &self.doc_type,
+            &[],
+        )
+        .unwrap_err();
+        (prover, verifier)
+    }
+}
+
+/// The request rows of the error table in `mdoc/runtime/v2/DESIGN.md`, in
+/// both roles, with their numeric codes. A request failure gets the same code
+/// in both roles, except the attribute count, which only the verifier names.
+#[test]
+fn request_errors_follow_the_error_table() {
+    use MdocProverErrorCode as P;
+    use MdocVerifierErrorCode as V;
+
+    use crate::mdoc::proto::hash::constants::K_NAMESPACE_BYTES;
+    let mut two = v2_spec();
+    two.num_attributes = 2;
+    let valid = Request {
+        spec: two,
+        pkx: "0x1".into(),
+        pky: "2".into(),
+        transcript: SESSION.to_vec(),
+        attrs: vec![
+            req_attr("namespace", "a", [0xf5]),
+            req_attr("namespace", "b", [0x01]),
+        ],
+        now: "2026-10-23T00:00:00Z".into(),
+        doc_type: "doc".into(),
+    };
+    let with = |change: &dyn Fn(&mut Request)| {
+        let mut request = valid.clone();
+        change(&mut request);
+        request.codes()
+    };
+    // Archive or circuit rejected: the valid request reaches circuit loading.
+    assert_eq!(
+        valid.codes(),
+        (P::CircuitParsingFailure, V::CircuitParsingFailure)
+    );
+    assert_eq!(
+        (
+            P::CircuitParsingFailure as u32,
+            V::CircuitParsingFailure as u32
+        ),
+        (3, 1)
+    );
+    // Unsupported spec version.
+    for version in [0, 7, 99] {
+        assert_eq!(
+            with(&|r| r.spec.version = version),
+            (P::InvalidZkSpecVersion, V::InvalidZkSpecVersion)
+        );
+    }
+    assert_eq!(
+        (
+            P::InvalidZkSpecVersion as u32,
+            V::InvalidZkSpecVersion as u32
+        ),
+        (8, 10)
+    );
+    // Attribute count differs from the spec.
+    for count in [0, 1, 3] {
+        assert_eq!(
+            with(&|r| r.attrs = vec![valid.attrs[0].clone(); count]),
+            (P::InvalidInput, V::AttributeNumberMismatch)
+        );
+    }
+    assert_eq!(
+        (P::InvalidInput as u32, V::AttributeNumberMismatch as u32),
+        (2, 9)
+    );
+    // Any other request-shape failure.
+    let not_canonical = "0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff";
+    let shape: [(&str, &dyn Fn(&mut Request)); 18] = [
+        ("namespaces differ", &|r| {
+            r.attrs[1].namespace_id = b"other".to_vec()
+        }),
+        ("empty namespace", &|r| {
+            for a in &mut r.attrs {
+                a.namespace_id.clear();
+            }
+        }),
+        ("long namespace", &|r| {
+            for a in &mut r.attrs {
+                a.namespace_id = vec![b'n'; K_NAMESPACE_BYTES + 1];
+            }
+        }),
+        ("non-UTF-8 namespace", &|r| {
+            for a in &mut r.attrs {
+                a.namespace_id = vec![0xff];
+            }
+        }),
+        ("long identifier", &|r| r.attrs[0].id = vec![b'a'; 31]),
+        ("long value", &|r| {
+            r.attrs[1].cbor_value = encode_cbor_string(&[b'a'; 63]);
+        }),
+        ("empty document type", &|r| r.doc_type.clear()),
+        ("long document type", &|r| r.doc_type = "x".repeat(33)),
+        ("short time", &|r| r.now = "2026-10-23T00:00:00".into()),
+        ("malformed time", &|r| r.now = "2026/10/23T00:00:00Z".into()),
+        ("empty session transcript", &|r| r.transcript.clear()),
+        ("two session transcript items", &|r| {
+            r.transcript = vec![0xf6, 0xf6]
+        }),
+        ("truncated session transcript", &|r| {
+            r.transcript.truncate(3)
+        }),
+        ("empty issuer key", &|r| r.pkx.clear()),
+        ("bare 0x issuer key", &|r| r.pky = "0x".into()),
+        ("non-hex issuer key", &|r| r.pkx = "0xg".into()),
+        ("issuer key over 64 digits", &|r| {
+            r.pky = format!("{}1", "0".repeat(64))
+        }),
+        ("non-canonical issuer key", &|r| {
+            r.pkx = not_canonical.into()
+        }),
+    ];
+    for (row, change) in shape {
+        assert_eq!(
+            with(change),
+            (P::InvalidInput, V::InvalidInput),
+            "request-shape row: {row}"
+        );
+    }
+    assert_eq!((P::InvalidInput as u32, V::InvalidInput as u32), (2, 7));
+    // Unsupported attribute value.
+    for value in [&[0x82, 0x01, 0x02][..], &[0x65, 0x61][..], &[0xf6][..]] {
+        assert_eq!(
+            with(&|r| r.attrs[0].cbor_value = value.to_vec()),
+            (P::UnsupportedAttribute, V::UnsupportedAttribute)
+        );
+    }
+    assert_eq!(
+        (
+            P::UnsupportedAttribute as u32,
+            V::UnsupportedAttribute as u32
+        ),
+        (36, 11)
+    );
+}
+
 #[test]
 fn fixture_session_transcripts_are_single_cbor_items() {
     use crate::mdoc::testcases::ALL_TEST_CASES;

@@ -121,7 +121,7 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
         return Err(MdocProverErrorCode::InvalidInput);
     }
     if !same_namespace(attrs) {
-        return Err(MdocProverErrorCode::NamespacesMissing);
+        return Err(MdocProverErrorCode::InvalidInput);
     }
     if !session_transcript_is_one_item(transcript) {
         return Err(MdocProverErrorCode::InvalidInput);

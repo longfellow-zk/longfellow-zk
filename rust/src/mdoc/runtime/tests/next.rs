@@ -550,7 +550,7 @@ fn run_next_verifier_negative_cases(test_circuits: &TestCircuits) {
             "",
             &zkproof
         ),
-        Err(MdocVerifierErrorCode::GeneralFailure),
+        Err(MdocVerifierErrorCode::InvalidInput),
         "Verifier should reject empty doc_type"
     );
 
@@ -1085,8 +1085,131 @@ fn run_namespace_mixup(test_circuits: &TestCircuits) {
     );
     assert_eq!(
         res,
-        Err(MdocVerifierErrorCode::AttributeNumberMismatch),
+        Err(MdocVerifierErrorCode::InvalidInput),
         "Verifier should reject mixed namespace"
+    );
+}
+
+/// The rows of the error table in `mdoc/runtime/v2/DESIGN.md` that need real
+/// circuits, in both roles where they apply; `v2::inputs::tests` checks the
+/// request rows without circuits.
+fn run_next_error_table(test_circuits: &TestCircuits) {
+    let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
+    let req_attrs = requested_fixture_attributes(&parsed, "TEST_DATA");
+    let doc_type = "org.iso.18013.5.1.mDL";
+    let pkx = format!(
+        "0x{}",
+        num_bigint::BigUint::from_bytes_le(&issuer_pk.0.to_bytes_le()).to_str_radix(16)
+    );
+    let pky = format!(
+        "0x{}",
+        num_bigint::BigUint::from_bytes_le(&issuer_pk.1.to_bytes_le()).to_str_radix(16)
+    );
+    let provided = test_circuits.get(req_attrs.len()).unwrap();
+    let prove = |spec: &ZkSpecStruct, compressed: &[u8]| {
+        run_mdoc_prover_inner(
+            spec,
+            compressed,
+            TEST_DATA.mdoc,
+            &pkx,
+            &pky,
+            TEST_DATA.transcript,
+            &req_attrs,
+            now,
+            doc_type,
+            &mut DeterministicRng::new(42),
+        )
+    };
+    let verify = |spec: &ZkSpecStruct, compressed: &[u8], proof: &[u8]| {
+        run_mdoc_verifier(
+            spec,
+            compressed,
+            &pkx,
+            &pky,
+            TEST_DATA.transcript,
+            &req_attrs,
+            now,
+            doc_type,
+            proof,
+        )
+    };
+    let proof = prove(provided.spec(), provided.compressed()).unwrap();
+    assert!(verify(provided.spec(), provided.compressed(), &proof).is_ok());
+
+    // Archive or circuit rejected.
+    let mut corrupt = provided.compressed().to_vec();
+    let middle = corrupt.len() / 2;
+    corrupt[middle] ^= 0x55;
+    for compressed in [&[][..], &corrupt[..corrupt.len() / 2], &corrupt] {
+        assert_eq!(
+            prove(provided.spec(), compressed),
+            Err(MdocProverErrorCode::CircuitParsingFailure)
+        );
+        assert_eq!(
+            verify(provided.spec(), compressed, &proof),
+            Err(MdocVerifierErrorCode::CircuitParsingFailure)
+        );
+    }
+    let mut other_hash = *provided.spec();
+    other_hash.combined_hash[0] ^= 1;
+    assert_eq!(
+        prove(&other_hash, provided.compressed()),
+        Err(MdocProverErrorCode::CircuitParsingFailure)
+    );
+    assert_eq!(
+        verify(&other_hash, provided.compressed(), &proof),
+        Err(MdocVerifierErrorCode::CircuitParsingFailure)
+    );
+
+    // Proof does not parse (verifier only).
+    for bad in [&[][..], &proof[..proof.len() - 1], &proof[..4]] {
+        assert_eq!(
+            verify(provided.spec(), provided.compressed(), bad),
+            Err(MdocVerifierErrorCode::HashParsingFailure)
+        );
+    }
+
+    // Composition fails: the spec's Polygero profile cannot build it.
+    let mut bad_profile = *provided.spec();
+    bad_profile.polygero.k = 0;
+    assert_eq!(
+        prove(&bad_profile, provided.compressed()),
+        Err(MdocProverErrorCode::GeneralFailure)
+    );
+    assert_eq!(
+        verify(&bad_profile, provided.compressed(), &proof),
+        Err(MdocVerifierErrorCode::GeneralFailure)
+    );
+    // Verification or the seal fails.
+    let mut sealed = proof.clone();
+    *sealed.last_mut().unwrap() ^= 1;
+    assert_eq!(
+        verify(provided.spec(), provided.compressed(), &sealed),
+        Err(MdocVerifierErrorCode::GeneralFailure)
+    );
+    let mut other_now = now.as_bytes().to_vec();
+    other_now[3] ^= 1;
+    assert_eq!(
+        run_mdoc_verifier(
+            provided.spec(),
+            provided.compressed(),
+            &pkx,
+            &pky,
+            TEST_DATA.transcript,
+            &req_attrs,
+            std::str::from_utf8(&other_now).unwrap(),
+            doc_type,
+            &proof,
+        ),
+        Err(MdocVerifierErrorCode::GeneralFailure)
+    );
+    assert_eq!(
+        (
+            MdocProverErrorCode::GeneralFailure as u32,
+            MdocVerifierErrorCode::GeneralFailure as u32,
+            MdocVerifierErrorCode::HashParsingFailure as u32
+        ),
+        (6, 5, 3)
     );
 }
 
@@ -1274,6 +1397,7 @@ fn test_all_next_zk() {
     run_next_verifier_bad_proofs(&test_circuits);
     run_circuit_supports_cbor();
     run_namespace_mixup(&test_circuits);
+    run_next_error_table(&test_circuits);
 }
 
 /// Check the shared development profile and its compiled circuit geometry.
