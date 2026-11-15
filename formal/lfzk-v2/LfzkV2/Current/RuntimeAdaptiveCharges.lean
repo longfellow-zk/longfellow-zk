@@ -174,11 +174,6 @@ theorem single_off (point : Point) (H H' : Point → Digest × C)
   | none => rfl
   | some role => exact roleCharge_off S laws readers role point H H' h answer
 
-theorem single_zero_of_role (point : Point) (H : Point → Digest × C) (answer : Digest × C)
-    (hrole : point.role = some .batching ∨ point.role = some .opening) :
-    single S laws readers point H answer = 0 := by
-  rcases hrole with hrole | hrole <;> simp only [single,hrole,roleCharge]
-
 section Counts
 variable {LB LN : ℕ}
 variable (binaryListBound : ∀ (point : RuntimeVerifier.Point (g := g) (fields := fields)

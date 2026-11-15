@@ -32,17 +32,6 @@ theorem checkRaw_run (out : Out) (SHA : Bytes → Digest) :
       ((),((check codec claimOf out).run (SHA ∘ merkleInput)).2.map (fun qa => (merkleInput qa.1,qa.2))) := by
   rw [checkRaw,run_mapQueries]
 
-/-- Every input in the mathematical indexed check is visible in replay. -/
-theorem check_queries_visible (out : Out) (H : Enc → Digest) (input : Enc)
-    (queried : input ∈ checkTraceQueries (codec.withOracle H) n
-      (claimOf out).I (claimOf out).a (claimOf out).pf) :
-    ∃ answer, (input,answer) ∈ ((check codec claimOf out).run H).2 := by
-  obtain ⟨vertex,positive,within,atVertex⟩ := (mem_checkTraceQueries
-    (codec.withOracle H) n (claimOf out).I (claimOf out).a (claimOf out).pf input).mp queried
-  refine ⟨H input,?_⟩
-  simpa only [check,Tree.run_map] using Merkle.Indexed.check_visible codec n (claimOf out).I
-    (claimOf out).a (claimOf out).pf H vertex input positive within atVertex
-
 theorem check_root_congr (out : Out) (H H' : Enc → Digest)
     (agree : ∀ qa ∈ ((check codec claimOf out).run H).2, H' qa.1 = qa.2) :
     checkValues (codec.withOracle H') n (claimOf out).I (claimOf out).a (claimOf out).pf 1 =
@@ -63,11 +52,6 @@ theorem checkRaw_root_congr (out : Out) (SHA SHA' : Bytes → Digest)
   apply agree (merkleInput qa.1,qa.2)
   rw [checkRaw_run]
   exact List.mem_map.mpr ⟨qa,member,rfl⟩
-
-theorem checkRaw_nonPrf_card (out : Out) (SHA : Bytes → Digest) :
-    ((seen (checkRaw codec claimOf merkleInput out) SHA).filter
-      (fun raw => Strand.decodePrf raw = none)).card ≤ 2*n :=
-  (Finset.card_filter_le _ _).trans (seen_card_le _ _)
 
 end Check
 
@@ -193,69 +177,6 @@ theorem authentication_trace_subset (output : Out) (SHA : Bytes → Digest) :
   intro qa member
   exact List.mem_append_right _ (List.mem_append_left _ member)
 
-/-- The transcript-only final-node replay is a sub-observation of full
-verification. Authentication is inserted before that same final node. -/
-theorem beforeSeal_trace_subset (output : Out) (SHA : Bytes → Digest) :
-    ((TranscriptV2.StrandVerifier.beforeSeal history sample fallback model output).run SHA).2 ⊆
-      ((authenticate history sample fallback model authentication output).run SHA).2 := by
-  intro qa member
-  simp only [TranscriptV2.StrandVerifier.beforeSeal,Tree.run_bind,
-    TranscriptV2.StrandVerifier.replay_result,Tree.run_query,Tree.run_done] at member
-  rw [authenticate_trace]
-  rcases List.mem_append.mp member with ordinary | finalNode
-  · exact List.mem_append_left _ ordinary
-  · exact List.mem_append_right _ (List.mem_append_right _ (List.mem_cons.mpr
-      (Or.inl (List.mem_singleton.mp finalNode))))
-
-/-- Ordinary nodes, the one shared authentication check and final node are
-all counted. Counter-stream draws, including the final seal, are PRF calls. -/
-theorem authenticate_nonPrf_card (output : Out) (SHA : Bytes → Digest) :
-    ((seen (authenticate history sample fallback model authentication output) SHA).filter
-      (fun raw => Strand.decodePrf raw = none)).card ≤ rounds+1+authenticationBudget := by
-  -- Compare node sets with the existing transcript-only bound. The actual
-  -- replay above executes authentication before its single final-node read.
-  let before := TranscriptV2.StrandVerifier.beforeSeal history sample fallback model output
-  let annotated := (output,model.replay output (TranscriptV2.StrandVerifier.oracle history sample fallback SHA) rounds)
-  have subset : (seen (authenticate history sample fallback model authentication output) SHA).filter
-        (fun raw => Strand.decodePrf raw = none) ⊆
-      ((seen before SHA).filter (fun raw => Strand.decodePrf raw = none)) ∪
-        ((seen (authentication annotated) SHA).filter (fun raw => Strand.decodePrf raw = none)) := by
-    intro raw member
-    obtain ⟨queried,nonPrf⟩ := Finset.mem_filter.mp member
-    obtain ⟨⟨address,answer⟩,member,same⟩ := List.mem_map.mp (List.mem_toFinset.mp queried)
-    change address = raw at same
-    subst address
-    rw [authenticate_trace] at member
-    rcases List.mem_append.mp member with ordinaryQuery | later
-    · apply Finset.mem_union_left
-      apply Finset.mem_filter.mpr
-      refine ⟨?_,nonPrf⟩
-      apply List.mem_toFinset.mpr
-      apply List.mem_map.mpr
-      refine ⟨(raw,answer),?_,rfl⟩
-      dsimp only [before]
-      rw [TranscriptV2.StrandVerifier.beforeSeal,Tree.run_bind]
-      exact List.mem_append_left _ ordinaryQuery
-    · rcases List.mem_append.mp later with authenticationQuery | finalQuery
-      · apply Finset.mem_union_right
-        apply Finset.mem_filter.mpr
-        exact ⟨List.mem_toFinset.mpr (List.mem_map.mpr ⟨(raw,answer),authenticationQuery,rfl⟩),nonPrf⟩
-      · rcases List.mem_cons.mp finalQuery with node | sealQuery
-        · have address := congrArg Prod.fst node
-          change raw = _ at address
-          subst raw
-          apply Finset.mem_union_left
-          apply Finset.mem_filter.mpr
-          exact ⟨TranscriptV2.StrandVerifier.beforeSeal_nodes_visible history sample fallback model output SHA
-            (Fin.last rounds),nonPrf⟩
-        · have address := congrArg Prod.fst (List.mem_singleton.mp sealQuery)
-          change raw = _ at address
-          simp only [address,Strand.decodePrf_input] at nonPrf
-          contradiction
-  exact (Finset.card_le_card subset).trans ((Finset.card_union_le _ _).trans (Nat.add_le_add
-    (TranscriptV2.StrandVerifier.beforeSeal_nonPrf_card history sample fallback model output SHA)
-    ((Finset.card_filter_le _ _).trans (seen_card_le (authentication annotated) SHA))))
-
 end Physical
 
 section Completion
@@ -340,11 +261,6 @@ theorem authentication_trace_subset (output : Output) (SHA : Bytes → Digest) :
     ((authentication (output,(M).replay output (oracle SHA) g.roles.length)).run SHA).2 ⊆
       ((replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output).run SHA).2 :=
   Physical.authentication_trace_subset history sample cfg.fallback (M) authentication output SHA
-
-theorem replay_nonPrf_card (output : Output) (SHA : Bytes → Digest) :
-    ((seen (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output) SHA).filter
-      (fun raw => Strand.decodePrf raw = none)).card ≤ g.roles.length+1+2*n :=
-  Physical.authenticate_nonPrf_card history sample cfg.fallback (M) authentication output SHA
 
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
 variable (decodePublic : RuntimeAdaptive.PublicReader g (BoundedBytes capacity) (Fin prime.nPublic → N))

@@ -51,13 +51,4 @@ theorem finish_valid (body : Body) (SHA : Strand.Oracle) :
   rw [same]
   rfl
 
-/-- The final node binds exactly the actual complete proof body according
-to the same canonical encoder as runtime replay. -/
-theorem final_body (proof : Proof) (SHA : Strand.Oracle) :
-    ∃ state, (StrandRuntime.history wire bodyCodec
-      ((e.encoding.chain initial).finalSealPoint proof
-        (StrandVerifier.oracle (StrandRuntime.history wire bodyCodec) sample fallback SHA))).input.encode =
-      StrandTranscript.sealNodeInput wire.sealFrame state (bodyCodec.encode proof.body) :=
-  StrandRuntime.complete_body_node wire bodyCodec e.encoding initial proof _
-
 end LfzkV2.Current.ZeroKnowledge.StrandCompletion

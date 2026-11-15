@@ -87,15 +87,6 @@ def evaluationEquiv (F : Type) [Field F] [DecidableEq F] {d : ℕ}
     Polynomial.degreeLT F d ≃ (Fin d → F) :=
   Equiv.ofBijective (fun p i => (p : Polynomial F).eval (nodes i)) (evaluation_bijective F nodes hinj)
 
-/-- The abstract inverse is the same interpolation used by the wire decoder. -/
-theorem evaluationEquiv_symm_polynomial (F : Type) [Field F] [DecidableEq F] {d : ℕ}
-    (nodes : Fin d → F) (hinj : Function.Injective nodes) (values : Fin d → F) :
-    ((evaluationEquiv F nodes hinj).symm values : Polynomial F) =
-      Lagrange.interpolate Finset.univ nodes values := by
-  have same : evaluationEquiv F nodes hinj = lagrangeEquiv F nodes hinj := Equiv.ext (fun _ => rfl)
-  exact congrArg (fun equiv : Polynomial.degreeLT F d ≃ (Fin d → F) =>
-    (equiv.symm values : Polynomial F)) same
-
 theorem evaluationEquiv_eval (F : Type) [Field F] [DecidableEq F] {d : ℕ}
     (nodes : Fin d → F) (hinj : Function.Injective nodes) (values : Fin d → F) (i : Fin d) :
     (((evaluationEquiv F nodes hinj).symm values : Polynomial.degreeLT F d) : Polynomial F).eval

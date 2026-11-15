@@ -58,29 +58,6 @@ def decode (bindSalt : Fin n → Nonce → Salt)
             exact List.idxOf_lt_length_of_mem (Heap.mem_frontierList.mpr v.property)) } }
   else none
 
-/-- Decoding fixes the opened set to the query derived from the transcript. -/
-theorem decode_indices (bindSalt : Fin n → Nonce → Salt)
-    (indices : Fin t ↪ Fin n) (raw : Raw t Nonce Leaf D)
-    (claim : OpeningClaim n Salt Leaf D) (h : decode bindSalt indices raw = some claim) :
-    claim.I = (query indices).coordinates := by
-  unfold decode at h
-  split_ifs at h with hf
-  · exact congrArg OpeningClaim.I (Option.some.inj h).symm
-
-/-- Each queried position receives exactly its corresponding tuple column. -/
-theorem decode_values (bindSalt : Fin n → Nonce → Salt)
-    (indices : Fin t ↪ Fin n) (raw : Raw t Nonce Leaf D)
-    (claim : OpeningClaim n Salt Leaf D) (h : decode bindSalt indices raw = some claim) (i : Fin t) :
-    claim.a (indices i) = raw.values i := by
-  unfold decode at h
-  split_ifs at h with hf
-  · cases Option.some.inj h
-    simp only [dif_pos (show indices i ∈ (query indices).coordinates from by
-      simp [query, QuerySet.coordinates])]
-    congr 1
-    apply (order indices).injective
-    exact (order indices).apply_symm_apply _
-
 section Replay
 variable {g : Geometry} {F : Fields} {Advice Auth Context Block C : Type}
 

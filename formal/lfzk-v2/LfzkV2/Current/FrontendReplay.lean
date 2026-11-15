@@ -32,24 +32,6 @@ theorem slots_positive {out input : ℕ} (circuit : Layered.Circuit F out input)
   | entry _ _ _ ih => exact ih
   | layer => simp only [slots]; omega
 
-theorem no_layers {out input : ℕ} (circuit : Layered.Circuit F out input)
-    (h : hasLayers circuit = false) : circuit.layers = 0 ∧ circuit.rounds = 0 := by
-  induction circuit with
-  | input => exact ⟨rfl,rfl⟩
-  | entry _ _ _ ih => exact ih h
-  | layer => simp [hasLayers] at h
-
-/-- This is the count used by the Rust loop, independent of the number of
-entries or quad fragments. It also accounts for an input-only frontend. -/
-theorem slots_eq {out input : ℕ} (circuit : Layered.Circuit F out input) :
-    slots circuit = circuit.rounds + 2*circuit.layers + 1 := by
-  induction circuit with
-  | input => rfl
-  | entry _ _ _ ih => exact ih
-  | @layer out mid input n body rest ih =>
-      simp only [slots, Layered.Circuit.rounds, Layered.Circuit.layers] at ih ⊢
-      omega
-
 /-- The retained algebra names failure positions separately. This map locates
 each position at its actual current query; it is intentionally not injective.
 Entering outputs and layer assertions share an index, as do a combine and the

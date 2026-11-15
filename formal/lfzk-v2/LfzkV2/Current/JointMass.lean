@@ -41,15 +41,6 @@ private theorem capacity_gap (S : Joint.Participant k s n t) (p : HahnSystemCert
   have hgap := (div_le_iff₀ hq).mp (NonrecursiveFS.error_gap S.backend p)
   nlinarith
 
-/-- The complete joint high-capacity label set has fewer than the chosen
-field's cardinality. This is a bound on all joint labels, before either
-field's exceptional coins are tested, so the same set is used for both. -/
-theorem capacity_high_card_lt (S : Joint.Participant k s n t) (p : HahnSystemCertificate S.backend)
-    (W : Oracle P R) (ε : ℚ) (hε : p.error ≤ ε) :
-    (univ.filter fun d : Label P R W => ε < capacity P R W d).card < Nat.card S.Carrier :=
-  RestrictedExcess.above_threshold_card_lt (capacity P R W) (Nat.card S.Carrier) Nat.card_pos
-    p.threshold ε (capacity_gap S p ε hε) (capacity_excess P R S p W)
-
 theorem capacity_high_mass (S : Joint.Participant k s n t) (p : HahnSystemCertificate S.backend)
     (W : Oracle P R) (ε : ℚ) (hε : p.error ≤ ε) :
     (∑ d : Label P R W, if ε < capacity P R W d then capacity P R W d else 0) ≤
@@ -355,44 +346,5 @@ theorem rank_mean (p : ProfileParameters P.backend) (r : ProfileParameters R.bac
         (fun c : P.Coin => indicator (NonrecursiveFS.rankBad P.backend W.1 c))
         (fun c : R.Coin => indicator (NonrecursiveFS.rankBad R.backend W.2 c))
     _ ≤ _ := add_le_add (rank_bad_mean P.backend p W.1) (rank_bad_mean R.backend r W.2)
-
-/-- Active-family parent charge, with both field rank errors retained. -/
-theorem parent_mass_active_le (p : HahnSystemCertificate P.backend) (r : ProfileParameters R.backend)
-    (σ : Statement P R) (W : Oracle P R) (ε : ℚ) (hθ : p.threshold ≤ ε)
-    (hactive : CodingTheory.UniformFamilyBound n p.columnCutoff (k+2*s-1) p.listBound)
-    (hbound : p.listBound ≤ Nat.card P.Carrier) :
-    mean (fun c : Coin P R => indicator (rankBad P R W c)+highMass P R σ W ε c) ≤
-      p.rankError+r.rankError+activeHighBudget P R p := by
-  rw [mean_add]
-  exact add_le_add (rank_mean P R p.toProfileParameters r W)
-    (extraction_high_mass_mean_active P R p r σ W ε hθ hactive hbound)
-
-/-- Rank and the refined summed response mass are charged at the same
-parent query. This coefficient keeps the two actual rank errors and one
-joint high-response mass, without an extra field-sized label factor. -/
-theorem parent_mass_joint_le (p : HahnSystemCertificate P.backend) (r : HahnSystemCertificate R.backend)
-    (σ : Statement P R) (W : Oracle P R) (ε : ℚ) (hp : p.error ≤ ε) (hr : r.error ≤ ε) :
-    mean (fun c : Coin P R => indicator (rankBad P R W c)+highMass P R σ W ε c) ≤
-      p.rankError+r.rankError+jointHighBudget P R p := by
-  rw [mean_add]
-  exact add_le_add (rank_mean P R p.toProfileParameters r.toProfileParameters W)
-    (extraction_high_mass_mean_joint P R p r σ W ε hp hr)
-
-/-- A single parent-query budget covers rank failures and the sum of every
-high-acceptance failing response pair. The same epsilon also bounds each
-remaining child-query response, which is the form shared charging needs. -/
-theorem parent_mass_le (p : HahnSystemCertificate P.backend) (r : HahnSystemCertificate R.backend)
-    (σ : Statement P R) (W : Oracle P R)
-    (hp : p.rankError ≤ 1/(Nat.card P.Carrier : ℚ))
-    (hr : r.rankError ≤ 1/(Nat.card R.Carrier : ℚ)) :
-    mean (fun c : Coin P R => indicator (rankBad P R W c) +
-      highMass P R σ W (p.error+r.error) c) ≤ p.error+r.error := by
-  rw [mean_add]
-  have hh := extraction_high_mass_mean P R p r σ W (p.error+r.error)
-    (le_add_of_nonneg_right r.error_nonneg) (le_add_of_nonneg_left p.error_nonneg)
-  have hb := add_le_add (rank_mean P R p.toProfileParameters r.toProfileParameters W) hh
-  have hP := NonrecursiveFS.rank_high_le_error P.backend p hp
-  have hR := NonrecursiveFS.rank_high_le_error R.backend r hr
-  linarith
 
 end LfzkV2.Current.JointResponse

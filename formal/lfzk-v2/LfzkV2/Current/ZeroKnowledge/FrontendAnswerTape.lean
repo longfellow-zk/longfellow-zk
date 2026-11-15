@@ -109,10 +109,6 @@ theorem step_answer_into (fallback : C) (state future : CompleteTranscript.State
 def Last (fallback : C) (state : CompleteTranscript.State g fields Advice Key Base C) : Prop :=
   state.lastAnswer = lookup fallback state (state.rank.val-1)
 
-theorem initial_last (context : Key) (fallback : C) :
-    Last (g := g) (fields := fields) (Advice := Advice) (Base := Base) fallback
-      (CompleteTranscript.initial context fallback) := rfl
-
 theorem advance_last (fallback : C) (state : CompleteTranscript.State g fields Advice Key Base C)
     (inside : state.rank.val < g.roles.length) (answer : Digest × C) :
     Last fallback (CompleteTranscript.advance base state inside answer) := by

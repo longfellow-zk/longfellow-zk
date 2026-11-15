@@ -24,10 +24,6 @@ structure Codec (Point Raw : Type) (valid : Point → Prop) where
 namespace Codec
 variable (codec : Codec Point Raw valid)
 
-theorem encode_injective : Function.Injective codec.encode := by
-  intro p q h
-  exact Option.some.inj (by rw [← codec.decode_encode p,← codec.decode_encode q,h])
-
 /-- Retain auxiliary queries while exposing canonical queries to protocol
 lemmas. Unused noncanonical typed coordinates may be padded independently;
 the translated program never asks them. -/
@@ -161,146 +157,6 @@ def program (codec : Codec Point Raw valid) (outside : Raw → A) : {left right 
     | some point => .queryRight point.val fun answer => codec.program outside (next answer)
     | none => weakenRight (codec.program outside (next (outside raw)))
 
-theorem fixLeft_program [DecidableEq QL] (outside : Raw → A) {TL left right : ℕ}
-    (tape : Fin TL → DL) (dflt : DL)
-    (body : TwoOracleTree QL DL Raw A Out left right) (seen : List QL) :
-    fixLeft tape dflt (codec.program outside body) seen = codec.tree outside (fixLeft tape dflt body seen) := by
-  induction body generalizing seen with
-  | done out => rfl
-  | queryLeft query next ih =>
-      simp only [program,fixLeft]
-      exact ih _ _
-  | queryRight raw next ih =>
-      cases hd : codec.decode raw with
-      | none => simp only [program,hd,fixLeft_weakenRight,fixLeft,tree]; rw [ih]
-      | some point =>
-          simp only [program,hd,fixLeft,tree]
-          exact congrArg (Tree.query point.val) (funext fun answer => ih answer seen)
-
-/-- State-enriched fixing retains the complete lazy Merkle slot list in
-addition to the output and the ordered canonical right-query trace. -/
-theorem fixLeftState_program [DecidableEq QL] (outside : Raw → A) {TL left right : ℕ}
-    (tape : Fin TL → DL) (dflt : DL)
-    (body : TwoOracleTree QL DL Raw A Out left right) (seen : List QL) :
-    fixLeftState tape dflt (codec.program outside body) seen =
-      codec.tree outside (fixLeftState tape dflt body seen) := by
-  induction body generalizing seen with
-  | done out => rfl
-  | queryLeft query next ih =>
-      simp only [program,fixLeftState]
-      exact ih _ _
-  | queryRight raw next ih =>
-      cases hd : codec.decode raw with
-      | none =>
-          have hw : ∀ {left right : ℕ} (p : TwoOracleTree QL DL Point A Out left right) seen,
-              fixLeftState tape dflt (weakenRight p) seen = (fixLeftState tape dflt p seen).weaken := by
-            intro left right p
-            induction p with
-            | done out => intro seen; rfl
-            | queryLeft q next ih => intro seen; simp only [weakenRight,fixLeftState]; exact ih _ _
-            | queryRight q next ih =>
-                intro seen
-                simp only [weakenRight,fixLeftState,Tree.weaken]
-                exact congrArg (Tree.query q) (funext fun answer => ih answer seen)
-          simp only [program,hd,hw,fixLeftState,tree]
-          rw [ih]
-      | some point =>
-          simp only [program,hd,fixLeftState,tree]
-          exact congrArg (Tree.query point.val) (funext fun answer => ih answer seen)
-
-theorem left_state_preserved [DecidableEq QL] (outside : Raw → A) (H : Point → A)
-    {TL left right : ℕ} (tape : Fin TL → DL) (dflt : DL)
-    (body : TwoOracleTree QL DL Raw A Out left right) (seen : List QL) :
-    ((fixLeftState tape dflt (codec.program outside body) seen).run H).1 =
-      ((fixLeftState tape dflt body seen).run (codec.oracle outside H)).1 := by
-  rw [fixLeftState_program,run_tree]
-
-/-- The queried-support bound used by the typed FS theorem holds with the
-same raw budget. Outside-image calls are charged by neither extra typed
-queries nor invented protocol rounds. -/
-theorem program_seen_card_le [DecidableEq QL] [DecidableEq Raw] [DecidableEq Point]
-    (outside : Raw → A) (H : Point → A) {TL left right : ℕ}
-    (tape : Fin TL → DL) (dflt : DL)
-    (body : TwoOracleTree QL DL Raw A Out left right) (seen : List QL) :
-    (TranscriptV2.seen (fixLeft tape dflt (codec.program outside body) seen) H).card ≤
-      (TranscriptV2.seen (fixLeft tape dflt body seen) (codec.oracle outside H)).card := by
-  rw [fixLeft_program]
-  exact codec.seen_card_le outside H _
-
-
-section ContextCut
-variable {Key : Type} [DecidableEq Key]
-
-/-- Stop before the first typed query naming a commitment context, while
-retaining every preceding Merkle query in its original order. -/
-def typedCut (key : Point → Key) (target : Key) (H : Point → A) : {left right : ℕ} →
-    TwoOracleTree QL DL Point A Out left right → Tree QL DL (Option Point) left
-  | _, _, .done _ => .done none
-  | _, _, .queryLeft query next => .query query fun answer => typedCut key target H (next answer)
-  | _, _, .queryRight point next =>
-      if key point = target then .done (some point) else typedCut key target H (next (H point))
-
-/-- Unrelated bytes have no parsed protocol context. They are evaluated
-locally, rather than moving the cut past a valid query that names the key. -/
-def rawCut (codec : Codec Point Raw valid) (key : Point → Key) (target : Key)
-    (outside : Raw → A) (H : Point → A) : {left right : ℕ} →
-    TwoOracleTree QL DL Raw A Out left right → Tree QL DL (Option Point) left
-  | _, _, .done _ => .done none
-  | _, _, .queryLeft query next => .query query fun answer => codec.rawCut key target outside H (next answer)
-  | _, _, .queryRight raw next => match codec.decode raw with
-    | none => codec.rawCut key target outside H (next (outside raw))
-    | some point => if key point.val = target then .done (some point.val)
-        else codec.rawCut key target outside H (next (H point.val))
-
-private theorem typedCut_weakenRight (key : Point → Key) (target : Key) (H : Point → A)
-    {left right : ℕ} (body : TwoOracleTree QL DL Point A Out left right) :
-    typedCut key target H (weakenRight body) = typedCut key target H body := by
-  induction body with
-  | done _ => rfl
-  | queryLeft query next ih =>
-      simp only [typedCut,weakenRight]
-      exact congrArg (Tree.query query) (funext ih)
-  | queryRight point next ih =>
-      simp only [typedCut,weakenRight]
-      split_ifs with h
-      · rfl
-      · exact ih (H point)
-
-/-- Equality of the whole cut program preserves both its stopping point
-and every Merkle answer used by a context-based extractor. -/
-theorem cut_program (key : Point → Key) (target : Key) (outside : Raw → A) (H : Point → A)
-    {left right : ℕ} (body : TwoOracleTree QL DL Raw A Out left right) :
-    typedCut key target H (codec.program outside body) = codec.rawCut key target outside H body := by
-  induction body with
-  | done _ => rfl
-  | queryLeft query next ih =>
-      simp only [program,typedCut,rawCut]
-      exact congrArg (Tree.query query) (funext ih)
-  | queryRight raw next ih =>
-      cases hd : codec.decode raw with
-      | none => simp only [program,hd,typedCut_weakenRight,rawCut]; exact ih (outside raw)
-      | some point =>
-          simp only [program,hd,typedCut,rawCut]
-          split_ifs with h
-          · rfl
-          · exact ih (H point.val)
-
-theorem cut_trace (key : Point → Key) (target : Key) (outside : Raw → A) (H : Point → A)
-    {left right : ℕ} (body : TwoOracleTree QL DL Raw A Out left right) (HM : QL → DL) :
-    (typedCut key target H (codec.program outside body)).run HM =
-      (codec.rawCut key target outside H body).run HM := by
-  rw [cut_program]
-
-theorem extractor_preserved {Witness : Type} (key : Point → Key) (target : Key)
-    (outside : Raw → A) (H : Point → A) {left right : ℕ}
-    (body : TwoOracleTree QL DL Raw A Out left right) (HM : QL → DL)
-    (extractor : Option Point × List (QL × DL) → Witness) :
-    extractor ((typedCut key target H (codec.program outside body)).run HM) =
-      extractor ((codec.rawCut key target outside H body).run HM) := by
-  rw [cut_trace]
-
-end ContextCut
-
 
 section FiniteWindow
 variable [Fintype A] [Fintype DL] [DecidableEq Raw]
@@ -311,21 +167,6 @@ def allQueries : {left right : ℕ} → TwoOracleTree QL DL Raw A Out left right
   | _, _, .done _ => ∅
   | _, _, .queryLeft _ next => univ.biUnion fun answer => allQueries (next answer)
   | _, _, .queryRight raw next => insert raw (univ.biUnion fun answer => allQueries (next answer))
-
-theorem queried_mem_allQueries [DecidableEq QL] {TL left right : ℕ}
-    (tape : Fin TL → DL) (dflt : DL) (body : TwoOracleTree QL DL Raw A Out left right)
-    (seen : List QL) (H : Raw → A) (raw : Raw)
-    (h : raw ∈ Bcs.TotalOracle.queried (fixLeft tape dflt body seen) H) : raw ∈ allQueries body := by
-  induction body generalizing seen with
-  | done out => simp only [fixLeft,Bcs.TotalOracle.queried,Tree.run_done,List.map_nil,List.not_mem_nil] at h
-  | queryLeft query next ih =>
-      simp only [fixLeft] at h
-      exact mem_biUnion.mpr ⟨_,mem_univ _,ih _ _ h⟩
-  | queryRight query next ih =>
-      simp only [fixLeft,Bcs.TotalOracle.queried_query,List.mem_cons] at h
-      rcases h with rfl | h
-      · exact mem_insert_self _ _
-      · exact mem_insert_of_mem (mem_biUnion.mpr ⟨H query,mem_univ _,ih _ _ h⟩)
 
 variable [Fintype {point // valid point}]
 
@@ -347,23 +188,6 @@ def windowCodec {left right : ℕ} (body : TwoOracleTree QL DL Raw A Out left ri
   decode raw := codec.decode raw.val
   decode_encode := codec.decode_encode
   encode_decode raw point h := Subtype.ext (codec.encode_decode raw.val point h)
-
-/-- A completed raw execution uses only this finite window, for every
-oracle and every lazy Merkle tape. Thus restricting the raw oracle to it
-preserves the whole execution trace, not only the accepted output. -/
-theorem run_window [DecidableEq QL] {TL left right : ℕ}
-    (tape : Fin TL → DL) (dflt : DL) (body : TwoOracleTree QL DL Raw A Out left right)
-    (seen : List QL) (H : Raw → A) (fallback : Raw → A) :
-    (fixLeft tape dflt body seen).run
-      (fun raw => if h : raw ∈ codec.window body then H (show {r // r ∈ codec.window body} from ⟨raw,h⟩).val else fallback raw) =
-      (fixLeft tape dflt body seen).run H := by
-  apply Tree.run_congr_on_trace
-  intro qa hqa
-  have hmem : qa.1 ∈ codec.window body := mem_union_left _
-    (queried_mem_allQueries tape dflt body seen H qa.1
-      (List.mem_map.mpr ⟨qa,hqa,rfl⟩))
-  rw [dif_pos hmem]
-  exact (Tree.trace_sound _ H qa hqa).symm
 
 end FiniteWindow
 

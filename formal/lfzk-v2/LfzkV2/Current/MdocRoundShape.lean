@@ -55,33 +55,4 @@ theorem rounds_le (g : Geometry) (shape : Supported g) : g.roles.length ≤ 499 
   rw [rounds_eq g attributes shape]
   fin_cases attributes <;> decide
 
-/-- Closed public challenge skeleton. Cell contents and gate semantics do not
-enter the round count and remain in the actual application geometry. -/
-def skeleton (attributes : Fin 4) : Geometry where
-  binary := ⟨(binaryRounds attributes).map (fun n => ⟨[],[],n⟩),[]⟩
-  prime := ⟨primeRounds.map (fun n => ⟨[],[],n⟩),[]⟩
-  binaryCells := 0
-  primeCells := 0
-  packingDegree := 128
-  packingPositive := by decide
-  rowDimension := 349
-  maskingDegree := 12
-  columns := 2443
-  openings := 84
-  openingsPositive := by decide
-  openings_lt := by decide
-  openings_le := by decide
-  responseFits := by decide
-  productFits := by decide
-
-theorem skeleton_matches (attributes : Fin 4) : Matches (skeleton attributes) attributes := by
-  constructor
-  · simp [skeleton, List.map_map, Function.comp_def]
-  · simp [skeleton, List.map_map, Function.comp_def]
-  · norm_num [skeleton]
-
-theorem skeleton_rounds (attributes : Fin 4) :
-    (skeleton attributes).roles.length = roundCount attributes :=
-  rounds_eq _ attributes (skeleton_matches attributes)
-
 end LfzkV2.Current.MdocRoundShape

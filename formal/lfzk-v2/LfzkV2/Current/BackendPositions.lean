@@ -98,30 +98,6 @@ theorem openingIndex_last (g : Geometry) : g.openingIndex.val+1 = g.roles.length
 @[simp] theorem get_openingIndex (g : Geometry) : g.roles.get g.openingIndex = .opening := by
   simp [List.get_eq_getElem, openingIndex, g.roles_eq_backend]
 
-theorem get_eq_batching_iff (g : Geometry) (i : Fin g.roles.length) :
-    g.roles.get i = .batching ↔ i = g.batchingIndex := by
-  constructor
-  · intro hi
-    by_cases hbefore : i.val < g.backendPrefix.length
-    · have hget : g.roles.get i = g.backendPrefix.get ⟨i.val,hbefore⟩ := by
-        simp only [List.get_eq_getElem, g.roles_eq_backend,
-          List.getElem_append_left hbefore]
-      have hmem := List.get_mem g.backendPrefix ⟨i.val,hbefore⟩
-      rw [← hget, hi] at hmem
-      exact (g.backendPrefix_batching_not_mem hmem).elim
-    · have hlt := i.isLt
-      have hlen := g.roles_length_backend
-      have hcases : i.val = g.backendPrefix.length ∨ i.val = g.backendPrefix.length+1 := by omega
-      rcases hcases with heq | heq
-      · apply Fin.ext
-        exact heq
-      · have hi' : i = g.openingIndex := Fin.ext heq
-        subst i
-        have hfalse : Role.opening = .batching := g.get_openingIndex.symm.trans hi
-        cases hfalse
-  · rintro rfl
-    exact g.get_batchingIndex
-
 theorem get_eq_opening_iff (g : Geometry) (i : Fin g.roles.length) :
     g.roles.get i = .opening ↔ i = g.openingIndex := by
   constructor

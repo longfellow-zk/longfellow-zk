@@ -20,14 +20,6 @@ def completedDecoder (decode : Coins → Option Value) (fiber : ℕ)
     (fiber*Fintype.card Value + (univ.filter fun coins => decode coins = none).card)
     (TranscriptV2.StrandSampling.complete_fiber decode fiber uniform)
 
-/-- The ideal coordinate equals the actual value on every accepting read.
-No assumption is made about discarded bytes being independent of that value. -/
-theorem completedDecoder_agrees (decode : Coins → Option Value) (fiber : ℕ)
-    (uniform : ∀ value, (univ.filter fun coins => decode coins = some value).card = fiber)
-    (coins : Coins) (value fallback : Value) (accepted : decode coins = some value) :
-    (completedDecoder decode fiber uniform).decode (coins,fallback) = value :=
-  TranscriptV2.StrandSampling.complete_success decode coins value fallback accepted
-
 /-- Completing a partial sampler with an independent fallback leaves one
 raw-stream-sized residual fiber per value. Its size is independent of the
 field, the round's block width, and the rejection probability. -/
@@ -119,18 +111,6 @@ def read (factor : Answer ≃ Value × Unused) (fallback : Answer)
     (sampler : Tree Index Block (Option Value) fuel) : Tree Index Block (Option Answer) fuel :=
   sampler.map (Option.map fun value => factor.symm (value,(factor fallback).2))
 
-omit [Fintype Value] [Nonempty Value] in
-theorem read_trace (factor : Answer ≃ Value × Unused) (fallback : Answer)
-    (sampler : Tree Index Block (Option Value) fuel) (stream : Index → Block) :
-    ((read factor fallback sampler).run stream).2 = (sampler.run stream).2 := by
-  rw [read,Tree.run_map]
-
-omit [Fintype Value] [Nonempty Value] in
-theorem read_failed (factor : Answer ≃ Value × Unused) (fallback : Answer)
-    (sampler : Tree Index Block (Option Value) fuel) (stream : Index → Block) :
-    ((read factor fallback sampler).run stream).1 = none ↔ (sampler.run stream).1 = none := by
-  simp only [read,Tree.run_map,Option.map_eq_none_iff]
-
 /-- Reindexing retains every raw block. On success the physical reader
 equals the normalized ideal answer; its other role coordinates are never
 mistaken for physically generated randomness. -/
@@ -175,10 +155,6 @@ def oracleEquiv (split : Point → Raw ≃ Challenge × Residual) :
       exact Prod.ext rfl (congrArg Prod.fst ((split point).apply_symm_apply ((pair.1 point).2,pair.2 point)))
     · funext point
       exact congrArg Prod.snd ((split point).apply_symm_apply ((pair.1 point).2,pair.2 point))
-
-theorem oracleEquiv_link (split : Point → Raw ≃ Challenge × Residual)
-    (H : Point → Link × Raw) (point : Point) :
-    (((oracleEquiv split) H).1 point).1 = (H point).1 := rfl
 
 /-- The actual query program receives its reconstructed raw answer. In
 particular it can still inspect rejected and unused bytes. Fixing the
@@ -245,26 +221,6 @@ their independent ideal coordinate is never consumed by a protocol. -/
 def taggedEquiv : P ⊕ Aux → (Coins × Answer) ≃ Answer × Fin (Fintype.card Coins)
   | .inl point => componentEquiv (factor point) (decode point) (fiber point) (uniform point)
   | .inr _ => auxiliaryEquiv
-
-theorem taggedEquiv_typed (point : P) :
-    taggedEquiv (Aux := Aux) factor decode fiber uniform (.inl point) =
-      componentEquiv (factor point) (decode point) (fiber point) (uniform point) := rfl
-
-theorem taggedEquiv_auxiliary (aux : Aux) :
-    taggedEquiv factor decode fiber uniform (.inr aux) =
-      auxiliaryEquiv (Coins := Coins) (Answer := Answer) := rfl
-
-/-- An accepted physical block equals its ideal role coordinate. This
-applies after conditioning on any residual table, including one retaining
-all the prover's otherwise unused raw bytes. -/
-theorem taggedEquiv_inverse_success (point : P) (challenge : Answer)
-    (residual : Fin (Fintype.card Coins)) (value : Values point)
-    (accepted : decode point
-      ((taggedEquiv (Aux := Aux) factor decode fiber uniform (.inl point)).symm
-        (challenge,residual)).1 = some value) :
-    (factor point challenge).1 = value :=
-  componentEquiv_inverse_success (factor point) (decode point) (fiber point) (uniform point)
-    challenge residual value accepted
 
 end Tagged
 

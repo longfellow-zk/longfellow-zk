@@ -17,17 +17,6 @@ variable (samples : ConcreteMetadata.Samples B C)
 variable (base : CompleteSimulation.BaseWriter binary prime primePlan (Base := Base) (C := C))
 variable (H : CompleteSimulation.Point binary prime primePlan (Key := Key) (Base := Base) → Digest × C)
 
-omit [DecidableEq B] in
-theorem first_values (context : Key) (coins : CompleteSimulation.Coins binary prime) :
-    (CompleteTranscript.step base H (CompleteTranscript.initial context samples.fallback)).1 =
-      lookup samples.fallback
-        (CompleteSimulation.simulate binary prime primePlan samples base H context coins).state 0 := by
-  have inside : 0 < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by
-    rw [SimulationWrites.capacity]
-    omega
-  exact step_answer_into base H samples.fallback (CompleteTranscript.initial context samples.fallback)
-    _ inside (SimulationAnswers.first_future binary prime primePlan samples base H context coins)
-
 omit [Fintype B] [DecidableEq B] in
 /-- The split claim is computed from the prime messages alone; eta is read
 from the prime frontend's last answer, after its coordinates. -/

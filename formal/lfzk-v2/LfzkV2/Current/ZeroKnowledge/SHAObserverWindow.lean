@@ -34,12 +34,6 @@ def trees : (index : ObserverWindow.Index Request Proof) →
 
 def window : Finset Raw := MerkleOracleWindow.window codec _ (trees domain outside prior after)
 
-def finiteCodec : Codec Salt Leaf D {raw // raw ∈ window domain outside codec prior after} :=
-  MerkleOracleWindow.finiteCodec codec _ (trees domain outside prior after)
-
-theorem finiteCodec_inj (injective : codec.Inj) : (finiteCodec domain outside codec prior after).Inj :=
-  MerkleOracleWindow.finiteCodec_inj codec _ (trees domain outside prior after) injective
-
 theorem window_domain (leaf : ∀ value, domain (codec.leafEnc value))
     (node : ∀ children, domain (codec.nodeEnc children)) :
     ∀ query ∈ window domain outside codec prior after, domain query := by

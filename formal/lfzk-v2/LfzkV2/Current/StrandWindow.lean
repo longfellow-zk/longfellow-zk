@@ -21,19 +21,6 @@ def encode {other : Finset OtherPoint} : Point other → Bytes
   | .inl raw => raw.bytes
   | .inr prf => (Input.prf prf.1.1 prf.1.2 prf.2).encode
 
-theorem encode_injective (other : Finset OtherPoint) :
-    Function.Injective (encode (other := other)) := by
-  have comm (point : Point other) :
-      Strand.windowEncode ((Equiv.sumComm (Node other) Strand.PrfPoint) point) = encode point := by
-    cases point with
-    | inl raw => rfl
-    | inr address => rcases address with ⟨parent,counter⟩; rfl
-  intro first second same
-  apply (Equiv.sumComm (Node other) Strand.PrfPoint).injective
-  apply Strand.windowEncode_injective other
-  rw [comm,comm]
-  exact same
-
 def complement (window : Finset Bytes) : Finset OtherPoint :=
   window.attach.biUnion fun raw => match found : decodePrf raw.val with
     | some _ => ∅

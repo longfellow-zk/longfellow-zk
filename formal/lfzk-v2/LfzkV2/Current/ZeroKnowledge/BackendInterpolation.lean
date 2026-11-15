@@ -61,12 +61,4 @@ theorem correctionBase_eq_polynomial (Q : QuerySet n r) (pivot : Fin w) (target 
   · obtain ⟨j,hj,rfl⟩ := mem_image.mp hi
     exact hsource.2.2 j hj
 
-theorem correction_eq_polynomial (Q : QuerySet n r) (pivot : Fin w) (target : F)
-    (i : Position r w n) :
-    PolygeroMasking.correction G.code Q (ConstraintLayout.identity w) pivot target i =
-      G.code.zR i * (correctionPolynomial G Q pivot target).eval (G.domain.point i) := by
-  change G.code.zR i *
-    PolygeroMasking.correctionBase G.code Q (ConstraintLayout.identity w) pivot target i = _
-  rw [correctionBase_eq_polynomial]
-
 end LfzkV2.Current.ZeroKnowledge.Backend

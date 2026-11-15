@@ -93,25 +93,6 @@ theorem role_message (body : Body g fields Advice Authentication) (side : Side) 
   all_goals simp only [roleWrite,Option.getD_none,Option.getD_some,ProtocolWrites.frontendMessages,
     Function.update_self]
 
-theorem snapshots_roles (body : Body g fields Advice Authentication) (side : Side) (roles : List Role)
-    (owned : ∀ role ∈ roles, frontendSide role = some side) :
-    WriteLog.snapshots side (Equiv.refl (fields side)) {}
-      (roles.map (roleWrite (body.frontend side))) =
-      roles.map (fun role => ({ frontend := ProtocolWrites.frontendMessages body role } : ProtocolWrites.Fresh g fields Advice)) := by
-  induction roles with
-  | nil => rfl
-  | cons head tail ih =>
-      simp only [List.map_cons,WriteLog.snapshots]
-      rw [role_snapshot body side head (owned head (by simp))]
-      exact congrArg (List.cons _) (ih (fun role member => owned role (List.mem_cons_of_mem _ member)))
-
-theorem snapshots_frontend (body : Body g fields Advice Authentication) (side : Side) :
-    WriteLog.snapshots side (Equiv.refl (fields side)) {}
-      (((g.frontend side).roles side).map (roleWrite (body.frontend side))) =
-      ((g.frontend side).roles side).map
-        (fun role => ({ frontend := ProtocolWrites.frontendMessages body role } : ProtocolWrites.Fresh g fields Advice)) :=
-  snapshots_roles body side _ (fun role member => RuntimeShape.frontend_side side _ role member)
-
 theorem snapshots_map {A : Type} (side : Side) (field : fields side ≃ F)
     (items : List A) (write : A → Option (Layered.Replay.Message F)) :
     WriteLog.snapshots side field ({} : ProtocolWrites.Fresh g fields Advice) (items.map write) =

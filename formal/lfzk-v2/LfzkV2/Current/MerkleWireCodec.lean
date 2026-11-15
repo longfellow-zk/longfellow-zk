@@ -29,9 +29,6 @@ theorem domains_ne : leafDomain ≠ nodeDomain := by decide
 def hashDomain : Digest := fun i =>
   (CanonicalPrefix.utf8 "longfellow/v2/merkle/domain" ++ List.replicate 5 0).getD i.val 0
 
-theorem hashDomain_bytes : List.ofFn hashDomain =
-    CanonicalPrefix.utf8 "longfellow/v2/merkle/domain" ++ List.replicate 5 0 := by decide +kernel
-
 variable {k s n t : ℕ}
 variable (P R : Joint.Participant k s n t)
 
@@ -156,28 +153,6 @@ theorem node_positions_ne (first second : ℕ)
     simpa only [show 256^8 = 2^64 by decide] using secondFits)] at parsed
   exact different (congrArg Prod.fst (Option.some.inj parsed))
 
-theorem leaf_positions_ne (first second : Fin n) (different : first ≠ second)
-    (leftNonce rightNonce : MerkleNonce) (left right : (Joint.Pair.family P R).Leaf) :
-    (codec P R repr binary prime context columnsFit).leafEnc ((first,leftNonce),left) ≠
-      (codec P R repr binary prime context columnsFit).leafEnc ((second,rightNonce),right) := by
-  intro same
-  have values := (codec_inj P R repr binary prime context columnsFit).leaf same
-  exact different (congrArg (fun value => value.1.1) values)
-
-/-- The actual raw scalar traversal is binary before prime, without
-separators between fixed-width rows. No row is omitted from the tuple. -/
-theorem leaf_encode_physical (column : Fin n) (nonce : MerkleNonce)
-    (binaryRows : Fin (P.backend.nw+3) → P.Carrier)
-    (primeRows : Fin (R.backend.nw+3) → R.Carrier) :
-    (codec P R repr binary prime context columnsFit).leafEnc
-        ((column,nonce),physicalLeafEquiv P R (binaryRows,primeRows)) =
-      leafDomain ++ List.ofFn context ++ encodeLE 8 column.val ++ List.ofFn nonce ++
-        (List.ofFn binaryRows).flatMap (fun value => repr.binary.encode (binary.symm value)) ++
-        (List.ofFn primeRows).flatMap (fun value => repr.prime.encode (prime.symm value)) := by
-  rw [leaf_encode,Equiv.symm_apply_apply]
-  simp only [physical,PrefixCodec.pair,PrefixCodec.vector_encode,PrefixCodec.equiv,PrefixCodec.field,
-    List.append_assoc]
-
 /-- The two literal domains differ before any context bytes are read. -/
 theorem role_ranges_disjoint (index : ℕ) (sm : Salt n × (Joint.Pair.family P R).Leaf) (dd : Digest × Digest) :
     (codec P R repr binary prime context columnsFit).leafEnc sm ≠
@@ -203,13 +178,5 @@ theorem separated : Merkle.Indexed.Separated
     node_positions_ne P R repr binary prime context columnsFit first second
       (lt_of_lt_of_le firstBound columnsFit) (lt_of_lt_of_le secondBound columnsFit)
       different left right
-
-/-- OpeningBody's explicit physical decoder is the very same leaf map used
-here; there is no arbitrary finite row enumeration in this codec. -/
-theorem participantLeaf_eq {g : Geometry} (side : Side)
-    (field : fields side → P.Carrier) (hrows : g.dataRows side = P.backend.nw)
-    (values : Fin (g.dataRows side+3) → fields side) :
-    OpeningBody.participantLeaf P side field hrows values =
-      participantLeafEquiv P (fun i => field (values (Fin.cast (by rw [hrows]) i))) := rfl
 
 end LfzkV2.Current.MerkleWireCodec

@@ -215,32 +215,9 @@ theorem opening_sum (hε : 0 ≤ ε)
 
 omit [DecidableEq (Point (roles := roles) (Context := Context) (Block := Block)
     (Link := Link) (Body := Body))] in
-include kCoin kQuery hcoin hquery hkCoin hkQuery in
-theorem high_sum (p : HahnSystemCertificate P.backend) (r : HahnSystemCertificate R.backend)
-    (hp : p.error ≤ ε) (hr : r.error ≤ ε)
-    (parent : Parent (roles := roles) (Context := Context) (Block := Block)
-      (Link := Link) (i := i))
-    (H : Point (roles := roles) (Context := Context) (Block := Block) (Link := Link) (Body := Body) → Link × C) :
-    (∑ response : Response P R (Link := Link), ∑ a : Link × C, ∑ b : Link × C,
-      high P R derive cutOracle decodeCoin decodeQuery ε parent response H a b) ≤
-      (Fintype.card (Link × C) : ℚ)^2 *
-        (NonrecursiveFS.highBudget P.backend p + NonrecursiveFS.highBudget R.backend r) :=
-  JointResponse.highCharge_sum P R decodeCoin decodeQuery kCoin kQuery hcoin hquery hkCoin hkQuery
-    p r (parent.statement derive H) (cutOracle H (parent.point (Body := Body)).context) ε hp hr
 
 omit [DecidableEq (Point (roles := roles) (Context := Context) (Block := Block)
     (Link := Link) (Body := Body))] in
-include kCoin kQuery hcoin hquery hkCoin hkQuery in
-theorem high_sum_joint (p : HahnSystemCertificate P.backend) (r : HahnSystemCertificate R.backend)
-    (hp : p.error ≤ ε) (hr : r.error ≤ ε)
-    (parent : Parent (roles := roles) (Context := Context) (Block := Block)
-      (Link := Link) (i := i))
-    (H : Point (roles := roles) (Context := Context) (Block := Block) (Link := Link) (Body := Body) → Link × C) :
-    (∑ response : Response P R (Link := Link), ∑ a : Link × C, ∑ b : Link × C,
-      high P R derive cutOracle decodeCoin decodeQuery ε parent response H a b) ≤
-      (Fintype.card (Link × C) : ℚ)^2*JointResponse.jointHighBudget P R p :=
-  JointResponse.highCharge_sum_joint P R decodeCoin decodeQuery kCoin kQuery hcoin hquery hkCoin hkQuery
-    p r (parent.statement derive H) (cutOracle H (parent.point (Body := Body)).context) ε hp hr
 
 omit [DecidableEq (Point (roles := roles) (Context := Context) (Block := Block)
     (Link := Link) (Body := Body))] in

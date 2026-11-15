@@ -523,19 +523,6 @@ local notation "singleOf" => single c binary prime P R countBinary countPrime bi
 local notation "pairOf" => pair c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg roleFits layout
   hashPublic decodePublic names context merkle dec root bytes tree
 
-/-- Local testing agrees with the actual runtime whenever its
-strict ancestor tape and original first-context cut agree. -/
-theorem single_prior (fallback : Answer) (point : Point) (H H' : Tagged → Digest × Answer)
-    (tuple : tupleAt H point.context = tupleAt H' point.context)
-    (prior : point.priorAnswers (typed fallback H) = point.priorAnswers (typed fallback H'))
-    (answer : Digest × Answer) :
-    singleOf fallback (.inl point) H answer = singleOf fallback (.inl point) H' answer := by
-  simp only [single]
-  rw [tuple]
-  exact frozenSingle_prior c binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg layout
-    degreeFits rowsFit bitsFit hashPublic decodePublic primeShape primeCapacityFits binaryShape binaryCapacityFits
-    _ point _ _ prior _
-
 theorem single_nonneg (fallback : Answer) (point : Tagged) (H : Tagged → Digest × Answer) (answer : Digest × Answer) :
     0 ≤ singleOf fallback point H answer := by
   cases point with

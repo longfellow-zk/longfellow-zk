@@ -59,33 +59,6 @@ def wireView (nodes : Fin 2792 ↪ F) {Q : QuerySet 2443 84} {rows : ℕ}
     ((Fin 361 → F) × (Fin 698 → F)) × (Fin (rows+3) → Fin 84 → F) :=
   (responseSamples nodes view,physicalRows order view)
 
-theorem physicalRows_masks {Q : QuerySet 2443 84} {rows : ℕ}
-    (order : Fin 84 ≃ ↥Q.coordinates) (view : View (F := F) 265 rows 12 Q) (query : Fin 84) :
-    physicalRows order view 0 query = (view.1.1 (order query)).checkedMask .vCoefficient ∧
-    physicalRows order view 1 query = (view.1.1 (order query)).checkedMask .zRCoefficient := by
-  have h := OpeningBody.leaf_masks
-    ((OpeningBody.leafEquiv F rows).symm (view.1.1 (order query),view.1.2 (order query)))
-  rw [Equiv.apply_symm_apply] at h
-  exact ⟨h.1.symm,h.2.symm⟩
-
-theorem physicalRows_witness {Q : QuerySet 2443 84} {rows : ℕ}
-    (order : Fin 84 ≃ ↥Q.coordinates) (view : View (F := F) 265 rows 12 Q)
-    (row : Fin rows) (query : Fin 84) :
-    physicalRows order view ⟨row.val+2,by have := row.isLt; omega⟩ query =
-      (view.1.1 (order query)).core .linear row := by
-  have h := OpeningBody.leaf_witness
-    ((OpeningBody.leafEquiv F rows).symm (view.1.1 (order query),view.1.2 (order query))) row
-  rw [Equiv.apply_symm_apply] at h
-  exact h.symm
-
-theorem physicalRows_fstar {Q : QuerySet 2443 84} {rows : ℕ}
-    (order : Fin 84 ≃ ↥Q.coordinates) (view : View (F := F) 265 rows 12 Q) (query : Fin 84) :
-    physicalRows order view ⟨rows+2,by omega⟩ query = view.1.2 (order query) := by
-  have h := OpeningBody.leaf_proximity
-    ((OpeningBody.leafEquiv F rows).symm (view.1.1 (order query),view.1.2 (order query)))
-  rw [Equiv.apply_symm_apply] at h
-  exact h.symm
-
 /-- Exact privacy includes the actual serialized H/Z samples and physical
 opened-row ordering, under any further canonical byte encoding. -/
 theorem profile_wire_sameDistribution [Fintype F] [DecidableEq F]
@@ -105,26 +78,6 @@ theorem profile_wire_sameDistribution [Fintype F] [DecidableEq F]
 section Joint
 variable {B N : Type} [Field B] [Fintype B] [DecidableEq B]
   [Field N] [Fintype N] [DecidableEq N]
-
-/-- Both current participants pass their actual layer predicates at one
-common opening set. The source circuits, fields, cells and equation counts
-may differ; the query set and ordinary backend dimensions are shared. -/
-theorem jointProfile_verifies
-    (binaryNodes : Fin 2792 ↪ B) (primeNodes : Fin 2792 ↪ N)
-    (binaryCells primeCells binaryCount primeCount : ℕ) (Q : QuerySet 2443 84)
-    (binaryStatement : ((ConcreteSetup.backend binaryNodes binaryCells).indexed binaryCount).backend.layer.Statement)
-    (primeStatement : ((ConcreteSetup.backend primeNodes primeCells).indexed primeCount).backend.layer.Statement)
-    (binaryCoin : ((ConcreteSetup.backend binaryNodes binaryCells).indexed binaryCount).backend.layer.Coin)
-    (primeCoin : ((ConcreteSetup.backend primeNodes primeCells).indexed primeCount).backend.layer.Coin)
-    (binaryTape : ProfileTape binaryNodes binaryCells) (primeTape : ProfileTape primeNodes primeCells) :
-    ((ConcreteSetup.backend binaryNodes binaryCells).indexed binaryCount).backend.layer.verify binaryStatement
-      (PolygeroZk.oracle (profileGeometry binaryNodes) 0 binaryTape) binaryCoin
-      (profileSimulate binaryNodes binaryCells binaryCount Q binaryStatement binaryCoin binaryTape).2 Q ∧
-    ((ConcreteSetup.backend primeNodes primeCells).indexed primeCount).backend.layer.verify primeStatement
-      (PolygeroZk.oracle (profileGeometry primeNodes) 0 primeTape) primeCoin
-      (profileSimulate primeNodes primeCells primeCount Q primeStatement primeCoin primeTape).2 Q :=
-  ⟨profileSimulate_verifies binaryNodes binaryCells binaryCount Q binaryStatement binaryCoin binaryTape,
-    profileSimulate_verifies primeNodes primeCells primeCount Q primeStatement primeCoin primeTape⟩
 
 /-- The physical wire arrays of both fields have their correct joint
 distribution, including their shared, ordered opening set. -/

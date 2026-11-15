@@ -61,10 +61,4 @@ def layerBytes (layer : Layer) : Bytes :=
   encodeLE 8 layer.inputs ++ encodeLE 8 layer.logInputs ++
     streamBytes 0 layer.quadratic ++ streamBytes 1 layer.linear ++ streamBytes 2 layer.constant
 
-/-- Each expanded delta is determined by its token, segment and dictionary
-index. Reader validation requires every lookup to succeed. -/
-def expand {arity : ℕ} (s : Stream arity) : Option (List (Record arity)) := do
-  let segments ← s.tokens.mapM fun token => s.segments[token.val]?
-  segments.flatten.mapM fun index => s.deltas[index.val]?
-
 end LfzkV2.Current.SegmentedCircuit

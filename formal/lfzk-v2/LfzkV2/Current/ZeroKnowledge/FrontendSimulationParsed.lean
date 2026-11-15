@@ -1,5 +1,4 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendSimulationMessages
-import LfzkV2.Current.ZeroKnowledge.FrontendPayloadTransport
 import LfzkV2.Current.ZeroKnowledge.FrontendParserApplication
 import LfzkV2.Current.ZeroKnowledge.FrontendSimulationScalarAnswers
 
@@ -73,13 +72,6 @@ theorem prime_payload : Parser.payload proof .prime primePlan rfl = simulateCirc
   change (CompleteShape.bodyEquiv primePlan).symm
     (CompleteShape.bodyEquiv primePlan (simulateCircuit prime.circuit coins.prime)) = _
   exact (CompleteShape.bodyEquiv primePlan).symm_apply_apply _
-
-omit [DecidableEq B] in
-theorem binary_payload :
-    Parser.payload proof .binary binary.plan rfl = simulateCircuit binary.description.circuit coins.binary := by
-  change (CompleteShape.bodyEquiv binary.plan).symm
-    (CompleteShape.bodyEquiv binary.plan (simulateCircuit binary.description.circuit coins.binary)) = _
-  exact (CompleteShape.bodyEquiv binary.plan).symm_apply_apply _
 
 omit [DecidableEq B] in
 /-- The parsed prime frontend is the simulator's: its fallible fields are

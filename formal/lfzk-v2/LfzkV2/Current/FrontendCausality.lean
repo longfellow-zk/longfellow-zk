@@ -166,20 +166,4 @@ theorem badAt_eq_of_inclusive_prefix (decode : C → ℕ → F)
     rw [hd, hs]
   · simp only [hi, false_and]
 
-/-- Freezing future answers loses no failing test. The current answer is
-passed explicitly, making this predicate suitable for one-query counting. -/
-theorem badAt_from_prefix (decode : C → ℕ → F)
-    (nonzero : C → Linear.TerminalSampling.Nonzero F)
-    {out input : ℕ} (circuit : Layered.Circuit F out input)
-    (plan : Layered.Replay.PadPlan (Pad := Pad) circuit) (payload : Layered.Replay.Payload circuit)
-    (answers : ℕ → C) (fallback : C) (w : Cube input → F) (pads : Pad → F) (query : ℕ) :
-    BadAt decode nonzero circuit plan payload answers w pads query ↔
-      BadAt decode nonzero circuit plan payload
-        (completeAnswers (fun i : Fin query => answers i.val) (answers query) fallback) w pads query := by
-  apply badAt_eq_of_inclusive_prefix
-  · intro j hj
-    exact (completeAnswers_agrees answers query fallback j hj).symm
-  · intro role _
-    rfl
-
 end LfzkV2.Current.FrontendReplay

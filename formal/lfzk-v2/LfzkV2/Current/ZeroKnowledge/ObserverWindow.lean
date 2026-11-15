@@ -37,12 +37,6 @@ def trees : (index : Index Request Proof) →
 def window : Finset Raw :=
   MerkleOracleWindow.window codec _ (trees prior after)
 
-def finiteCodec : Codec Salt Leaf D {raw // raw ∈ window codec prior after} :=
-  MerkleOracleWindow.finiteCodec codec _ (trees prior after)
-
-theorem finiteCodec_inj (injective : codec.Inj) : (finiteCodec codec prior after).Inj :=
-  MerkleOracleWindow.finiteCodec_inj codec _ (trees prior after) injective
-
 def before (HT : QT → AT) :=
   MerkleOracleWindow.finiteResidual codec _ (trees prior after) (.inl ()) HT
 

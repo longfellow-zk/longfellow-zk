@@ -57,15 +57,6 @@ theorem parentOf_child_none (parent : Parent) (response : Response) :
   | none => rfl
   | some other => exact (point_ne_child P R next encode other parent response (parentOf_spec h)).elim
 
-include hencode in
-theorem childOf_point_none (parent : Parent) :
-    childOf P R next encode (parent.point (Body := Body)) = none := by
-  cases h : childOf P R next encode (parent.point (Body := Body)) with
-  | none => rfl
-  | some a => exact (point_ne_child P R next encode parent a.1 a.2
-      (childOf_spec P R next encode hencode h).symm).elim
-
-
 theorem parentOf_none_of_rank (z : Point) (h : z.rank ≠ i.val) :
     parentOf (i := i) z = none := by
   cases hp : parentOf (i := i) z with
@@ -127,13 +118,6 @@ theorem single_nonneg (z : Point) (H : Point → Link × C) (answer : Link × C)
     · exact BackendFS.opening_nonneg ..
     · exact le_rfl
 
-
-include hencode in
-theorem single_zero_of_rank (z : Point) (hparent : z.rank ≠ i.val)
-    (hchild : z.rank ≠ i.val+1) (H : Point → Link × C) (answer : Link × C) :
-    single P R next encode derive cutOracle decodeCoin decodeQuery cutoff ε z H answer = 0 := by
-  simp only [single, parentOf_none_of_rank z hparent,
-    childOf_none_of_rank P R next encode hencode z hchild]
 
 include hencode in
 theorem singleBudget_zero_of_rank (rankBudget openingBudget : ℚ) (z : Point)

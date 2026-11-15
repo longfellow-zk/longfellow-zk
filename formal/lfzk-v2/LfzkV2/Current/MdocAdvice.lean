@@ -21,10 +21,6 @@ abbrev Value := Fin 2 → Word
 def bits (value : Value) (tree : Fin 2) (index : Fin 10) : Bool :=
   (value tree).val.testBit index.val
 
-/-- Each tree's word is decoded separately; there is no packing across trees. -/
-theorem bit_position (value : Value) (tree : Fin 2) (index : Fin 10) :
-    bits value tree index = (value tree).val.testBit index.val := rfl
-
 /-- `MaskedWord::<10>::read`: two bytes, rejecting any nonzero padding bit.
 Range checking the two-byte integer rejects precisely its unused high bits. -/
 def word : PrefixCodec Word := PrefixCodec.unsigned 2 (2^10) (by decide)
@@ -37,12 +33,6 @@ def codec : PrefixCodec Value := PrefixCodec.vector word 2
 
 theorem encode_length (value : Value) : (codec.encode value).length = 4 := by
   rw [codec,PrefixCodec.vector_length word 2 word_length]
-
-theorem encode_words (value : Value) :
-    codec.encode value = encodeLE 2 (value 0).val ++ encodeLE 2 (value 1).val := by
-  simp only [codec,PrefixCodec.vector_encode,List.ofFn_succ,List.ofFn_zero,
-    List.flatMap_cons,List.flatMap_nil,List.append_nil]
-  rfl
 
 theorem read_encode (value : Value) (suffix : Bytes) :
     codec.decode (codec.encode value ++ suffix) = some (value,suffix) :=
@@ -71,22 +61,6 @@ theorem writes_encode (value : Value) :
 /-- Advice has already passed its canonical range check at the proof-body
 parser. Interpreting the accepted words is total. -/
 def decode (value : Value) : Option (Fin 2 → Fin 10 → Bool) := some (bits value)
-
-theorem decode_total (value : Value) : decode value = some (bits value) := rfl
-
-theorem reject_high (input suffix : Bytes) (value : ℕ)
-    (parsed : readLE 2 input = some (value,suffix)) (high : 2^10 ≤ value) :
-    word.decode input = none := by
-  simp only [word,PrefixCodec.unsigned,parsed,Option.bind_eq_bind,Option.bind_some]
-  exact dif_neg (Nat.not_lt.mpr high)
-
-/-- The word parser accepts all and only the runtime's canonical two-byte
-words: the high byte keeps only its two low bits. -/
-theorem decode_two_iff (low high : Byte) (suffix : Bytes) :
-    (word.decode (low :: high :: suffix)).isSome ↔ high.val < 4 := by
-  have hl := low.isLt
-  simp only [word,PrefixCodec.unsigned,readLE,Option.bind_eq_bind,Option.bind_some]
-  split <;> simp_all <;> omega
 
 /-- Only the field scalar representations remain abstract. The current
 mdoc advice representation and its exact byte widths are fixed here. -/

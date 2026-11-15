@@ -86,19 +86,4 @@ theorem bits_public (circuit : BinaryCircuit B) (privateBits : Fin circuit.nPriv
   rw [ConcreteSetup.inputIndex_public]
   exact dif_pos i.isLt
 
-theorem bits_prefix (circuit : BinaryCircuit B) (first second : Fin circuit.nPrivate → Bool)
-    (same : ∀ i, i.val < circuit.hashPrivate → first i = second i)
-    (u : Cube circuit.input)
-    (before : (cubeIndex circuit.input u).val < circuit.nPublic+(circuit.hashPrivate)) :
-    bits circuit first u = bits circuit second u := by
-  dsimp only [bits]
-  split
-  · rfl
-  · split
-    · apply same
-      change (cubeIndex circuit.input u).val-circuit.nPublic < circuit.hashPrivate
-      omega
-    · rfl
-
-
 end LfzkV2.Current.WitnessInputs

@@ -26,9 +26,6 @@ def toReplay (state : CompleteTranscript.State g fields Advice Key Base C) :
 def Matches (state : CompleteTranscript.State g fields Advice Key Base C) : Prop :=
   toReplay e proof state = (e.chain initialLink).replay proof H state.rank.val
 
-theorem initial_matches (fallback : C) :
-    Matches e proof initialLink H (CompleteTranscript.initial (e.context proof) fallback) := rfl
-
 theorem point_eq (state : CompleteTranscript.State g fields Advice Key Base C)
     (inside : state.rank.val < g.roles.length)
     (block : CompleteTranscript.currentBlock base state inside =
@@ -37,32 +34,5 @@ theorem point_eq (state : CompleteTranscript.State g fields Advice Key Base C)
       (toReplay e proof state).point := by
   simp only [CompleteTranscript.query,toReplay,Replay.Encoding.stateAt,dif_pos inside]
   rw [block]
-
-theorem advance_eq (state : CompleteTranscript.State g fields Advice Key Base C)
-    (inside : state.rank.val < g.roles.length) (answer : Digest × C)
-    (block : CompleteTranscript.currentBlock base state inside =
-      e.block proof ⟨state.rank.val,inside⟩ state.past) :
-    toReplay e proof (CompleteTranscript.advance base state inside answer) =
-      e.advance proof (toReplay e proof state) answer := by
-  simp only [toReplay,Replay.Encoding.stateAt,dif_pos inside,Replay.Encoding.advance,
-    CompleteTranscript.advance]
-  rw [block]
-  rfl
-
-theorem step_matches (state : CompleteTranscript.State g fields Advice Key Base C)
-    (inside : state.rank.val < g.roles.length)
-    (matching : Matches e proof initialLink H state)
-    (block : CompleteTranscript.currentBlock base state inside =
-      e.block proof ⟨state.rank.val,inside⟩ state.past) :
-    Matches e proof initialLink H (CompleteTranscript.step base H state).2 := by
-  rw [CompleteTranscript.step_query base H state inside]
-  unfold Matches
-  rw [advance_eq base e proof state inside _ block]
-  have query := point_eq base e proof state inside block
-  change e.advance proof (toReplay e proof state)
-    (H (CompleteTranscript.query base state inside)) =
-      (e.chain initialLink).replay proof H (state.rank.val+1)
-  rw [query,matching]
-  simp only [TranscriptV2.Chain.replay,dif_pos inside,Replay.Encoding.chain]
 
 end LfzkV2.Current.ZeroKnowledge.Frontend.CanonicalPrefix

@@ -74,10 +74,4 @@ def authenticate (data : StatementData A P R)
   response := response
   cutoff := cutoff
 
-theorem authenticate_statement (data : StatementData A P R)
-    (oracle : JointResponse.Oracle P.participant R.participant)
-    (coin : JointResponse.Coin P.participant R.participant)
-    (response : JointResponse.Response P.participant R.participant) (cutoff : ℕ × ℕ) :
-    (authenticate data oracle coin response cutoff).statement = data.statement := rfl
-
 end LfzkV2.Current.ZkJoint

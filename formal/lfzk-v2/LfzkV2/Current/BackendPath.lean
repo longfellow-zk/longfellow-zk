@@ -15,13 +15,6 @@ variable (initialLink : Digest) (proof : Output g F Advice Authentication)
 variable (H : Point g F Advice Authentication Context Block → Digest × C)
 variable (i : Fin g.roles.length)
 
-private theorem priorPoints_congr {roles : List Role} {Key Block Link Body : Type}
-    {first second : Input roles Key Block Link Body} (heq : first = second)
-    (j : Fin first.rank) :
-    first.priorPoints j = second.priorPoints ⟨j.val, by rw [← heq]; exact j.isLt⟩ := by
-  subst second
-  rfl
-
 /-- Every ordinary replay boundary has its prescribed counter and is
 therefore exactly one parent prefix of that counter. -/
 theorem exists_parent :
@@ -58,26 +51,6 @@ theorem parent_context :
   rw [parent_point]
   exact e.point_context initialLink proof H i.val
 
-/-- Decoding a source boundary from the batching prefix retrieves that
-boundary's actual replay preimage, including all its bound source messages. -/
-theorem parent_atRank (n : ℕ) (hn : n ≤ i.val) :
-    (parent e initialLink proof H i).point.atRank n =
-      some ((e.chain initialLink).point proof H n) := by
-  rw [parent_point]
-  exact e.point_atRank initialLink proof H i.val n (Nat.le_of_lt i.isLt) hn
-
-theorem successor_parent :
-    Input.parent ((e.chain initialLink).point proof H (i.val+1)) =
-      some (parent e initialLink proof H i).point := by
-  rw [parent_point]
-  exact (e.chain initialLink).point_parent proof H i.isLt
-
-theorem successor_link :
-    Input.claimed initialLink ((e.chain initialLink).point proof H (i.val+1)) =
-      (H (parent e initialLink proof H i).point).1 := by
-  rw [parent_point]
-  exact (e.chain initialLink).point_link proof H i.isLt
-
 /-- A block codec law identifies what was written at the opening boundary.
 Replay itself supplies its parent history and actual link; neither is an
 additional caller-provided path assumption. -/
@@ -105,33 +78,5 @@ theorem opening_eq {Response : Type} (next : i.val+1 < g.roles.length)
     (history,block,(H (.round i history block)).1)
     (Fin.snoc answers (H (.round i history block)).2)).point = _
   simp only [Encoding.stateAt, dif_pos next, hcodec, BackendQueries.Parent.child, BackendQueries.Parent.point]
-
-/-- The statement compiler sees exactly the strict earlier replay answers.
-In particular neither the batching coin nor the opening set can enter it. -/
-theorem priorAnswers_replay :
-    (parent e initialLink proof H i).point.priorAnswers H =
-      fun j : Fin i.val => (H ((e.chain initialLink).point proof H j.val)).2 := by
-  funext j
-  have hp := parent_point e initialLink proof H i
-  have h := e.point_priorPoints initialLink proof H i.val (Nat.le_of_lt i.isLt) j
-  have he := priorPoints_congr hp j
-  exact congrArg (fun point => (H point).2) (he.trans h)
-
-/-- The actual target statement, compiled by a fixed public compiler from
-the bound parent and strict prefix. This constructor permits a concrete affine-row compiler to be used
-without assuming an equality of late and early statements. -/
-def statement {Statement : Type}
-    (compile : BackendQueries.Parent g.roles Context Block Digest i →
-      (Fin i.val → C) → Statement) : Statement :=
-  compile (parent e initialLink proof H i)
-    (fun j => (H ((e.chain initialLink).point proof H j.val)).2)
-
-theorem statement_replay {Statement : Type}
-    (compile : BackendQueries.Parent g.roles Context Block Digest i →
-      (Fin i.val → C) → Statement) :
-    (parent e initialLink proof H i).statement compile H =
-      statement e initialLink proof H i compile := by
-  unfold BackendQueries.Parent.statement statement
-  rw [priorAnswers_replay]
 
 end LfzkV2.Current.BackendPath

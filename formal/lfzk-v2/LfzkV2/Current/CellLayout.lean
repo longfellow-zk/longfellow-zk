@@ -149,11 +149,6 @@ def fingerprint (remaining pads : ℕ) (i : Fin 2) : Other remaining pads := .in
 @[simp] theorem pad_ne_fingerprint (remaining pads : ℕ) (i : Fin pads) (j : Fin 2) :
     pad remaining pads i ≠ fingerprint remaining pads j := by simp [pad, fingerprint]
 
-theorem input_ne_fingerprint (shared remaining pads : ℕ) (i : Fin (shared+remaining)) (j : Fin 2) :
-    input shared remaining pads i ≠ .inr (fingerprint remaining pads j) := by
-  unfold input
-  cases finSumFinEquiv.symm i <;> simp [fingerprint]
-
 /-- The prime compiler names only private inputs and sumcheck pads. Its
 full-cell selector nevertheless retains the later dedicated fingerprint cells. -/
 def rows {F : Type} [Field F] {shared remaining pads nPublic : ℕ}
@@ -164,24 +159,6 @@ def rows {F : Type} [Field F] {shared remaining pads nPublic : ℕ}
   Linear.compile cs (fun i => .inr (pad remaining pads i))
     (input shared remaining pads) publicWeights publicInputs privateWeights
 
-/-- No frontend row can use a dedicated fingerprint-mask address. -/
-theorem rows_avoid_fingerprint {F : Type} [Field F] {shared remaining pads nPublic : ℕ}
-    (cs : Linear.Constraints (Fin pads) F)
-    (publicWeights publicInputs : Fin nPublic → F)
-    (privateWeights : Fin (shared+remaining) → F) (j : Fin 2)
-    (row : LinearRow (Fin shared ⊕ Other remaining pads) F)
-    (hr : row ∈ rows cs publicWeights publicInputs privateWeights)
-    (term : (Fin shared ⊕ Other remaining pads) × F) (ht : term ∈ row.terms) :
-    term.1 ≠ .inr (fingerprint remaining pads j) := by
-  simp only [rows, Linear.compile, List.mem_append, List.mem_map, List.mem_singleton] at hr
-  rcases hr with ⟨r,_,rfl⟩ | rfl
-  · obtain ⟨t,_,rfl⟩ := List.mem_map.mp ht
-    simp [mapTerms, pad, fingerprint] at *
-  · simp only [compileInput, List.mem_append, List.mem_ofFn, mapTerms, List.mem_map] at ht
-    rcases ht with ⟨i,rfl⟩ | ⟨t,_,rfl⟩
-    · exact input_ne_fingerprint _ _ _ _ _
-    · simp [pad, fingerprint]
-
 /-- The split claim of the prime compiler on its physical cells: the layer
 rows on native pad cells and the split input equation. -/
 def claim {F : Type} [Field F] {shared remaining pads nPublic : ℕ}
@@ -191,33 +168,6 @@ def claim {F : Type} [Field F] {shared remaining pads nPublic : ℕ}
     LfzkV2.Current.Prime.Claim (Fin shared) (Other remaining pads) F :=
   LfzkV2.Current.Prime.Claim.ofConstraints cs (pad remaining pads) (input shared remaining pads)
     publicWeights publicInputs privateWeights
-
-/-- The split claim retains zero weights on both fingerprint cells, and its
-layer rows never read them; only the selection wrapper appends equations
-mentioning them. -/
-theorem claim_fingerprint_zero {F : Type} [Field F] {shared remaining pads nPublic : ℕ}
-    (cs : Linear.Constraints (Fin pads) F)
-    (publicWeights publicInputs : Fin nPublic → F)
-    (privateWeights : Fin (shared+remaining) → F) (j : Fin 2) :
-    (claim cs publicWeights publicInputs privateWeights).otherWeights (fingerprint remaining pads j) = 0 ∧
-      ∀ row ∈ (claim cs publicWeights publicInputs privateWeights).layers, ∀ term ∈ row.terms,
-        term.1 ≠ fingerprint remaining pads j := by
-  constructor
-  · have hinput := rows_avoid_fingerprint cs publicWeights publicInputs privateWeights j _
-      (List.mem_append_right _ (List.mem_singleton_self _))
-    unfold claim LfzkV2.Current.Prime.Claim.ofConstraints LfzkV2.Current.Prime.Claim.split
-      LfzkV2.Current.Prime.coefficients
-    simp only [neg_eq_zero]
-    apply List.sum_eq_zero
-    intro x hx
-    obtain ⟨t,ht,rfl⟩ := List.mem_map.mp hx
-    simp [hinput t ht]
-  · intro row hrow term hterm
-    simp only [claim, LfzkV2.Current.Prime.Claim.ofConstraints, LfzkV2.Current.Prime.Claim.split,
-      LfzkV2.Current.Prime.nativeLayers, List.mem_map] at hrow
-    obtain ⟨r,_,rfl⟩ := hrow
-    obtain ⟨t,_,rfl⟩ := List.mem_map.mp hterm
-    simp [pad, fingerprint]
 
 end Prime
 

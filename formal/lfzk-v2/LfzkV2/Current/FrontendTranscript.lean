@@ -157,15 +157,4 @@ query.  Missing future messages use the ordinary zero defaults above. -/
 def boundPrefix (wire : ℕ → Message F) (through : ℕ) : ℕ → Message F :=
   fun q => if q ≤ through then wire q else .empty
 
-theorem layerMessage_prefix {out input : ℕ} (circuit : Layered.Circuit F out input)
-    (payload : Payload circuit) (through : ℕ) (role : LayerRole circuit)
-    (h : FrontendReplay.queryIndex circuit role 0 ≤ through) :
-    layerMessage circuit (read circuit (boundPrefix (write circuit payload) through)) role =
-      layerMessage circuit payload role := by
-  have hm := layerMessage_readFrom_congr circuit role
-    (boundPrefix (write circuit payload) through) (write circuit payload) 0 (if_pos h)
-  change layerMessage circuit (read circuit (boundPrefix (write circuit payload) through)) role =
-    layerMessage circuit (read circuit (write circuit payload)) role at hm
-  simpa only [read_write] using hm
-
 end LfzkV2.Current.FrontendTranscript

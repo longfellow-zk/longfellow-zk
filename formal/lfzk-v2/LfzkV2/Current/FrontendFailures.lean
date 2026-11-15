@@ -64,28 +64,6 @@ noncomputable def dataAtRole (decode : C → ℕ → F)
           dataAtRole decode nonzero rest plan.2 payload.2 answers (start+mid+2) 1 w
             (nextWeights Q (monomialWeights ml.point) ml.alpha) pads (t.nextValue pads) role
 
-theorem dataAtRole_valid (decode : C → ℕ → F)
-    (nonzero : C → Linear.TerminalSampling.Nonzero F)
-    {out input : ℕ} (circuit : Layered.Circuit F out input)
-    (plan : Layered.Replay.PadPlan (Pad := Pad) circuit) (payload : Layered.Replay.Payload circuit)
-    (answers : ℕ → C) (start offset : ℕ) (w : Cube input → F) (weights : Cube out → F)
-    (pads : Pad → F) (claim : F) (role : LayerRole circuit) :
-    Data.Valid (dataAtRole decode nonzero circuit plan payload answers start offset
-      w weights pads claim role) := by
-  induction circuit generalizing start offset claim with
-  | input => exact Fin.elim0 role
-  | entry n e rest ih =>
-      cases role with
-      | inl _ => trivial
-      | inr role => apply ih
-  | layer a body rest ih =>
-      rcases role with i | i | i | i | role
-      · trivial
-      · exact RoundReplay.dataAt_valid _ _ _ _ _ _
-      · trivial
-      · trivial
-      · apply ih
-
 theorem read_clearMessages (decode : C → ℕ → F)
     (nonzero : C → Linear.TerminalSampling.Nonzero F)
     {out mid input a : ℕ} (body : LfzkV2.Native.CircuitLayer (Cube out) (Cube mid) (Fin a) F)

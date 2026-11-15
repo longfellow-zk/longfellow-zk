@@ -19,13 +19,6 @@ def binaryFor (bits : Fin binary.nPublic → Bool) : BinaryCircuit B :=
 def primeFor (inputs : Fin prime.nPublic → Adapter.Mdoc.P) : PrimePublic Adapter.Mdoc.P 768 :=
   { prime with publicInputs := inputs }
 
-omit [Fintype B] [DecidableEq B] in
-theorem binary_description (bits : Fin binary.nPublic → Bool) :
-    (binaryFor binary bits).description = RuntimeAdaptive.binaryWithBits binary.description bits := rfl
-
-theorem prime_inputs (inputs : Fin prime.nPublic → Adapter.Mdoc.P) :
-    (primeFor prime inputs).publicInputs = inputs := rfl
-
 variable (primePlan : FrontendSchedule.Plan Adapter.Mdoc.P prime.circuit)
 variable (binaryNodes : Fin 2792 ↪ B)
 variable (shape : WireBlocks.Shape (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B))

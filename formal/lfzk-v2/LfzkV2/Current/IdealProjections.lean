@@ -51,10 +51,6 @@ def vectorPrefix {F : Type} (count remaining : ℕ) :
   (Equiv.arrowCongr finSumFinEquiv.symm (Equiv.refl F)).trans
     (Equiv.sumArrowEquivProdArrow (Fin count) (Fin remaining) F)
 
-theorem vectorPrefix_apply {F : Type} (count remaining : ℕ)
-    (values : Fin (count+remaining) → F) (i : Fin count) :
-    (vectorPrefix count remaining values).1 i = values (i.castAdd remaining) := rfl
-
 /-- Consecutive coordinates factor even when a local assertion test reads
 only the middle of the larger shared answer vector. -/
 def slice {F : Type} (before count after : ℕ) :
@@ -65,10 +61,6 @@ def slice {F : Type} (before count after : ℕ) :
       ((Equiv.prodAssoc _ _ _).symm.trans
         ((Equiv.prodCongr (Equiv.prodComm _ _) (Equiv.refl (Fin after → F))).trans
           (Equiv.prodAssoc _ _ _))))
-
-theorem slice_apply {F : Type} (before count after : ℕ)
-    (values : Fin (before+(count+after)) → F) (i : Fin count) :
-    (slice before count after values).1 i = values ⟨before+i.val,by have := i.isLt; omega⟩ := rfl
 
 def boundedSlice {F : Type} (capacity before count : ℕ) (fits : before+count ≤ capacity) :
     (Fin capacity → F) ≃

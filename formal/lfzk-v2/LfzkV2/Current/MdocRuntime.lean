@@ -188,23 +188,4 @@ def configuration : RuntimeVerifier.Public
   bindSalt := fun _ column nonce => (column,nonce)
   sample := fun answer => answer .opening
 
-omit [DecidableEq B] in
-theorem configuration_advice (value : MdocAdvice.Value) :
-    (configuration binary prime binaryPlan primePlan binaryNodes scalars inputFits privateFits degreeFits
-      setup card polynomialX).advice value = some (MdocAdvice.bits value) := rfl
-
-omit [DecidableEq B] in
-/-- The generic endpoint's ideal-sampling specialization leaves this
-already fixed reader unchanged. The transcript metadata uses these same
-projections, so it cannot bind claims computed with another sampler. -/
-theorem configuration_challenges :
-    IdealRuntime.challengePublic binary prime (binaryBackend binary binaryNodes) (primeBackend prime)
-      ((geometry binary prime binaryPlan primePlan).affineRows .binary)
-      ((geometry binary prime binaryPlan primePlan).affineRows .prime)
-      (binaryCapacity binary binaryPlan) (primeCapacity prime primePlan)
-      (configuration binary prime binaryPlan primePlan binaryNodes scalars inputFits privateFits degreeFits
-        setup card polynomialX) =
-    configuration binary prime binaryPlan primePlan binaryNodes scalars inputFits privateFits degreeFits
-      setup card polynomialX := rfl
-
 end LfzkV2.Current.MdocRuntime

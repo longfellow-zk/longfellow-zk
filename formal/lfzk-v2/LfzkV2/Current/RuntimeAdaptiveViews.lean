@@ -76,38 +76,4 @@ def readPacking (point : Point) (past : Fin point.rank → C) :
     Generator cfg.packingDegree cfg.binaryField cfg.primeField cfg.binaryDecode cfg.binaryNonzero
     cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback point past
 
-/-- The prime and generated binary frontends keep their original whole-query
-bounds after public values are selected adaptively. -/
-theorem prime_card (point : Point) (H : Point → Digest × C) :
-    (Finset.univ.filter (frontendBad S
-      (readPrimeView binary prime P R cfg S laws hashPublic decodePublic primePlan primeFits) point H)).card *
-        (Fintype.card N-1) ≤ 2*Fintype.card C :=
-  frontendBad_card_mul_le S _ point H
-
-theorem binary_card (point : Point) (H : Point → Digest × C) :
-    (Finset.univ.filter (frontendBad S
-      (readBinaryView binary prime P R cfg S laws hashPublic decodePublic binaryTemplate binaryFits) point H)).card *
-        (Fintype.card B-1) ≤ 2*Fintype.card C :=
-  frontendBad_card_mul_le S _ point H
-
-/-- The remaining three predicates use the existing packet-local bounds.
-Their packets carry only already-bound data and fixed-dimension samplers. -/
-theorem rescale_card (point : Point) (H : Point → Digest × C) :
-    (Finset.univ.filter (rescaleBad S (readRescale binary prime P R cfg hashPublic decodePublic)
-      laws.rescaleDecoder point H)).card*(Fintype.card N-1) ≤ Fintype.card C :=
-  rescaleBad_card_mul_le S _ laws.rescaleDecoder point H
-
-theorem conversion_card (point : Point) (H : Point → Digest × C) :
-    (Finset.univ.filter (conversionBad S (readConversion binary prime P R cfg hashPublic decodePublic)
-      laws.conversionDecoder Adapter.Mdoc.groupOrder Adapter.Mdoc.quotientBound point H)).card *
-      (Adapter.Mdoc.primeOrder-1)^2 ≤
-      (2*(Adapter.Mdoc.quotientBound*Adapter.Mdoc.primeOrder/Adapter.Mdoc.groupOrder)+1)^2*Fintype.card C :=
-  conversionBad_card_mul_le S _ laws.conversionDecoder
-    (by norm_num [Adapter.Mdoc.groupOrder,Adapter.Mdoc.binaryOrder]) laws.bits_le point H
-
-theorem packing_card (point : Point) (H : Point → Digest × C) :
-    (Finset.univ.filter (packingBad S (readPacking binary prime P R cfg hashPublic decodePublic)
-      laws.packingDecoder point H)).card*Fintype.card B ≤ Fintype.card C :=
-  packingBad_card_mul_le S _ laws.packingDecoder point H
-
 end LfzkV2.Current.RuntimeAdaptiveViews

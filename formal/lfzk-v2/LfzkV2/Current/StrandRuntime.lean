@@ -288,36 +288,6 @@ theorem replay_ancestors (out : Out) (oracle : Point → Digest × C) (scope : B
         exact visible (n+1) within
       · exact ih (by omega) raw earlier
 
-include ranks parents links in
-/-- Different reached boundaries have different digests outside collisions
-on actual verifier queries. This discharges final-seal freshness without a
-serialized round counter or an assumption about the adversary's query order. -/
-theorem replay_digest_injective (out : Out) (G : Strand.Oracle)
-    (collisionFree : ∀ a ∈ seen (StrandVerifier.beforeSeal (history wire bodyCodec) sample fallback model out) G,
-      Strand.decodePrf a = none →
-      ∀ b ∈ seen (StrandVerifier.beforeSeal (history wire bodyCodec) sample fallback model out) G,
-      Strand.decodePrf b = none →
-      G a = G b → a = b) :
-    Function.Injective (fun i : Fin (rounds+1) => G (history wire bodyCodec (model.point out (oracleOf G) i.val)).input.encode) := by
-  let scope := fun raw => raw ∈ seen (StrandVerifier.beforeSeal (history wire bodyCodec) sample fallback model out) G ∧
-    Strand.decodePrf raw = none
-  have visible i (within : i ≤ rounds) : scope (history wire bodyCodec (model.point out (oracleOf G) i)).input.encode :=
-    ⟨StrandVerifier.beforeSeal_nodes_visible (history wire bodyCodec) sample fallback model out G ⟨i,by omega⟩,
-      (Strand.History.nodePoint (history wire bodyCodec (model.point out (oracleOf G) i))).property⟩
-  have ancestors := replay_ancestors wire bodyCodec model initial ranks parents out (oracleOf G) scope visible
-  have actual := replay_consistent wire bodyCodec model initial ranks parents links sample fallback out G
-  intro i j same
-  have hi : i.val ≤ rounds := by have := i.isLt; omega
-  have hj : j.val ≤ rounds := by have := j.isLt; omega
-  have input := collisionFree _ (visible i.val hi).1 (visible i.val hi).2
-    _ (visible j.val hj).1 (visible j.val hj).2 same
-  have equal := Strand.History.erasure_injective G _ _ (actual i.val hi) (actual j.val hj)
-    (fun a ha b hb => collisionFree a (ancestors i.val hi a ha).1 (ancestors i.val hi a ha).2
-      b (ancestors j.val hj b hb).1 (ancestors j.val hj b hb).2) input
-  have count := congrArg (fun value : Strand.History => value.ancestors.length) equal
-  rw [history_length,history_length,← ranks,← ranks,model.point_rank out (oracleOf G) hi,model.point_rank out (oracleOf G) hj] at count
-  exact Fin.ext (Nat.add_right_cancel count)
-
 include ranks in
 /-- The final PRF address is different from every earlier sampler address
 because its strand id is the next position. Hash collisions do not affect

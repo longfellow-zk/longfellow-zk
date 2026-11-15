@@ -135,14 +135,5 @@ def withProtocolWrites : Encoding g F Advice Auth Key (Base × ProtocolWrites.Fr
   context := earlier.context
   block proof i past := ((earlier.block proof i past).1, ProtocolWrites.fresh proof.body i)
 
-theorem protocol_readAt (initialLink : Digest) (proof : Output g F Advice Auth)
-    (H : Point g F Advice Auth Key (Base × ProtocolWrites.Fresh g F Advice) → Digest × C)
-    (n : ℕ) (hn : n ≤ g.roles.length) (i : Fin g.roles.length) (hi : i.val ≤ n)
-    (read : ProtocolWrites.Fresh g F Advice → Option X) :
-    (((earlier.withProtocolWrites).chain initialLink).point proof H n).readAt i.val (read ∘ Prod.snd) =
-      read (ProtocolWrites.fresh proof.body i) := by
-  rw [(earlier.withProtocolWrites).readAt_replay initialLink proof H n hn i hi]
-  rfl
-
 end Replay.Encoding
 end LfzkV2.Current

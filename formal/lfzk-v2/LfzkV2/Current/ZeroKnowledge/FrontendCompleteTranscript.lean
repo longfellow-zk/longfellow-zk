@@ -80,14 +80,6 @@ theorem step_query
       ((H (query bindOnly state hrank)).2,advance bindOnly state hrank (H (query bindOnly state hrank))) := by
   simp only [step,dif_pos hrank]
 
-theorem advance_feedback
-    (bindOnly : (i : Fin g.roles.length) → (Fin (i.val+1) → Fresh (g := g) (fields := fields) (Advice := Advice)) →
-      (Fin i.val → C) → Base)
-    (state : State g fields Advice Key Base C) (hrank : state.rank.val < g.roles.length)
-    (answer : Digest × C) (initialLink : Digest) :
-    Input.lastLink initialLink (advance bindOnly state hrank answer).rank.val
-      (advance bindOnly state hrank answer).history = answer.1 := rfl
-
 def bind (state : State g fields Advice Key Base C)
     (writes : Fresh (g := g) (fields := fields) (Advice := Advice) →
       Fresh (g := g) (fields := fields) (Advice := Advice)) : State g fields Advice Key Base C :=
@@ -102,14 +94,6 @@ def mapMessage {E F : Type} (field : E → F) : Layered.Replay.Message E → Lay
   | .round polynomial => .round ⟨field polynomial.c0,field polynomial.c1⟩
   | .cross cross => .cross (field cross)
   | .claims a b => .claims (field a) (field b)
-
-theorem mapMessage_inverse {E F : Type} (field : E ≃ F) (message : Layered.Replay.Message F) :
-    mapMessage field (mapMessage field.symm message) = message := by
-  cases message with
-  | empty => rfl
-  | round polynomial => cases polynomial; simp [mapMessage]
-  | cross => simp [mapMessage]
-  | claims => simp [mapMessage]
 
 def reader {F : Type} [Field F] (side : Side) (field : fields side ≃ F)
     (decode : C → ℕ → F) (nonzero : C → {r : F // r ≠ 0})

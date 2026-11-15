@@ -38,18 +38,4 @@ def body (commitment : Digest)
       MdocAdvice.Value (OpeningBody.Authentication (MdocRuntime.geometry binary.description prime binary.plan primePlan)) :=
   rawBody binary prime primePlan commitment result.raw
 
-omit [Fintype B] [DecidableEq B] in
-theorem prime_decode (commitment : Digest)
-    (result : CompleteSimulation.Result binary prime primePlan Key Base C) :
-    FrontendBody.decode id prime.circuit primePlan.frontend
-      (body binary prime primePlan commitment result).prime = some result.primePayload :=
-  CompleteShape.decode_bodyEquiv primePlan result.primePayload
-
-omit [Fintype B] [DecidableEq B] in
-theorem binary_decode (commitment : Digest)
-    (result : CompleteSimulation.Result binary prime primePlan Key Base C) :
-    FrontendBody.decode id binary.description.circuit binary.plan.frontend
-      (body binary prime primePlan commitment result).binary = some result.binaryPayload :=
-  CompleteShape.decode_bodyEquiv binary.plan result.binaryPayload
-
 end LfzkV2.Current.ZeroKnowledge.CompleteFrontendBody

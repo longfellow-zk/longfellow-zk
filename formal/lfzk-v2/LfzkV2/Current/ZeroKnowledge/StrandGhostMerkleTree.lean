@@ -64,14 +64,6 @@ theorem installAll_node (H : Raw → Digest) (nonces : Fin n → Nonce)
       H (codec.nodeEnc index children) :=
   Swap.replace_off _ _ _ _ (fun _ => separated _ _ _ _)
 
-include separated in
-theorem installOpened_node (H : Raw → Digest) (I : Finset (Fin n))
-    (nonces : I → Nonce) (columns : I → Message) (leaves : Fin n → Digest)
-    (index : ℕ) (children : Digest × Digest) :
-    installOpened codec dec H I nonces columns leaves (codec.nodeEnc index children) =
-      H (codec.nodeEnc index children) :=
-  Swap.replace_off _ _ _ _ (fun _ => separated _ _ _ _)
-
 variable [Inhabited Digest]
 
 /-- All internal nodes are memoized calls to the supplied ordinary oracle,

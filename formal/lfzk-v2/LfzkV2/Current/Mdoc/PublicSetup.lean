@@ -83,11 +83,6 @@ def setup (_visible : Values) : MdocRuntime.FormatSetup :=
   Mdoc.PublicSetup.setup binary prime cantor scalars ids bounds (fun _ => fun _ => 0)
 
 omit [Fintype B] [DecidableEq B] in
-theorem setup_values (SHA : Bytes → Digest) :
-    Mdoc.PublicSetup.setup binary prime cantor scalars ids bounds SHA =
-      setup binary prime cantor scalars ids bounds (values binary prime cantor scalars ids bounds SHA) := rfl
-
-omit [Fintype B] [DecidableEq B] in
 theorem values_merge (outside inside : Bytes → Digest) :
     values binary prime cantor scalars ids bounds (SHAOracle.merge SHAOracle.merkleDomain outside inside) =
       values binary prime cantor scalars ids bounds outside := by

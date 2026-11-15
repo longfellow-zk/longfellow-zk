@@ -284,32 +284,6 @@ theorem layer_terminal_data_update (decode : C → ℕ → F)
     Linear.LayerTranscript.terminalPads]
   rw [hb, hp]
 
-theorem layer_combine_data_update (decode : C → ℕ → F)
-    (nonzero : C → Linear.TerminalSampling.Nonzero F)
-    {out mid input a : ℕ} (body : LfzkV2.Native.CircuitLayer (Cube out) (Cube mid) (Fin a) F)
-    (rest : Layered.Circuit F mid input)
-    (plan : Layered.Replay.PadPlan (Pad := Pad) (.layer a body rest))
-    (payload : Layered.Replay.Payload (.layer a body rest))
-    (answers : ℕ → C) (start offset : ℕ) (w : Cube input → F)
-    (weights : Cube out → F) (pads : Pad → F) (claim : F) (i : Fin 1) (answer : C) :
-    dataAtRole decode nonzero (.layer a body rest) plan payload
-      (Function.update answers (start+mid+2) answer) start offset w weights pads claim
-        (.inr (.inr (.inr (.inl i)))) =
-    dataAtRole decode nonzero (.layer a body rest) plan payload
-      answers start offset w weights pads claim (.inr (.inr (.inr (.inl i)))) := by
-  have hb : Function.update answers (start+mid+2) answer start = answers start :=
-    Function.update_of_ne (by omega) _ _
-  have hp : (fun j : Fin mid => decode (Function.update answers (start+mid+2) answer
-      (start+1+j.val)) 0) = (fun j : Fin mid => decode (answers (start+1+j.val)) 0) := by
-    funext j
-    rw [Function.update_of_ne (by have := j.isLt; omega)]
-  have hs : Function.update answers (start+mid+2) answer (start+1+mid) =
-      answers (start+1+mid) := Function.update_of_ne (by omega) _ _
-  dsimp only [dataAtRole, LayerRole.kind, readFrom, Linear.LayerMessages.transcript,
-    Linear.LayerTranscript.clearA, Linear.LayerTranscript.clearB,
-    Linear.LayerTranscript.terminalPads]
-  rw [hb, hp, hs]
-
 theorem layer_head_update_after (decode : C → ℕ → F)
     (nonzero : C → Linear.TerminalSampling.Nonzero F)
     {out mid input a : ℕ} (body : LfzkV2.Native.CircuitLayer (Cube out) (Cube mid) (Fin a) F)
@@ -333,9 +307,6 @@ theorem layer_head_update_after (decode : C → ℕ → F)
       answers (start+mid+2) := Function.update_of_ne (by omega) _ _
   dsimp only [readFrom]
   rw [hb, hp, hs, ha]
-
-omit [Field F] in
-theorem fin_zero_fun_eq (f g : Fin 0 → F) : f = g := funext fun i => Fin.elim0 i
 
 theorem assertionBad_zero {n : ℕ} (incoming claim : F) (beta : Fin n → F) :
     ¬ AssertionBad incoming claim beta 0 := by

@@ -157,38 +157,6 @@ def read (count : ℕ) (positive : 0 < k) (sample : ℕ → F) (start : ℕ) :
     (start : ℕ) (i : Fin count) :
     (read P count positive sample start).1.1 i = sample (start+i.val) := rfl
 
-theorem read_polynomial_eval (count : ℕ) (positive : 0 < k) (sample : ℕ → F)
-    (start : ℕ) (row : Fin (rowCount P.backend.nw P.backend.nq))
-    (i : Fin (P.backend.s+1)) :
-    ((read P count positive sample start).1.2 row).val.eval
-      (node P positive i) = sample (start+count+
-        (rowOrder P.backend.nw P.backend.nq P.linearOnly row).val*(P.backend.s+1)+i.val) := by
-  change ((Response.evaluationEquiv F (node P positive) (node_injective P positive)).symm
-    (fun j => sample (start+(coordinate count P.backend.nw P.backend.s
-      (.inr (rowOrder P.backend.nw P.backend.nq P.linearOnly row,j))).val))).val.eval _ = _
-  rw [Response.evaluationEquiv_eval]
-  congr 1
-  rw [coordinate_polynomial]
-  omega
-
-theorem read_u_eval (count : ℕ) (positive : 0 < k) (sample : ℕ → F)
-    (start : ℕ) (i : Fin (P.backend.s+1)) :
-    ((read P count positive sample start).1.2 (maskIndex (nw := P.backend.nw) (nq := P.backend.nq) .vCoefficient)).val.eval
-      (node P positive i) = sample (start+count+i.val) := by
-  rw [read_polynomial_eval,rowOrder_u,Nat.zero_mul,Nat.add_zero]
-
-theorem read_m_eval (count : ℕ) (positive : 0 < k) (sample : ℕ → F)
-    (start : ℕ) (i : Fin (P.backend.s+1)) :
-    ((read P count positive sample start).1.2 (maskIndex (nw := P.backend.nw) (nq := P.backend.nq) .zRCoefficient)).val.eval
-      (node P positive i) = sample (start+count+(P.backend.s+1)+i.val) := by
-  rw [read_polynomial_eval,rowOrder_m,Nat.one_mul]
-
-theorem read_witness_eval (count : ℕ) (positive : 0 < k) (sample : ℕ → F)
-    (start : ℕ) (row : Fin P.backend.nw) (i : Fin (P.backend.s+1)) :
-    ((read P count positive sample start).1.2 (coreIndex (nw := P.backend.nw) (nq := P.backend.nq) .linear row)).val.eval
-      (node P positive i) = sample (start+count+(row.val+2)*(P.backend.s+1)+i.val) := by
-  rw [read_polynomial_eval,rowOrder_witness]
-
 section Joint
 variable {N : Type} [Field N] [Fintype N] [DecidableEq N]
 variable (R : FieldBackend N k s n t)
@@ -242,15 +210,6 @@ def jointRead (countB countN : ℕ) (positive : 0 < k)
     (sampleB : ℕ → F) (sampleN : ℕ → N) (start : ℕ) (i : Fin countN) :
     (jointRead P R countB countN positive sampleB sampleN start).1.2.1 i =
       sampleN (start+size countB P.backend.nw P.backend.s+i.val) := rfl
-
-/-- The cursor reader and the typed raw-block codec are the same coin
-construction. This records binary-before-prime consumption explicitly. -/
-theorem jointRead_coin (countB countN : ℕ) (positive : 0 < k)
-    (sampleB : ℕ → F) (sampleN : ℕ → N) (start : ℕ) :
-    (jointRead P R countB countN positive sampleB sampleN start).1 =
-      pairEquiv P R countB countN positive
-        (fun i => sampleB (start+i.val),
-          fun i => sampleN (start+size countB P.backend.nw P.backend.s+i.val)) := rfl
 
 end Joint
 

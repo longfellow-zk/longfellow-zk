@@ -107,12 +107,6 @@ theorem before_swap (coins : (Raw → Digest) × (Index → Digest)) :
   · exact before_replace before addresses coins.1 coins.2 unused
   · rfl
 
-theorem swap_leaf (coins : (Raw → Digest) × (Index → Digest))
-    (unused : fresh before addresses coins.1) (index : Index) :
-    (swap before addresses coins).1 (addresses (before.run coins.1).1 index) = coins.2 index := by
-  simp only [swap,unused,↓reduceIte]
-  exact replace_at _ _ _ index
-
 /-- This is only a uniform-oracle change of variables. Hiding follows
 separately by bounding actual leaf queries of the later observer. -/
 theorem sameDistribution [Fintype Raw] [Fintype Index] [Fintype Digest]

@@ -29,12 +29,6 @@ def selectionPayloadEquiv {Secret Payload : Type}
     (Secret × (F × F)) ≃ ((F × F) × Payload) :=
   responsePayloadEquiv (fun secret => WitnessSelection.maskTranslation coefficients (cells secret)) payload
 
-theorem selectionPayloadEquiv_response {Secret Payload : Type}
-    (coefficients : WitnessSelection.Coins F Index) (cells : Secret → Index → F)
-    (payload : (F × F) → Secret ≃ Payload) (secret : Secret) (masks : F × F) :
-    (selectionPayloadEquiv coefficients cells payload (secret,masks)).1 =
-      WitnessSelection.fingerprint coefficients (cells secret,masks) := rfl
-
 theorem selectionPayloadEquiv_recovered {Secret Payload : Type}
     (coefficients : WitnessSelection.Coins F Index) (cells : Secret → Index → F)
     (payload : (F × F) → Secret ≃ Payload) (response : F × F) (message : Payload) :

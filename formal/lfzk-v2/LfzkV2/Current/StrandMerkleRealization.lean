@@ -20,21 +20,6 @@ def byteName (bytes : Raw → Framing.Bytes) : StrandSearch.Name Raw T → Stran
   | .inl (raw,value) => .inl (bytes raw,value)
   | .inr digest => .inr digest
 
-theorem byteName_injective (bytes : Raw → Framing.Bytes) (injective : Function.Injective bytes) :
-    Function.Injective (byteName (T := T) bytes) := by
-  intro first second same
-  cases first with
-  | inl first =>
-      cases second with
-      | inl second =>
-          have equal := Prod.mk.inj (Sum.inl.inj same)
-          exact congrArg Sum.inl (Prod.ext (injective equal.1) equal.2)
-      | inr _ => cases same
-  | inr _ =>
-      cases second with
-      | inl _ => cases same
-      | inr _ => exact congrArg Sum.inr (Sum.inr.inj same)
-
 /-- Reading child labels commutes with renaming the finite raw addresses. -/
 theorem claims_bytes (readChildren : Framing.Bytes → Option (Digest × Digest))
     (bytes : Raw → Framing.Bytes) (context : T → Key) (root : Key → Digest) :
@@ -46,116 +31,6 @@ theorem claims_bytes (readChildren : Framing.Bytes → Option (Digest × Digest)
   | inl point =>
       rcases point with ⟨raw,value⟩
       cases value <;> rfl
-
-/-- The original byte decoder receives precisely the extractor's actual
-stopped cut. Renaming query addresses adds neither a new boundary nor a new
-hash call and does not change which context query stops extraction. -/
-theorem trace_map (bytes : Raw → Framing.Bytes) (context : T → Key) {fuel : ℕ}
-    (tree : Tree (StrandSearch.Name Raw T) (StrandCoupling.Sample Digest Word) Out fuel)
-    (H : StrandSearch.Name Framing.Bytes T → StrandCoupling.Sample Digest Word) (key : Key) :
-    StrandCut.trace context (mapQueries (byteName bytes) tree) H key =
-      (StrandCut.trace context tree (H ∘ byteName bytes) key).map (fun qa => (bytes qa.1,qa.2)) := by
-  induction tree with
-  | done _ => rfl
-  | query point next ih =>
-      cases point with
-      | inr digest =>
-          simp only [StrandCut.trace,mapQueries,beforeLabel,StrandCut.label,byteName,
-            reduceCtorEq,if_false,Function.comp_apply]
-          change StrandCut.trace context (mapQueries (byteName bytes) (next (H (.inr digest)))) H key =
-            (StrandCut.trace context (next (H (.inr digest))) (H ∘ byteName bytes) key).map
-              (fun qa => (bytes qa.1,qa.2))
-          exact ih (H (.inr digest))
-      | inl point =>
-          rcases point with ⟨raw,value⟩
-          cases value with
-          | none =>
-              simp only [StrandCut.trace,mapQueries,beforeLabel,StrandCut.label,byteName,
-                reduceCtorEq,if_false,Function.comp_apply]
-              change (bytes raw,(H (.inl (bytes raw,none))).1) :: _ =
-                (bytes raw,(H (.inl (bytes raw,none))).1) :: _
-              exact congrArg (List.cons _) (ih (H (.inl (bytes raw,none))))
-          | some value =>
-              by_cases stop : context value = key
-              · simp [StrandCut.trace,mapQueries,beforeLabel,StrandCut.label,byteName,stop]
-              · simp only [StrandCut.trace,mapQueries,beforeLabel,StrandCut.label,byteName,
-                  Option.some.injEq,stop,if_false,Function.comp_apply]
-                change (bytes raw,(H (.inl (bytes raw,some value))).1) :: _ =
-                  (bytes raw,(H (.inl (bytes raw,some value))).1) :: _
-                exact congrArg (List.cons _) (ih (H (.inl (bytes raw,some value))))
-
-/-- Extend only the names used by this deterministic renamed execution.
-The arbitrary values elsewhere are not additional oracle samples. -/
-def byteOracle (bytes : Raw → Framing.Bytes)
-    (H : StrandSearch.Name Raw T → StrandCoupling.Sample Digest Word) :
-    StrandSearch.Name Framing.Bytes T → StrandCoupling.Sample Digest Word :=
-  Function.extend (byteName bytes) H (fun _ => (0,fun _ => 0))
-
-theorem byteOracle_pullback (bytes : Raw → Framing.Bytes) (injective : Function.Injective bytes)
-    (H : StrandSearch.Name Raw T → StrandCoupling.Sample Digest Word) :
-    byteOracle bytes H ∘ byteName bytes = H := by
-  funext point
-  exact (byteName_injective bytes injective).extend_apply H (fun _ => (0,fun _ => 0)) point
-
-theorem trace_bytes (bytes : Raw → Framing.Bytes) (injective : Function.Injective bytes)
-    (context : T → Key) {fuel : ℕ}
-    (tree : Tree (StrandSearch.Name Raw T) (StrandCoupling.Sample Digest Word) Out fuel)
-    (H : StrandSearch.Name Raw T → StrandCoupling.Sample Digest Word) (key : Key) :
-    StrandCut.trace context (mapQueries (byteName bytes) tree) (byteOracle bytes H) key =
-      (StrandCut.trace context tree H key).map (fun qa => (bytes qa.1,qa.2)) := by
-  rw [trace_map,byteOracle_pullback bytes injective]
-
-/-- A stopped commitment cut inherits collision freedom from the actual
-raw hash queries that supplied its answers. No decoder or extraction
-certificate is needed: every retained entry has a named trace source. -/
-theorem mapped_cut_collision_free (bytes : Raw → Framing.Bytes) (context : T → Key)
-    {fuel : ℕ}
-    (tree : Tree (StrandSearch.Name Raw T) (StrandCoupling.Sample Digest Word) Out fuel)
-    (H : StrandSearch.Name Raw T → StrandCoupling.Sample Digest Word)
-    (SHA : Framing.Bytes → Digest) (scope : Framing.Bytes → Prop) (key : Key)
-    (sound : ∀ raw logical answer, ((.inl (raw,logical),answer) : StrandSearch.Name Raw T × _) ∈
-      (tree.run H).2 → answer.1 = SHA (bytes raw))
-    (covered : ∀ raw logical answer, ((.inl (raw,logical),answer) : StrandSearch.Name Raw T × _) ∈
-      (tree.run H).2 → scope (bytes raw))
-    (free : ∀ first second, scope first → scope second → SHA first = SHA second → first = second) :
-    CollisionFree ((StrandCut.trace context tree H key).map (fun qa => (bytes qa.1,qa.2))) := by
-  intro first firstMember second secondMember same
-  obtain ⟨⟨firstRaw,firstDigest⟩,firstSource,rfl⟩ := List.mem_map.mp firstMember
-  obtain ⟨⟨secondRaw,secondDigest⟩,secondSource,rfl⟩ := List.mem_map.mp secondMember
-  obtain ⟨firstLogical,firstRow,firstSource⟩ :=
-    StrandCut.trace_source context tree H key firstRaw firstDigest firstSource
-  obtain ⟨secondLogical,secondRow,secondSource⟩ :=
-    StrandCut.trace_source context tree H key secondRaw secondDigest secondSource
-  rw [beforeLabel_eq_takeWhile] at firstSource secondSource
-  have firstMember := (List.takeWhile_sublist _).subset firstSource
-  have secondMember := (List.takeWhile_sublist _).subset secondSource
-  exact free _ _ (covered _ _ _ firstMember) (covered _ _ _ secondMember)
-    ((sound _ _ _ firstMember).symm.trans (same.trans (sound _ _ _ secondMember)))
-
-section QueryTransport
-variable {P Q A D Output : Type} [DecidableEq P] [DecidableEq Q] [DecidableEq D]
-variable (encode : P → Q) (injective : Function.Injective encode)
-
-include injective in
-/-- Genuine root/child targets are unchanged by an injective renaming of
-query addresses. This is a deterministic identity, not a new hash assumption. -/
-theorem guess_map {Challenge : Type} {fuel : ℕ} (claims : Q → Finset D)
-    (tree : Tree P (D × Challenge) Output fuel) (H : Q → D × Challenge) :
-    DigestProjection.Guess claims (mapQueries encode tree) H ↔
-      DigestProjection.Guess (claims ∘ encode) tree (H ∘ encode) := by
-  constructor
-  · rintro ⟨point,member,hit⟩
-    rw [TranscriptV2.seen_mapQueries] at member
-    obtain ⟨raw,present,rfl⟩ := Finset.mem_image.mp member
-    refine ⟨raw,present,?_⟩
-    simpa only [Composition.targets_mapQueries encode injective,Function.comp_apply] using hit
-  · rintro ⟨raw,present,hit⟩
-    refine ⟨encode raw,?_,?_⟩
-    · rw [TranscriptV2.seen_mapQueries]
-      exact Finset.mem_image.mpr ⟨raw,present,rfl⟩
-    · simpa only [Composition.targets_mapQueries encode injective,Function.comp_apply] using hit
-
-end QueryTransport
 
 /-- A logical name recovered by the actual online decoder encodes a
 strand input. Its bytes therefore cannot also contribute Merkle children.

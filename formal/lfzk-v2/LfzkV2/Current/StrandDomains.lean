@@ -29,21 +29,6 @@ private theorem outside {raw : Bytes} (notZero : raw.head? ≠ some 0) (notOne :
   · exact notOne one
   · exact notMerkle merkle
 
-theorem circuit_outside {F : Type} [Field F] (fieldId : ℕ) (binary : Bool) (width : ℕ) (encode : F → Bytes)
-    (outputs logOutput inputs publicInputs : ℕ) (constants : List F) (layers : List SegmentedCircuit.Layer) :
-    ¬protocol (MetadataIdentifiers.circuitBytes fieldId binary width encode outputs logOutput inputs publicInputs constants layers) :=
-  outside (by change some (76 : Framing.Byte) ≠ some 0; decide)
-    (by change some (76 : Framing.Byte) ≠ some 1; decide)
-    (SHAOracle.identifier_not_domain _ _ _ _ _ _ _ _ _ _)
-
-theorem fragment_merge {F : Type} [Field F] (outside inside : Bytes → Digest) {leaves : ℕ}
-    (encode : F → Bytes) (shape : Adapter.ProductTree.Shape (Adapter.Circuit.half leaves))
-    (inputs publicInputs virtualStart : ℕ) :
-    MetadataIdentifiers.fragmentId (SHAOracle.merge protocol outside inside) encode shape inputs
-        publicInputs virtualStart =
-      MetadataIdentifiers.fragmentId outside encode shape inputs publicInputs virtualStart :=
-  SHAOracle.merge_outside protocol outside inside _ (circuit_outside (F := F) _ _ _ _ _ _ _ _ _ _)
-
 section Transcript
 variable {Point C Out : Type} {rounds blocks : ℕ}
 variable (history : Point → Strand.History)

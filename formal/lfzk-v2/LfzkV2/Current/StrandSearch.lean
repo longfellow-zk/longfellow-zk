@@ -79,11 +79,6 @@ theorem searchState_fresh {fuel : ℕ} (program : Tree Raw Digest Out fuel)
   FreshOracle.relabel_fresh (name schema bytes) (advance bytes) erase (name_erases schema bytes)
     (eagerState (key bytes) program state) state.known past (eagerState_fresh (key bytes) program state)
 
-theorem search_fresh {fuel : ℕ} (program : Tree Raw Digest Out fuel) :
-    FreshOracle.FreshFrom (fun _ => False) (search schema bytes program) :=
-  ((searchState_fresh schema bytes program Cache.empty []).map (fun result => result.1.1)).mono
-    (fun _ h => h.elim)
-
 /-- All stored logical names agree with the canonical decoder at their
 actual query time. Later answers cannot retroactively change a name. -/
 theorem search_trace {fuel : ℕ} (program : Tree Raw Digest Out fuel) (H : Name P T → Answer) :
@@ -248,17 +243,6 @@ theorem searchState_stream_origin {fuel : ℕ} (program : Tree Raw Digest Out fu
     obtain ⟨input,answerEq⟩ := Prod.mk.inj equal
     cases answerEq
     exact ⟨point',result,member,input ▸ key,same⟩
-
-/-- Actual raw node calls are visible to the naming proof even if the raw
-program repeated a previously cached call. No logical-name premise is used. -/
-theorem searchState_raw_node_visible {fuel : ℕ} (program : Tree Raw Digest Out fuel)
-    (H : Name P T → Answer) (raw : P) (digest : Digest)
-    (queried : ((.inl raw,digest) : Raw × Digest) ∈
-      ((searchState schema bytes (recordTrace program) Cache.empty []).run H).1.1.1.2) :
-    ∃ logical answer, ((.inl (raw,logical),answer) : Name P T × Answer) ∈
-      ((searchState schema bytes (recordTrace program) Cache.empty []).run H).2 ∧ answer.1 = digest :=
-  searchState_node_origin schema bytes (recordTrace program) H raw digest
-    (searchState_raw_covered schema bytes program Cache.empty [] H (.inl raw) digest queried)
 
 /-- A raw PRF call at the submission cut identifies the cached stream that
 answered it. This includes a prequery made before its parent node was known. -/
@@ -502,10 +486,6 @@ end Streams
 
 def speculation {fuel : ℕ} (program : Tree Raw Digest Out fuel) (H : Name P T → Answer) : ℚ :=
   DigestProjection.charge (claims bytes) (search schema bytes program) H
-
-theorem speculation_nonneg {fuel : ℕ} (program : Tree Raw Digest Out fuel) (H : Name P T → Answer) :
-    0 ≤ speculation schema bytes program H :=
-  DigestProjection.charge_nonneg (claims bytes) (search schema bytes program) H
 
 /-- The strand's speculative allowance is established independently of all
 protocol charges. This is the averaging obligation consumed by the generic

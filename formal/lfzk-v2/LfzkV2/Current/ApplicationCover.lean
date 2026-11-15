@@ -35,22 +35,6 @@ variable (a : Authentication A P R)
 def statement : JointResponse.Statement P.participant R.participant :=
   a.prefixData.statement
 
-theorem statement_prefixData : a.prefixData.statement = a.statement := rfl
-
-theorem compile_prefixData : StatementData.compile ⟨A,a.prefixData⟩ = a.statement := rfl
-
-/-- A concrete codec identity suffices to identify the backend statement.
-The reader has no oracle or final-proof argument: only the supplied prefix
-type, normally a batching preimage paired with its strict prior answers. -/
-theorem statement_of_prefix {Prefix : Type}
-    (read : Prefix → Σ A : System B I J SlotB PadB Other PadN IB IN CB CN p shared maskBits M K,
-      StatementData A P R) (boundPrefix : Prefix)
-    (hread : read boundPrefix = ⟨A,a.prefixData⟩) :
-    StatementData.compile (read boundPrefix) = a.statement := by
-  rw [hread]
-  rfl
-
-
 def context : Selection.Context B (ZMod p) IB IN where
   binaryList := (committedCandidates P.backend a.oracle.1 a.cutoff.1).image
     (FingerprintRows.view P.backend a.primaryB
@@ -100,15 +84,6 @@ theorem extraction_failure_cover
     (hfailure : ¬ ∃ w, a.context.extract = some w ∧ A.True w) :
     a.BackendBad ∨ (∃ w, a.context.extract = some w ∧ A.Bad w) := by
   exact a.extraction_reduction.resolve_left hfailure
-
-/-- A fixed earlier extractor output can be substituted once replay has
-identified its selection context with the late authenticated context. -/
-theorem selected_failure_cover (selected : Option A.Pair)
-    (hagrees : selected = a.context.extract)
-    (hfailure : ¬ ∃ w, selected = some w ∧ A.True w) :
-    a.BackendBad ∨ (∃ w, selected = some w ∧ A.Bad w) := by
-  rw [hagrees] at hfailure ⊢
-  exact a.extraction_failure_cover hfailure
 
 end Authentication
 end LfzkV2.Current.Application

@@ -336,17 +336,6 @@ theorem read_frontendTape {F Pad : Type} [Field F] {out input : ℕ}
   have hq' : q < FrontendReplay.slots circuit := by simpa only [Nat.zero_add] using hq
   simp only [frontendTape,if_pos hq']
 
-theorem constraints_frontendTape {F Pad : Type} [Field F] {out input : ℕ}
-    (circuit : Layered.Circuit F out input) (plan : Layered.Replay.PadPlan (Pad := Pad) circuit)
-    (payload : Layered.Replay.Payload circuit) (decode : C → ℕ → F)
-    (nonzero : C → Linear.TerminalSampling.Nonzero F)
-    (point : Point) (past : Fin point.rank → C) (fallback : C) (start : ℕ) :
-    FrontendVerifier.constraints circuit plan payload decode nonzero
-        (frontendTape point past fallback start (FrontendReplay.slots circuit)) =
-      FrontendVerifier.constraints circuit plan payload decode nonzero (answerTape point past fallback start) := by
-  unfold FrontendVerifier.constraints
-  rw [read_frontendTape]
-
 /-- The prime frontend's last boundary: its answer also draws the split's
 nonzero `eta`, after alpha and the input weights. -/
 def rescalingIndex (g : Geometry) : ℕ := g.primeStart+(g.prime.roles .prime).length-1
@@ -518,55 +507,6 @@ theorem decodeChecked_spec (s : BinaryPublic B shared maskBits adviceBits)
   simp only [decodeChecked,Option.bind_eq_bind,Option.bind_eq_some_iff] at h
   obtain ⟨prime,hprime,binary,hbinary,hcheck⟩ := h
   exact ⟨prime,binary,hprime,hbinary,hcheck⟩
-
-theorem prime_payload_agrees (n : PrimePublic (ZMod Adapter.Mdoc.primeOrder) shared)
-    (field : fields .prime → ZMod Adapter.Mdoc.primeOrder)
-    (decode : C → ℕ → ZMod Adapter.Mdoc.primeOrder)
-    (nonzero : C → Linear.TerminalSampling.Nonzero (ZMod Adapter.Mdoc.primeOrder))
-    (fallback : C) (point : Point) (past : Fin point.rank → C) (data : PrimeData n C)
-    (h : readPrime n field decode nonzero fallback point past = some data) :
-    FrontendTranscript.read n.circuit
-      (fun q => (wire point .prime field g.primeStart q).getD .empty) = data.payload :=
-  Messages.readFrom_agrees n.circuit _ 0 data.payload
-    (readPrime_spec n field decode nonzero fallback point past data h).2.1
-
-omit [DecidableEq B] in
-theorem binary_payload_agrees (s : BinaryPublic B shared maskBits adviceBits)
-    {n : PrimePublic (ZMod Adapter.Mdoc.primeOrder) shared} (prime : PrimeData n C)
-    (generator : Bˣ) (hdegree : g.packingDegree = s.degree)
-    (binaryField : fields .binary → B) (primeField : fields .prime → ZMod Adapter.Mdoc.primeOrder)
-    (decode : C → ℕ → B) (nonzero : C → Linear.TerminalSampling.Nonzero B)
-    (rescale : C → Linear.TerminalSampling.Nonzero (ZMod Adapter.Mdoc.primeOrder))
-    (convert : C → Fin 2 → Linear.TerminalSampling.Nonzero (ZMod Adapter.Mdoc.primeOrder))
-    (advice : Advice → Option (Fin 2 → Fin adviceBits → Bool))
-    (fallback : C) (point : Point) (past : Fin point.rank → C) (data : BinaryData s prime generator)
-    (h : readBinary s prime generator hdegree binaryField primeField decode nonzero rescale convert advice
-      fallback point past = some data) :
-    FrontendTranscript.read data.setup.circuit
-      (fun q => (wire point .binary binaryField g.binaryStart q).getD .empty) = data.payload := by
-  have hp := readBinary_spec s prime generator hdegree binaryField primeField decode nonzero
-    rescale convert advice fallback point past data h
-  exact Messages.readFrom_agrees data.setup.circuit _ 0 data.payload hp.2.2.2.2.2.2.2.2.1
-
-/-- The complete reader uses only its fixed preimage and strict ancestors.
-Changing this boundary's answer cannot change the reconstructed system. -/
-theorem decodeChecked_off (s : BinaryPublic B shared maskBits adviceBits)
-    (n : PrimePublic (ZMod Adapter.Mdoc.primeOrder) shared)
-    (hcard : Fintype.card B = Adapter.Mdoc.binaryOrder) (x : Bˣ)
-    (bound : 2^adviceBits ≤ Adapter.Mdoc.quotientBound) (hdegree : g.packingDegree = s.degree)
-    (binaryField : fields .binary → B) (primeField : fields .prime → ZMod Adapter.Mdoc.primeOrder)
-    (binaryDecode : C → ℕ → B) (binaryNonzero : C → Linear.TerminalSampling.Nonzero B)
-    (primeDecode : C → ℕ → ZMod Adapter.Mdoc.primeOrder)
-    (primeNonzero : C → Linear.TerminalSampling.Nonzero (ZMod Adapter.Mdoc.primeOrder))
-    (convert : C → Fin 2 → Linear.TerminalSampling.Nonzero (ZMod Adapter.Mdoc.primeOrder))
-    (advice : Advice → Option (Fin 2 → Fin adviceBits → Bool))
-    (fallback : C) (point : Point) (H H' : Point → Digest × C)
-    (h : Bcs.TotalOracle.AgreeOff point H H') :
-    decodeChecked s n hcard x bound hdegree binaryField primeField binaryDecode binaryNonzero
-        primeDecode primeNonzero convert advice fallback point (point.priorAnswers H) =
-      decodeChecked s n hcard x bound hdegree binaryField primeField binaryDecode binaryNonzero
-        primeDecode primeNonzero convert advice fallback point (point.priorAnswers H') := by
-  rw [point.priorAnswers_off h]
 
 /-- The frontend tape at the frontend's last boundary, whose own answer
 `current` is not yet in the strict past. -/

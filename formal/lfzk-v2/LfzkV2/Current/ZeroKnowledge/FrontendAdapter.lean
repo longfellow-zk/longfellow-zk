@@ -71,10 +71,6 @@ theorem honestQuotient_runtime (weights : Fin bits → ZMod p) (values : Fin bit
 def canonicalMask {n : ℕ} (capacity : p ≤ 2^n) (mask : ZMod p) : Fin n → Bool :=
   (AdapterBits.wordEquiv n).symm ⟨mask.val,lt_of_lt_of_le mask.val_lt capacity⟩
 
-theorem canonicalMask_bits {n : ℕ} (capacity : p ≤ 2^n) (mask : ZMod p) (i : Fin n) :
-    canonicalMask capacity mask i = mask.val.testBit i.val :=
-  AdapterBits.wordEquiv_decode n _ i
-
 /-- The prime scalar and its binary copy are reconstructed from the same
 canonical value. Their equality is derived, not an extra simulation premise. -/
 theorem canonicalMask_value {n : ℕ} (capacity : p ≤ 2^n) (mask : ZMod p) :
@@ -96,10 +92,6 @@ def muAdviceEquiv (offset : ZMod p) (quotient : ZMod p → MdocAdvice.Value) :
     (ZMod p × MdocAdvice.Value) ≃ (ZMod p × MdocAdvice.Value) :=
   (Equiv.prodCongr (muEquiv offset) (Equiv.refl _)).trans
     (Equiv.prodCongrRight fun mu => AdapterBits.xorValue (quotient mu))
-
-theorem muAdviceEquiv_mu (offset : ZMod p) (quotient : ZMod p → MdocAdvice.Value)
-    (mask : ZMod p) (otp : MdocAdvice.Value) :
-    (muAdviceEquiv offset quotient (mask,otp)).1 = offset+mask := rfl
 
 theorem muAdviceEquiv_bits (offset : ZMod p) (quotient : ZMod p → MdocAdvice.Value)
     (mask : ZMod p) (otp : MdocAdvice.Value) (tree : Fin 2) (i : Fin 10) :

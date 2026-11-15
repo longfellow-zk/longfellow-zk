@@ -53,12 +53,6 @@ theorem commit_labels (H : Enc → D) (n : ℕ) (index : Fin n → Index)
 termination_by 2*n-vertex
 decreasing_by all_goals omega
 
-theorem root_eq (H : Enc → D) (n : ℕ) (index : Fin n → Index)
-    (nonce : Fin n → Nonce) (message : Fin n → Leaf) :
-    root ((nonceCodec codec).withOracle H) n nonce (fun i => (index i,message i)) =
-      root (codec.withOracle H) n (fun i => (index i,nonce i)) message :=
-  commit_labels codec H n index nonce message 1
-
 def indexedOpening {n : ℕ} {I : Finset (Fin n)} (index : Fin n → Index)
     (proof : Opening n I Nonce D) : Opening n I (Index × Nonce) D where
   nonce i := (index i.val,proof.nonce i)
@@ -82,14 +76,6 @@ theorem check_values (H : Enc → D) (n : ℕ) (I : Finset (Fin n))
   · rfl
 termination_by 2*n-vertex
 decreasing_by all_goals omega
-
-theorem accepts_iff (H : Enc → D) (n : ℕ) (I : Finset (Fin n))
-    (index : Fin n → Index) (message : Fin n → Leaf) (digest : D)
-    (proof : Opening n I Nonce D) :
-    Accepts ((nonceCodec codec).withOracle H) n digest I
-        (fun i => (index i,message i)) proof ↔
-      Accepts (codec.withOracle H) n digest I message (indexedOpening index proof) := by
-  simp only [Accepts,check_values]
 
 end Reindex
 

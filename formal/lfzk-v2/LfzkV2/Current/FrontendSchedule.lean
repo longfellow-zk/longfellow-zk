@@ -127,17 +127,6 @@ theorem queryIndex_shift {out input : ℕ} (circuit : Layered.Circuit F out inpu
         rw [ih role (start+mid+2), ih role (0+mid+2)]
         omega
 
-theorem queryIndex_no_layers {out input : ℕ} (circuit : Layered.Circuit F out input)
-    (h : FrontendReplay.hasLayers circuit = false) (role : Layered.Replay.LayerRole circuit) (start : ℕ) :
-    FrontendReplay.queryIndex circuit role start = start := by
-  induction circuit with
-  | input => exact Fin.elim0 role
-  | entry _ _ _ ih =>
-      cases role with
-      | inl => rfl
-      | inr role => exact ih h role
-  | layer => simp only [FrontendReplay.hasLayers,Bool.true_eq_false] at h
-
 /-- `head` is the role of the answer that opens this circuit: the frontend's
 opening boundary at the top, and the preceding layer's combine below it. All
 tests of that answer (entries, assertions, a combine) share the role. -/
@@ -245,15 +234,6 @@ theorem fits_of_capacityFrom_le {out input : ℕ} {circuit : Layered.Circuit F o
 theorem fits {out input : ℕ} {circuit : Layered.Circuit F out input} (plan : Plan F circuit) :
     FrontendReplay.Fits plan.capacity circuit 0 :=
   plan.fits_of_capacityFrom_le 0 plan.capacity le_rfl
-
-theorem stage_widths {out input : ℕ} {circuit : Layered.Circuit F out input} (plan : Plan F circuit) :
-    plan.frontend.stages.map Stage.rounds = FrontendBody.widths circuit := by
-  induction plan with
-  | input => rfl
-  | inputEntry => rfl
-  | layer metadata tail ih => simpa only [frontend,List.map_cons,FrontendBody.widths] using congrArg (List.cons _) ih
-  | entryLayer entries entry metadata tail ih =>
-      simpa only [frontend,List.map_cons,FrontendBody.widths] using congrArg (List.cons _) ih
 
 theorem hasLayers_eq {out input : ℕ} {circuit : Layered.Circuit F out input} (plan : Plan F circuit) :
     FrontendReplay.hasLayers circuit = !plan.frontend.stages.isEmpty := by
@@ -383,14 +363,6 @@ def roleIndex {out input : ℕ} {circuit : Layered.Circuit F out input}
     rw [← plan.slots_eq_roles_length]
     simpa only [Nat.zero_add] using FrontendReplay.queryIndex_lt circuit role 0⟩
 
-theorem roleIndex_get {out input : ℕ} {circuit : Layered.Circuit F out input}
-    (plan : Plan F circuit) (side : Side) (role : Layered.Replay.LayerRole circuit) :
-    (plan.frontend.roles side).get (plan.roleIndex side role) =
-      plan.locatedRole side 0 (plan.frontend.opening side) role := by
-  have h := plan.frontend_role_get_queryIndex side role
-  have hg := List.getElem?_eq_getElem (l := plan.frontend.roles side) (plan.roleIndex side role).isLt
-  exact Option.some.inj (hg.symm.trans h)
-
 theorem opening_side (frontend : Frontend) (side : Side) :
     frontendSide (frontend.opening side) = some side := by
   unfold Frontend.opening
@@ -456,16 +428,6 @@ theorem locatedRole_domain {out input : ℕ} {circuit : Layered.Circuit F out in
       · rfl
       · rfl
       · exact ih (first+1) _ (Or.inr rfl) role
-
-theorem input_coordinates_le {out input : ℕ} {circuit : Layered.Circuit F out input}
-    (plan : Plan F circuit) (offset : ℕ) (h : FrontendReplay.hasLayers circuit = false) :
-    offset+(plan.frontend.inputEntries.map Entry.outputs).sum ≤ plan.capacityFrom offset := by
-  cases plan with
-  | input => exact le_refl _
-  | inputEntry metadata entry =>
-      simpa only [frontend,capacityFrom,metadata.count] using (le_refl (offset+_))
-  | layer => simp only [FrontendReplay.hasLayers,Bool.true_eq_false] at h
-  | entryLayer => simp only [FrontendReplay.hasLayers,Bool.true_eq_false] at h
 
 /-- The weights read at a circuit's opening answer fit after `offset`. -/
 theorem opening_coordinates_le {out input : ℕ} {circuit : Layered.Circuit F out input}
@@ -607,12 +569,6 @@ theorem binary_role_get (g : Geometry) (i : Fin (g.binary.roles .binary).length)
 
 theorem primeStart_pos (g : Geometry) : 0 < g.primeStart := by change 0 < 1; decide
 theorem binaryStart_pos (g : Geometry) : 0 < g.binaryStart := by unfold binaryStart; omega
-
-theorem prime_window (g : Geometry) :
-    g.primeStart+(g.prime.roles .prime).length ≤ g.roles.length := by
-  have h := g.roles_length
-  unfold primeStart
-  omega
 
 theorem binary_window (g : Geometry) :
     g.binaryStart+(g.binary.roles .binary).length ≤ g.roles.length := by

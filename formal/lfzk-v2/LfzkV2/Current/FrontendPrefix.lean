@@ -98,57 +98,5 @@ theorem withFrontend_message (initialLink : Digest) (proof : Output g F Advice A
       (FrontendTranscript.write circuit (payloadOf proof))) role at hm
   simpa only [FrontendTranscript.read_write] using hm
 
-omit [Field E] in
-/-- The later backend opening encoder preserves all earlier frontend
-messages. Disjointness is just a public inequality between schedule positions;
-it is not a proof-dependent correspondence premise. -/
-theorem withOpening_frontendWire {Response : Type}
-    (responses : Output g F Advice Authentication → Response)
-    (encode : Response → Base × Message E)
-    (initialLink : Digest) (proof : Output g F Advice Authentication)
-    (H : Point g F Advice Authentication Key (Base × Message E) → Digest × C)
-    (n q : ℕ) (hn : n ≤ g.roles.length) (hq : q < FrontendReplay.slots circuit)
-    (hbefore : start+FrontendReplay.slots circuit ≤ g.openingIndex.val)
-    (hbound : start+q ≤ n) :
-    ((((e.withFrontend circuit payloadOf start).withOpening responses encode).chain initialLink).point
-      proof H n).frontendWire (start+q) = FrontendTranscript.write circuit (payloadOf proof) q := by
-  have hi : start+q < g.roles.length := lt_of_lt_of_le (by omega) (Nat.le_of_lt g.openingIndex.isLt)
-  apply frontendWire_of_block ((e.withFrontend circuit payloadOf start).withOpening responses encode)
-    initialLink proof H n (start+q) hn hi hbound _
-  intro past
-  have hne : (⟨start+q, hi⟩ : Fin g.roles.length) ≠ g.openingIndex := by
-    intro heq
-    have hv := congrArg Fin.val heq
-    change start+q = g.openingIndex.val at hv
-    omega
-  rw [withOpening_block_earlier _ responses encode proof _ past hne]
-  have hw : start ≤ start+q ∧ start+q < start+FrontendReplay.slots circuit := by omega
-  simp only [withFrontend, hw, and_self, ↓reduceIte, Nat.add_sub_cancel_left]
-
-theorem withOpening_frontendMessage {Response : Type}
-    (responses : Output g F Advice Authentication → Response)
-    (encode : Response → Base × Message E)
-    (initialLink : Digest) (proof : Output g F Advice Authentication)
-    (H : Point g F Advice Authentication Key (Base × Message E) → Digest × C)
-    (n : ℕ) (hn : n ≤ g.roles.length)
-    (hbefore : start+FrontendReplay.slots circuit ≤ g.openingIndex.val)
-    (role : LayerRole circuit) (hbound : start+FrontendReplay.queryIndex circuit role 0 ≤ n) :
-    layerMessage circuit
-      (frontendPayload circuit start
-        ((((e.withFrontend circuit payloadOf start).withOpening responses encode).chain initialLink).point
-          proof H n)) role = layerMessage circuit (payloadOf proof) role := by
-  have hm := FrontendTranscript.layerMessage_readFrom_congr circuit role
-    (fun q =>
-      ((((e.withFrontend circuit payloadOf start).withOpening responses encode).chain initialLink).point
-        proof H n).frontendWire (start+q))
-    (FrontendTranscript.write circuit (payloadOf proof)) 0
-    (e.withOpening_frontendWire circuit payloadOf start responses encode initialLink proof H n
-      (FrontendReplay.queryIndex circuit role 0) hn
-      (by simpa only [Nat.zero_add] using FrontendReplay.queryIndex_lt circuit role 0) hbefore hbound)
-  change layerMessage circuit (frontendPayload circuit start _) role =
-    layerMessage circuit (FrontendTranscript.read circuit
-      (FrontendTranscript.write circuit (payloadOf proof))) role at hm
-  simpa only [FrontendTranscript.read_write] using hm
-
 end Replay.Encoding
 end LfzkV2.Current

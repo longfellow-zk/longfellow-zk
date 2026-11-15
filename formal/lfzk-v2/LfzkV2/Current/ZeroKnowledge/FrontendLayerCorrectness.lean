@@ -48,26 +48,4 @@ theorem realRounds_eq_masked (reader : Reader F State) (q w : Cube n → F) (sta
     | mk m0 m1 =>
       simp [mask,unmask]
 
-theorem realLayer_messages_eq_honest
-    (reader : Reader F State) (state : State)
-    (body : Native.CircuitLayer (Cube out) (Cube n) (Fin a) F)
-    (weights : Cube out → F) (wires : Cube n → F) (beta : Fin a → F)
-    (pads : LayerTape F n) :
-    let q := bindRightAffine (body.effectiveQuadratic weights beta) (body.effectiveLinear weights beta) wires
-    let payload := realLayer reader q wires state pads
-    let replay := readLayer reader state payload
-    readMessages reader state payload beta (layerPlan n) =
-      Linear.honestLayer body weights wires replay.point replay.scale.val replay.alpha beta
-        (linearPlan (layerPlan n)) (padValues pads) := by
-  dsimp only
-  let q := bindRightAffine (body.effectiveQuadratic weights beta) (body.effectiveLinear weights beta) wires
-  have hr : (realLayer reader q wires state pads).rounds =
-      fun i => mask ((honestMessages q wires (readRounds reader state
-        (realRounds reader q wires state pads.1)).1).get
-          (i.cast (honestMessages_length _ _ _).symm)) (pads.1 i) := by
-    funext i
-    exact realRounds_eq_masked reader q wires state pads.1 i
-  dsimp only [readMessages,Linear.honestLayer,linearPlan]
-  congr 1
-
 end LfzkV2.Current.ZeroKnowledge.Frontend

@@ -151,11 +151,6 @@ def primeEtaDecoder :
       ((Fin primeCapacity → N) × Linear.TerminalSampling.Nonzero N) :=
   IdealProjections.decoder (primeEtaFactor B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity)
 
-theorem primeEtaDecoder_apply
-    (answer : Answer B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity) :
-    (primeEtaDecoder B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity).decode answer =
-      (answer .prime,(answer .primeNonzero).1) := rfl
-
 def binaryFrontend (positive : 0 < binaryCapacity) :
     FrontendReplay.Decoder binaryCapacity
       (vectorRead (decoder B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity .binary))

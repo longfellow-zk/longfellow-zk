@@ -100,23 +100,4 @@ theorem rounds_clear (reader : Reader F State) {n : ℕ}
       congr 1
       exact ih _ _ _ _
 
-theorem recovered_rounds_clear (reader : Reader F State) {n : ℕ}
-    (q w : Cube n → F) (state : State) (messages : Fin n → RoundPoly F) :
-    List.ofFn (fun i => unmask (messages i) (recoverRounds reader q w state messages i)) =
-      honestMessages q w (readRounds reader state messages).1 := by
-  have h := rounds_clear reader q w state (recoverRounds reader q w state messages)
-  simpa only [real_recover] using h
-
-/-- Exactly one honest pad vector yields each arbitrary sampled round
-message vector. This includes scalar layers, whose vector is empty. -/
-theorem rounds_uniform_fiber [Fintype F] (reader : Reader F State) {n : ℕ}
-    (q w : Cube n → F) (state : State) (messages : Fin n → RoundPoly F) :
-    (Finset.univ.filter fun pads => realRounds reader q w state pads = messages).card = 1 := by
-  have heq : (Finset.univ.filter fun pads => realRounds reader q w state pads = messages) =
-      {recoverRounds reader q w state messages} := by
-    ext pads
-    simp only [Finset.mem_filter,Finset.mem_univ,true_and,Finset.mem_singleton]
-    exact (roundsEquiv reader q w state).apply_eq_iff_eq_symm_apply
-  rw [heq,Finset.card_singleton]
-
 end LfzkV2.Current.ZeroKnowledge.Frontend

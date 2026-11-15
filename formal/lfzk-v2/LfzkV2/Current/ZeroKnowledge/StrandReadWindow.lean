@@ -36,10 +36,6 @@ theorem Agree.oracle {first second : Strand.Oracle} (same : Agree history first 
   simp only [StrandVerifier.oracle,StrandVerifier.readRound,Tree.run_query,Tree.run_map,StrandVerifier.stream_run]
   rw [same.stream,same.node]
 
-theorem Agree.sampled {first second : Strand.Oracle} (same : Agree history first second) (point : Point) :
-    StrandVerifier.sampled history sample first point ↔ StrandVerifier.sampled history sample second point := by
-  simp only [StrandVerifier.sampled,same.stream]
-
 variable [Fintype Point]
 
 def window : Finset Bytes :=
@@ -60,15 +56,5 @@ theorem prf_mem (id : Strand.Word) (parent : Strand.Digest) (counter : Strand.Wo
 theorem agree_of_window (first second : Strand.Oracle)
     (same : ∀ raw ∈ window history, first raw = second raw) : Agree history first second :=
   ⟨fun point => same _ (node_mem history point),fun id parent counter => same _ (prf_mem history id parent counter)⟩
-
-theorem reader_queries (SHA : Strand.Oracle) (point : Point) (entry : Bytes × Digest)
-    (member : entry ∈ ((StrandVerifier.readRound history sample fallback point).run SHA).2) :
-    entry.1 ∈ window history := by
-  rcases StrandVerifier.readRound_queries history sample fallback SHA point entry.1 entry.2 member with node | stream
-  · rw [node]
-    exact node_mem history point
-  · obtain ⟨counter,equal⟩ := stream
-    rw [equal]
-    exact prf_mem history _ _ counter
 
 end LfzkV2.Current.ZeroKnowledge.StrandReadWindow

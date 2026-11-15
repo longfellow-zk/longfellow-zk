@@ -22,24 +22,12 @@ def raw (scheme : Scheme Salt Leaf D Enc) (bind : Fin n → Nonce → Salt)
   frontier := (Heap.frontierList n (OrderedOpening.query indices).coordinates).map
     (commitLabels scheme n (fun i => bind i (nonces i)) columns)
 
-omit [Inhabited Leaf] in
-theorem raw_frontier_bound (scheme : Scheme Salt Leaf D Enc) (bind : Fin n → Nonce → Salt)
-    (indices : Fin t ↪ Fin n) (nonces : Fin n → Nonce) (columns : Fin n → Leaf) :
-    (raw scheme bind indices nonces columns).frontier.length ≤ t*(Heap.heapDepth n+1) := by
-  have bound := Heap.frontier_card_le n (OrderedOpening.query indices).coordinates
-  simpa only [raw,List.length_map,Heap.frontierList_length,QuerySet.card_coordinates] using bound
-
 def claim (scheme : Scheme Salt Leaf D Enc) (bind : Fin n → Nonce → Salt)
     (indices : Fin t ↪ Fin n) (nonces : Fin n → Nonce) (columns : Fin n → Leaf) :
     OpeningClaim n Salt Leaf D where
   I := (OrderedOpening.query indices).coordinates
   a i := if i ∈ (OrderedOpening.query indices).coordinates then columns i else default
   pf := openCore scheme n (OrderedOpening.query indices).coordinates (fun i => bind i (nonces i)) columns
-
-theorem claim_value (scheme : Scheme Salt Leaf D Enc) (bind : Fin n → Nonce → Salt)
-    (indices : Fin t ↪ Fin n) (nonces : Fin n → Nonce) (columns : Fin n → Leaf)
-    (i : Fin n) (inside : i ∈ (OrderedOpening.query indices).coordinates) :
-    (claim scheme bind indices nonces columns).a i = columns i := if_pos inside
 
 theorem decode_raw (scheme : Scheme Salt Leaf D Enc) (bind : Fin n → Nonce → Salt)
     (indices : Fin t ↪ Fin n) (nonces : Fin n → Nonce) (columns : Fin n → Leaf) :

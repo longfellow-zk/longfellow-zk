@@ -27,11 +27,4 @@ def selectionEquiv (sourceResponse targetResponse : Tape → Response)
       (fun query _ tape => preserved query tape)
       (fun query _ => (translate query).injective))).trans (Equiv.prodUnique Tape Unit)
 
-theorem selectionEquiv_apply (sourceResponse targetResponse : Tape → Response)
-    (choose : Response → Query) (translate : Query → Tape ≃ Tape)
-    (preserved : ∀ query tape, targetResponse (translate query tape) = sourceResponse tape)
-    (tape : Tape) :
-    selectionEquiv sourceResponse targetResponse choose translate preserved tape =
-      translate (choose (sourceResponse tape)) tape := rfl
-
 end LfzkV2.Current.ZeroKnowledge.Backend.Adaptive

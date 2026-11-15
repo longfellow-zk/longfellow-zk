@@ -39,20 +39,6 @@ def finiteCodec : Codec Salt Leaf D {raw // raw ∈ window codec budget trees} w
   leafEnc value := ⟨codec.leafEnc value,leaf_mem codec budget trees value⟩
   nodeEnc children := ⟨codec.nodeEnc children,node_mem codec budget trees children⟩
 
-theorem finite_leaf_hash (HM : {raw // raw ∈ window codec budget trees} → D)
-    (outside : Raw → D) (value : Salt × Leaf) :
-    HM ((finiteCodec codec budget trees).leafEnc value) =
-      OracleWindow.extend (window codec budget trees) HM outside (codec.leafEnc value) :=
-  (OracleWindow.extend_mem (window codec budget trees) HM outside (codec.leafEnc value)
-    (leaf_mem codec budget trees value)).symm
-
-theorem finite_node_hash (HM : {raw // raw ∈ window codec budget trees} → D)
-    (outside : Raw → D) (children : D × D) :
-    HM ((finiteCodec codec budget trees).nodeEnc children) =
-      OracleWindow.extend (window codec budget trees) HM outside (codec.nodeEnc children) :=
-  (OracleWindow.extend_mem (window codec budget trees) HM outside (codec.nodeEnc children)
-    (node_mem codec budget trees children)).symm
-
 theorem finiteCodec_inj (injective : codec.Inj) : (finiteCodec codec budget trees).Inj :=
   ⟨fun _ _ equal => injective.leaf (congrArg Subtype.val equal),
     fun _ _ equal => injective.node (congrArg Subtype.val equal)⟩

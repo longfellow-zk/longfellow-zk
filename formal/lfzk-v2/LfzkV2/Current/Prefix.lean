@@ -101,27 +101,6 @@ def claimed (initial : Link) : Input roles Context Block Link Body → Link
 def links (initial : Link) : TranscriptV2.Links (Input roles Context Block Link Body) Link :=
   ⟨parent, claimed initial⟩
 
-theorem parent_round_succ {n : ℕ} (hn : n+1 < roles.length)
-    (history : History Context Block Link n) (block next : Block) (link : Link) :
-    parent (.round ⟨n+1, hn⟩ (history, block, link) next : Input roles Context Block Link Body) =
-      some (.round ⟨n, by omega⟩ history block) := rfl
-
-theorem claimed_round_succ {n : ℕ} (hn : n+1 < roles.length)
-    (history : History Context Block Link n) (block next : Block) (link initial : Link) :
-    claimed initial (.round ⟨n+1, hn⟩ (history, block, link) next :
-      Input roles Context Block Link Body) = link := rfl
-
-theorem parent_finalSeal (role : Role) (rest : List Role)
-    (history : History Context Block Link rest.length) (block : Block) (link : Link) (body : Body) :
-    parent (.finalSeal (history, block, link) body : Input (role :: rest) Context Block Link Body) =
-      some (.round ⟨rest.length, by simp⟩ history block) := rfl
-
-theorem claimed_finalSeal (role : Role) (rest : List Role)
-    (history : History Context Block Link rest.length) (block : Block)
-    (link initial : Link) (body : Body) :
-    claimed initial (.finalSeal (history, block, link) body : Input (role :: rest) Context Block Link Body) =
-      link := rfl
-
 theorem parent_rank {child ancestor : Input roles Context Block Link Body}
     (h : parent child = some ancestor) : rank child = rank ancestor + 1 := by
   have previous_rank (n : ℕ) (hn : n ≤ roles.length) (history : History Context Block Link n)
@@ -202,14 +181,6 @@ def points : Bcs.TotalOracle.PrefixPoints (Input roles Context Block Link Body) 
     rw [heq] at hr
     omega
 
-theorem points_chal_samples {C : Type} (point : Input roles Context Block Link Body)
-    (H : Input roles Context Block Link Body → Link × C) :
-    (fun i => ((points.chal H point) i).2) = point.priorAnswers H := by
-  funext i
-  simp only [Bcs.TotalOracle.PrefixPoints.chal, points, priorAnswers]
-  rw [dif_pos (show i.val < point.rank from i.isLt)]
-  rfl
-
 def historyContext : (n : ℕ) → History Context Block Link n → Context
   | 0, context => context
   | n+1, history => historyContext n history.1
@@ -218,43 +189,6 @@ def context : Input roles Context Block Link Body → Context
   | .round i history _ => historyContext i.val history
   | .finalSeal history _ => historyContext roles.length history
 
-/-- Every ancestor names the same committed context. This is the key used
-when extracting the tuple oracle from the trace before its first query. -/
-theorem historyPoints_context (n : ℕ) (hn : n ≤ roles.length)
-    (history : History Context Block Link n) (i : Fin n) :
-    (historyPoints (Body := Body) n hn history i).context = historyContext n history := by
-  induction n with
-  | zero => exact Fin.elim0 i
-  | succ n ih =>
-      refine Fin.lastCases ?_ (fun j => ?_) i
-      · simp [historyPoints, context, historyContext]
-      · simp only [historyPoints, Fin.snoc_castSucc, historyContext]
-        exact ih _ history.1 j
-
-theorem priorPoints_context (point : Input roles Context Block Link Body) (i : Fin point.rank) :
-    (point.priorPoints i).context = point.context := by
-  cases point <;> exact historyPoints_context _ _ _ i
-
 end Input
-
-/-- Application finalization takes the parsed proof itself. Its body includes
-the terminal opened rows and authentication; the supplied seal is excluded. -/
-def Proof.finalSealInput {g : Geometry} {F : Fields} {Advice Authentication Context Block : Type}
-    (proof : Proof g F Advice Authentication)
-    (history : History Context Block Digest g.roles.length) :
-    Input g.roles Context Block Digest (Body g F Advice Authentication) :=
-  .finalSeal history proof.body
-
-theorem Proof.finalSealInput_body {g : Geometry} {F : Fields}
-    {Advice Authentication Context Block : Type} (p q : Proof g F Advice Authentication)
-    (hp hq : History Context Block Digest g.roles.length)
-    (h : p.finalSealInput hp = q.finalSealInput hq) : p.body = q.body :=
-  Input.finalSeal_body_bound h
-
-theorem Proof.finalSealInput_authentication {g : Geometry} {F : Fields}
-    {Advice Authentication Context Block : Type} (p q : Proof g F Advice Authentication)
-    (hp hq : History Context Block Digest g.roles.length)
-    (h : p.finalSealInput hp = q.finalSealInput hq) : p.body.authentication = q.body.authentication :=
-  congrArg Body.authentication (Proof.finalSealInput_body p q hp hq h)
 
 end LfzkV2.Current

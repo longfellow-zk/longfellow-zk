@@ -60,33 +60,4 @@ theorem checked_true
     · contradiction
   · contradiction
 
-/-- The extracted pair satisfies the two circuits at the requested public
-values. Generated adapter coefficients are those reconstructed from this
-very prefix and its preceding answers. No alternate witness is selected. -/
-theorem true_at_request (point : Point) (past : Fin point.rank → C)
-    (bits : Fin binary.nPublic → Bool) (inputs : Fin prime.nPublic → N)
-    (hbits : hashPublic point.context = some bits)
-    (hinputs : RuntimeAdaptive.primePublic prime decodePublic point = some inputs)
-    (A : System)
-    (hA : RuntimeAdaptive.application binary prime P R cfg hashPublic decodePublic point past = some A)
-    (w : Selection.Pair B N binary.Original prime.Original) (htrue : A.True w) :
-    ∃ (nd : PrimeData (primeWithInputs prime inputs) C)
-      (bd : BinaryData (binaryWithBits binary bits) nd (cfg.polynomialX^Adapter.Mdoc.generatorExponent)),
-      ApplicationPrefix.readPrime (primeWithInputs prime inputs) cfg.primeField cfg.primeDecode
-        cfg.primeNonzero cfg.fallback point past = some nd ∧
-      ApplicationPrefix.readBinary (binaryWithBits binary bits) nd
-        (cfg.polynomialX^Adapter.Mdoc.generatorExponent) cfg.packingDegree cfg.binaryField cfg.primeField
-        cfg.binaryDecode cfg.binaryNonzero cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback
-        point past = some bd ∧
-      bd.setup.circuit.Satisfies ((binaryWithBits binary bits).inputs bd.entries
-        (binaryValues (binaryWithBits binary bits) (primeWithInputs prime inputs) w)) ∧
-      prime.circuit.Satisfies
-        (primeInputs (binaryWithBits binary bits) (primeWithInputs prime inputs) w) := by
-  rw [application_eq binary prime P R cfg hashPublic decodePublic point past bits inputs hbits hinputs] at hA
-  obtain ⟨nd,bd,hprime,hbinary,hchecked⟩ := ApplicationPrefix.decodeChecked_spec
-    (binaryWithBits binary bits) (primeWithInputs prime inputs) cfg.card cfg.polynomialX cfg.quotientBound
-    cfg.packingDegree cfg.binaryField cfg.primeField cfg.binaryDecode cfg.binaryNonzero
-    cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice cfg.fallback point past A hA
-  exact ⟨nd,bd,hprime,hbinary,checked_true binary prime P R cfg bits inputs nd bd A hchecked w htrue⟩
-
 end LfzkV2.Current.RequestedApplication

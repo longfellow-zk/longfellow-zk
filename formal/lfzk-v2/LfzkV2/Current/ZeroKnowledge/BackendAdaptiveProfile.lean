@@ -18,10 +18,6 @@ def responseSamples {F : Type} [Field F] (nodes : Fin 2792 ↪ F)
   (fun i => (response.primary : F[X]).eval (nodes ⟨349+i.val,by have := i.isLt; omega⟩),
     fun i => (response.arithmetic : F[X]).eval (nodes ⟨349+i.val,by have := i.isLt; omega⟩))
 
-theorem responseSamples_eq {F : Type} [Field F] (nodes : Fin 2792 ↪ F)
-    {Q : QuerySet 2443 84} {rows : ℕ} (view : Backend.View (F := F) 265 rows 12 Q) :
-    responseSamples nodes view.2 = Backend.responseSamples nodes view := rfl
-
 def referenceIndices : Fin 84 ↪ Fin 2443 where
   toFun i := ⟨i.val,by have := i.isLt; omega⟩
   inj' _ _ equal := Fin.ext (congrArg (fun i : Fin 2443 => i.val) equal)

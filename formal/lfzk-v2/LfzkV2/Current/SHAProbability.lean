@@ -88,41 +88,4 @@ theorem extend_split (fallback : Raw → Answer)
 
 end WindowTables
 
-variable {Raw Answer M : Type} [DecidableEq Raw]
-variable [Fintype Answer] [Nonempty Answer] [Fintype M] [Nonempty M]
-
-theorem window_ratio_le (small large : Finset Raw) (contains : small ⊆ large)
-    (fallback : Raw → Answer) (event : M → (Raw → Answer) → Prop) (bound : ℚ)
-    (each : ∀ outside : Raw → Answer,
-      ((univ.filter fun coin : M × ({raw // raw ∈ small} → Answer) =>
-        event coin.1 (OracleWindow.extend small coin.2 outside)).card : ℚ) /
-          Fintype.card (M × ({raw // raw ∈ small} → Answer)) ≤ bound) :
-    ((univ.filter fun coin : M × ({raw // raw ∈ large} → Answer) =>
-      event coin.1 (OracleWindow.extend large coin.2 fallback)).card : ℚ) /
-        Fintype.card (M × ({raw // raw ∈ large} → Answer)) ≤ bound := by
-  let predicate := fun raw : {raw // raw ∈ large} => raw.val ∈ small
-  let change := (coinsEquiv (R := M) (Answer := Answer) predicate).trans
-    (Equiv.prodComm _ _)
-  rw [← ByteOracleTransport.ratio_equiv change.symm
-    (fun coin : M × ({raw // raw ∈ large} → Answer) =>
-      event coin.1 (OracleWindow.extend large coin.2 fallback))]
-  apply ByteOracleTransport.product_ratio_le
-  intro outside
-  let inclusion := inclusionEquiv small large contains
-  let e := Equiv.prodCongr (Equiv.refl M) (Equiv.arrowCongr inclusion (Equiv.refl Answer))
-  have law := each (OracleWindow.extend large
-    (outsideTable small large fallback outside) fallback)
-  have transported := (ByteOracleTransport.ratio_equiv e.symm
-    (fun coin : M × ({raw // raw ∈ small} → Answer) =>
-      event coin.1 (OracleWindow.extend small coin.2
-        (OracleWindow.extend large (outsideTable small large fallback outside) fallback)))).trans_le law
-  change ((univ.filter fun coin : M × ({raw : {raw // raw ∈ large} // raw.val ∈ small} → Answer) =>
-    event coin.1 (OracleWindow.extend large
-      ((SHAOracle.split predicate).symm (coin.2,outside)) fallback)).card : ℚ) / _ ≤ bound
-  dsimp only [predicate]
-  have split (inside : {raw : {raw // raw ∈ large} // raw.val ∈ small} → Answer) :=
-    extend_split small large contains fallback outside inside
-  simp_rw [split]
-  exact transported
-
 end LfzkV2.Current.SHAProbability

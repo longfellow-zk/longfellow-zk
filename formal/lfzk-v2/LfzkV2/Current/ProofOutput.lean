@@ -38,28 +38,6 @@ theorem run_map [DecidableEq QL] (f : Out → Result) {left right size : ℕ}
       (f ((fixLeft tape dflt body seen).run H).1,((fixLeft tape dflt body seen).run H).2) := by
   rw [fixLeft_map,Merkle.RandomOracle.Tree.run_map]
 
-theorem seen_map [DecidableEq QL] [DecidableEq QR] (f : Out → Result) {left right size : ℕ}
-    (body : TwoOracleTree QL DL QR DR Out left right) (tape : Fin size → DL)
-    (dflt : DL) (seen : List QL) (H : QR → DR) :
-    TranscriptV2.seen (fixLeft tape dflt (map f body) seen) H =
-      TranscriptV2.seen (fixLeft tape dflt body seen) H := by
-  simp only [TranscriptV2.seen,Bcs.TotalOracle.queried,run_map]
-
-theorem allQueries_map [Fintype DR] [Fintype DL] [DecidableEq QR]
-    (f : Out → Result) {left right : ℕ} (body : TwoOracleTree QL DL QR DR Out left right) :
-    ByteOracleTransport.Codec.allQueries (map f body) = ByteOracleTransport.Codec.allQueries body := by
-  induction body with
-  | done _ => rfl
-  | queryLeft query next ih => simp only [map,ByteOracleTransport.Codec.allQueries,ih]
-  | queryRight query next ih => simp only [map,ByteOracleTransport.Codec.allQueries,ih]
-
-theorem window_map {Point : Type} {valid : Point → Prop}
-    [Fintype DR] [Fintype DL] [DecidableEq QR] [Fintype {point // valid point}]
-    (codec : ByteOracleTransport.Codec Point QR valid)
-    (f : Out → Result) {left right : ℕ} (body : TwoOracleTree QL DL QR DR Out left right) :
-    codec.window (map f body) = codec.window body := by
-  simp only [ByteOracleTransport.Codec.window,allQueries_map]
-
 end Map
 
 variable {g : Geometry} {fields : Fields} {Advice Request : Type}
@@ -83,15 +61,5 @@ def decode (fallback : Proof g fields Advice (OpeningBody.Authentication g)) (ra
     RuntimeAdaptive.Output (g := g) (fields := fields) (Advice := Advice)
       (Auth := OpeningBody.Authentication g) (Request := Request) :=
   ⟨raw.1,(read complete raw.2).getD fallback⟩
-
-theorem decode_of_read (fallback : Proof g fields Advice (OpeningBody.Authentication g))
-    (raw : Request × Bytes) (proof : Proof g fields Advice (OpeningBody.Authentication g))
-    (h : read complete raw.2 = some proof) : decode complete fallback raw = ⟨raw.1,proof⟩ := by
-  simp only [decode,h,Option.getD_some]
-
-def normalize {QL DL QR DR : Type} {left right : ℕ}
-    (fallback : Proof g fields Advice (OpeningBody.Authentication g))
-    (body : TwoOracleTree QL DL QR DR (Request × Bytes) left right) :=
-  map (decode complete fallback) body
 
 end LfzkV2.Current.ProofOutput

@@ -39,32 +39,6 @@ theorem product_ratio_le {X Y : Type} [Fintype X] [Fintype Y] [Nonempty X] [None
       exact (div_le_iff₀ hp).mp (h y)
     _ = bound*(Fintype.card X*Fintype.card Y) := by simp; ring
 
-private theorem product_ratio {X Y : Type} [Fintype X] [Fintype Y] [Nonempty X] [Nonempty Y]
-    (event : X → Prop) :
-    ((univ.filter fun pair : X × Y => event pair.1).card : ℚ)/Fintype.card (X × Y) =
-      ((univ.filter event).card : ℚ)/Fintype.card X := by
-  have he : (univ.filter fun pair : X × Y => event pair.1) = (univ.filter event).product univ := by
-    ext pair
-    simp
-  have hy : (Fintype.card Y : ℚ) ≠ 0 := by exact_mod_cast Fintype.card_ne_zero
-  have hc : (univ.filter fun pair : X × Y => event pair.1).card =
-      (univ.filter event).card*Fintype.card Y := by
-    rw [he]
-    exact Finset.card_product _ _
-  rw [hc,Fintype.card_prod,Nat.cast_mul,Nat.cast_mul]
-  exact mul_div_mul_right _ _ hy
-
-/-- The canonical subtype is an ordinary subset of the typed domain.
-This auxiliary codec only forgets or restores its proof of validity. -/
-def subtypeCodec (Point : Type) (valid : Point → Prop) : Codec Point Point valid where
-  encode point := point.val
-  decode point := if h : valid point then some ⟨point,h⟩ else none
-  decode_encode point := by simp only [dif_pos point.property]
-  encode_decode point canonical h := by
-    split at h
-    · exact (congrArg Subtype.val (Option.some.inj h)).symm
-    · contradiction
-
 namespace Codec
 variable {Point Raw A : Type} {valid : Point → Prop} (codec : Codec Point Raw valid)
 
@@ -141,55 +115,6 @@ theorem finite_ratio_le [Fintype Raw] [Fintype {point // valid point}] [Fintype 
   simpa only [codec.oracleEquiv_symm dflt] using h (codec.outsideOracle dflt outside)
 
 
-/-- Uniform full oracle tables restrict to uniform canonical tables.
-Unused coordinates contribute the same multiplicity to every canonical
-answer vector and cancel exactly. -/
-theorem canonical_marginal [Fintype Raw] [Fintype {point // valid point}] [Fintype A]
-    (dflt : A) (event : ({point // valid point} → A) → Prop) :
-    ((univ.filter fun H : Raw → A => event (fun point => H (codec.encode point))).card : ℚ) /
-      Fintype.card (Raw → A) =
-    ((univ.filter event).card : ℚ)/Fintype.card ({point // valid point} → A) := by
-  letI : Nonempty A := ⟨dflt⟩
-  exact (ratio_equiv codec.oracleEquiv (fun pair => event pair.1)).trans (product_ratio event)
-
-/-- An independent finite tape stays inside the experiment when outside
-byte answers are fixed. This is needed when the Merkle bound averages over
-its tape rather than holding separately for every tape. -/
-def oracleProductEquiv (M : Type) : (M × (Raw → A)) ≃
-    (M × ({point // valid point} → A)) × ({raw // codec.decode raw = none} → A) :=
-  (Equiv.prodCongr (Equiv.refl M) codec.oracleEquiv).trans
-    (Equiv.prodAssoc M ({point // valid point} → A) ({raw // codec.decode raw = none} → A)).symm
-
-theorem finite_joint_ratio_le {M : Type} [Fintype M] [Nonempty M]
-    [Fintype Raw] [Fintype {point // valid point}] [Fintype A]
-    (dflt : A) (event : M → (Raw → A) → Prop) (bound : ℚ)
-    (h : ∀ outside : Raw → A,
-      ((univ.filter fun pair : M × ({point // valid point} → A) =>
-        event pair.1 (codec.canonicalOracle outside pair.2)).card : ℚ) /
-          Fintype.card (M × ({point // valid point} → A)) ≤ bound) :
-    ((univ.filter fun pair : M × (Raw → A) => event pair.1 pair.2).card : ℚ) /
-      Fintype.card (M × (Raw → A)) ≤ bound := by
-  letI : Nonempty A := ⟨dflt⟩
-  rw [← ratio_equiv (codec.oracleProductEquiv M).symm (fun pair => event pair.1 pair.2)]
-  apply product_ratio_le
-  intro outside
-  change ((univ.filter fun pair : M × ({point // valid point} → A) =>
-    event pair.1 (codec.oracleEquiv.symm (pair.2,outside))).card : ℚ) /
-      Fintype.card (M × ({point // valid point} → A)) ≤ bound
-  simpa only [codec.oracleEquiv_symm dflt] using h (codec.outsideOracle dflt outside)
-
-theorem canonical_joint_marginal {M : Type} [Fintype M] [Nonempty M]
-    [Fintype Raw] [Fintype {point // valid point}] [Fintype A]
-    (dflt : A) (event : M → ({point // valid point} → A) → Prop) :
-    ((univ.filter fun pair : M × (Raw → A) =>
-      event pair.1 (fun point => pair.2 (codec.encode point))).card : ℚ) /
-        Fintype.card (M × (Raw → A)) =
-    ((univ.filter fun pair : M × ({point // valid point} → A) => event pair.1 pair.2).card : ℚ) /
-      Fintype.card (M × ({point // valid point} → A)) := by
-  letI : Nonempty A := ⟨dflt⟩
-  exact (ratio_equiv (codec.oracleProductEquiv M) (fun pair => event pair.1.1 pair.1.2)).trans
-    (product_ratio (fun pair : M × ({point // valid point} → A) => event pair.1 pair.2))
-
 section Window
 variable {QL DL Out : Type} [Fintype A] [Fintype DL] [DecidableEq Raw]
 variable [Fintype {point // valid point}]
@@ -242,62 +167,6 @@ theorem window_ratio_le {left right : ℕ}
   have result := (codec.windowCodec body).finite_ratio_le dflt
     (fun table => event (extendWindow (codec.window body) table fallback)) bound hlocal
   simpa only [← Fintype.card_subtype,← Nat.card_eq_fintype_card] using result
-
-/-- The typed security theorem may quantify over the entire finite typed
-oracle, including malformed points. The unused coordinates can be removed
-before the byte-window lift, with no multiplicative loss. -/
-theorem window_ratio_le_full [Fintype Point] {left right : ℕ}
-    (body : Merkle.RandomOracle.TwoOracleTree QL DL Raw A Out left right)
-    (dflt : A) (fallback : Raw → A) (event : (Raw → A) → Prop) (bound : ℚ)
-    (h : ∀ outside : Raw → A,
-      ((univ.filter fun H : Point → A => event (codec.oracle outside H)).card : ℚ) /
-        Fintype.card (Point → A) ≤ bound) :
-    ((univ.filter fun table : {raw // raw ∈ codec.window body} → A =>
-      event (extendWindow (codec.window body) table fallback)).card : ℚ) /
-      Fintype.card ({raw // raw ∈ codec.window body} → A) ≤ bound := by
-  apply codec.window_ratio_le body dflt fallback event bound
-  intro outside
-  have he := (subtypeCodec Point valid).canonical_marginal dflt
-    (fun H => event (codec.canonicalOracle outside H))
-  exact he.symm.trans_le (h outside)
-
-/-- Joint finite-window lift, retaining an independent finite tape. The
-byte-string domain is still unbounded and no per-tape security bound is
-required. -/
-theorem window_joint_ratio_le {M : Type} [Fintype M] [Nonempty M] {left right : ℕ}
-    (body : Merkle.RandomOracle.TwoOracleTree QL DL Raw A Out left right)
-    (dflt : A) (fallback : Raw → A) (event : M → (Raw → A) → Prop) (bound : ℚ)
-    (h : ∀ outside : Raw → A,
-      ((univ.filter fun pair : M × ({point // valid point} → A) =>
-        event pair.1 (codec.canonicalOracle outside pair.2)).card : ℚ) /
-          Fintype.card (M × ({point // valid point} → A)) ≤ bound) :
-    ((univ.filter fun pair : M × ({raw // raw ∈ codec.window body} → A) =>
-      event pair.1 (extendWindow (codec.window body) pair.2 fallback)).card : ℚ) /
-        Fintype.card (M × ({raw // raw ∈ codec.window body} → A)) ≤ bound := by
-  have hlocal (outside : {raw // raw ∈ codec.window body} → A) :
-      ((univ.filter fun pair : M × ({point // valid point} → A) => event pair.1
-        (extendWindow (codec.window body) ((codec.windowCodec body).canonicalOracle outside pair.2) fallback)).card : ℚ) /
-          Fintype.card (M × ({point // valid point} → A)) ≤ bound := by
-    simpa only [extendWindow_canonical] using h (extendWindow (codec.window body) outside fallback)
-  have result := (codec.windowCodec body).finite_joint_ratio_le dflt
-    (fun tape table => event tape (extendWindow (codec.window body) table fallback)) bound hlocal
-  simpa only [← Fintype.card_subtype,← Nat.card_eq_fintype_card] using result
-
-theorem window_joint_ratio_le_full [Fintype Point]
-    {M : Type} [Fintype M] [Nonempty M] {left right : ℕ}
-    (body : Merkle.RandomOracle.TwoOracleTree QL DL Raw A Out left right)
-    (dflt : A) (fallback : Raw → A) (event : M → (Raw → A) → Prop) (bound : ℚ)
-    (h : ∀ outside : Raw → A,
-      ((univ.filter fun pair : M × (Point → A) => event pair.1 (codec.oracle outside pair.2)).card : ℚ) /
-        Fintype.card (M × (Point → A)) ≤ bound) :
-    ((univ.filter fun pair : M × ({raw // raw ∈ codec.window body} → A) =>
-      event pair.1 (extendWindow (codec.window body) pair.2 fallback)).card : ℚ) /
-        Fintype.card (M × ({raw // raw ∈ codec.window body} → A)) ≤ bound := by
-  apply codec.window_joint_ratio_le body dflt fallback event bound
-  intro outside
-  have he := (subtypeCodec Point valid).canonical_joint_marginal dflt
-    (fun tape H => event tape (codec.canonicalOracle outside H))
-  exact he.symm.trans_le (h outside)
 
 end Window
 

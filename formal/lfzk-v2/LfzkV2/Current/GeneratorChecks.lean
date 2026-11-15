@@ -50,9 +50,4 @@ theorem generator_order_of_check {B : Type} [Field B] [Fintype B] [DecidableEq B
     orderOf (x^generatorExponent) = groupOrder :=
   generator_order x (primitive_order_of_check hcard x hcheck)
 
-theorem quotient_base_of_check {B : Type} [Field B] [Fintype B] [DecidableEq B]
-    (hcard : Fintype.card B = binaryOrder) (x : Bˣ) (hcheck : generatorCheck x = true) :
-    (x^generatorExponent)^(-(primeOrder : ℤ)) = x :=
-  quotient_base x (primitive_order_of_check hcard x hcheck)
-
 end LfzkV2.Current.Adapter.Mdoc

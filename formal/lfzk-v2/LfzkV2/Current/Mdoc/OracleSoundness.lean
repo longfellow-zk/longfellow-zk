@@ -60,10 +60,6 @@ theorem residual_trace (inside : Bytes → Digest) :
         decide (StrandDomains.protocol qa.1)) := by
   rw [residualBody,Tree.run_map,StrandRoutedObserver.routed_trace]
 
-omit [Fintype B] [DecidableEq B] in
-theorem residual_domain : UsesOnly StrandDomains.protocol residual :=
-  UsesOnly.of_queries _ (StrandRoutedObserver.routed_map_domain StrandDomains.protocol outside body Prod.fst)
-
 variable (queries : ∀ SHA : Bytes → Digest, (seen body SHA).card ≤ Q)
 
 include queries in

@@ -74,10 +74,6 @@ def rawSampler : BalancedDecoder
       (challengePublic binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg)) :=
   component binary prime P R countBinary countPrime binaryCapacity primeCapacity .batching
 
-theorem rawSampler_decode :
-    (rawSampler binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg).decode =
-      draw binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg := rfl
-
 def querySampler : BalancedDecoder
     (Answer binary prime P R countBinary countPrime binaryCapacity primeCapacity)
     (LigeroFamily.QuerySet n t) :=

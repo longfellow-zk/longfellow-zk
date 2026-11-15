@@ -100,35 +100,6 @@ omit [Fintype B] [DecidableEq B] in
 @[simp] theorem binaryWithBits_cells (binary : BinaryPublic B shared maskBits adviceBits)
     (bits : Fin binary.nPublic → Bool) : (binaryWithBits binary bits).cells = binary.cells := rfl
 
-omit [Fintype B] [DecidableEq B] in
-/-- Changing public values does not change any committed private coordinate.
-The same early selected cells therefore serve every later public branch. -/
-theorem binaryWithBits_private (binary : BinaryPublic B shared maskBits adviceBits)
-    (bits : Fin binary.nPublic → Bool) (values : binary.Slot → B) (i : Fin binary.nPrivate) :
-    (binaryWithBits binary bits).committed values (binary.inputIndex (.inr i)) =
-      binary.committed values (binary.inputIndex (.inr i)) := by
-  simp only [binaryWithBits,BinaryPublic.committed,Packed.Statement.inputs,circuitInputs,zeroExtend_apply,
-    Sum.elim_inr]
-  rfl
-
-omit [Fintype B] in
-theorem binaryWithBits_shared (binary : BinaryPublic B shared maskBits adviceBits)
-    (bits : Fin binary.nPublic → Bool) (candidate : WitnessSelection.Candidate B binary.Original) :
-    (binaryWithBits binary bits).sharedValues candidate = binary.sharedValues candidate := by
-  funext i
-  exact congrArg (fun value : B => decide (value = 1))
-    (binaryWithBits_private binary bits
-      (FingerprintRows.realize (CellLayout.selected binary.cells) candidate) (binary.sharedPrivate i))
-
-omit [Fintype B] in
-theorem binaryWithBits_mask (binary : BinaryPublic B shared maskBits adviceBits)
-    (bits : Fin binary.nPublic → Bool) (candidate : WitnessSelection.Candidate B binary.Original) :
-    (binaryWithBits binary bits).mask candidate = binary.mask candidate := by
-  funext i
-  exact congrArg (fun value : B => decide (value = 1))
-    (binaryWithBits_private binary bits
-      (FingerprintRows.realize (CellLayout.selected binary.cells) candidate) (binary.maskPrivate i))
-
 end Binary
 end PublicValues
 
@@ -155,16 +126,6 @@ def primePublic (decodePublic : PublicReader g Base (Fin prime.nPublic → N)) (
     Option (Fin prime.nPublic → N) :=
   point.readAt decodePublic.index (fun block => decodePublic.read block.1)
 
-/-- Future prime public values are unavailable at an earlier query. In
-particular the fingerprint boundary need not bind an issuer key prematurely. -/
-theorem primePublic_future (decodePublic : PublicReader g Base (Fin prime.nPublic → N))
-    (point : Point) (h : point.rank < decodePublic.index) : primePublic prime decodePublic point = none := by
-  have hlt : ¬decodePublic.index < point.rank := by omega
-  have hne : decodePublic.index ≠ point.rank := by omega
-  unfold primePublic Input.readAt Input.atRank
-  rw [dif_neg hlt,if_neg hne]
-  rfl
-
 variable (shape : FrontendSchedule.Plan N prime.circuit) (capacity : ℕ)
 variable (decode : C → ℕ → N) (nonzero : C → Linear.TerminalSampling.Nonzero N)
 variable (decoder : FrontendReplay.Decoder capacity decode nonzero)
@@ -179,17 +140,6 @@ def primeRead (point : Point) (past : Fin point.rank → C) :
   readPrimeView binary (primeWithInputs prime publicInputs) shape capacity decode nonzero decoder fits
     field fallback point past
 
-omit [Fintype B] in
-theorem primeRead_of_public (point : Point) (past : Fin point.rank → C)
-    (publicInputs : Fin prime.nPublic → N)
-    (h : primePublic prime decodePublic point = some publicInputs) :
-    primeRead binary prime shape capacity decode nonzero decoder fits field fallback decodePublic point past =
-      readPrimeView binary (primeWithInputs prime publicInputs) shape capacity decode nonzero decoder fits
-        field fallback point past := by
-  unfold primeRead
-  rw [h]
-  rfl
-
 variable (S : SelectionSource g.roles Key (Base × ProtocolWrites.Fresh g fields Advice) Digest
   (Body g fields Advice Auth) C Oracle B N binary.Original prime.Original)
 
@@ -201,15 +151,6 @@ theorem primeCharge_sum (point : Point) (H : Point → Digest × C) :
       (primeRead binary prime shape capacity decode nonzero decoder fits field fallback decodePublic)
       point H answer) ≤ Fintype.card (Digest × C)*(2/((Fintype.card N-1 : ℕ):ℚ)) :=
   frontendCharge_sum S _ point H
-
-omit [Fintype B] in
-theorem primeCharge_off (point : Point) (H H' : Point → Digest × C)
-    (h : Bcs.TotalOracle.AgreeOff point H H') (answer : Digest × C) :
-    frontendCharge S (primeRead binary prime shape capacity decode nonzero decoder fits field fallback decodePublic)
-        point H answer =
-      frontendCharge S (primeRead binary prime shape capacity decode nonzero decoder fits field fallback decodePublic)
-        point H' answer :=
-  frontendCharge_off S _ point H H' h answer
 
 variable (e : Replay.Encoding g fields Advice Auth Key (Base × ProtocolWrites.Fresh g fields Advice) C)
 
@@ -254,12 +195,6 @@ def application (point : Point) (past : Fin point.rank → C) : Option System :=
     cfg.binaryDecode cfg.binaryNonzero cfg.primeDecode cfg.primeNonzero cfg.conversion cfg.advice
     cfg.fallback point past
 
-theorem application_off (point : Point) (H H' : Point → Digest × C)
-    (h : Bcs.TotalOracle.AgreeOff point H H') :
-    application binary prime P R cfg hashPublic decodePublic point (point.priorAnswers H) =
-      application binary prime P R cfg hashPublic decodePublic point (point.priorAnswers H') := by
-  rw [point.priorAnswers_off h]
-
 /-- Successful adaptive reconstruction exposes actual parsed public values
 and the same checked frontend/adapter constructor; it is not a certificate. -/
 theorem application_spec (point : Point) (past : Fin point.rank → C) (A : System)
@@ -288,12 +223,6 @@ def statementAt (point : Point) (past : Fin point.rank → C) :
     (cfg.binaryField targets.1.1,cfg.binaryField targets.1.2)
     (cfg.primeField targets.2.1,cfg.primeField targets.2.2)
   pure ⟨A,data⟩
-
-theorem statementAt_off (point : Point) (H H' : Point → Digest × C)
-    (h : Bcs.TotalOracle.AgreeOff point H H') :
-    statementAt binary prime P R cfg hashPublic decodePublic point (point.priorAnswers H) =
-      statementAt binary prime P R cfg hashPublic decodePublic point (point.priorAnswers H') := by
-  rw [point.priorAnswers_off h]
 
 end ApplicationReader
 end LfzkV2.Current.RuntimeAdaptive

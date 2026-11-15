@@ -108,11 +108,6 @@ theorem frontendBad_card_mul_le_last (point : Point) (H : Point → Link × C)
   | none => simp
   | some view => exact view.bad_card_mul_le_last S point H (hlast view hr)
 
-theorem frontendCharge_nonneg (point : Point) (H : Point → Link × C) (answer : Link × C) :
-    0 ≤ frontendCharge S read point H answer := by
-  unfold frontendCharge indicator
-  split_ifs <;> norm_num
-
 theorem frontendCharge_off (point : Point) (H H' : Point → Link × C)
     (h : Bcs.TotalOracle.AgreeOff point H H') (answer : Link × C) :
     frontendCharge S read point H answer = frontendCharge S read point H' answer := by
@@ -162,20 +157,6 @@ theorem packetBad_card_mul_le
   cases packet with
   | none => simp [optionBad]
   | some packet => exact hlocal packet w
-
-def packetCharge
-    (read : (point : Input roles Key Block Link Body) → (Fin point.rank → C) → Option D)
-    (bad : D → Pair → C → Prop) (point : Point) (H : Point → Link × C) (answer : Link × C) : ℚ :=
-  indicator (packetBad S read bad point H answer.2)
-
-omit [Fintype B] [Fintype N] [Fintype C] in
-theorem packetCharge_off
-    (read : (point : Input roles Key Block Link Body) → (Fin point.rank → C) → Option D)
-    (bad : D → Pair → C → Prop) (point : Point) (H H' : Point → Link × C)
-    (h : Bcs.TotalOracle.AgreeOff point H H') (answer : Link × C) :
-    packetCharge S read bad point H answer = packetCharge S read bad point H' answer := by
-  unfold packetCharge
-  rw [packetBad_off S read bad point H H' h answer.2]
 
 /-- The rescaling test of the answer that draws `eta`. Its packet supplies
 the split claim as a function of that answer, which is counted with the

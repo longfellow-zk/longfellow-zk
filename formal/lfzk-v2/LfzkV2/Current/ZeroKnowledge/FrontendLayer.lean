@@ -57,18 +57,6 @@ def readLayer (reader : Reader F State) (state : State) (payload : LayerPayload 
   let combine := reader.combine terminal.2 (payload.claimA,payload.claimB)
   ⟨rounds.1,terminal.1,combine.1,combine.2⟩
 
-theorem realLayer_rounds (reader : Reader F State) (q w : Cube n → F) (state : State)
-    (pads : LayerTape F n) : (realLayer reader q w state pads).rounds =
-      realRounds reader q w state pads.1 := rfl
-
-theorem realLayer_terminal (reader : Reader F State) (q w : Cube n → F) (state : State)
-    (pads : LayerTape F n) :
-    let payload := realLayer reader q w state pads
-    let rounds := readRounds reader state payload.rounds
-    (payload.cross,payload.claimA,payload.claimB) =
-      LinearTerminal.adaptiveHonestMessages (evaluate w rounds.1) (evaluate q rounds.1)
-        (fun cross => (reader.terminal rounds.2 cross).1) pads.2 := rfl
-
 /-- Both the round masking and terminal masking are one global bijection.
 The simulator is the witness-free representation map `simulateLayer`. -/
 def layerCoupling (reader : Reader F State) (q w : Cube n → F) (state : State) :
@@ -107,8 +95,5 @@ def padValues (pads : LayerTape F n) : LayerPad n → F
 @[simp] theorem padValues_b (pads : LayerTape F n) : padValues pads (layerPlan n).b = pads.2.2.1 := rfl
 @[simp] theorem padValues_ab (pads : LayerTape F n) : padValues pads (layerPlan n).ab = pads.2.1*pads.2.2.1 := rfl
 @[simp] theorem padValues_d (pads : LayerTape F n) : padValues pads (layerPlan n).d = pads.2.2.2 := rfl
-
-theorem padValues_product (pads : LayerTape F n) :
-    padValues pads (layerPlan n).ab = padValues pads (layerPlan n).a * padValues pads (layerPlan n).b := rfl
 
 end LfzkV2.Current.ZeroKnowledge.Frontend

@@ -30,14 +30,6 @@ theorem point_injective : Function.Injective
   cases h
   rfl
 
-theorem child_parent (parent : Parent roles Context Block Link i) (next : i.val+1 < roles.length)
-    (encode : Response → Block) (response : Link × Response) :
-    Input.parent (parent.child (Body := Body) next encode response) = some parent.point := rfl
-
-theorem child_link (parent : Parent roles Context Block Link i) (next : i.val+1 < roles.length)
-    (encode : Response → Block) (response : Link × Response) (initial : Link) :
-    Input.claimed initial (parent.child (Body := Body) next encode response) = response.1 := rfl
-
 /-- Canonical response encoding makes a child point identify one complete
 response pair. This is needed for the low-response charge at that point. -/
 theorem child_injective (next : i.val+1 < roles.length)

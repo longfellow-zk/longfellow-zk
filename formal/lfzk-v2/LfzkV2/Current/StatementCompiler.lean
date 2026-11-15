@@ -144,23 +144,5 @@ def selected (layout : Addresses P R cellsB remaining padsN)
       (fun i => primeLayout (.inl i)) (fun j => primeLayout (.inr j))
     cutoff := cutoffN }
 
-theorem compile_selected_views (layout : Addresses P R cellsB remaining padsN)
-    (countB countN cutoffB cutoffN : ℕ) {Key : Type}
-    (coinsB : Coins B (Fin cellsB))
-    (coinsN : Coins (ZMod p) (Fin (CellLayout.Prime.cells remaining padsN)))
-    (targetB : B × B) (targetN : ZMod p × ZMod p)
-    (result : StatementData A (P.indexed countB) (R.indexed countN))
-    (h : compile P R A layout countB countN coinsB coinsN targetB targetN = some result)
-    (key : Key) :
-    (selected P R layout countB countN cutoffB cutoffN A.binaryLayout A.primeLayout).first.view key =
-      FingerprintRows.view (P.indexed countB).backend result.primaryB
-        (fun i => A.binaryLayout (.inl i)) (fun j => A.binaryLayout (.inr j)) ∧
-    (selected P R layout countB countN cutoffB cutoffN A.binaryLayout A.primeLayout).second.view key =
-      FingerprintRows.view (R.indexed countN).backend result.primaryN
-        (fun i => A.primeLayout (.inl i)) (fun j => A.primeLayout (.inr j)) := by
-  have hf := compile_fields P R A layout countB countN coinsB coinsN targetB targetN result h
-  rw [hf.1, hf.2.1]
-  exact ⟨rfl, rfl⟩
-
 end StatementCompiler
 end LfzkV2.Current
