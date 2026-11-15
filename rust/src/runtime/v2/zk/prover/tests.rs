@@ -166,7 +166,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         )
         .unwrap();
     assert_eq!(committed.commitment, reference.commitment);
-    let geometry = statement.geometry().clone();
+    let geometry = statement.geometry.clone();
     let (actual, mut actual_ts) = prover.prove(committed, &context).unwrap();
 
     let independent_param = JointParam::new((

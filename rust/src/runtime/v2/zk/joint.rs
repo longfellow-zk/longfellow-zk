@@ -304,15 +304,6 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField> FrontendPart<'a, W, F> {
                 .input_elements(parameters.field(), public),
         })
     }
-    pub fn participant(&self) -> &'a CircuitParticipant<W, F> {
-        self.participant
-    }
-    pub fn circuits(&self) -> &[&'a Circuit<F>] {
-        &self.circuits
-    }
-    pub fn public(&self) -> &[F::E] {
-        &self.public
-    }
 }
 
 /// Draw the sumcheck top weights of `t`'s frontend; the statement already

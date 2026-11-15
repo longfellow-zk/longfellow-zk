@@ -169,7 +169,7 @@ fn exercise<
     let committed = p
         .commit(witness.to_vec(), &statement, &context, &mut rng)
         .unwrap();
-    let prover_geometry = statement.geometry().clone();
+    let prover_geometry = statement.geometry.clone();
     let source_circuit = circuit(f);
     let source_geometry = circuit_geometry(&[&source_circuit]).unwrap();
     let source = super::packing_commitment::PackingLayout::new(
@@ -195,20 +195,20 @@ fn exercise<
         let mut obsolete = bytes.clone();
         obsolete[..4].copy_from_slice(old_marker);
         let mut t = Transcript::new(&vs);
-        assert!(ZkProof::read(&obsolete, &t.bound(vs.geometry()), f).is_err());
+        assert!(ZkProof::read(&obsolete, &t.bound(&vs.geometry), f).is_err());
     }
     let mut session = Transcript::new(&vs);
-    let decoded = ZkProof::read(&bytes, &session.bound(vs.geometry()), f).unwrap();
+    let decoded = ZkProof::read(&bytes, &session.bound(&vs.geometry), f).unwrap();
     // Every truncation and every extension fails at parse, before anything
     // is decoded (proto I3).
     for len in 0..bytes.len() {
-        let cut = ZkProof::read(&bytes[..len], &session.bound(vs.geometry()), f);
+        let cut = ZkProof::read(&bytes[..len], &session.bound(&vs.geometry), f);
         assert!(cut.is_err(), "length {len}");
     }
     for extra in 1..=64 {
         let mut longer = bytes.clone();
         longer.resize(bytes.len() + extra, 0);
-        let read = ZkProof::read(&longer, &session.bound(vs.geometry()), f);
+        let read = ZkProof::read(&longer, &session.bound(&vs.geometry), f);
         assert!(read.is_err(), "{extra} extra bytes");
     }
     // The proof is exactly the length its geometry and frontier determine.
@@ -245,7 +245,7 @@ fn exercise<
         let parsed = {
             // The session binds the geometry its own statement wrote (I2).
             let bound = session.geometry();
-            assert!(std::ptr::eq(bound.part(), statement.geometry()));
+            assert!(std::ptr::eq(bound.part(), &statement.geometry));
             ZkProof::read(encoded, &bound, f).map_err(|e| e.to_string())?
         };
         let verified = verifier
@@ -318,21 +318,21 @@ fn exercise<
     assert!(verify(bad_public, &decoded).is_err());
     assert!(verify(vec![], &decoded).is_err());
     {
-        let mut bad = ZkProof::read(&bytes, &session.bound(vs.geometry()), f)
+        let mut bad = ZkProof::read(&bytes, &session.bound(&vs.geometry), f)
             .unwrap()
             .clone();
         f.add(&mut bad.com_proof.bodies.0.h[0], &f.one());
         assert!(verify(public.clone(), &bad).is_err());
     }
     {
-        let mut bad = ZkProof::read(&bytes, &session.bound(vs.geometry()), f)
+        let mut bad = ZkProof::read(&bytes, &session.bound(&vs.geometry), f)
             .unwrap()
             .clone();
         f.add(&mut bad.sumcheck_proof.layers[0].claims[0], &f.one());
         assert!(verify(public.clone(), &bad).is_err());
     }
     {
-        let mut bad = ZkProof::read(&bytes, &session.bound(vs.geometry()), f)
+        let mut bad = ZkProof::read(&bytes, &session.bound(&vs.geometry), f)
             .unwrap()
             .clone();
         f.add(&mut bad.sumcheck_proof.layers[0].cross, &f.one());
@@ -340,7 +340,7 @@ fn exercise<
     }
     if let PackingProof::TraceZero { .. } = &decoded.packing {
         for change_first_response in [true, false] {
-            let mut bad = ZkProof::read(&bytes, &session.bound(vs.geometry()), f)
+            let mut bad = ZkProof::read(&bytes, &session.bound(&vs.geometry), f)
                 .unwrap()
                 .clone();
             let PackingProof::TraceZero { u, a } = &mut bad.packing else {
@@ -375,7 +375,7 @@ fn exercise<
                 (!f.is_zero(&trace(&x))).then_some(x)
             })
             .unwrap();
-        let mut bad = ZkProof::read(&bytes, &session.bound(vs.geometry()), f)
+        let mut bad = ZkProof::read(&bytes, &session.bound(&vs.geometry), f)
             .unwrap()
             .clone();
         let PackingProof::TraceZero { u, .. } = &mut bad.packing else {
@@ -471,7 +471,7 @@ pub(super) fn prove_standalone<
     let statement = prover.statement(context, public)?;
     let committed = prover.commit(private, &statement, ctx, rng)?;
     let (proof, t) = prover.prove(committed, ctx)?;
-    Ok((proof, statement.geometry().clone(), t))
+    Ok((proof, statement.geometry.clone(), t))
 }
 /// Reduce `proof` on a transcript opened with its statement.
 pub(super) fn reduce_standalone<
@@ -504,6 +504,6 @@ pub(super) fn read_standalone<
         .map_err(|e| e.to_string())?;
     let mut t = Transcript::new(&statement);
     let proof =
-        ZkProof::read(bytes, &t.bound(statement.geometry()), f).map_err(|e| e.to_string())?;
+        ZkProof::read(bytes, &t.bound(&statement.geometry), f).map_err(|e| e.to_string())?;
     Ok((*proof).clone())
 }

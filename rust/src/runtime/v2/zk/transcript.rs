@@ -168,14 +168,6 @@ pub struct ZkProofStatement<'a, const W: usize, F: ZkField<W> + PackingField> {
     pub(super) part: FrontendPart<'a, W, F>,
     pub(super) geometry: ZkProofGeometry,
 }
-impl<'a, const W: usize, F: ZkField<W> + PackingField> ZkProofStatement<'a, W, F> {
-    pub fn part(&self) -> &FrontendPart<'a, W, F> {
-        &self.part
-    }
-    pub fn geometry(&self) -> &ZkProofGeometry {
-        &self.geometry
-    }
-}
 impl<'s, 'a: 's, const W: usize, F: ZkField<W> + PackingField>
     Opened<'s, ZkProofStatement<'a, W, F>>
 {

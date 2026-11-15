@@ -371,7 +371,7 @@ fn final_seal_failure_has_its_own_verification_error() {
         .unwrap();
     let (proof, transcript) = prover.prove(committed, &context).unwrap();
     let mut bytes = proof
-        .write(statement.geometry(), &f, transcript)
+        .write(&statement.geometry, &f, transcript)
         .unwrap()
         .into_bytes();
     drop(statement);
@@ -379,7 +379,7 @@ fn final_seal_failure_has_its_own_verification_error() {
     let check = |bytes: &[u8]| {
         let statement = verifier.statement(b"seal error", &[false]).unwrap();
         let mut session = Opened::new(&statement);
-        let decoded = ZkProof::read(bytes, &session.bound(|s| s.geometry()), &f).unwrap();
+        let decoded = ZkProof::read(bytes, &session.bound(|s| &s.geometry), &f).unwrap();
         verifier.verify(session, decoded, &context).map(|_| ())
     };
     check(&bytes).unwrap();

@@ -158,11 +158,6 @@ impl<E> TopWeights<E> {
     pub fn outputs(&self) -> &[E] {
         &self.0.outputs
     }
-    /// Each top-stage fragment's assertion coefficients, quadratic then
-    /// linear; empty for a frontend with no layers.
-    pub fn assertions(&self) -> &[Vec<E>] {
-        &self.0.assertions
-    }
 }
 
 /// Draw the top weights. The statement holds the circuit list, so this sends

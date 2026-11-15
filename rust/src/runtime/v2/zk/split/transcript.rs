@@ -16,11 +16,6 @@ use crate::{
 /// The mixed split's nonzero rescaling challenge `eta`. Only its draw
 /// (`eta`) builds it.
 pub struct Eta<E>(pub(super) E);
-impl<E> Eta<E> {
-    pub fn value(&self) -> &E {
-        &self.0
-    }
-}
 
 /// The pure-foreign row weights rho_0..rho_L: one per layer row, then one
 /// for the input equation. Only `row_weights` builds them, and only the pure

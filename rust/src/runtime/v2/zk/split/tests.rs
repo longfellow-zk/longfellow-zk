@@ -290,9 +290,9 @@ fn open_and_receive_accept_eta_only_at_its_boundary() {
     let part = CircuitParticipant::with_storage(&c, storage, Some(mask), CONFIG, &ctx).unwrap();
     let public = [f.one()];
     let frontend = FrontendPart::new(&part, &[&c], &public).unwrap();
-    assert!(std::ptr::eq(frontend.participant(), &part));
-    assert!(std::ptr::eq(frontend.circuits()[0], &c));
-    assert_eq!(frontend.public(), &public);
+    assert!(std::ptr::eq(frontend.participant, &part));
+    assert!(std::ptr::eq(frontend.circuits[0], &c));
+    assert_eq!(&*frontend.public, &public);
     // `late` sends a message between the draw of eta and its use.
     let run = |late: bool| {
         let (state, _) = part
