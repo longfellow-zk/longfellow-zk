@@ -19,8 +19,8 @@ mdoc proof body of `rust/src/runtime/v2/proto/DESIGN.md`.
 - A node ends with the u64 `ROUND` terminator; the last node is the `Seal`
   message, whose one value is the whole proof body, then `SEAL`.
 - The body is `MDA7`, the prover messages in physical order and the joint
-  opening, its frontier the rest of the body, with no count; the complete
-  proof is the body and its 32-byte seal block (`complete`).
+  opening, its frontier last: a u64 count, then that many digests. The
+  complete proof is the body and its 32-byte seal block (`complete`).
 
 The setup's statement constants are bytes fixed by the trusted circuits
 (`Setup`); the format reads none of them back. The Merkle hash domain is the
@@ -678,7 +678,7 @@ def back (repr : ProofBodyCodec.Representations fields Advice) (g : Geometry) : 
       (PrefixCodec.vector ProofBodyCodec.nonce g.openings))
 
 private def bodyData (g : Geometry) (fields : Fields) (Advice : Type) :
-    ((Front g fields Advice × Back g fields) × Whole.Digests (OpeningBody.frontierCapacity g)) ≃
+    ((Front g fields Advice × Back g fields) × Digests (OpeningBody.frontierCapacity g)) ≃
       FormatBody g fields Advice where
   toFun value :=
     let (commitment,fingerprints,prime,mu,advice,binary,packing) := value.1.1
@@ -699,11 +699,15 @@ private def bodyData (g : Geometry) (fields : Fields) (Advice : Type) :
     rcases value with ⟨commitment,fingerprints,mu,advice,binary,prime,packing,⟨hb,rb⟩,⟨hp,rp⟩,⟨nonce,length,path⟩⟩
     rfl
 
-/-- `MDA7` and the composed body; its frontier is the rest of the body. -/
+/-- The frontier field of the body: its u64 count, then its digests. -/
+def frontier (g : Geometry) : PrefixCodec (Digests (OpeningBody.frontierCapacity g)) :=
+  digests (OpeningBody.frontierCapacity g) (OpeningBody.frontierCapacity_lt g)
+
+/-- `MDA7` and the composed body; the frontier ends it, after its count. -/
 def body (repr : ProofBodyCodec.Representations fields Advice) (g : Geometry) :
     WholeCodec (FormatBody g fields Advice) :=
   Whole.prefixed (Whole.equiv (Whole.andThen ((front repr g).pair (back repr g))
-    (Whole.digests (OpeningBody.frontierCapacity g))) (bodyData g fields Advice)) ProofBodyCodec.mda7
+    (frontier g).whole) (bodyData g fields Advice)) ProofBodyCodec.mda7
 
 theorem body_encode (value : FormatBody g fields Advice) :
     (body repr g).encode value =
@@ -719,8 +723,7 @@ theorem body_encode (value : FormatBody g fields Advice) :
       (rows (PrefixCodec.field repr.binary) g (g.dataRows .binary+3)).encode value.binaryBackend.rows ++
       (rows (PrefixCodec.field repr.prime) g (g.dataRows .prime+3)).encode value.primeBackend.rows ++
       (PrefixCodec.vector ProofBodyCodec.nonce g.openings).encode value.authentication.nonce ++
-      Whole.digestsEncode (OpeningBody.frontierCapacity g)
-        ⟨value.authentication.frontierLength,value.authentication.frontier⟩ := by
+      (frontier g).encode ⟨value.authentication.frontierLength,value.authentication.frontier⟩ := by
   simp only [body,Whole.prefixed_encode,Whole.equiv_encode,Whole.andThen_encode,front,back,
     PrefixCodec.pair,PrefixCodec.field,bodyData,Equiv.coe_fn_symm_mk,List.append_assoc]
   rfl
@@ -743,7 +746,7 @@ theorem body_length_le (value : FormatBody g fields Advice) :
     ProofBodyBounds.frontend_length _ 16 hb,ProofBodyBounds.frontend_length _ 32 hp,
     ProofBodyBounds.packing_length _ 16 hb,ProofBodyBounds.response_length _ 16 hb,
     ProofBodyBounds.response_length _ 32 hp,rows_length _ 16 hb,rows_length _ 32 hp,
-    PrefixCodec.vector_length _ merkleNonceBytes ProofBodyBounds.nonce_length,Whole.digests_length,
+    PrefixCodec.vector_length _ merkleNonceBytes ProofBodyBounds.nonce_length,frontier,digests_length,
     ProofBodyCodec.mda7,List.length_cons,List.length_nil]
   have hfrontier := value.authentication.frontierLength.isLt
   unfold ProofBodyBounds.bodyBound merkleNonceBytes

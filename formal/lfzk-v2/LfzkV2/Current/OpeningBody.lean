@@ -72,10 +72,14 @@ theorem leaf_proximity {F : Type} {rows : ℕ} (values : Fin (rows+3) → F) :
   change 2+(rows+0) = rows+2
   omega
 
-/-- The parser checks queries times tree depth, and the serialized count
-is a four-byte unsigned integer. Both bounds apply before node allocation. -/
+/-- The parser checks queries times tree depth, and the model also caps the
+count at 2^32-1. Both bounds apply before node allocation. -/
 def frontierCapacity (g : Geometry) : ℕ :=
   min (2^32-1) (g.openings*(Nat.clog 2 g.columns+1))
+
+/-- The capacity fits the frontier's u64 count word. -/
+theorem frontierCapacity_lt (g : Geometry) : frontierCapacity g < 2^64 :=
+  lt_of_le_of_lt (min_le_left _ _) (by norm_num)
 
 /-- Authentication has one common nonce vector and one common frontier.
 The length is the actual serialized count; the vector has exactly that

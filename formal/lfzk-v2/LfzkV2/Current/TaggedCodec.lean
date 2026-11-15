@@ -6,8 +6,9 @@ import LfzkV2.Current.Grammar
 a u64 tag and its fixed list of values, each value a kind word, a count and
 a payload, every integer a u64 little-endian word. A message whose schema
 fixes every count is a prefix codec on its typed values; its bytes are the
-`Grammar` encoding of the same values. Whole-input codecs carry a last
-field of unwritten length, such as the Merkle frontier of a proof body. -/
+`Grammar` encoding of the same values. Whole-input codecs read a value that
+must end its input, such as a proof body before its seal block. The Merkle
+frontier, the last field of a proof body, is counted (`digests`). -/
 noncomputable section
 namespace LfzkV2.Current.TaggedCodec
 open TranscriptV2.Framing (Byte FieldCodec encodeLE)
@@ -158,56 +159,37 @@ theorem equiv_encode (codec : WholeCodec A) (e : A ≃ B) (value : B) :
 theorem prefixed_encode (codec : WholeCodec A) (expected : Bytes) (value : A) :
     (prefixed codec expected).encode value = expected ++ codec.encode value := rfl
 
-/-- Digests filling the rest of the input, with no count: at most `bound`
-of them. The input length fixes their number. -/
+end Whole
+
+/-! ## The Merkle frontier -/
+
+/-- The Merkle frontier: at most `bound` digests, their number recorded. -/
 abbrev Digests (bound : ℕ) := (length : Fin (bound+1)) × (Fin length.val → Digest)
 
 private abbrev digestVector (count : ℕ) : PrefixCodec (Fin count → Digest) :=
   PrefixCodec.vector (PrefixCodec.vector PrefixCodec.byte 32) count
 
-def digestsEncode (bound : ℕ) (value : Digests bound) : Bytes := (digestVector value.1.val).encode value.2
+/-- The frontier field: a u64 little-endian count, at most `bound`, then
+that many raw 32-byte digests. The count word fits because `bound < 2^64`. -/
+def digests (bound : ℕ) (fits : bound < 2^64) : PrefixCodec (Digests bound) :=
+  PrefixCodec.counted 8 (bound+1) (by rw [show (256:ℕ)^8 = 2^64 by norm_num]; omega)
+    (fun length => Fin length.val → Digest) (fun length => digestVector length.val)
 
-def digestsDecode (bound : ℕ) (input : Bytes) : Option (Digests bound) :=
-  if h : input.length / 32 < bound+1 then
-    (readWhole (digestVector (input.length/32)) input).map fun digests => ⟨⟨input.length/32,h⟩,digests⟩
-  else none
+theorem digests_encode (bound : ℕ) (fits : bound < 2^64) (value : Digests bound) :
+    (digests bound fits).encode value = word value.1.val ++ (List.ofFn value.2).flatMap List.ofFn := by
+  change encodeLE 8 value.1.val ++ (digestVector value.1.val).encode value.2 = _
+  rw [PrefixCodec.vector_encode]
+  congr 2
+  funext digest
+  exact PrefixCodec.bytes_encode (length := 32) digest
 
-private theorem digestVector_length (count : ℕ) (digests : Fin count → Digest) :
-    ((digestVector count).encode digests).length = count*32 :=
-  PrefixCodec.vector_length _ 32 (fun digest => by
-    rw [PrefixCodec.vector_length _ 1 (fun byte => by rw [PrefixCodec.byte_encode]; rfl)]) count digests
-
-private theorem digests_inverse_at (bound : ℕ) (input : Bytes) (count : ℕ) (bounded : count < bound+1)
-    (digests : Fin count → Digest) (encoded : (digestVector count).encode digests = input) :
-    digestsDecode bound input = some ⟨⟨count,bounded⟩,digests⟩ := by
-  have quotient : input.length / 32 = count := by
-    rw [← encoded,digestVector_length]; omega
-  subst quotient
-  unfold digestsDecode
-  rw [dif_pos bounded]
-  have parsed := readWhole_encode (digestVector (input.length/32)) digests
-  rw [encoded] at parsed
-  rw [parsed]
-  rfl
-
-theorem digests_length (bound : ℕ) (value : Digests bound) :
-    (digestsEncode bound value).length = 32*value.1.val := by
-  rw [digestsEncode,digestVector_length,Nat.mul_comm]
-
-def digests (bound : ℕ) : WholeCodec (Digests bound) where
-  encode := digestsEncode bound
-  decode := digestsDecode bound
-  inverse value := digests_inverse_at bound _ value.1.val value.1.isLt value.2 rfl
-  canonical input value found := by
-    unfold digestsDecode at found
-    split at found
-    · rename_i fits
-      obtain ⟨digests,parsed,same⟩ := Option.map_eq_some_iff.mp found
-      cases same
-      exact readWhole_canonical _ _ _ parsed
-    · contradiction
-
-end Whole
+theorem digests_length (bound : ℕ) (fits : bound < 2^64) (value : Digests bound) :
+    ((digests bound fits).encode value).length = 8+32*value.1.val := by
+  change (encodeLE 8 value.1.val ++ (digestVector value.1.val).encode value.2).length = _
+  rw [List.length_append,TranscriptV2.Framing.encodeLE_length,
+    PrefixCodec.vector_length _ 32 (fun digest => by
+      rw [PrefixCodec.vector_length _ 1 (fun byte => by rw [PrefixCodec.byte_encode]; rfl)]),
+    Nat.mul_comm]
 
 /-- A proof: the body, then its 32-byte seal block. -/
 def withSeal {Proof : Type} (body : WholeCodec A) (e : A × Digest ≃ Proof) : WholeCodec Proof where

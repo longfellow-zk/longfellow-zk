@@ -93,10 +93,12 @@ theorem nonce_length (value : MerkleNonce) :
       (fun value => by simp only [PrefixCodec.byte_encode,List.length_singleton]) merkleNonceBytes value
 
 /-- Maximum over the public frontier capacity, with all fixed scalar and
-advice sizes included. No part of this bound is serialized. -/
+advice sizes included. No part of this bound is serialized. The constant 172
+is the magic (4), the root (32), both fingerprint responses (2*16+2*32), mu
+(32) and the frontier's u64 count (8). -/
 def bodyBound {fields : Fields} {Advice : Type} (repr : ProofBodyCodec.Representations fields Advice)
     (g : Geometry) : ℕ :=
-  164+repr.adviceWidth + frontendCells g.binary*16 +
+  172+repr.adviceWidth + frontendCells g.binary*16 +
     (if g.packingDegree = 1 then 0 else (g.packingDegree+1)*16) +
     frontendCells g.prime*32 +
     (3*g.rowDimension+g.maskingDegree+(g.dataRows .binary+3)*g.openings)*16 +

@@ -129,8 +129,8 @@ theorem readWhole_canonical (codec : PrefixCodec A) (input : Bytes) (value : A)
 
 
 /-- A codec for a whole input, with no suffix: the encoding of a value
-that is the last field of its frame, such as a proof body that ends in a
-frontier of unwritten length. -/
+that is the last field of its frame, such as a proof body before its seal
+block. -/
 structure _root_.LfzkV2.Current.WholeCodec (A : Type) where
   encode : A → Bytes
   decode : Bytes → Option A
