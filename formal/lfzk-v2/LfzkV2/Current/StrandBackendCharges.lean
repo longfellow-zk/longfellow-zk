@@ -141,7 +141,7 @@ variable (laws : RuntimeSource.SamplerLaws binary prime P R
   (IdealRuntime.challengePublic (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key) (Salt := Salt)
     binary prime P R countBinary countPrime binaryCapacity primeCapacity cfg) S)
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-variable (decodePublic : Base → Option (Fin prime.nPublic → N))
+variable (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
 variable (primeShape : FrontendSchedule.Plan N prime.circuit) (primeGeometry : primeShape.frontend = g.prime)
 variable (primeFits : primeShape.capacity ≤ laws.primeCapacity)
 variable (binaryShape : FrontendSchedule.Plan B binary.circuit) (binaryGeometry : binaryShape.frontend = g.binary)

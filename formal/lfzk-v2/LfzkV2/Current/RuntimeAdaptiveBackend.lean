@@ -33,7 +33,7 @@ variable (earlier : Request → Replay.Encoding g fields Advice (RuntimeVerifier
 local notation "encodings" => RuntimeAdaptiveVerifier.encodings binary prime P R cfg earlier
 local notation "M" => RuntimeAdaptiveVerifier.chain binary prime P R cfg earlier
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-variable (decodePublic : Base → Option (Fin prime.nPublic → N))
+variable (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
 
 def derive (parent : Parent) (past : Fin g.batchingIndex.val → C) :
     JointResponse.Statement (First).participant (Second).participant :=

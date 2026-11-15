@@ -398,7 +398,7 @@ private theorem fingerprint_charge_normalize
 
 private theorem prime_frontend_normalize
     (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-    (decodePublic : Base → Option (Fin prime.nPublic → N))
+    (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
     (shape : FrontendSchedule.Plan N prime.circuit) (geometry : shape.frontend = g.prime)
     (capacity : shape.capacity ≤ laws.primeCapacity)
     (physical : Role) (point : Point) (current : point.role = some physical)
@@ -444,7 +444,7 @@ private theorem prime_frontend_normalize
 
 private theorem binary_frontend_normalize
     (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-    (decodePublic : Base → Option (Fin prime.nPublic → N))
+    (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
     (binaryPlan : FrontendSchedule.Plan B binary.circuit) (geometry : binaryPlan.frontend = g.binary)
     (capacity : binaryPlan.capacity ≤ laws.binaryCapacity)
     (physical : Role) (point : Point) (current : point.role = some physical)
@@ -522,7 +522,7 @@ coordinates its frontend reads there and `eta`, both kept by the physical
 factor. -/
 private theorem rescale_normalize
     (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-    (decodePublic : Base → Option (Fin prime.nPublic → N))
+    (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
     (shape : FrontendSchedule.Plan N prime.circuit) (geometry : shape.frontend = g.prime)
     (physical : Role) (point : Point) (current : point.role = some physical)
     (last : point.rank = ApplicationPrefix.rescalingIndex g)
@@ -597,7 +597,7 @@ private theorem rescale_normalize
 prime frontend's last boundary, reads only its physical factor. -/
 private theorem prime_charge_normalize
     (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-    (decodePublic : Base → Option (Fin prime.nPublic → N))
+    (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
     (primeShape : FrontendSchedule.Plan N prime.circuit) (primeGeometry : primeShape.frontend = g.prime)
     (primeFits : primeShape.capacity ≤ laws.primeCapacity)
     (binaryShape : FrontendSchedule.Plan B binary.circuit) (binaryFits : binaryShape.capacity ≤ laws.binaryCapacity)
@@ -672,7 +672,7 @@ the rest therefore preserves its existing charge for each explicit answer,
 with the selected witness pair and strict-prefix oracle held fixed. -/
 theorem application_role_normalize
     (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-    (decodePublic : Base → Option (Fin prime.nPublic → N))
+    (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
     (primeShape : FrontendSchedule.Plan N prime.circuit) (primeGeometry : primeShape.frontend = g.prime)
     (primeFits : primeShape.capacity ≤ laws.primeCapacity)
     (binaryShape : FrontendSchedule.Plan B binary.circuit) (binaryGeometry : binaryShape.frontend = g.binary)
@@ -729,7 +729,7 @@ pointwise normalization followed by the original algebraic bound, so it adds
 neither a candidate-list multiplier nor a per-frontend query charge. -/
 theorem application_role_sum
     (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-    (decodePublic : Base → Option (Fin prime.nPublic → N))
+    (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
     (primeShape : FrontendSchedule.Plan N prime.circuit) (primeGeometry : primeShape.frontend = g.prime)
     (primeFits : primeShape.capacity ≤ laws.primeCapacity)
     (binaryShape : FrontendSchedule.Plan B binary.circuit) (binaryGeometry : binaryShape.frontend = g.binary)

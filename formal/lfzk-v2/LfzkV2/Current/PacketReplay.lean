@@ -45,7 +45,7 @@ end Values
 
 /-- The canonical prefix ending at a specified boundary, or at the final
 seal. The terminal body retains exactly the checked u64 framing bound. -/
-def valueAt (bodyCodec : PrefixCodec Body) :
+def valueAt (bodyCodec : WholeCodec Body) :
     (packets : List (Packet Fresh capacity)) → Values packets →
       (Fin packets.length → Digest) → {body // (bodyCodec.encode body).length ≤ maxLength} →
         (n : ℕ) → n ≤ packets.length →
@@ -100,7 +100,7 @@ private theorem next_prepend (role : Role) (first : Block capacity Fresh) (first
 
 /-- The embedding of two consecutive parsed prefixes has precisely the
 same transition as the runtime replay state. -/
-theorem embed_valueAt_succ (bodyCodec : PrefixCodec Body)
+theorem embed_valueAt_succ (bodyCodec : WholeCodec Body)
     (packets : List (Packet Fresh capacity)) (values : Values packets)
     (links : Fin packets.length → Digest)
     (body : {body // (bodyCodec.encode body).length ≤ maxLength})
@@ -249,7 +249,7 @@ private theorem prepend_terminalBody {roles : List Role} (role : Role) (block : 
     (point : Input roles Key (Block capacity Fresh) Digest Body) :
     terminalBody (prepend role block link point) = terminalBody point := by cases point <;> rfl
 
-theorem embed_valueAt_rank (bodyCodec : PrefixCodec Body)
+theorem embed_valueAt_rank (bodyCodec : WholeCodec Body)
     (packets : List (Packet Fresh capacity)) (values : Values packets)
     (links : Fin packets.length → Digest)
     (body : {body // (bodyCodec.encode body).length ≤ maxLength})
@@ -268,7 +268,7 @@ theorem embed_valueAt_rank (bodyCodec : PrefixCodec Body)
           erw [prepend_rank]
           exact congrArg (·+1) (ih values.2 (fun i => links i.succ) n (by simpa using hn))
 
-theorem embed_valueAt_block (bodyCodec : PrefixCodec Body)
+theorem embed_valueAt_block (bodyCodec : WholeCodec Body)
     (packets : List (Packet Fresh capacity)) (values : Values packets)
     (links : Fin packets.length → Digest)
     (body : {body // (bodyCodec.encode body).length ≤ maxLength})
@@ -284,7 +284,7 @@ theorem embed_valueAt_block (bodyCodec : PrefixCodec Body)
         erw [prepend_block]
         exact ih values.2 (fun i => links i.succ) j
 
-theorem embed_valueAt_terminalBody (bodyCodec : PrefixCodec Body)
+theorem embed_valueAt_terminalBody (bodyCodec : WholeCodec Body)
     (packets : List (Packet Fresh capacity)) (values : Values packets)
     (links : Fin packets.length → Digest)
     (body : {body // (bodyCodec.encode body).length ≤ maxLength})
@@ -369,7 +369,7 @@ private theorem block_none {roles : List Role} (point : Input roles Key (Block c
       omega
   | finalSeal history body => rfl
 
-def pointAt (bodyCodec : PrefixCodec Body) (packets : List (Packet Fresh capacity))
+def pointAt (bodyCodec : WholeCodec Body) (packets : List (Packet Fresh capacity))
     {roles : List Role} (hroles : packets.map Packet.role = roles) (context : Key)
     (values : Values packets) (links : Fin packets.length → Digest)
     (body : {body // (bodyCodec.encode body).length ≤ maxLength})
@@ -381,7 +381,7 @@ end Generic
 section Replay
 variable {g : Geometry} {fields : Fields} {Advice Auth Key Fresh C : Type} {capacity : ℕ}
 variable (e : Replay.Encoding g fields Advice Auth Key (Block capacity Fresh) C)
-variable (bodyCodec : PrefixCodec (Body g fields Advice Auth))
+variable (bodyCodec : WholeCodec (Body g fields Advice Auth))
 variable (packets : List (Packet Fresh capacity)) (hroles : packets.map Packet.role = g.roles)
 variable (producer : Replay.Output g fields Advice Auth → (i : Fin packets.length) →
   (Fin i.val → C) → (packets.get i).Data)

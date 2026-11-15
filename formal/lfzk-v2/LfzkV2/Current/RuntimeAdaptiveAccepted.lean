@@ -37,7 +37,7 @@ local notation "M" => RuntimeAdaptiveVerifier.chain binary prime P R cfg earlier
 local notation "Output" => RuntimeAdaptiveVerifier.Output (g := g) (fields := fields)
   (Advice := Advice) (Request := Request)
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-variable (decodePublic : Base → Option (Fin prime.nPublic → N))
+variable (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
 variable (layout : StatementCompiler.Addresses P R binary.cells prime.remaining prime.pads)
 variable (cutoff : ℕ × ℕ)
 variable (cutOracle : (RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)

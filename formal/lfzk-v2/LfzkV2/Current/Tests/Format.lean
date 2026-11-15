@@ -14,16 +14,16 @@ local notation "L" => LegacyFormat repr shape setup publicCount
 
 -- The strand history of a parsed legacy value is the deployed serializer.
 example (value : QueryRuntime.Runtime.Value repr shape setup publicCount) :
-    StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g)
+    StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g).whole
         (QueryRuntime.Runtime.toPoint repr shape setup publicCount value) =
-      (StrandRuntime.Runtime.schema NodeWire.current repr shape setup publicCount).encode value :=
+      (L).schema.encode value :=
   (L).toPoint_history value
 
 -- Parsing the history recovers the packet values, without the earlier
 -- chained-transcript bytes or a u64 round bound.
 example (value : QueryRuntime.Runtime.Value repr shape setup publicCount) :
-    (StrandRuntime.Runtime.schema NodeWire.current repr shape setup publicCount).decode
-      (StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g)
+    (L).schema.decode
+      (StrandRuntime.history NodeWire.current (ProofBodyCodec.codec repr g).whole
         (QueryRuntime.Runtime.toPoint repr shape setup publicCount value)) = some value :=
   (L).history_codec value
 

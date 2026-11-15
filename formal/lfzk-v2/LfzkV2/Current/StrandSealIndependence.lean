@@ -15,7 +15,7 @@ open scoped Classical
 section Replay
 variable {g : Geometry} {fields : Fields} {Advice Auth Key Fresh C : Type}
 variable {capacity blocks : ℕ}
-variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fields Advice Auth))
+variable (wire : NodeWire) (bodyCodec : WholeCodec (Body g fields Advice Auth))
 variable (encoding : Replay.Encoding g fields Advice Auth Key (Block capacity Fresh) C)
 variable (sample : Replay.Point g fields Advice Auth Key (Block capacity Fresh) →
   Tree Strand.Word Digest (Option C) blocks) (initial : Digest)

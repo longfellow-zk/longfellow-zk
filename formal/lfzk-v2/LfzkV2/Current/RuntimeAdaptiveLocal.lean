@@ -19,7 +19,7 @@ variable (S : RuntimeSource.Source (g := g) (fields := fields) (Advice := Advice
   (Base := Base) (Key := Key) (C := C) binary prime (Oracle := Oracle))
 variable (laws : RuntimeSource.SamplerLaws binary prime P R cfg S)
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-variable (decodePublic : Base → Option (Fin prime.nPublic → N))
+variable (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
 variable (primePlan : FrontendSchedule.Plan N prime.circuit)
 variable (primeFits : primePlan.capacity ≤ laws.primeCapacity)
 variable (binaryTemplate : FrontendSchedule.Plan B binary.circuit)

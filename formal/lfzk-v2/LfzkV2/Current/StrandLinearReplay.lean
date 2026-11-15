@@ -9,7 +9,7 @@ open CanonicalPrefix QueryRuntime TranscriptV2
 
 section Packet
 variable {roles : List Role} {Terminal Key Fresh : Type} {capacity : ℕ}
-variable (wire : NodeWire) (bodyCodec : PrefixCodec Terminal)
+variable (wire : NodeWire) (bodyCodec : WholeCodec Terminal)
 
 def packet (point : Input roles Key (Block capacity Fresh) Digest Terminal) : Bytes :=
   match point with
@@ -33,7 +33,7 @@ end Packet
 
 variable {g : Geometry} {fields : Fields} {Advice Auth Key Fresh C : Type}
 variable {capacity blocks : ℕ}
-variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fields Advice Auth))
+variable (wire : NodeWire) (bodyCodec : WholeCodec (Body g fields Advice Auth))
 
 variable (encoding : Replay.Encoding g fields Advice Auth Key (Block capacity Fresh) C)
 variable (fallback : C) (proof : Replay.Output g fields Advice Auth)

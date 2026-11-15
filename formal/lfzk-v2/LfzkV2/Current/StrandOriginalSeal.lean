@@ -115,8 +115,7 @@ theorem original_ratio_le :
 
 variable {Enc : Type}
 variable (hashPublic : fmt.Key → Option (Fin binary.nPublic → Bool))
-variable (decodePublic : fmt.Base →
-  Option (Fin prime.nPublic → N))
+variable (decodePublic : RuntimeAdaptive.PublicReader g fmt.Base (Fin prime.nPublic → N))
 variable (draw : C → RuntimeVerifier.RawSamples binary prime P R
   (CanonicalRuntime.wirePublic binary prime P R fmt cfg))
 variable [Inhabited (RuntimeVerifier.Family binary prime P R

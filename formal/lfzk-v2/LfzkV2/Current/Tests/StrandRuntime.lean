@@ -71,11 +71,11 @@ set_option pp.fullNames true in
 #print axioms TranscriptV2.StrandSampling.complete_fiber
 
 /--
-info: 'LfzkV2.Current.StrandRuntime.Runtime.toPoint_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'LfzkV2.Current.Format.toPoint_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
 set_option pp.fullNames true in
-#print axioms StrandRuntime.Runtime.toPoint_parent
+#print axioms Format.toPoint_parent
 
 /--
 info: 'LfzkV2.Current.StrandSearch.searchState_bind' depends on axioms: [propext, Classical.choice, Quot.sound]
@@ -92,11 +92,11 @@ set_option pp.fullNames true in
 #print axioms StrandRuntime.seal_required
 
 /--
-info: 'LfzkV2.Current.StrandRuntime.Runtime.toPoint_history' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'LfzkV2.Current.Format.toPoint_history' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
 set_option pp.fullNames true in
-#print axioms StrandRuntime.Runtime.toPoint_history
+#print axioms Format.toPoint_history
 
 #guard_msgs (drop info) in #check StrandRuntime.complete_body_node
 

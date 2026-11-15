@@ -52,7 +52,7 @@ structure Format (g : Geometry) (fields : Fields) (Advice : Type) (publicCount :
   /-- The role packets after the first node, in schedule order. -/
   later : List (Packet (ProtocolWrites.Fresh g fields Advice) capacity)
   roles_eq : Role.fingerprint :: later.map Packet.role = g.roles
-  body : PrefixCodec (FormatBody g fields Advice)
+  body : WholeCodec (FormatBody g fields Advice)
   /-- The scalar and advice representations, shared with the Merkle leaves. -/
   scalars : ProofBodyCodec.Representations fields Advice
   /-- The public input counts of the hash and signature circuits. -/
@@ -70,7 +70,10 @@ structure Format (g : Geometry) (fields : Fields) (Advice : Type) (publicCount :
   /-- The opening node's bytes for the H/Z responses. -/
   openingBase : Response g (fields .binary) × Response g (fields .prime) → BoundedBytes capacity
   /-- The signature circuit's public inputs, read back from the node at
-  `g.primeStart`. -/
+  `primeIndex`, which is bound no later than the prime frontend's first
+  boundary. -/
+  primeIndex : Fin g.roles.length
+  primeIndex_le : primeIndex.val ≤ g.primeStart
   decodePrimePublic : BoundedBytes capacity → Option (Fin primePublic → fields .prime)
   /-- Setup values absorbed at a boundary (none in a format whose statement
   absorbs all setup once). -/
@@ -94,7 +97,7 @@ structure Format (g : Geometry) (fields : Fields) (Advice : Type) (publicCount :
       (openingBase (body.binaryBackend.response,body.primeBackend.response),
         { responses := some (body.binaryBackend.response,body.primeBackend.response) })
   block_prime : ∀ {C} binaryRequest metadata request body (i : Fin g.roles.length) (past : Fin i.val → C),
-    i.val = g.primeStart → decodePrimePublic (block binaryRequest metadata request body i past).1 =
+    i = primeIndex → decodePrimePublic (block binaryRequest metadata request body i past).1 =
       some request.primeInputs
   /-- Nodes depend on answers only through challenge-dependent metadata. -/
   block_independent : ∀ {C} binaryRequest
@@ -428,19 +431,15 @@ theorem hashPublic_replay (initial : Digest) (proof : Output) (H : fmt.Point →
   rw [Replay.Encoding.point_context]
   exact fmt.hashPublic_context request proof.body.commitment
 
-def primeBoundary (g : Geometry) : Fin g.roles.length :=
-  ⟨g.primeStart,by have := g.roles_length; dsimp only [Geometry.primeStart]; omega⟩
-
-/-- Every replay after the prime-start boundary reads back the request's
+/-- Every replay from the prime-public node on reads back the request's
 signature-circuit public inputs. -/
 theorem primePublic_replay (initial : Digest) (proof : Output) (H : fmt.Point → Digest × C)
-    (index : ℕ) (hi : index ≤ g.roles.length) (hstart : g.primeStart ≤ index) :
+    (index : ℕ) (hi : index ≤ g.roles.length) (hstart : fmt.primeIndex.val ≤ index) :
     (((fmt.encoding binaryRequest metadata request).chain initial).point proof H index).readAt
-      g.primeStart (fun block => fmt.decodePrimePublic block.1) = some request.primeInputs := by
-  change (((fmt.encoding binaryRequest metadata request).chain initial).point proof H index).readAt
-    (primeBoundary g).val (fun block => fmt.decodePrimePublic block.1) = _
-  rw [Replay.Encoding.readAt_replay _ _ _ _ _ hi (primeBoundary g) hstart]
+      fmt.primeIndex.val (fun block => fmt.decodePrimePublic block.1) = some request.primeInputs := by
+  rw [Replay.Encoding.readAt_replay _ _ _ _ _ hi fmt.primeIndex hstart]
   exact fmt.block_prime binaryRequest metadata request proof.body _ _ rfl
+
 
 /-! ## Canonical replay -/
 

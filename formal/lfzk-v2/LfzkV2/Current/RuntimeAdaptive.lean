@@ -132,6 +132,15 @@ theorem binaryWithBits_mask (binary : BinaryPublic B shared maskBits adviceBits)
 end Binary
 end PublicValues
 
+/-- Where the signature circuit's public inputs are read from a bound
+history: the node at `index`, which is bound no later than the prime
+frontend's first boundary, decoded by `read`. A format whose statement
+carries every public input reads them from the first node. -/
+structure PublicReader (g : Geometry) (Base X : Type) where
+  index : ℕ
+  index_le : index ≤ g.primeStart
+  read : Base → Option X
+
 section PrimeViews
 variable {g : Geometry} {fields : Fields} {Advice Auth Key Base C B Oracle : Type}
 variable [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B] [Fintype C]
@@ -142,16 +151,16 @@ local notation "Point" => Replay.Point g fields Advice Auth Key (Base × Protoco
 
 /-- Public prime inputs become available exactly when that block is bound.
 Reading this value does not consult the candidate answer at the current query. -/
-def primePublic (decodePublic : Base → Option (Fin prime.nPublic → N)) (point : Point) :
+def primePublic (decodePublic : PublicReader g Base (Fin prime.nPublic → N)) (point : Point) :
     Option (Fin prime.nPublic → N) :=
-  point.readAt g.primeStart (fun block => decodePublic block.1)
+  point.readAt decodePublic.index (fun block => decodePublic.read block.1)
 
 /-- Future prime public values are unavailable at an earlier query. In
 particular the fingerprint boundary need not bind an issuer key prematurely. -/
-theorem primePublic_future (decodePublic : Base → Option (Fin prime.nPublic → N))
-    (point : Point) (h : point.rank < g.primeStart) : primePublic prime decodePublic point = none := by
-  have hlt : ¬g.primeStart < point.rank := by omega
-  have hne : g.primeStart ≠ point.rank := by omega
+theorem primePublic_future (decodePublic : PublicReader g Base (Fin prime.nPublic → N))
+    (point : Point) (h : point.rank < decodePublic.index) : primePublic prime decodePublic point = none := by
+  have hlt : ¬decodePublic.index < point.rank := by omega
+  have hne : decodePublic.index ≠ point.rank := by omega
   unfold primePublic Input.readAt Input.atRank
   rw [dif_neg hlt,if_neg hne]
   rfl
@@ -160,7 +169,7 @@ variable (shape : FrontendSchedule.Plan N prime.circuit) (capacity : ℕ)
 variable (decode : C → ℕ → N) (nonzero : C → Linear.TerminalSampling.Nonzero N)
 variable (decoder : FrontendReplay.Decoder capacity decode nonzero)
 variable (fits : shape.capacity ≤ capacity) (field : fields .prime → N) (fallback : C)
-variable (decodePublic : Base → Option (Fin prime.nPublic → N))
+variable (decodePublic : PublicReader g Base (Fin prime.nPublic → N))
 
 /-- The circuit, addresses, samplers and capacities remain public constants.
 Only the public field values come from the actual current-or-earlier prefix. -/
@@ -212,8 +221,9 @@ theorem primePublic_replay_eq (initialLink : Digest) (proof : Replay.Output g fi
     (hstart : g.primeStart < g.roles.length) (hpn : g.primeStart ≤ n) (hpm : g.primeStart ≤ m) :
     primePublic prime decodePublic ((e.chain initialLink).point proof H n) =
       primePublic prime decodePublic ((e.chain initialLink).point proof H m) :=
-  ApplicationViewReplay.readAt_replay_eq e initialLink proof H (fun block => decodePublic block.1)
-    n m g.primeStart hn hm hstart hpn hpm
+  ApplicationViewReplay.readAt_replay_eq e initialLink proof H (fun block => decodePublic.read block.1)
+    n m decodePublic.index hn hm (lt_of_le_of_lt decodePublic.index_le hstart)
+    (decodePublic.index_le.trans hpn) (decodePublic.index_le.trans hpm)
 
 end PrimeViews
 section ApplicationReader
@@ -226,7 +236,7 @@ variable (P : FieldBackend B k s n t) (R : FieldBackend N k s n t)
 variable (cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fields) (Advice := Advice)
   (Base := Base) (Key := Key) (C := C) (Salt := Salt))
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-variable (decodePublic : Base → Option (Fin prime.nPublic → N))
+variable (decodePublic : PublicReader g Base (Fin prime.nPublic → N))
 local notation "Point" => RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := Base) (Key := Key)
 local notation "System" => RuntimeVerifier.System binary prime (C := C)

@@ -126,6 +126,35 @@ theorem readWhole_canonical (codec : PrefixCodec A) (input : Bytes) (value : A)
     simpa only [hr,List.append_nil] using codec.canonical input decoded rest hd
   · contradiction
 
+
+/-- A codec for a whole input, with no suffix: the encoding of a value
+that is the last field of its frame, such as a proof body that ends in a
+frontier of unwritten length. -/
+structure _root_.LfzkV2.Current.WholeCodec (A : Type) where
+  encode : A → Bytes
+  decode : Bytes → Option A
+  inverse : ∀ value, decode (encode value) = some value
+  canonical : ∀ input value, decode input = some value → input = encode value
+
+/-- A prefix codec read on a whole input. -/
+def _root_.LfzkV2.Current.PrefixCodec.whole (codec : PrefixCodec A) : WholeCodec A where
+  encode := codec.encode
+  decode := readWhole codec
+  inverse := readWhole_encode codec
+  canonical := readWhole_canonical codec
+
+instance : Coe (PrefixCodec A) (WholeCodec A) := ⟨PrefixCodec.whole⟩
+
+@[simp] theorem _root_.LfzkV2.Current.PrefixCodec.whole_encode (codec : PrefixCodec A) :
+    codec.whole.encode = codec.encode := rfl
+
+theorem _root_.LfzkV2.Current.WholeCodec.encode_injective (codec : WholeCodec A) :
+    Function.Injective codec.encode := by
+  intro first second same
+  have decoded := congrArg codec.decode same
+  rw [codec.inverse,codec.inverse] at decoded
+  exact Option.some.inj decoded
+
 /-- Frame the actual canonical payload bytes. The u64 bound is explicit;
 the parser rejects any unused bytes inside the framed payload. -/
 def framed (codec : PrefixCodec A) :

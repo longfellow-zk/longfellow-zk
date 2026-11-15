@@ -71,7 +71,7 @@ end Congruence
 
 section Finish
 variable {g : Geometry} {fs : Fields} {A Auth Key Answer : Type} {capacity blocks : ℕ}
-variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fs A Auth))
+variable (wire : NodeWire) (bodyCodec : WholeCodec (Body g fs A Auth))
 variable (encoding : ProofBodyReplay.BodyEncoding (g := g) (fields := fs) (Advice := A)
   (Authentication := Auth) (Context := Key)
   (Block := QueryRuntime.Block capacity (ProtocolWrites.Fresh g fs A)) (C := Answer))

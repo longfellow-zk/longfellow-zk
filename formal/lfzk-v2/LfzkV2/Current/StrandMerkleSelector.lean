@@ -63,7 +63,7 @@ end Selection
 section Reader
 variable {g : Geometry} {fields : Fields} {Advice Auth Key Fresh C : Type}
 variable {capacity blocks : ℕ}
-variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fields Advice Auth))
+variable (wire : NodeWire) (bodyCodec : WholeCodec (Body g fields Advice Auth))
 variable (encoding : Replay.Encoding g fields Advice Auth Key (QueryRuntime.Block capacity Fresh) C)
 variable (fallback : C) (proof : Replay.Output g fields Advice Auth) (trace : StrandRecordedReplay.Trace)
 variable (sample : Replay.Point g fields Advice Auth Key (QueryRuntime.Block capacity Fresh) →

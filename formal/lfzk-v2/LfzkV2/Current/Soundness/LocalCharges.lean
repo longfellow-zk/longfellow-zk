@@ -312,7 +312,7 @@ def frozenLaws (tuple : Tuple) : RuntimeSource.SamplerLaws binary prime P R publ
     (by rfl) degreeFits rowsFit bitsFit
 
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-variable (decodePublic : Base → Option (Fin prime.nPublic → N))
+variable (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
 variable (primeShape : FrontendSchedule.Plan N prime.circuit) (primeGeometry : primeShape.frontend = g.prime)
 variable (primeCapacityFits : primeShape.capacity ≤ primeCapacity)
 variable (binaryShape : FrontendSchedule.Plan B binary.circuit) (binaryGeometry : binaryShape.frontend = g.binary)

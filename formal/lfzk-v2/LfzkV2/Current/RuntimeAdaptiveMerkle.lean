@@ -57,7 +57,7 @@ def claimOf (out : Annotated (g := g) (fields := fields) (Advice := Advice)
     (OrderedOpening.openingAnswer (g := g) cfg.fallback out.2.answers)
 
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-variable (decodePublic : Base → Option (Fin prime.nPublic → N))
+variable (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
 variable (draw : C → RuntimeVerifier.RawSamples binary prime P R cfg)
 
 theorem claimOf_replay (output : Output) (H : Point → Digest × C) (decoded : Decoded)

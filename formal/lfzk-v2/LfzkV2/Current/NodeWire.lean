@@ -35,25 +35,25 @@ variable (wire : NodeWire) {A : Type}
 
 /-- The final node payload of a canonical body. The parser rejects bytes
 left over inside the sealed frame. -/
-def sealed (codec : PrefixCodec A) :
+def sealed (codec : WholeCodec A) :
     PrefixCodec {value // (codec.encode value).length ≤ maxLength} where
   encode value := wire.sealCodec.encode ⟨codec.encode value.val,value.property⟩
   decode input := do
     let (payload,suffix) ← wire.sealCodec.decode input
-    match h : readWhole codec payload.bytes with
+    match h : codec.decode payload.bytes with
     | none => none
     | some value => some (⟨value,by
-        rw [← readWhole_canonical codec payload.bytes value h]
+        rw [← codec.canonical payload.bytes value h]
         exact payload.bound⟩,suffix)
   inverse value suffix := by
     simp only [wire.sealCodec.inverse,Option.bind_eq_bind,Option.bind_some]
     split
     · rename_i hn
-      have hi := readWhole_encode codec value.val
+      have hi := codec.inverse value.val
       rw [hn] at hi
       contradiction
     · rename_i decoded hd
-      have he : decoded = value.val := Option.some.inj (hd.symm.trans (readWhole_encode codec value.val))
+      have he : decoded = value.val := Option.some.inj (hd.symm.trans (codec.inverse value.val))
       subst decoded
       rfl
   canonical input value suffix h := by
@@ -63,7 +63,7 @@ def sealed (codec : PrefixCodec A) :
     · contradiction
     · rename_i decoded hd
       cases Option.some.inj h
-      have he := readWhole_canonical codec payload.bytes decoded hd
+      have he := codec.canonical payload.bytes decoded hd
       have hb : (codec.encode decoded).length ≤ maxLength := by rw [← he]; exact payload.bound
       have hs : payload = (⟨codec.encode decoded,hb⟩ : BoundedBytes maxLength) := BoundedBytes.ext he
       calc
@@ -71,7 +71,7 @@ def sealed (codec : PrefixCodec A) :
         _ = wire.sealCodec.encode ⟨codec.encode decoded,hb⟩ ++ rest := by rw [hs]
         _ = _ := rfl
 
-theorem sealed_encode (codec : PrefixCodec A)
+theorem sealed_encode (codec : WholeCodec A)
     (value : {value // (codec.encode value).length ≤ maxLength}) :
     (wire.sealed codec).encode value = wire.sealFrame (codec.encode value.val) :=
   wire.sealCodec_encode _
@@ -105,7 +105,7 @@ theorem current_sealNodeInput :
 /-- The sealed body codec is the earlier framed body behind the final
 footer, so its encoder is unchanged as a function. -/
 theorem current_sealed_encode (codec : PrefixCodec A) :
-    (current.sealed codec).encode = ((framed codec).prefixed StrandQueryCodec.finalFooter).encode := rfl
+    (current.sealed codec.whole).encode = ((framed codec).prefixed StrandQueryCodec.finalFooter).encode := rfl
 
 end NodeWire
 end LfzkV2.Current

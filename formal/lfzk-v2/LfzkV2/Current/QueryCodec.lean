@@ -17,13 +17,15 @@ structure Block where
   codec : PrefixCodec Data
   domain : Domain
 
-variable {Body : Type} (bodyCodec : PrefixCodec Body)
+variable {Body : Type}
 
 /-- A round may stop at its own query, or retain its actual answer link and
 continue. After the last round only complete-body finalization is possible. -/
-def Value : List Block → Type
+def Value (bodyCodec : WholeCodec Body) : List Block → Type
   | [] => {body // (bodyCodec.encode body).length ≤ maxLength}
-  | block :: tail => block.Data × (Unit ⊕ (Digest × Value tail))
+  | block :: tail => block.Data × (Unit ⊕ (Digest × Value bodyCodec tail))
+
+variable (bodyCodec : PrefixCodec Body)
 
 private def after {A : Type} (codec : PrefixCodec A) (suffix : Bytes) : PrefixCodec A :=
   (codec.pair (PrefixCodec.marker suffix)).equiv {
@@ -42,7 +44,7 @@ private def final (counter : ℕ) (fits : counter < 2^64) :
 /-- Every counter is checked against u64 before framing; the logical bound
 adds no extra wire bytes. -/
 def encode (bodyCodec : PrefixCodec Body) :
-    (blocks : List Block) → (counter : ℕ) → counter+blocks.length < 2^64 → Value bodyCodec blocks → Bytes
+    (blocks : List Block) → (counter : ℕ) → counter+blocks.length < 2^64 → Value bodyCodec.whole blocks → Bytes
   | [], counter, fits, body => (final bodyCodec counter fits).encode body
   | block :: tail, counter, fits, value =>
       (footer block counter (by simp only [List.length_cons] at fits; omega)).encode value.1 ++
@@ -55,7 +57,7 @@ def encode (bodyCodec : PrefixCodec Body) :
 parse the mandatory feedback before advancing. The last branch consumes the
 whole framed canonical body and rejects an ignored trailing suffix. -/
 def decode (bodyCodec : PrefixCodec Body) :
-    (blocks : List Block) → (counter : ℕ) → counter+blocks.length < 2^64 → Bytes → Option (Value bodyCodec blocks)
+    (blocks : List Block) → (counter : ℕ) → counter+blocks.length < 2^64 → Bytes → Option (Value bodyCodec.whole blocks)
   | [], counter, fits, input => readWhole (final bodyCodec counter fits) input
   | block :: tail, counter, fits, input => do
       let (value,rest) ← (footer block counter (by simp only [List.length_cons] at fits; omega)).decode input
@@ -66,7 +68,7 @@ def decode (bodyCodec : PrefixCodec Body) :
         some (value,.inr (link,next))
 
 theorem encode_nil (counter : ℕ) (fits : counter+([] : List Block).length < 2^64)
-    (body : Value bodyCodec []) :
+    (body : Value bodyCodec.whole []) :
     encode bodyCodec [] counter fits body =
       finalFooter ⟨counter,fits⟩ ++ frame (bodyCodec.encode body.val) := by
   simp only [encode,final,PrefixCodec.prefixed,PrefixCodec.equiv,PrefixCodec.pair,
@@ -82,7 +84,7 @@ theorem encode_stop (block : Block) (tail : List Block) (counter : ℕ)
 
 theorem encode_continue (block : Block) (tail : List Block) (counter : ℕ)
     (fits : counter+(block::tail).length < 2^64) (value : block.Data)
-    (link : Digest) (next : Value bodyCodec tail) :
+    (link : Digest) (next : Value bodyCodec.whole tail) :
     encode bodyCodec (block::tail) counter fits (value,.inr (link,next)) =
       block.codec.encode value ++
         roundFooter block.domain ⟨counter,by simp only [List.length_cons] at fits; omega⟩ ++
@@ -94,7 +96,7 @@ theorem encode_continue (block : Block) (tail : List Block) (counter : ℕ)
 /-- This is the actual parser/retraction law, proved from role-local
 canonical parsing and mandatory link feedback. -/
 theorem decode_encode (blocks : List Block) (counter : ℕ) (fits : counter+blocks.length < 2^64)
-    (value : Value bodyCodec blocks) :
+    (value : Value bodyCodec.whole blocks) :
     decode bodyCodec blocks counter fits (encode bodyCodec blocks counter fits value) = some value := by
   induction blocks generalizing counter with
   | nil => exact readWhole_encode _ value
@@ -120,7 +122,7 @@ theorem decode_encode (blocks : List Block) (counter : ℕ) (fits : counter+bloc
 /-- Successful whole-input parsing accounts for every byte. In particular,
 a final body or a different round cannot alias an earlier query prefix. -/
 theorem encode_decode (blocks : List Block) (counter : ℕ) (fits : counter+blocks.length < 2^64)
-    (input : Bytes) (value : Value bodyCodec blocks)
+    (input : Bytes) (value : Value bodyCodec.whole blocks)
     (h : decode bodyCodec blocks counter fits input = some value) :
     encode bodyCodec blocks counter fits value = input := by
   induction blocks generalizing counter input with
@@ -153,7 +155,7 @@ theorem encode_injective (blocks : List Block) (counter : ℕ) (fits : counter+b
 transport. Its validity predicate is true because Value already records the
 role schema, canonical fields, bounded body and exact continuation shape. -/
 def codec (blocks : List Block) (counter : ℕ) (fits : counter+blocks.length < 2^64) :
-    ByteOracleTransport.Codec (Value bodyCodec blocks) Bytes (fun _ => True) where
+    ByteOracleTransport.Codec (Value bodyCodec.whole blocks) Bytes (fun _ => True) where
   encode value := encode bodyCodec blocks counter fits value.val
   decode input := (decode bodyCodec blocks counter fits input).map fun value => ⟨value,trivial⟩
   decode_encode value := by simp only [decode_encode,Option.map_some]
@@ -166,7 +168,7 @@ def codec (blocks : List Block) (counter : ℕ) (fits : counter+blocks.length < 
 /-- A parsed physical prefix can carry a redundant typed cache. Agreement
 of its byte projection suffices to prove cache injection on canonical values. -/
 theorem pointMap_injective {Point : Type} (blocks : List Block) (counter : ℕ)
-    (fits : counter+blocks.length < 2^64) (pointMap : Value bodyCodec blocks → Point)
+    (fits : counter+blocks.length < 2^64) (pointMap : Value bodyCodec.whole blocks → Point)
     (pointBytes : Point → Bytes)
     (hbytes : ∀ value, pointBytes (pointMap value) = encode bodyCodec blocks counter fits value) :
     Function.Injective pointMap := by
@@ -179,7 +181,7 @@ The whole-input parser reconstructs the cache; its inverse is derived from
 component codecs and the byte projection, with no all-input injectivity
 premise for arbitrary malformed caches. -/
 def intoCodec {Point : Type} (blocks : List Block) (counter : ℕ)
-    (fits : counter+blocks.length < 2^64) (pointMap : Value bodyCodec blocks → Point)
+    (fits : counter+blocks.length < 2^64) (pointMap : Value bodyCodec.whole blocks → Point)
     (pointBytes : Point → Bytes)
     (hbytes : ∀ value, pointBytes (pointMap value) = encode bodyCodec blocks counter fits value) :
     ByteOracleTransport.Codec Point Bytes (fun point => ∃ value, pointMap value = point) where

@@ -16,7 +16,7 @@ local notation "Proof" => Current.Proof g fields Advice Authentication
 local notation "PacketBlock" => QueryRuntime.Block capacity (ProtocolWrites.Fresh g fields Advice)
 local notation "Point" => Replay.Point g fields Advice Authentication Key PacketBlock
 
-variable (wire : NodeWire) (bodyCodec : PrefixCodec (Current.Body g fields Advice Authentication))
+variable (wire : NodeWire) (bodyCodec : WholeCodec (Current.Body g fields Advice Authentication))
 variable (e : ProofBodyReplay.BodyEncoding (g := g) (fields := fields) (Advice := Advice)
   (Authentication := Authentication) (Context := Key) (Block := QueryRuntime.Block capacity (ProtocolWrites.Fresh g fields Advice)) (C := C))
 variable (sample : Replay.Point g fields Advice Authentication Key

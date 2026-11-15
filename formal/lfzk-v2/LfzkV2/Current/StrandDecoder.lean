@@ -62,7 +62,7 @@ local notation "Output" => RuntimeAdaptiveVerifier.Output (g := g) (fields := fi
   (Advice := Advice) (Request := Request)
 variable (earlier : Request → Replay.Encoding g fields Advice (RuntimeVerifier.Authentication (g := g)) Key
   (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := BoundedBytes capacity)) C)
-variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
+variable (wire : NodeWire) (bodyCodec : WholeCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
 variable {Values Unused : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := BoundedBytes capacity) (Key := Key) → Type}
 variable (factor : (point : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
@@ -75,7 +75,7 @@ variable (fiber : (point : RuntimeVerifier.Point (g := g) (fields := fields) (Ad
 variable (uniform : ∀ point value,
   (Finset.univ.filter fun stream => ((sample point).run stream).1 = some value).card = fiber point)
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-variable (decodePublic : BoundedBytes capacity → Option (Fin prime.nPublic → N))
+variable (decodePublic : RuntimeAdaptive.PublicReader g (BoundedBytes capacity) (Fin prime.nPublic → N))
 variable (draw : C → RuntimeVerifier.RawSamples binary prime P R cfg)
 variable [Inhabited (RuntimeVerifier.Family binary prime P R cfg).Leaf]
 local notation "history" => StrandRuntime.history wire bodyCodec

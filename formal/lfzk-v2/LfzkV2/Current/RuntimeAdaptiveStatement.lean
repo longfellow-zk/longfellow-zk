@@ -29,7 +29,7 @@ local notation "Second" => RuntimeVerifier.second binary prime P R cfg
 local notation "Generator" => cfg.polynomialX^Adapter.Mdoc.generatorExponent
 
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-variable (decodePublic : Base → Option (Fin prime.nPublic → N))
+variable (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
 
 theorem statementAt_spec (point : Point) (past : Fin point.rank → C)
     (data : Σ A : RuntimeVerifier.System binary prime (C := C), StatementData A First Second)

@@ -26,17 +26,17 @@ private def blocks := packets.map Current.QueryRuntime.Packet.queryBlock
 private def roles := packets.map Current.QueryRuntime.Packet.role
 private def fits : 0+roles.length < 2^64 := by decide
 private def link : Digest := fun _ => 3
-private def value : Current.QueryCodec.Value PrefixCodec.byte blocks :=
+private def value : Current.QueryCodec.Value PrefixCodec.byte.whole blocks :=
   ((5 : Byte),.inr (link,((7 : Byte),.inl ())))
 private abbrev Point := Input roles Byte (Current.QueryRuntime.Block 1 Byte) Digest Byte
 
-private def pointMap (v : Current.QueryCodec.Value PrefixCodec.byte blocks) : Point :=
+private def pointMap (v : Current.QueryCodec.Value PrefixCodec.byte.whole blocks) : Point :=
   Current.QueryRuntime.embed PrefixCodec.byte v.1 packets v
 
 private def raw (point : Point) : Bytes :=
   Current.QueryRuntime.bytes PrefixCodec.byte roles 0 fits point
 
-private theorem projection (v : Current.QueryCodec.Value PrefixCodec.byte blocks) :
+private theorem projection (v : Current.QueryCodec.Value PrefixCodec.byte.whole blocks) :
     raw (pointMap v) = Current.QueryCodec.encode PrefixCodec.byte blocks 0 fits v :=
   Current.QueryRuntime.bytes_embed _ _ _ _ _ _
 
@@ -55,7 +55,7 @@ example : raw wrongCache = raw good := rfl
 example : raw wrongContext = raw good := rfl
 
 private theorem unique_value (bad : Point) (hv : raw bad = raw good)
-    (v : Current.QueryCodec.Value PrefixCodec.byte blocks) (h : pointMap v = bad) : v = value := by
+    (v : Current.QueryCodec.Value PrefixCodec.byte.whole blocks) (h : pointMap v = bad) : v = value := by
   apply Current.QueryCodec.encode_injective PrefixCodec.byte blocks 0 fits
   rw [← projection,← projection,h,hv]
   rfl

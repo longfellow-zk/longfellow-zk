@@ -12,7 +12,7 @@ namespace LfzkV2.Current.StrandQueryCodec
 open CanonicalPrefix
 open scoped Classical
 
-variable {Body : Type} (wire : NodeWire) (bodyCodec : PrefixCodec Body)
+variable {Body : Type} (wire : NodeWire) (bodyCodec : WholeCodec Body)
 
 private def final : PrefixCodec {body // (bodyCodec.encode body).length ≤ maxLength} :=
   wire.sealed bodyCodec

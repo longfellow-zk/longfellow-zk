@@ -284,7 +284,7 @@ end Counts
 /-- The runtime's five optional readers are constructed directly from the
 bound public-value parsers and the two fixed public frontend plans. -/
 def concreteReaders (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-    (decodePublic : Base → Option (Fin prime.nPublic → N))
+    (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
     (primePlan : FrontendSchedule.Plan N prime.circuit)
     (primeFits : primePlan.capacity ≤ laws.primeCapacity)
     (binaryPlan : FrontendSchedule.Plan B binary.circuit)

@@ -120,7 +120,7 @@ theorem canonical_of_blocks {C : Type}
   have hkey : QueryRuntime.Runtime.key repr shape setup publicCount value = e.context proof := by
     cases n <;> rfl
   refine ⟨value,?_⟩
-  change reindex roles (embed (ProofBodyCodec.codec repr g)
+  change reindex roles (embed (ProofBodyCodec.codec repr g).whole
     (QueryRuntime.Runtime.key repr shape setup publicCount value) (packets) value) = _
   rw [hkey]
   exact point_eq_replay e (ProofBodyCodec.codec repr g) (packets) roles producer hblocks

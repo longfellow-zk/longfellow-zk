@@ -14,7 +14,7 @@ open scoped Classical
 
 section Generic
 variable {Key Fresh Body : Type} {capacity : ℕ}
-variable (wire : NodeWire) (bodyCodec : PrefixCodec Body) (context : Key)
+variable (wire : NodeWire) (bodyCodec : WholeCodec Body) (context : Key)
 
 private def historyFrom (roles : List Role) : (n : ℕ) → n ≤ roles.length →
     History Key (Block capacity Fresh) Digest n → Bytes → TranscriptV2.Strand.History
@@ -189,7 +189,7 @@ section Replay
 open TranscriptV2
 
 variable {Key Fresh Body C Out : Type} {capacity rounds blocks : ℕ} {roles : List Role}
-variable (wire : NodeWire) (bodyCodec : PrefixCodec Body)
+variable (wire : NodeWire) (bodyCodec : WholeCodec Body)
 local notation "Point" => Input roles Key (Block capacity Fresh) Digest Body
 variable (model : Chain (Input roles Key (Block capacity Fresh) Digest Body) Digest C Out rounds) (initial : Digest)
 variable (ranks : ∀ point : Input roles Key (Block capacity Fresh) Digest Body, model.rank point = point.rank)
@@ -363,7 +363,7 @@ end Replay
 
 section CompleteBody
 variable {g : Geometry} {fields : Fields} {Advice Authentication Key Fresh C : Type} {capacity : ℕ}
-variable (wire : NodeWire) (bodyCodec : PrefixCodec (Current.Body g fields Advice Authentication))
+variable (wire : NodeWire) (bodyCodec : WholeCodec (Current.Body g fields Advice Authentication))
 variable (encoding : Replay.Encoding g fields Advice Authentication Key (Block capacity Fresh) C)
 
 /-- The existing complete-proof replay owns the body used by the strand

@@ -118,7 +118,7 @@ theorem bytes_prepend (bodyCodec : PrefixCodec Body) (roles : List Role) (role :
 
 /-- Build the existing logical runtime input directly from parsed packets.
 Links are the actual supplied feedback values, not fresh serialized fields. -/
-def embed (bodyCodec : PrefixCodec Body) (context : Key) :
+def embed (bodyCodec : WholeCodec Body) (context : Key) :
     (packets : List (Packet Fresh capacity)) →
       QueryCodec.Value bodyCodec (packets.map Packet.queryBlock) →
         Input (packets.map Packet.role) Key (Block capacity Fresh) Digest Body
@@ -132,8 +132,8 @@ injectivity assumption about arbitrary runtime points is needed. -/
 theorem bytes_embed (bodyCodec : PrefixCodec Body) (context : Key)
     (packets : List (Packet Fresh capacity)) (counter : ℕ)
     (fits : counter+(packets.map Packet.role).length < 2^64)
-    (value : QueryCodec.Value bodyCodec (packets.map Packet.queryBlock)) :
-    bytes bodyCodec (packets.map Packet.role) counter fits (embed bodyCodec context packets value) =
+    (value : QueryCodec.Value bodyCodec.whole (packets.map Packet.queryBlock)) :
+    bytes bodyCodec (packets.map Packet.role) counter fits (embed bodyCodec.whole context packets value) =
       QueryCodec.encode bodyCodec (packets.map Packet.queryBlock) counter
         (by simpa only [List.length_map] using fits) value := by
   induction packets generalizing counter with
@@ -191,7 +191,7 @@ theorem parent_prepend {roles : List Role} (role : Role) (block : Block capacity
   | round i history current => exact previous i.val (by omega) history
   | finalSeal history body => exact previous roles.length (by rfl) history
 
-theorem embed_context (bodyCodec : PrefixCodec Body) (context : Key)
+theorem embed_context (bodyCodec : WholeCodec Body) (context : Key)
     (packets : List (Packet Fresh capacity))
     (value : QueryCodec.Value bodyCodec (packets.map Packet.queryBlock)) :
     (embed bodyCodec context packets value).context = context := by

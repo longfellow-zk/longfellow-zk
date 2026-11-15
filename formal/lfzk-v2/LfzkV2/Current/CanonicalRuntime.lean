@@ -44,8 +44,10 @@ def binaryRequest (bits : Fin binary.nPublic → Bool) (i : Fin fmt.binaryPublic
 def primeInputs (request : Request binary fmt) : Fin prime.nPublic → N :=
   fun i => cfg.primeField (request.primeInputs (Fin.cast primeCount.symm i))
 
-def decodePrimePublic (base : WireBase) : Option (Fin prime.nPublic → N) :=
-  (fmt.decodePrimePublic base).map
+def decodePrimePublic : RuntimeAdaptive.PublicReader g fmt.Base (Fin prime.nPublic → N) where
+  index := fmt.primeIndex.val
+  index_le := fmt.primeIndex_le
+  read base := (fmt.decodePrimePublic base).map
     (fun values i => cfg.primeField (values (Fin.cast primeCount.symm i)))
 
 variable (metadata : fmt.RequestMetadata C)
@@ -87,11 +89,11 @@ theorem primePublic_replay (request : Request binary fmt) (initial : Digest)
       (((earlier binary prime P R fmt cfg binaryCount metadata request).chain initial).point
         proof H index) = some (primeInputs binary prime P R fmt cfg primeCount request) := by
   change (((earlier binary prime P R fmt cfg binaryCount metadata request).chain initial).point
-    proof H index).readAt (Format.primeBoundary g).val
-      (fun block => decodePrimePublic binary prime P R fmt cfg primeCount block.1) = _
-  rw [Replay.Encoding.readAt_replay _ _ _ _ _ hi (Format.primeBoundary g) hstart]
+    proof H index).readAt fmt.primeIndex.val
+      (fun block => (decodePrimePublic binary prime P R fmt cfg primeCount).read block.1) = _
+  rw [Replay.Encoding.readAt_replay _ _ _ _ _ hi fmt.primeIndex (fmt.primeIndex_le.trans hstart)]
   change (fmt.decodePrimePublic (fmt.block (binaryRequest binary prime P R fmt cfg binaryCount) metadata request
-    proof.body (Format.primeBoundary g) _).1).map
+    proof.body fmt.primeIndex _).1).map
       (fun values i => cfg.primeField (values (Fin.cast primeCount.symm i))) = _
   rw [fmt.block_prime _ _ _ _ _ _ rfl]
   rfl

@@ -23,13 +23,11 @@ example {Raw T Salt Leaf : Type} (codec : Codec Salt Leaf Digest Framing.Bytes)
     StrandMerkleRealization.receives codec bytes (.inl (raw,value)) := Or.inr ⟨index,children,encoded⟩
 
 /--
-info: 'LfzkV2.Current.StrandRuntime.Runtime.pointCodec_merkle_auxiliary' depends on axioms: [propext,
- Classical.choice,
- Quot.sound]
+info: 'LfzkV2.Current.Format.pointCodec_merkle_auxiliary' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
 set_option pp.fullNames true in
-#print axioms StrandRuntime.Runtime.pointCodec_merkle_auxiliary
+#print axioms Format.pointCodec_merkle_auxiliary
 
 /--
 info: 'LfzkV2.Current.StrandMerkleRealization.receiving_sum_le' depends on axioms: [propext, Classical.choice, Quot.sound]

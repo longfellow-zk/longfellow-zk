@@ -67,7 +67,7 @@ theorem roles_eq : (packets repr shape setup publicCount).map Packet.role = g.ro
 
 def blocks : List QueryCodec.Block := (packets repr shape setup publicCount).map Packet.queryBlock
 
-abbrev Value := QueryCodec.Value (ProofBodyCodec.codec repr g) (blocks repr shape setup publicCount)
+abbrev Value := QueryCodec.Value (ProofBodyCodec.codec repr g).whole (blocks repr shape setup publicCount)
 
 abbrev Point := Replay.Point g fields Advice (OpeningBody.Authentication g)
   (Key publicCount) (Block (capacity repr shape setup publicCount)
@@ -79,7 +79,7 @@ def key (value : Value repr shape setup publicCount) : Key publicCount := value.
 The erased whole-query encoding contains no separate context field. -/
 def toPoint (value : Value repr shape setup publicCount) : Point repr shape setup publicCount :=
   reindex (roles_eq repr shape setup publicCount)
-    (embed (ProofBodyCodec.codec repr g) (key repr shape setup publicCount value)
+    (embed (ProofBodyCodec.codec repr g).whole (key repr shape setup publicCount value)
       (packets repr shape setup publicCount) value)
 
 def pointBytes (fits : g.roles.length < 2^64) : Point repr shape setup publicCount → Bytes :=

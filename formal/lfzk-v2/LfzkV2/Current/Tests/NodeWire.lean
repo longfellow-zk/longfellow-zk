@@ -29,7 +29,7 @@ private def legacyHistory {roles : List Role} : Input roles Key (Block capacity 
 private def legacyFinal : PrefixCodec {body // (bodyCodec.encode body).length ≤ maxLength} :=
   (framed bodyCodec).prefixed StrandQueryCodec.finalFooter
 
-private def legacyEncode : (blocks : List QueryCodec.Block) → QueryCodec.Value bodyCodec blocks →
+private def legacyEncode : (blocks : List QueryCodec.Block) → QueryCodec.Value bodyCodec.whole blocks →
     Bytes × List (Digest × Bytes)
   | [], body => ((legacyFinal bodyCodec).encode body,[])
   | block :: tail, value =>
@@ -49,17 +49,17 @@ private def legacyPacket {roles : List Role}
 -- The verifier's node history, the online strand parser's encoder and the
 -- linear-replay packets are the earlier functions.
 example {roles : List Role} :
-    (StrandRuntime.history NodeWire.current bodyCodec :
+    (StrandRuntime.history NodeWire.current bodyCodec.whole :
         Input roles Key (Block capacity Fresh) Digest Body → _) = legacyHistory bodyCodec := by
   have round (n : ℕ) (within : n < roles.length) (previous : History Key (Block capacity Fresh) Digest n)
       (current : Block capacity Fresh) :
-      StrandRuntime.history NodeWire.current bodyCodec
+      StrandRuntime.history NodeWire.current bodyCodec.whole
           (.round ⟨n,within⟩ previous current : Input roles Key (Block capacity Fresh) Digest Body) =
         legacyHistory bodyCodec (.round ⟨n,within⟩ previous current) := by
     induction n generalizing current with
     | zero => rfl
     | succ n ih =>
-        change TranscriptV2.Strand.History.child (StrandRuntime.history NodeWire.current bodyCodec
+        change TranscriptV2.Strand.History.child (StrandRuntime.history NodeWire.current bodyCodec.whole
             (.round ⟨n,by omega⟩ previous.1 previous.2.1 : Input roles Key (Block capacity Fresh) Digest Body))
             previous.2.2 _ =
           TranscriptV2.Strand.History.child (legacyHistory bodyCodec
@@ -74,7 +74,7 @@ example {roles : List Role} :
       cases roles with
       | nil => rfl
       | cons role tail =>
-          change TranscriptV2.Strand.History.child (StrandRuntime.history NodeWire.current bodyCodec
+          change TranscriptV2.Strand.History.child (StrandRuntime.history NodeWire.current bodyCodec.whole
               (.round ⟨tail.length,by simp⟩ previous.1 previous.2.1 :
                 Input (role::tail) Key (Block capacity Fresh) Digest Body)) previous.2.2 _ =
             TranscriptV2.Strand.History.child (legacyHistory bodyCodec
@@ -83,7 +83,7 @@ example {roles : List Role} :
           rw [round]
           rfl
 
-example : StrandQueryCodec.encode NodeWire.current bodyCodec = legacyEncode bodyCodec := by
+example : StrandQueryCodec.encode NodeWire.current bodyCodec.whole = legacyEncode bodyCodec := by
   funext blocks
   induction blocks with
   | nil => rfl
@@ -98,7 +98,7 @@ example : StrandQueryCodec.encode NodeWire.current bodyCodec = legacyEncode body
           rfl
 
 example {roles : List Role} :
-    (StrandLinearReplay.packet NodeWire.current bodyCodec :
+    (StrandLinearReplay.packet NodeWire.current bodyCodec.whole :
         Input roles Key (Block capacity Fresh) Digest Body → _) = legacyPacket bodyCodec := by
   funext point
   cases point <;> rfl

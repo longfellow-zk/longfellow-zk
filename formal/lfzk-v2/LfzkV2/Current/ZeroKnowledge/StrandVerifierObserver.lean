@@ -20,14 +20,14 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fiel
   (Base := BoundedBytes capacity) (Key := Key) (C := C) (Salt := Salt))
 variable (earlier : Request → Replay.Encoding g fields Advice (RuntimeVerifier.Authentication (g := g)) Key
   (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := BoundedBytes capacity)) C)
-variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
+variable (wire : NodeWire) (bodyCodec : WholeCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
 variable (sample : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := BoundedBytes capacity) (Key := Key) → Tree Strand.Word Digest (Option C) blocks)
 variable [Inhabited Salt] [Inhabited (RuntimeVerifier.Family binary prime P R cfg).Leaf]
 variable (codec : Merkle.Indexed.Codec Salt (RuntimeVerifier.Family binary prime P R cfg).Leaf Digest Enc)
 variable (merkleInput : Enc → Bytes)
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-variable (decodePublic : BoundedBytes capacity → Option (Fin prime.nPublic → N))
+variable (decodePublic : RuntimeAdaptive.PublicReader g (BoundedBytes capacity) (Fin prime.nPublic → N))
 variable (draw : C → RuntimeVerifier.RawSamples binary prime P R cfg)
 local notation "Output" => RuntimeAdaptiveVerifier.Output (g := g) (fields := fields)
   (Advice := Advice) (Request := Request)

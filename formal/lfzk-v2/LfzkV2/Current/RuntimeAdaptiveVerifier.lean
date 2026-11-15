@@ -54,7 +54,7 @@ theorem finalSealPoint_eq (output : Output (g := g) (fields := fields) (Advice :
   point_eq binary prime P R cfg earlier output H g.roles.length
 
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
-variable (decodePublic : Base → Option (Fin prime.nPublic → N))
+variable (decodePublic : RuntimeAdaptive.PublicReader g Base (Fin prime.nPublic → N))
 variable (draw : C → RuntimeVerifier.RawSamples binary prime P R cfg)
 variable [Inhabited (RuntimeVerifier.Family binary prime P R cfg).Leaf]
 

@@ -16,9 +16,9 @@ private def blocks : List Current.QueryCodec.Block :=
 private def fits : 0+blocks.length < 2^64 := by decide
 private def firstLink : Digest := fun _ => 3
 private def secondLink : Digest := fun _ => 4
-private def first : Current.QueryCodec.Value PrefixCodec.byte blocks := (7,.inl ())
-private def second : Current.QueryCodec.Value PrefixCodec.byte blocks := (7,.inr (firstLink,(8,.inl ())))
-private def last : Current.QueryCodec.Value PrefixCodec.byte blocks :=
+private def first : Current.QueryCodec.Value PrefixCodec.byte.whole blocks := (7,.inl ())
+private def second : Current.QueryCodec.Value PrefixCodec.byte.whole blocks := (7,.inr (firstLink,(8,.inl ())))
+private def last : Current.QueryCodec.Value PrefixCodec.byte.whole blocks :=
   (7,.inr (firstLink,(8,.inr (secondLink,⟨9,by decide⟩))))
 
 private def firstBytes : Bytes := [1,7] ++ roundFooter .sumcheck 0
@@ -51,7 +51,7 @@ example : Current.QueryCodec.decode PrefixCodec.byte blocks 0 fits
 private def otherBlocks : List Current.QueryCodec.Block :=
   [⟨Byte,scalar,.sumcheck⟩,⟨Byte,scalar,.terminal⟩]
 private def otherFits : 0+otherBlocks.length < 2^64 := by decide
-private def otherFirst : Current.QueryCodec.Value PrefixCodec.byte otherBlocks := (7,.inl ())
+private def otherFirst : Current.QueryCodec.Value PrefixCodec.byte.whole otherBlocks := (7,.inl ())
 example : Current.QueryCodec.encode PrefixCodec.byte blocks 0 fits first =
     Current.QueryCodec.encode PrefixCodec.byte otherBlocks 0 otherFits otherFirst := rfl
 
