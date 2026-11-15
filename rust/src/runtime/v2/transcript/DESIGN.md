@@ -88,7 +88,9 @@ A single integer or field element is a vector of length one; there is no
 scalar kind. Every integer is u64 little endian.
 *Enforced by:* the encoder has no scalar or raw-bytes method, and
 `Encoder::elements` takes only a `RegisteredField` (type); Lean proves the
-grammar injective.
+grammar injective (`Grammar.nodes_injective`) and that the deployed codecs
+encode as the grammar (`TaggedGrammar`), whose kernel-checked test parses the
+Rust golden node payloads with the deployed tag registry.
 
 **I6. Unique tags with fixed schemas.** All tags live in one `#[repr(u64)]`
 registry, `runtime::v2::proto::tags`, a module with no dependencies so that
@@ -171,7 +173,8 @@ Parsing needs only the registry and the registered fields: read a u64. A
 value below 16 ends the node; otherwise it names a tag whose arity says how
 many self-delimiting values follow. The whole transcript is therefore an
 injective encoding of the sequence of messages and boundaries, which Lean
-proves once.
+proves once: the deployed points' injectivity follows from the grammar's
+(`TaggedGrammar.toPoint_injective`).
 
 ## Statement
 
