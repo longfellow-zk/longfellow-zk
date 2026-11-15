@@ -16,6 +16,7 @@ import LfzkV2.Current.Tests.ZeroKnowledgeStrandHonestRuntime
 import Survival.Axioms
 import LfzkV2.Current
 import LfzkV2.Current.Tests.Algebra
+import LfzkV2.Current.Tests.RowBatching
 import LfzkV2.Current.Tests.Absorption
 import LfzkV2.Current.Tests.StrandSearch
 import LfzkV2.Current.Tests.StrandRuntime

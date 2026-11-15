@@ -184,6 +184,47 @@ then uses a strand-node query and a seal PRF query. Binding source circuit ident
 adds no separate query. Current sizes and timings are in the
 [Rust README](../../rust/README.md#performance).
 
+### Pure-foreign row batching
+
+A pure-foreign participant stores every value, pads included, as a bit group
+of the binary commitment and commits nothing in its own field. Mdoc uses
+mixed storage; no mdoc statement or bound depends on this model.
+
+[`RowBatching`](LfzkV2/Current/RowBatching.lean) models `zk::batching::batch`.
+The participant's `L+1` rows, its layer rows and then its input equation, must
+all hold (`RowBatching.Holds`). Row weights `rho_0..rho_L`, uniform in the
+full field and drawn after the frontend's last message, batch them into one
+dense claim `<weights, v> = target` over every value (`RowBatching.batch`;
+`batch_ofLayers_weights` and `batch_ofLayers_target` give the runtime's
+coefficients and target). The batched residual is the weighted sum of the
+row values (`batch_residual`), so a false row survives one uniform
+combination with probability at most `1/#F` (`RowBatching.bad_probability_le`,
+from `DualPacking.affine_batch_card_le`); for P-256 this is `1/p`.
+
+[`PureHandoff`](LfzkV2/Current/PureHandoff.lean) is the counterpart of
+`Handoff.split_handoff`. `Groups` reads each value as the residue modulo `p`
+of its bits, and the adapter's coefficient on bit `r` of value `v` is
+`c_v*2^r` (`Groups.residual_eq`). `pure_handoff` turns both product checks
+into all rows holding on the decoded values, the row-batching event, or the
+conversion event, with quotients that may depend on both conversion
+challenges. The row weights and the conversion pair are read from one answer,
+the row weights first, so the claim is fixed before the conversion
+challenges. `PureHandoff.bad_probability_le` bounds the joint error by
+`1/p + (2*floor(K*p/M)+1)^2/(p-1)^2`, the row-batching term plus the
+conversion term of `Adapter.two_bad_probability_le`. `Data.bad_card_mul_le`
+states the same count for one oracle answer whose rows depend only on its
+earlier coordinates, as `ApplicationOracle.RescaleData.bad_card_mul_le`
+does for `eta`.
+
+[`PureComposition.rows_reduction`](LfzkV2/Current/PureComposition.lean) is the
+counterpart of `Composition.rows_reduction`: authenticated binary rows and
+the two product checks give satisfaction of both circuits, the prime one on
+the decoded values, or one of the binary-circuit, packing, prime-circuit,
+row-batching and conversion events. An application with pure-foreign storage
+builds its own `Application.System` and schedule charges from these events;
+the mdoc charges give the row-batching role zero budget, since mdoc has no
+such role.
+
 ### Checked encoding and acceptance
 
 [`TaggedFormat`](LfzkV2/Current/TaggedFormat.lean) is the deployed transcript
