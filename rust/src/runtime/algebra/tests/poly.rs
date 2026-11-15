@@ -29,10 +29,6 @@ fn test_zero_length_polynomial_rejects_evaluation() {
     let x = f.zero();
 
     assert!(
-        std::panic::catch_unwind(|| p.eval_monomial(&x, &f)).is_err(),
-        "accepted monomial evaluation of a zero-length polynomial"
-    );
-    assert!(
         std::panic::catch_unwind(|| p.eval_newton(&x, &f)).is_err(),
         "accepted Newton evaluation of a zero-length polynomial"
     );

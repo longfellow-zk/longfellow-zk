@@ -38,16 +38,6 @@ impl<const N: usize, const W: usize, F: SerializableField + RuntimeField<W>> Pol
             evaluations: std::array::from_fn(|_| f.zero()),
         }
     }
-
-    pub fn eval_monomial(&self, x: &F::E, f: &F) -> F::E {
-        assert!(N > 0, "polynomial must contain at least one evaluation");
-        let mut e = self.evaluations[N - 1].clone();
-        for i in (0..(N - 1)).rev() {
-            f.mul(&mut e, x);
-            f.add(&mut e, &self.evaluations[i]);
-        }
-        e
-    }
 }
 
 impl<const N: usize, const W: usize, F: SerializableField + InterpolationField<W>> Poly<N, W, F> {
