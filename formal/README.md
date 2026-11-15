@@ -477,7 +477,9 @@ closures and honors each library's declared compiler options, including V1's
 explicit implicit-variable compatibility settings. The declaration audit
 imports the default component roots, including survival and circuit libraries;
 it checks declarations and their transitive axiom dependencies. The source
-audit also requires every current test to be directly imported by its aggregate.
+audit also requires every current test to be directly imported by its aggregate,
+and every Lean name (by its last component) and Rust test name that a
+`rust/**/DESIGN.md` cites to exist.
 
 The rebuild writes per-module times and peak memory to its report under
 `.lake/`.

@@ -1,6 +1,7 @@
 //! Scan repository Lean sources for unchecked proof constructs and check local
 //! Markdown links in the formal and Rust documentation. Run inside the repo.
-//! It also pins the offline Hahn certificate sources under `parameters/`.
+//! It also pins the offline Hahn certificate sources under `parameters/`, and
+//! checks that the Lean names and Rust test names the Rust designs cite exist.
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -409,6 +410,8 @@ fn main() {
         .filter(|p| !p.is_empty() && Path::new(p).is_file())
         .collect();
     let (mut lean_count, mut link_count, mut failures) = (0, 0, 0);
+    let (citation_failures, citation_count) = check_design_citations(&paths);
+    failures += citation_failures;
     let mut roots = vec!["formal/".to_owned()];
     for line in fs::read_to_string("formal/lakefile.toml").unwrap().lines() {
         if let Some(directory) = line.trim().strip_prefix("srcDir = ") {
@@ -533,7 +536,10 @@ fn main() {
     }
     failures += check_current_boundaries(&dependencies);
     check_hahn_certificate_sources();
-    println!("Scanned {lean_count} Lean sources and {link_count} local documentation links.");
+    println!(
+        "Scanned {lean_count} Lean sources, {link_count} local documentation links and \
+         {citation_count} Lean and test citations in the Rust designs."
+    );
     assert!(lean_count > 0, "no Lean sources found");
     assert_eq!(failures, 0, "source/documentation audit failed");
 }
@@ -647,4 +653,255 @@ fn check_hahn_certificate_sources() {
         .unwrap()
         .lines()
         .any(|line| line == "import LfzkV2.Current.Parameters.Rate7"));
+}
+/// Rust source with comments and string literals blanked, like `code` for Lean.
+fn rust_code(source: &str) -> String {
+    let bytes = source.as_bytes();
+    let mut out = bytes.to_vec();
+    let mut i = 0;
+    let blank = |out: &mut Vec<u8>, from: usize, to: usize| {
+        for b in &mut out[from..to] {
+            if *b != b'\n' {
+                *b = b' ';
+            }
+        }
+    };
+    while i < bytes.len() {
+        if bytes[i..].starts_with(b"//") {
+            let end = bytes[i..]
+                .iter()
+                .position(|&b| b == b'\n')
+                .map_or(bytes.len(), |n| i + n);
+            blank(&mut out, i, end);
+            i = end;
+        } else if bytes[i..].starts_with(b"/*") {
+            let (mut depth, mut j) = (1, i + 2);
+            while j < bytes.len() && depth > 0 {
+                if bytes[j..].starts_with(b"/*") {
+                    depth += 1;
+                    j += 2;
+                } else if bytes[j..].starts_with(b"*/") {
+                    depth -= 1;
+                    j += 2;
+                } else {
+                    j += 1;
+                }
+            }
+            blank(&mut out, i, j);
+            i = j;
+        } else if bytes[i] == b'r'
+            && (i == 0 || !(bytes[i - 1].is_ascii_alphanumeric() || bytes[i - 1] == b'_'))
+            && bytes[i + 1..].starts_with(b"#")
+            || bytes[i..].starts_with(b"r\"")
+                && (i == 0 || !(bytes[i - 1].is_ascii_alphanumeric() || bytes[i - 1] == b'_'))
+        {
+            // A raw string: r"...", r#"..."#, and so on.
+            let hashes = bytes[i + 1..].iter().take_while(|&&b| b == b'#').count();
+            let open = i + 1 + hashes;
+            if bytes.get(open) != Some(&b'"') {
+                i += 1;
+                continue;
+            }
+            let mut close = b"\"".to_vec();
+            close.extend(std::iter::repeat_n(b'#', hashes));
+            let end = (open + 1..bytes.len())
+                .find(|&j| bytes[j..].starts_with(&close))
+                .map_or(bytes.len(), |j| j + close.len());
+            blank(&mut out, i, end);
+            i = end;
+        } else if bytes[i] == b'"' {
+            let mut j = i + 1;
+            while j < bytes.len() && bytes[j] != b'"' {
+                j += if bytes[j] == b'\\' { 2 } else { 1 };
+            }
+            let end = (j + 1).min(bytes.len());
+            blank(&mut out, i, end);
+            i = end;
+        } else {
+            i += 1;
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+fn identifiers(text: &str) -> impl Iterator<Item = &str> {
+    text.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '\'')
+        .filter(|word| word.starts_with(|c: char| c.is_alphabetic() || c == '_'))
+}
+
+/// The names a Lean source (comments and strings blanked) declares: each
+/// component of a declared name, constructors and structure fields.
+fn lean_declarations(code: &str, out: &mut BTreeSet<String>) {
+    const KEYWORDS: &[&str] = &[
+        "theorem",
+        "lemma",
+        "def",
+        "abbrev",
+        "structure",
+        "inductive",
+        "class",
+        "instance",
+        "opaque",
+        "namespace",
+        "section",
+    ];
+    for line in code.lines() {
+        let mut words = line.split_whitespace();
+        while let Some(word) = words.next() {
+            if KEYWORDS.contains(&word)
+                && let Some(name) = words.clone().next()
+            {
+                let name = name.split(['(', '[', '{', ':']).next().unwrap();
+                out.extend(name.split('.').filter(|c| !c.is_empty()).map(str::to_owned));
+            }
+        }
+        let trimmed = line.trim_start();
+        let first = |text: &str| identifiers(text).next().map(str::to_owned);
+        if let Some(rest) = trimmed.strip_prefix('|') {
+            out.extend(first(rest));
+        } else if trimmed.len() < line.len()
+            && let Some((field, _)) = trimmed.split_once(':')
+            && identifiers(field).count() == 1
+            && field
+                .trim()
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '\'')
+        {
+            out.extend(first(field));
+        }
+    }
+}
+
+/// Inline code spans of a Markdown file outside fenced blocks, with the line
+/// each starts on. A span may continue onto the next line.
+fn code_spans(markdown: &str) -> Vec<(usize, String)> {
+    let mut spans = Vec::new();
+    let mut paragraph: Vec<(usize, &str)> = Vec::new();
+    let mut fenced = false;
+    let mut flush = |paragraph: &mut Vec<(usize, &str)>| {
+        let mut open: Option<(usize, String)> = None;
+        for &(line, text) in paragraph.iter() {
+            for (k, piece) in text.split('`').enumerate() {
+                if k > 0 {
+                    match open.take() {
+                        Some(span) => spans.push(span),
+                        None => open = Some((line, String::new())),
+                    }
+                }
+                if let Some((_, span)) = &mut open {
+                    if k == 0 && !span.is_empty() {
+                        span.push(' ');
+                    }
+                    span.push_str(piece);
+                }
+            }
+        }
+        paragraph.clear();
+    };
+    for (line, text) in markdown.lines().enumerate() {
+        if text.trim_start().starts_with("```") {
+            flush(&mut paragraph);
+            fenced = !fenced;
+        } else if !fenced {
+            if text.trim().is_empty() || text.starts_with('|') {
+                flush(&mut paragraph);
+            }
+            paragraph.push((line + 1, text));
+            if text.starts_with('|') {
+                flush(&mut paragraph);
+            }
+        }
+    }
+    flush(&mut paragraph);
+    spans
+}
+
+/// A dotted Lean name, `Namespace.Sub.name`: CamelCase namespaces, then a
+/// declaration name. File names such as `DESIGN.md` are not.
+fn lean_citation(span: &str) -> Option<&str> {
+    let (namespaces, name) = span.rsplit_once('.')?;
+    let camel = |part: &str| {
+        part.starts_with(|c: char| c.is_ascii_uppercase())
+            && part.chars().all(|c| c.is_ascii_alphanumeric() || c == '\'')
+    };
+    let file = ["rs", "md", "txt", "lean", "toml", "json", "py", "sh"].contains(&name);
+    (!file
+        && namespaces.split('.').all(camel)
+        && name.starts_with(|c: char| c.is_alphabetic() || c == '_')
+        && name
+            .chars()
+            .all(|c| c.is_alphanumeric() || "_'!?".contains(c)))
+    .then_some(name)
+}
+
+/// A snake-case name of three or more words, as Rust test names are; a
+/// trailing `*` cites every name with that prefix.
+fn test_citation(span: &str) -> Option<&str> {
+    let name = span.strip_suffix('*').unwrap_or(span);
+    let words: Vec<_> = name.split('_').collect();
+    (words.len() >= 3
+        && words[0].starts_with(|c: char| c.is_ascii_lowercase())
+        && words.iter().all(|word| {
+            !word.is_empty()
+                && word
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        }))
+    .then_some(span)
+}
+
+/// Every Lean name a `rust/**/DESIGN.md` cites must be declared in some Lean
+/// source, matching on its last component (a cited namespace may abbreviate
+/// or nest differently), and every Rust test name it cites must exist in the
+/// Rust code, a Lean source, or as a file. Returns the failures and the
+/// number of citations checked.
+fn check_design_citations(paths: &BTreeSet<&str>) -> (usize, usize) {
+    let (mut lean, mut rust) = (BTreeSet::new(), BTreeSet::new());
+    for name in paths {
+        let path = Path::new(name);
+        let is_lean = name.starts_with("formal/") && name.ends_with(".lean");
+        let is_rust =
+            name.ends_with(".rs") && (name.starts_with("rust/") || name.starts_with("formal/"));
+        if !is_lean && !is_rust {
+            continue;
+        }
+        let stems = name.trim_end_matches(".lean").trim_end_matches(".rs");
+        let names = if is_lean { &mut lean } else { &mut rust };
+        names.extend(stems.split('/').map(str::to_owned));
+        let source = fs::read_to_string(path).unwrap();
+        if is_lean {
+            lean_declarations(&code(&source), &mut lean);
+        } else {
+            rust.extend(identifiers(&rust_code(&source)).map(str::to_owned));
+        }
+    }
+    let (mut failures, mut checked) = (0, 0);
+    for name in paths {
+        if !(name.starts_with("rust/") && name.ends_with("/DESIGN.md")) {
+            continue;
+        }
+        for (line, span) in code_spans(&fs::read_to_string(name).unwrap()) {
+            let span = span.trim();
+            if let Some(last) = lean_citation(span) {
+                checked += 1;
+                if !lean.contains(last) {
+                    eprintln!("{name}:{line}: cites `{span}`, but no Lean source declares {last}");
+                    failures += 1;
+                }
+            } else if let Some(test) = test_citation(span) {
+                checked += 1;
+                let found = match test.strip_suffix('*') {
+                    Some(prefix) => rust.iter().any(|n| n.starts_with(prefix)),
+                    None => rust.contains(test) || lean.contains(test),
+                };
+                if !found {
+                    eprintln!(
+                        "{name}:{line}: cites `{span}`, which no Rust or Lean source defines"
+                    );
+                    failures += 1;
+                }
+            }
+        }
+    }
+    (failures, checked)
 }
