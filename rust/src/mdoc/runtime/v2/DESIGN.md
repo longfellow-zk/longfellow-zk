@@ -24,7 +24,7 @@ six; the verifier also takes the proof, and the prover the document.
 
 | Part | Rust parameter | Constraint (checked before any circuit is loaded) |
 |---|---|---|
-| Session transcript | `transcript: &[u8]` | the transport's `SessionTranscript`: exactly one CBOR item that `CborParser::parse_exact` accepts: definite lengths only, nesting depth at most 64, text strings valid UTF-8 (`session_transcript_is_one_item`) |
+| Session transcript | `transcript: &[u8]` | the transport's `SessionTranscript`: at most `MAX_SESSION_TRANSCRIPT_BYTES` = 64 KiB (see Size limits), exactly one CBOR item that `CborParser::parse_exact` accepts: definite lengths only, nesting depth at most 64, text strings valid UTF-8 (`session_transcript_is_one_item`) |
 | Document type | `doc_type: &str` | 1 to `K_DOC_TYPE_BYTES` = 32 bytes |
 | Time | `now: &str` | `YYYY-MM-DD[Tt]hh:mm:ss[Zz]`, ASCII digits (`timestamp_digits`) |
 | Attributes | `attrs: &[RequestedAttribute]` | exactly `spec.num_attributes`, which must be 1 to `NEXT_MAX_ATTRIBUTES` = 4; one namespace, nonempty UTF-8 of at most `K_NAMESPACE_BYTES` = 64 bytes; identifier valid UTF-8, CBOR-encoded in at most `K_ATTR_ID_BYTES` = 32 bytes; CBOR value at most `K_ATTR_VALUE_BYTES` = 64 bytes, of a kind `circuit_supports` accepts |
@@ -36,6 +36,29 @@ integer, `true`/`false`, a tag-1004 full-date of 14 bytes, or a tag-0
 date-time of 22 bytes. The time is reduced to its fourteen
 `YYYYMMDDhhmmss` digits (`K_TIMESTAMP_DIGITS`), so `T`/`t` and `Z`/`z` are
 the same request.
+
+### Size limits
+
+The roles bound the variable-length inputs that they parse into CBOR trees,
+because a parsed tree can take a few hundred times the memory of its
+bytes (deeply nested one-entry maps).
+
+| Input | Limit | Checked by | Rejects with |
+|---|---|---|---|
+| Session transcript | `MAX_SESSION_TRANSCRIPT_BYTES` = 64 KiB | `Request::check`, before parsing (both roles) | `InvalidInput` |
+
+The session transcript limit follows from its structure. An ISO 18013-5
+`SessionTranscript` is `[DeviceEngagementBytes, EReaderKeyBytes, Handover]`.
+Device engagement holds a version, the device's ephemeral COSE key, and the
+retrieval methods and origin information, a few hundred bytes; the reader
+key is one COSE key, under 100 bytes; the handover is `null` (QR), two NFC
+handover messages (at most a few hundred bytes), or, for OpenID4VP and the
+Digital Credentials API (ISO 18013-7), a short array of a label and one or
+three SHA-256 digests or a nonce, about 100 bytes. Real transcripts thus stay
+under about 2 KB, and the test fixtures' are 61 to 188 bytes. 64 KiB leaves
+a margin of more than 30 over the largest plausible transcript, and bounds
+the transcript's parse tree at about 12 MB (191 times its size, the worst
+nesting).
 
 ### The claim
 
@@ -279,7 +302,7 @@ is unchanged (tests).
 
 | Step | Function | Rejects with |
 |---|---|---|
-| 1. Request | `Request::check`: the spec version first (`ZkSpecStruct::supports_version`), then the spec's attribute count against `NEXT_MAX_ATTRIBUTES` and the count, namespace, session transcript as one CBOR item, `public_inputs_fit`, `circuit_supports`, `parse_pk_coordinate` (I2) | `InvalidZkSpecVersion` for the version, `AttributeNumberMismatch` for the count, `UnsupportedAttribute` for a value kind, else `InvalidInput` |
+| 1. Request | `Request::check`: the spec version first (`ZkSpecStruct::supports_version`), then the spec's attribute count against `NEXT_MAX_ATTRIBUTES` and the count, namespace, session transcript (size, one CBOR item), `public_inputs_fit`, `circuit_supports`, `parse_pk_coordinate` (I2) | `InvalidZkSpecVersion` for the version, `AttributeNumberMismatch` for the count, `UnsupportedAttribute` for a value kind, else `InvalidInput` |
 | 2. Circuits | `Instance::load` (I3: archive, IDs, public-input counts) | `CircuitParsingFailure` |
 | 3. Composition | `link::composition` (I6) | `GeneralFailure` |
 | 4. Public inputs | `PublicInputs::derive` (I1) | none |
@@ -531,7 +554,7 @@ the C library's codes. The v2 entry points return:
 |---|---|---|
 | Unsupported spec version | `InvalidZkSpecVersion` (8) | `InvalidZkSpecVersion` (10) |
 | Attribute count differs from the spec | `InvalidInput` (2) | `AttributeNumberMismatch` (9) |
-| Any other request-shape failure: a spec attribute count outside 1 to `NEXT_MAX_ATTRIBUTES`, namespaces differ, a field out of range or malformed (including an empty document type), a session transcript that is not one CBOR item, a bad issuer key | `InvalidInput` (2) | `InvalidInput` (7) |
+| Any other request-shape failure: a spec attribute count outside 1 to `NEXT_MAX_ATTRIBUTES`, namespaces differ, a field out of range or malformed (including an empty document type), a session transcript longer than 64 KiB or not one CBOR item, a bad issuer key | `InvalidInput` (2) | `InvalidInput` (7) |
 | Unsupported attribute value | `UnsupportedAttribute` (36) | `UnsupportedAttribute` (11) |
 | Archive or circuit rejected: `Instance::load` (I3: archive, IDs, public-input counts) | `CircuitParsingFailure` (3) | `CircuitParsingFailure` (1) |
 | Proof does not parse | | `HashParsingFailure` (3) |

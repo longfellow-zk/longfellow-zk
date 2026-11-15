@@ -45,7 +45,7 @@ pub(super) enum RequestError {
     /// The number of requested attributes differs from the spec's.
     AttributeCount,
     /// Any other request-shape failure: namespaces differ, a field out of
-    /// range or malformed, a session transcript that is not one CBOR item, a
+    /// range or malformed, a session transcript that is too long or not one CBOR item, a
     /// bad issuer key.
     Shape,
     /// A requested value is of a kind the circuit does not support.
@@ -66,9 +66,10 @@ pub(super) struct Request<'a> {
 impl<'a> Request<'a> {
     /// Check a request, in the order of the error table: the spec version, the
     /// spec's attribute count against the supported range, the attribute
-    /// count, a shared namespace, the session transcript, the public-input
-    /// bounds and syntax, the attribute values, and the issuer key. Both
-    /// roles run this before loading circuits or drawing randomness.
+    /// count, a shared namespace, the session transcript (its size, then one
+    /// CBOR item), the public-input bounds and syntax, the attribute values,
+    /// and the issuer key. Both roles run this before loading circuits or
+    /// drawing randomness.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn check(
         spec: &'a ZkSpecStruct,
@@ -92,6 +93,7 @@ impl<'a> Request<'a> {
             return Err(RequestError::AttributeCount);
         }
         if !same_namespace(attributes)
+            || transcript.len() > MAX_SESSION_TRANSCRIPT_BYTES
             || !session_transcript_is_one_item(transcript)
             || !public_inputs_fit(attributes, now.as_bytes(), doc_type.as_bytes())
         {
@@ -137,6 +139,11 @@ impl<'a> Request<'a> {
         self.doc_type
     }
 }
+
+/// The largest session transcript a request may carry: 64 KiB, far above any
+/// ISO 18013-5 or OpenID4VP `SessionTranscript` (DESIGN.md, "Size limits").
+/// It bounds the CBOR tree that `session_transcript_is_one_item` builds.
+pub(super) const MAX_SESSION_TRANSCRIPT_BYTES: usize = 64 * 1024;
 
 /// Supported UTC spelling; T/t and Z/z have identical ordering semantics.
 pub(super) fn timestamp_digits(value: &[u8]) -> Option<[u8; 14]> {

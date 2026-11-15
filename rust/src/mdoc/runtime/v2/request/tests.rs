@@ -493,3 +493,56 @@ fn utc_public_input_syntax_is_checked_and_case_is_normalized() {
         assert_eq!(super::timestamp_digits(&time).unwrap(), expected);
     }
 }
+
+#[test]
+fn session_transcript_size_is_capped_in_both_roles() {
+    use super::MAX_SESSION_TRANSCRIPT_BYTES;
+    let spec = &v2_spec();
+    let attrs = [req_attr("namespace", "a", [0xf5])];
+    let now = "2026-10-23T00:00:00Z";
+    // One CBOR byte string of `total` bytes: the header 59 hh ll, then data.
+    let bstr = |total: usize| {
+        let len = u16::try_from(total - 3).unwrap();
+        let mut item = vec![0x59];
+        item.extend_from_slice(&len.to_be_bytes());
+        item.resize(total, 0xaa);
+        item
+    };
+    for (total, prover, verifier) in [
+        (
+            MAX_SESSION_TRANSCRIPT_BYTES,
+            MdocProverErrorCode::CircuitParsingFailure,
+            MdocVerifierErrorCode::CircuitParsingFailure,
+        ),
+        (
+            MAX_SESSION_TRANSCRIPT_BYTES + 1,
+            MdocProverErrorCode::InvalidInput,
+            MdocVerifierErrorCode::InvalidInput,
+        ),
+    ] {
+        let transcript = bstr(total);
+        assert!(super::session_transcript_is_one_item(&transcript));
+        let mut rng = DeterministicRng::new(42);
+        // Invalid circuit bytes: a transcript within the cap reaches loading.
+        assert_eq!(
+            run_mdoc_prover_inner(
+                spec,
+                &[],
+                &[],
+                "0",
+                "0",
+                &transcript,
+                &attrs,
+                now,
+                "doc",
+                &mut rng,
+            ),
+            Err(prover)
+        );
+        assert_eq!(rng.state, 42);
+        assert_eq!(
+            run_mdoc_verifier(spec, &[], "0", "0", &transcript, &attrs, now, "doc", &[]),
+            Err(verifier)
+        );
+    }
+}
