@@ -69,8 +69,12 @@ Its legacy index and opening samplers live on the v1 transcript, including
 the original extra-bit rejection behavior at power-of-two bounds. Shared
 `RandomEngine` contains no index sampler; its v1 extension is limited to
 legacy subfield sampling.
-V2 provers take their private coins as `PrivateRandom`, which no transcript
-implements, so a public challenge stream cannot stand in for them.
+V2 provers take their private coins as `PrivateRandom`. Every proof needs
+fresh coins that nobody else can predict: one proof made with predictable
+coins reveals the witness. The trait is sealed, so callers cannot supply their
+own engine; outside the crate only `SecureRandomEngine` (the operating
+system's CSPRNG) implements it. The guarantee holds only in builds without
+`testonly`, which also gives it to the seeded `DeterministicRng`.
 V2 uses SHA-256 strands. A session opens with its statement and then absorbs
 only prover messages, each a u64 tag from the registry `v2::proto::tags`
 followed by length-prefixed values (Bytes, Nats, Elements with their FieldID,

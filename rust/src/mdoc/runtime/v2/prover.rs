@@ -70,6 +70,12 @@ pub fn run_mdoc_prover(
     )
 }
 
+/// `run_mdoc_prover` with the caller's private coins. Every call needs fresh
+/// coins that nobody else can predict: a single proof made with predictable
+/// coins reveals the witness, the credential included. Without `testonly`
+/// the only `PrivateRandom` is `SecureRandomEngine`, which `run_mdoc_prover`
+/// uses; `testonly` adds the seeded `DeterministicRng`, for reproducible
+/// tests only.
 #[allow(clippy::too_many_arguments)]
 pub fn run_mdoc_prover_inner<RNG: PrivateRandom>(
     zk_spec: &ZkSpecStruct,

@@ -14,6 +14,10 @@
 
 mod engine;
 
+// Needed only where an engine implements the seal: `SecureRandomEngine`
+// (prover builds) and the test engines.
+#[cfg(any(test, feature = "prover", feature = "testonly"))]
+pub(crate) use engine::Sealed;
 pub use engine::{PrivateRandom, RandomEngine};
 
 #[cfg(feature = "prover")]

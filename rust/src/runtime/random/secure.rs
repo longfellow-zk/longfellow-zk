@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::random::{PrivateRandom, RandomEngine};
+use crate::runtime::random::{PrivateRandom, RandomEngine, Sealed};
 
 /// A cryptographically secure random engine backed by the operating system's CSPRNG.
+/// Every draw reads fresh bytes from it. In builds without `testonly` it is the
+/// only `PrivateRandom`.
 #[derive(Clone, Default, Debug)]
 pub struct SecureRandomEngine;
 
@@ -36,4 +38,5 @@ impl RandomEngine for SecureRandomEngine {
     }
 }
 
+impl Sealed for SecureRandomEngine {}
 impl PrivateRandom for SecureRandomEngine {}

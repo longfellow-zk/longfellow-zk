@@ -306,7 +306,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     /// Sample pads and return the native witness `[native private inputs |
     /// pads | R]`, which is empty for pure foreign storage. `mask` is R, present
     /// exactly when some values are native.
-    pub fn prepare_split(
+    pub(crate) fn prepare_split(
         &self,
         private: Vec<CircuitInput<F>>,
         mask: Option<F::E>,

@@ -394,8 +394,8 @@ pub fn top_weights(t: &mut Bound<'_, FrontendPart<'_, W, F>>)
 impl CircuitParticipant<W, F> {
     pub fn prepare(&self, private: Vec<CircuitInput<F>>, rng: &mut impl PrivateRandom)
         -> Result<(CircuitState<W, F>, Vec<F::E>), String>;
-    pub fn prepare_split(&self, private: Vec<CircuitInput<F>>, mask: Option<F::E>,
-                         rng: &mut impl PrivateRandom) -> Result<(SplitState<W, F>, Vec<F::E>), String>;
+    pub(crate) fn prepare_split(&self, private: Vec<CircuitInput<F>>, mask: Option<F::E>,
+                                rng: &mut impl PrivateRandom) -> Result<(SplitState<W, F>, Vec<F::E>), String>;
     pub fn foreign_values(&self, pending: &PendingSplit<F::E>)
         -> Result<Vec<F::E>, String>;                    // claim term order, R last
 }

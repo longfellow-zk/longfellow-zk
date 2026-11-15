@@ -46,16 +46,32 @@ pub trait RandomEngine {
     }
 }
 
+/// The seal of `PrivateRandom`. Only this crate can name it, so only this
+/// crate can implement `PrivateRandom`.
+pub trait Sealed {}
+
 /// Coins that stay private to the prover: masks, pads, nonces and one-time
-/// pads. v2 prover APIs take this, not `RandomEngine`, so a public Fiat-Shamir
-/// challenge stream such as the v1 transcript cannot be supplied as private
-/// randomness: transcripts never implement it.
+/// pads. v2 prover APIs take this, not `RandomEngine`.
 ///
-/// ```compile_fail
-/// use longfellow_zk::runtime::{random::PrivateRandom, v1::transcript::Transcript};
-/// fn private_coins(_: &mut impl PrivateRandom) {}
-/// fn challenges_as_coins(t: &mut Transcript) {
-///     private_coins(t);
+/// Zero knowledge needs coins that are fresh for every proof and that nobody
+/// else can predict: a single proof made with predictable coins reveals the
+/// witness. The trait is sealed, so no caller can supply its own engine, such
+/// as a public challenge stream, a fixed seed or replayed bytes. Outside this
+/// crate only `SecureRandomEngine`, which reads the operating system's CSPRNG
+/// for every draw, implements it, and the guarantee holds only in builds
+/// without the `testonly` feature: `testonly` also gives it to
+/// `DeterministicRng`, a seeded generator for reproducible tests whose proofs
+/// reveal their witnesses. The crate's own unit tests use further
+/// deterministic engines.
+///
+/// ```compile_fail,E0277
+/// use longfellow_zk::runtime::random::{PrivateRandom, RandomEngine};
+/// struct Zeros;
+/// impl RandomEngine for Zeros {
+///     fn bytes(&mut self, len: usize) -> Vec<u8> {
+///         vec![0; len]
+///     }
 /// }
+/// impl PrivateRandom for Zeros {}
 /// ```
-pub trait PrivateRandom: RandomEngine {}
+pub trait PrivateRandom: RandomEngine + Sealed {}

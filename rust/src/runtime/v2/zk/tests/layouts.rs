@@ -24,7 +24,7 @@ use crate::{
         algebra::{
             gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, RuntimeField,
         },
-        random::{PrivateRandom, RandomEngine},
+        random::{PrivateRandom, RandomEngine, Sealed},
         v2::{
             proto::{polygero::PolygeroConfig, zk::ZkProof},
             sumcheck::eval_circuit,
@@ -50,6 +50,7 @@ impl RandomEngine for SimpleRng {
         buf
     }
 }
+impl Sealed for SimpleRng {}
 impl PrivateRandom for SimpleRng {}
 
 #[allow(clippy::too_many_arguments)]

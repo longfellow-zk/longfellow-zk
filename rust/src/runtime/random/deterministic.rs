@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::runtime::random::{PrivateRandom, RandomEngine};
+use crate::runtime::random::{PrivateRandom, RandomEngine, Sealed};
 
+/// A seeded generator for reproducible tests, built only with `testonly`. Its
+/// coins are predictable, so a v2 proof made with it reveals its witness.
 #[derive(Clone, Debug)]
 pub struct DeterministicRng {
     pub state: u64,
@@ -43,4 +45,5 @@ impl DeterministicRng {
     }
 }
 
+impl Sealed for DeterministicRng {}
 impl PrivateRandom for DeterministicRng {}

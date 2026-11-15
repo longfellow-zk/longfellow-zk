@@ -2,7 +2,7 @@
 //! Ambient-field masking and privacy under witness translations.
 use super::*;
 use crate::runtime::{
-    random::{PrivateRandom, RandomEngine},
+    random::{PrivateRandom, RandomEngine, Sealed},
     v2::proto::polygero::PolygeroConfig,
 };
 
@@ -19,6 +19,7 @@ impl RandomEngine for MaskRng {
         self.inner.elt_field(f)
     }
 }
+impl Sealed for MaskRng {}
 impl PrivateRandom for MaskRng {}
 
 fn ambient_rows<const W: usize, F, D>(f: &F, domain: &D)
