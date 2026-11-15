@@ -21,6 +21,8 @@ use crate::{
 pub(super) enum Error {
     Encoding(MdocParseError),
     Predicate,
+    /// The document is longer than [`MAX_DOCUMENT_BYTES`].
+    TooLong,
 }
 impl From<MdocParseError> for Error {
     fn from(value: MdocParseError) -> Self {
@@ -28,13 +30,22 @@ impl From<MdocParseError> for Error {
     }
 }
 
+/// The largest document the prover parses: 256 KiB, well above a full mDL with
+/// its portrait (DESIGN.md, "Size limits"). It bounds the CBOR trees that
+/// parsing builds.
+pub(super) const MAX_DOCUMENT_BYTES: usize = 256 * 1024;
+
 /// Parse the document the checked request presents: its session transcript,
-/// document type and current time.
+/// document type and current time. A document longer than
+/// [`MAX_DOCUMENT_BYTES`] is rejected before any parsing.
 pub(super) fn parse(
     bytes: &[u8],
     request: &Request<'_>,
     field: &P256Field,
 ) -> Result<ParsedMdoc<RuntimeNat<4>>, Error> {
+    if bytes.len() > MAX_DOCUMENT_BYTES {
+        return Err(Error::TooLong);
+    }
     let doc_type = request.doc_type();
     parse_mdoc_with_mso_check(bytes, request.transcript(), doc_type, |mso| {
         validate_mso(mso, doc_type, request.now(), field)

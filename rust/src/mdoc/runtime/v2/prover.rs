@@ -144,7 +144,9 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
                 super::document::Error::Encoding(MdocParseError::TooBig) => {
                     MdocProverErrorCode::TaggedMsoTooBig
                 }
-                super::document::Error::Encoding(_) => MdocProverErrorCode::MsoDecodingFailure,
+                super::document::Error::Encoding(_) | super::document::Error::TooLong => {
+                    MdocProverErrorCode::MsoDecodingFailure
+                }
                 // Preserve the circuit's existing rejection code for well-formed
                 // documents that fail a presentation predicate.
                 super::document::Error::Predicate => MdocProverErrorCode::GeneralFailure,

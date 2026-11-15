@@ -46,6 +46,7 @@ bytes (deeply nested one-entry maps).
 | Input | Limit | Checked by | Rejects with |
 |---|---|---|---|
 | Session transcript | `MAX_SESSION_TRANSCRIPT_BYTES` = 64 KiB | `Request::check`, before parsing (both roles) | `InvalidInput` |
+| Document | `MAX_DOCUMENT_BYTES` = 256 KiB | `document::parse`, before parsing (prover) | `MsoDecodingFailure` |
 
 The session transcript limit follows from its structure. An ISO 18013-5
 `SessionTranscript` is `[DeviceEngagementBytes, EReaderKeyBytes, Handover]`.
@@ -59,6 +60,18 @@ under about 2 KB, and the test fixtures' are 61 to 188 bytes. 64 KiB leaves
 a margin of more than 30 over the largest plausible transcript, and bounds
 the transcript's parse tree at about 12 MB (191 times its size, the worst
 nesting).
+
+The document limit follows from real documents. The document carries the
+MSO, whose preimage the hash circuit bounds at `K_MSO_PREIMAGE_LEN`, and the
+issuer-signed items, of which only the requested ones must fit a circuit
+slot. A wallet may pass its whole credential: a full mDL carries a portrait
+(a JPEG, commonly 10 to 30 KB) and may carry a signature image or biometric
+templates, some tens of KB in all. The test fixtures, which hold only a few
+items, are 1,264 to 3,549 bytes (production Arizona and Malta documents
+included). 256 KiB leaves a margin of several times over a full mDL with its
+images, and bounds the document stage at about 85 MB (334 times its size,
+the worst nesting under an ignored key). The cap is v2's; the CBOR parser,
+which v1 shares, has none.
 
 ### The claim
 
@@ -316,7 +329,7 @@ witness encoders right after step 2 (I10), then proves and writes.
 
 | Prover step | Function | Rejects with |
 |---|---|---|
-| Document | `document::parse`: CBOR structure, MSO layout, signed `docType` equals the request's, `validFrom <= now <= validUntil`, device key type 2 (EC2) and curve 1 (P-256), canonical 32-byte coordinates on the curve | `TaggedMsoTooBig`, `MsoDecodingFailure`; a failed predicate is `GeneralFailure` |
+| Document | `document::parse`: at most `MAX_DOCUMENT_BYTES` = 256 KiB (Size limits), CBOR structure, MSO layout, signed `docType` equals the request's, `validFrom <= now <= validUntil`, device key type 2 (EC2) and curve 1 (P-256), canonical 32-byte coordinates on the curve | `TaggedMsoTooBig`, `MsoDecodingFailure`; a failed predicate is `GeneralFailure` |
 | Hash witness | `push_witness_hash` | `NamespacesMissing`, `AttributeNotFound`, `AttributeTooLong`, `TaggedMsoTooBig`, `MsoDecodingFailure`, `WitnessCreationFailure`; a requested value that differs from the document's, or an item that differs from its MSO digest, is `GeneralFailure` |
 | Signature witness | `push_witness_sig` | a signature the circuit rejects (`signature_accepted`) is `GeneralFailure`; an exceptional point or a layout drift is `WitnessCreationFailure` |
 | Prove and write | `ComposedStatement::prove`, `MdocProof::write` | `GeneralFailure` |

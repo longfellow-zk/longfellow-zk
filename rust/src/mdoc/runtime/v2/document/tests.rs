@@ -213,3 +213,34 @@ fn v2_document_requires_the_circuit_device_key_layout() {
         Err(Error::Encoding(MdocParseError::UnsupportedEncoding))
     ));
 }
+
+#[test]
+fn documents_longer_than_the_cap_are_rejected_before_parsing() {
+    let field = P256Field::new();
+    let spec = v2_spec();
+    let attrs = [req_attr("org.iso.18013.5.1", "a", [0xf5])];
+    let request = Request::check(
+        &spec,
+        TEST_DATA.pkx,
+        TEST_DATA.pky,
+        TEST_DATA.transcript,
+        &attrs,
+        TEST_DATA.now,
+        TEST_DATA.doc_type,
+        &field,
+    )
+    .unwrap();
+    // The fixture followed by zeros: at the cap it is parsed (and rejected for
+    // its trailing bytes); one byte more and it is rejected unparsed.
+    let mut padded = TEST_DATA.mdoc.to_vec();
+    padded.resize(MAX_DOCUMENT_BYTES, 0);
+    assert!(matches!(
+        parse(&padded, &request, &field),
+        Err(Error::Encoding(_))
+    ));
+    padded.push(0);
+    assert!(matches!(
+        parse(&padded, &request, &field),
+        Err(Error::TooLong)
+    ));
+}

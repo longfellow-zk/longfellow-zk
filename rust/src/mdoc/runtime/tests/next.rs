@@ -1444,6 +1444,7 @@ fn test_all_next_zk() {
     run_namespace_mixup(&test_circuits);
     run_next_error_table(&test_circuits);
     run_false_statements_fail_before_sampling(&test_circuits);
+    run_oversized_document_is_a_decoding_failure(&test_circuits);
 }
 
 /// A false statement fails before the prover draws a coin, with the circuit's
@@ -1480,6 +1481,31 @@ fn run_false_statements_fail_before_sampling(test_circuits: &TestCircuits) {
         );
         assert_eq!(rng.state, 42, "a false statement must fail before sampling");
     }
+}
+
+/// A document longer than the v2 cap fails as an undecodable MSO (mdoc
+/// DESIGN.md, "Size limits").
+fn run_oversized_document_is_a_decoding_failure(test_circuits: &TestCircuits) {
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
+    let req_attrs = requested_fixture_attributes(&parsed, "TEST_DATA");
+    let provided = test_circuits.get(req_attrs.len()).unwrap();
+    let mut mdoc = TEST_DATA.mdoc.to_vec();
+    mdoc.resize(256 * 1024 + 1, 0);
+    assert_eq!(
+        run_mdoc_prover_inner(
+            provided.spec(),
+            provided.compressed(),
+            &mdoc,
+            TEST_DATA.pkx,
+            TEST_DATA.pky,
+            TEST_DATA.transcript,
+            &req_attrs,
+            now,
+            TEST_DATA.doc_type,
+            &mut DeterministicRng::new(42),
+        ),
+        Err(MdocProverErrorCode::MsoDecodingFailure)
+    );
 }
 
 /// Check the shared development profile and its compiled circuit geometry.
