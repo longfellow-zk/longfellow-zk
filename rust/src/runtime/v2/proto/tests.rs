@@ -212,13 +212,11 @@ pub(crate) fn check_trace_matches_wire(
         let tag =
             Tag::from_value(m.tag).unwrap_or_else(|| panic!("tag {} is not registered", m.tag));
         assert!(tag.admits(&m.schema), "{tag:?} values {:?}", m.schema);
-        match m.tag {
-            16..=31 => assert!(
-                !prover,
-                "statement message {} after a prover message",
-                m.tag
-            ),
-            112 => {}
+        match tag {
+            _ if tag.is_setup() => {
+                assert!(!prover, "setup message {tag:?} after a prover message")
+            }
+            Tag::Seal => {}
             _ => {
                 prover = true;
                 payload.extend_from_slice(&m.payload);
@@ -231,10 +229,13 @@ pub(crate) fn check_trace_matches_wire(
         "wire bytes differ from absorbed payloads"
     );
     let seal = messages.last().unwrap();
-    assert_eq!(seal.tag, 112);
+    assert_eq!(seal.tag, Tag::Seal.value());
     assert!(seal.payload == proof[..proof.len() - 32]);
     assert_eq!(
-        messages.iter().filter(|m| m.tag == 112).count(),
+        messages
+            .iter()
+            .filter(|m| m.tag == Tag::Seal.value())
+            .count(),
         1,
         "one seal"
     );

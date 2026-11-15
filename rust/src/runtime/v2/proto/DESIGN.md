@@ -369,7 +369,9 @@ pub enum Tag {
     Seal = 112,
 }
 impl Tag {
-    pub const ALL: [Tag; 18];
+    pub const ALL: [Tag; 18];                       // each tag at its index
+    pub const fn index(self) -> usize;               // exhaustive match
+    pub const fn is_setup(self) -> bool;             // exhaustive match: the statement's tags
     pub const fn schema(self) -> &'static [Value];   // exhaustive match
     pub fn admits(self, values: &[(u64, u64)]) -> bool;
 }

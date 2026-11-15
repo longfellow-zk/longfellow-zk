@@ -79,7 +79,7 @@ pub enum Tag {
 }
 
 impl Tag {
-    /// Every tag, in value order.
+    /// Every tag, in value order, each at its `index`.
     pub const ALL: [Tag; 18] = [
         Tag::MdocStatement,
         Tag::ZkStatement,
@@ -103,6 +103,56 @@ impl Tag {
     /// The tag's u64 value on the transcript.
     pub const fn value(self) -> u64 {
         self as u64
+    }
+    /// The tag's position in `ALL`. The match is exhaustive, so a new tag
+    /// does not compile until it has a position, and the registry test
+    /// checks that `ALL` holds every tag at its position.
+    pub const fn index(self) -> usize {
+        match self {
+            Tag::MdocStatement => 0,
+            Tag::ZkStatement => 1,
+            Tag::Circuit => 2,
+            Tag::CommitmentLayout => 3,
+            Tag::JointGeometry => 4,
+            Tag::PublicInputs => 5,
+            Tag::AdapterLayout => 6,
+            Tag::Commitment => 7,
+            Tag::FingerprintResponse => 8,
+            Tag::SumcheckRound => 9,
+            Tag::SumcheckCross => 10,
+            Tag::SumcheckClaims => 11,
+            Tag::SplitOpening => 12,
+            Tag::P256AdapterQuotients => 13,
+            Tag::PackingU => 14,
+            Tag::PackingA => 15,
+            Tag::PolygeroResponse => 16,
+            Tag::Seal => 17,
+        }
+    }
+    /// Whether the tag is a setup message's, which only the statement
+    /// writes, before every prover message (transcript I1, I3). The match is
+    /// exhaustive, so a new tag must say which it is.
+    pub const fn is_setup(self) -> bool {
+        match self {
+            Tag::MdocStatement
+            | Tag::ZkStatement
+            | Tag::Circuit
+            | Tag::CommitmentLayout
+            | Tag::JointGeometry
+            | Tag::PublicInputs
+            | Tag::AdapterLayout => true,
+            Tag::Commitment
+            | Tag::FingerprintResponse
+            | Tag::SumcheckRound
+            | Tag::SumcheckCross
+            | Tag::SumcheckClaims
+            | Tag::SplitOpening
+            | Tag::P256AdapterQuotients
+            | Tag::PackingU
+            | Tag::PackingA
+            | Tag::PolygeroResponse
+            | Tag::Seal => false,
+        }
     }
     /// The tag with value `value`, if any.
     pub fn from_value(value: u64) -> Option<Tag> {
