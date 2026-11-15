@@ -17,7 +17,7 @@ variable (binary : BinaryCircuit B) (prime : PrimePublic Adapter.Mdoc.P 768)
 variable (primePlan : FrontendSchedule.Plan Adapter.Mdoc.P prime.circuit)
 variable (binaryNodes : Fin 2792 ↪ B) (scalars : MdocRuntime.Scalars B)
 variable (inputFits : 768+prime.remaining+prime.pads < 2^64)
-variable (privateFits : binary.nPrivate < 2^64) (setup : FingerprintPrefix.Setup)
+variable (privateFits : binary.nPrivate < 2^64) (setup : MdocRuntime.FormatSetup)
 local notation "Sh" => MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
   (RuntimeStatement.degreeFits binary)
 local notation "Repr" => MdocRuntime.representations scalars
@@ -56,7 +56,7 @@ theorem frontend_commitment
 truth; hash truth is independent of R, the pads and the virtual leaves by the
 circuit types. No parse or backend-truth
 certificate is assumed. All reserved-mask quantification is derived inside. -/
-local notation "Fmt" => LegacyFormat Repr Sh setup (BinaryPublic.nPublic binary.description)
+local notation "Fmt" => MdocRuntime.format binary.description prime binary.plan primePlan scalars inputFits privateFits (RuntimeStatement.degreeFits binary) setup
 theorem exists_satisfied
     (coins : CompleteHonest.Tape binary prime × CompleteHonest.Masks (B := B))
     (request : Request) (root : Digest) (SHA : Strand.Oracle)

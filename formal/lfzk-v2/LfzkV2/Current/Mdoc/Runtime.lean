@@ -21,7 +21,7 @@ structure Runtime (B : Type) [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMo
   scalars : MdocRuntime.Scalars B
   inputFits : 768+prime.remaining+prime.pads < 2^64
   privateFits : binary.nPrivate < 2^64
-  fingerprint : FingerprintPrefix.Setup
+  fingerprint : MdocRuntime.FormatSetup
   metadata : CanonicalRequest.Metadata (Advice := MdocAdvice.Value)
     (C := MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
     (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
@@ -42,9 +42,8 @@ abbrev protocol : Protocol.Setup FixedRate.Rate7.certificate g (MdocRuntime.fiel
   countPrime := Geometry.affineRows g Side.prime
   binaryCapacity := MdocRuntime.binaryCapacity S.binary.description S.binary.plan
   primeCapacity := MdocRuntime.primeCapacity S.prime S.primePlan
-  fmt := LegacyFormat (MdocRuntime.representations S.scalars)
-    (MdocRuntime.shape S.binary.description S.prime S.binary.plan S.primePlan
-      S.inputFits S.privateFits (by change 128 < 2^64; decide)) S.fingerprint S.binary.nPublic
+  fmt := MdocRuntime.format S.binary.description S.prime S.binary.plan S.primePlan S.scalars
+    S.inputFits S.privateFits (by change 128 < 2^64; decide) S.fingerprint
   binaryPlan := S.binary.plan
   primePlan := S.primePlan
   binaryGeometry := rfl

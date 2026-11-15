@@ -49,19 +49,18 @@ variable (remaining : Context → Fin prime.description.remaining → Adapter.Md
 local notation "Cfg" visible => StrandCanonicalContext.configuration binary prime.description prime.plan Nodes scalars
   bounds.inputFits bounds.privateFits (Setup visible)
 local notation "Wire" visible => CompleteCanonicalVerifier.publicConfig binary.description prime.description Nodes
-  ConcreteSetup.primeNodes (LegacyFormat Repr Sh (Setup visible) _) (Cfg visible)
+  ConcreteSetup.primeNodes (MdocRuntime.format binary.description prime.description binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary) (Setup visible)) (Cfg visible)
 local notation "First" => ConcreteSetup.backend Nodes binary.description.cells
 local notation "Second" => ConcreteSetup.backend ConcreteSetup.primeNodes
   (CellLayout.Prime.cells prime.description.remaining prime.description.pads)
 local notation "Earlier" visible => CompleteCanonicalVerifier.earlier binary.description prime.description Nodes
-  ConcreteSetup.primeNodes (LegacyFormat Repr Sh (Setup visible) _) (Cfg visible)
+  ConcreteSetup.primeNodes (MdocRuntime.format binary.description prime.description binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary) (Setup visible)) (Cfg visible)
   (RuntimeStatement.binary_count binary prime.description prime.plan bounds.inputFits bounds.privateFits)
   (Mdoc.SetupSupport.metadata binary prime cantor scalars ids bounds visible)
 local notation "Codec" visible => StrandCanonicalBackend.indexedCodec binary.description prime.description Nodes
-  ConcreteSetup.primeNodes (LegacyFormat Repr Sh (Setup visible) _) (Cfg visible)
-local notation "PrimePublic" visible => CanonicalRuntime.decodePrimePublic binary.description prime.description First Second (LegacyFormat Repr Sh
-  (Setup visible) _) (CompleteCanonicalVerifier.basePublic binary.description prime.description Nodes
-    ConcreteSetup.primeNodes (LegacyFormat Repr Sh (Setup visible) _) (Cfg visible))
+  ConcreteSetup.primeNodes (MdocRuntime.format binary.description prime.description binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary) (Setup visible)) (Cfg visible)
+local notation "PrimePublic" visible => CanonicalRuntime.decodePrimePublic binary.description prime.description First Second (MdocRuntime.format binary.description prime.description binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary) (Setup visible)) (CompleteCanonicalVerifier.basePublic binary.description prime.description Nodes
+    ConcreteSetup.primeNodes (MdocRuntime.format binary.description prime.description binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary) (Setup visible)) (Cfg visible))
   (RuntimeStatement.prime_count binary prime.description prime.plan bounds.inputFits bounds.privateFits)
 
 local notation "Budget" => 2+2*2443+(blocks+1)*List.length (Geometry.roles G)

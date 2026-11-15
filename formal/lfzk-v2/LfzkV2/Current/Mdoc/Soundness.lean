@@ -57,7 +57,7 @@ local notation "primeFits" => Nat.le_max_right ((Layered.Circuit.layers (PrimePu
 local notation "df" => Nat.le_max_left (BinaryPublic.degree bp) binary.plan.capacity
 local notation "rf" => Nat.le_max_left ((Layered.Circuit.layers (PrimePublic.circuit pp))+1) prime.plan.capacity
 local notation "Point" => QueryRuntime.Runtime.Point repr shape setup (BinaryPublic.nPublic bp)
-local notation "Values" => Protocol.Sampling.values c bp pp P R cb cp bc pc (LegacyFormat repr shape setup (BinaryPublic.nPublic bp))
+local notation "Values" => Protocol.Sampling.values c bp pp P R cb cp bc pc (MdocRuntime.format bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide) setup)
 local notation "First" => FieldBackend.participant (FieldBackend.indexed P cb)
 local notation "Second" => FieldBackend.participant (FieldBackend.indexed R cp)
 
@@ -74,13 +74,13 @@ private instance familyLeafInhabited {k s n t : ℕ} (family : Joint.Family k s 
 
 
 local notation "I" => IdealRuntime.challengePublic bp pp P R cb cp bc pc cfg
-local notation "W" => CanonicalRuntime.wirePublic bp pp P R (LegacyFormat repr shape setup (BinaryPublic.nPublic bp)) I
-local notation "earlier" => CanonicalRuntime.earlier bp pp P R (LegacyFormat repr shape setup (BinaryPublic.nPublic bp)) I rfl metadata
-local notation "decodePublic" => CanonicalRuntime.decodePrimePublic bp pp P R (LegacyFormat repr shape setup (BinaryPublic.nPublic bp)) I rfl
+local notation "W" => CanonicalRuntime.wirePublic bp pp P R (MdocRuntime.format bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide) setup) I
+local notation "earlier" => CanonicalRuntime.earlier bp pp P R (MdocRuntime.format bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide) setup) I rfl metadata
+local notation "decodePublic" => CanonicalRuntime.decodePrimePublic bp pp P R (MdocRuntime.format bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide) setup) I rfl
 local notation "draw" => IdealRuntime.draw bp pp P R cb cp bc pc cfg
 local notation "codec" => MerkleWireCodec.codec First Second repr
   (RuntimeVerifier.Public.binaryField cfg) (RuntimeVerifier.Public.primeField cfg)
-  (FingerprintPrefix.Setup.jointContext setup) (by decide)
+  (Format.jointContext (MdocRuntime.format bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide) setup)) (by decide)
 local notation "Output" => CanonicalRuntime.Output (Advice := MdocAdvice.Value) bp shape
 local notation "Witness" => Selection.Pair B (ZMod Adapter.Mdoc.primeOrder)
   (BinaryPublic.Original bp) (PrimePublic.Original pp)
@@ -95,7 +95,7 @@ theorem decoded_valid (output : Output) (H : Point → Digest × Answer)
     (found : RuntimeAdaptiveVerifier.decode bp pp P R W earlier
       (CanonicalRequest.hashPublic (BinaryPublic.nPublic bp)) decodePublic draw output H = some decoded)
     (w : Witness) (truth : decoded.application.True w) : Valid binary prime bounds output.request w := by
-  exact MdocWitness.valid_at_request binary prime P R (LegacyFormat repr shape setup (BinaryPublic.nPublic bp)) I rfl rfl metadata draw
+  exact MdocWitness.valid_at_request binary prime P R (MdocRuntime.format bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide) setup) I rfl rfl metadata draw
     output H decoded found w truth
 
 variable {fuel blocks Q : ℕ}
@@ -105,7 +105,7 @@ variable (sample : (point : Mdoc.RuntimeSoundness.RoundPoint binary prime cantor
     (Mdoc.OracleSoundness.identifiers ids outside) bounds) →
   Tree Strand.Word Digest (Option (Mdoc.RuntimeSoundness.RoundValue binary prime cantor scalars
     (Mdoc.OracleSoundness.identifiers ids outside) bounds point)) blocks)
-local notation "physical" => Protocol.Sampling.sampler c bp pp P R cb cp bc pc (LegacyFormat repr shape setup (BinaryPublic.nPublic bp))
+local notation "physical" => Protocol.Sampling.sampler c bp pp P R cb cp bc pc (MdocRuntime.format bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide) setup)
   binary.plan prime.plan rfl rfl bf primeFits df rf cfg sample
 local notation "Raw" => Mdoc.OracleSoundness.Raw binary prime cantor scalars ids bounds body outside fits sample
 local notation "view" G => Mdoc.OracleSoundness.observation binary prime cantor scalars ids bounds body outside fits sample G

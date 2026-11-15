@@ -193,9 +193,9 @@ theorem fixedComplement (outside : Strand.Oracle) :
   let cfg := StrandCanonicalContext.configuration binary prime.description prime.plan Nodes scalars
     bounds.inputFits bounds.privateFits (Setup visible)
   let codec := StrandCanonicalBackend.indexedCodec binary.description prime.description Nodes ConcreteSetup.primeNodes
-    (LegacyFormat Repr Sh (Setup visible) _) cfg
+    (MdocRuntime.format binary.description prime.description binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary) (Setup visible)) cfg
   let dec := StrandCanonicalBackend.indexedDecoders binary.description prime.description Nodes ConcreteSetup.primeNodes
-    (LegacyFormat Repr Sh (Setup visible) _) cfg
+    (MdocRuntime.format binary.description prime.description binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (RuntimeStatement.degreeFits binary) (Setup visible)) cfg
   let encode := StrandGhostMerkle.Probability.leafEmbedding codec dec
   have encodeDomain : ∀ leaf, SHAOracle.merkleDomain (encode leaf) := by
     intro leaf

@@ -13,14 +13,14 @@ variable (binary : BinaryCircuit B) (prime : PrimePublic N 768)
 variable (primePlan : FrontendSchedule.Plan N prime.circuit) (binaryNodes : Fin 2792 ↪ B)
 variable (scalars : MdocRuntime.Scalars B)
 variable (inputFits : 768+prime.remaining+prime.pads < 2^64) (privateFits : binary.nPrivate < 2^64)
-variable (setup : FingerprintPrefix.Setup)
+variable (setup : MdocRuntime.FormatSetup)
 local notation "G" => MdocRuntime.geometry binary.description prime binary.plan primePlan
 local notation "Sh" => MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits
   (RuntimeStatement.degreeFits binary)
 local notation "Repr" => MdocRuntime.representations scalars
 local notation "Cfg" => RuntimeStatement.configuration binary prime primePlan binaryNodes scalars inputFits privateFits setup
 local notation "Request" => CanonicalRequest.Request Sh binary.nPublic
-local notation "Fmt" => LegacyFormat Repr Sh setup (BinaryPublic.nPublic binary.description)
+local notation "Fmt" => MdocRuntime.format binary.description prime binary.plan primePlan scalars inputFits privateFits (RuntimeStatement.degreeFits binary) setup
 local notation "Point" => (Format.Point (Fmt))
 local notation "Answer" => MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes
 /-- Expose the already fixed runtime geometry once, so composition never

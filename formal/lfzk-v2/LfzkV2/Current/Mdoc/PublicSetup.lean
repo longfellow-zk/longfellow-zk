@@ -105,7 +105,7 @@ def values (SHA : Bytes → Digest) : Values where
   primeContext := MdocIdentifiers.primeContext prime scalars (Mdoc.PublicSetup.identifiers ids SHA)
   jointContext := (Mdoc.PublicSetup.setup binary prime cantor scalars ids bounds SHA).jointContext
 
-def setup (visible : Values) : FingerprintPrefix.Setup :=
+def setup (visible : Values) : MdocRuntime.FormatSetup :=
   { Mdoc.PublicSetup.setup binary prime cantor scalars ids bounds (fun _ => fun _ => 0) with
     fragment := visible.fragment
     jointContext := visible.jointContext }

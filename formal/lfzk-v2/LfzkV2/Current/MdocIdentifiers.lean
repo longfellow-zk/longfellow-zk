@@ -130,7 +130,7 @@ def storageWords (bounds : Bounds binary prime) : List FingerprintPrefix.Word :=
       word (prime.description.remaining+prime.description.pads) hr,word 0 (by decide),
     word (binary.nPublic+binary.hashPrivate) hh,word 256 (by decide)]
 
-def setup (ids : Identifiers) (bounds : Bounds binary prime) : FingerprintPrefix.Setup where
+def setup (ids : Identifiers) (bounds : Bounds binary prime) : MdocRuntime.FormatSetup where
   combinedHash := ids.combinedHash
   hashCircuit := ids.hashCircuit
   fragment := fragmentId binary scalars ids

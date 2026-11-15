@@ -3,6 +3,7 @@ import LfzkV2.Current.MdocAdvice
 import LfzkV2.Current.IdealRuntime
 import LfzkV2.Current.MerkleWireCodec
 import LfzkV2.Current.ConcreteMetadata
+import LfzkV2.Current.LegacyFormat
 
 /-! Fixed public readers for the current mdoc verifier. The only scalar
 representations supplied here are the field implementation's canonical
@@ -121,7 +122,17 @@ def shape : WireBlocks.Shape (geometry binary prime binaryPlan primePlan) (field
   ConcreteSetup.shape binary prime binaryPlan.frontend primePlan.frontend
     (Equiv.refl _) (Equiv.refl _) inputFits (by decide) privateFits degreeFits
 
-variable (setup : FingerprintPrefix.Setup)
+/-- The setup constants the deployed transcript format absorbs. -/
+abbrev FormatSetup := FingerprintPrefix.Setup
+
+variable (setup : FormatSetup)
+
+/-- The deployed mdoc transcript format: the one format of the soundness and
+zero-knowledge endpoints. -/
+abbrev format : Format (geometry binary prime binaryPlan primePlan) (fields B) MdocAdvice.Value binary.nPublic :=
+  LegacyFormat (representations scalars) (shape binary prime binaryPlan primePlan inputFits privateFits degreeFits)
+    setup binary.nPublic
+
 variable (card : Fintype.card B = Adapter.Mdoc.binaryOrder) (polynomialX : Bˣ)
 
 /-- All protocol callbacks are fixed here. In particular the advice decoder
@@ -131,9 +142,8 @@ def configuration : RuntimeVerifier.Public
     (g := geometry binary prime binaryPlan primePlan)
     binary prime (binaryBackend binary binaryNodes) (primeBackend prime)
     (fields := fields B) (Advice := MdocAdvice.Value)
-    (Base := CanonicalRequest.Base (representations scalars)
-      (shape binary prime binaryPlan primePlan inputFits privateFits degreeFits) setup binary.nPublic)
-    (Key := FingerprintPrefix.Key binary.nPublic)
+    (Base := (format binary prime binaryPlan primePlan scalars inputFits privateFits degreeFits setup).Base)
+    (Key := (format binary prime binaryPlan primePlan scalars inputFits privateFits degreeFits setup).Key)
     (C := Answer binary prime binaryPlan primePlan binaryNodes)
     (Salt := MerkleWireCodec.Salt 2443) where
   card := card
@@ -162,8 +172,9 @@ def configuration : RuntimeVerifier.Public
   openingPositive := by decide
   openingBase := fun _ => ⟨[],by simp⟩
   initialLink := fun _ => 0
-  root := FingerprintPrefix.Key.root
-  authenticationContext := fun _ => setup.jointContext
+  root := (format binary prime binaryPlan primePlan scalars inputFits privateFits degreeFits setup).root
+  authenticationContext := fun _ =>
+    (format binary prime binaryPlan primePlan scalars inputFits privateFits degreeFits setup).jointContext
   bindSalt := fun _ column nonce => (column,nonce)
   sample := fun answer => answer .opening
 

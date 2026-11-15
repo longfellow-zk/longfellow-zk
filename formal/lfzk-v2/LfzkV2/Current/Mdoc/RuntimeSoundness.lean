@@ -47,7 +47,7 @@ local notation "primeFits" => Nat.le_max_right ((Layered.Circuit.layers (PrimePu
 local notation "df" => Nat.le_max_left (BinaryPublic.degree bp) binary.plan.capacity
 local notation "rf" => Nat.le_max_left ((Layered.Circuit.layers (PrimePublic.circuit pp))+1) prime.plan.capacity
 local notation "Point" => QueryRuntime.Runtime.Point repr shape setup (BinaryPublic.nPublic bp)
-local notation "Values" => Protocol.Sampling.values c bp pp P R cb cp bc pc (LegacyFormat repr shape setup (BinaryPublic.nPublic bp))
+local notation "Values" => Protocol.Sampling.values c bp pp P R cb cp bc pc (MdocRuntime.format bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide) setup)
 local notation "First" => FieldBackend.participant (FieldBackend.indexed P cb)
 local notation "Second" => FieldBackend.participant (FieldBackend.indexed R cp)
 

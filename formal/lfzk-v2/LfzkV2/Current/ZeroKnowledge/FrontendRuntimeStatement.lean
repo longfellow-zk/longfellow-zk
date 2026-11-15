@@ -25,7 +25,7 @@ variable (inputFits : 768+prime.remaining+prime.pads < 2^64) (privateFits : bina
 omit [Fintype B] [DecidableEq B] in
 theorem degreeFits : binary.description.degree < 2^64 := by change (128 : ℕ) < 2^64; norm_num
 
-variable (setup : FingerprintPrefix.Setup)
+variable (setup : MdocRuntime.FormatSetup)
 
 def configuration := MdocRuntime.configuration binary.description prime binary.plan primePlan binaryNodes scalars
   inputFits privateFits (degreeFits binary) setup (MdocRuntime.field_card binary.basis) (MdocRuntime.polynomialX binary.basis)
@@ -55,7 +55,7 @@ variable (H : QueryRuntime.Runtime.Point (MdocRuntime.representations scalars)
   (MdocRuntime.shape binary.description prime binary.plan primePlan inputFits privateFits (degreeFits binary)) setup binary.nPublic →
   Digest × MdocRuntime.Answer binary.description prime binary.plan primePlan binaryNodes)
 
-local notation "Fmt" => LegacyFormat Repr Shape setup (BinaryPublic.nPublic binary.description)
+local notation "Fmt" => MdocRuntime.format binary.description prime binary.plan primePlan scalars inputFits privateFits (degreeFits binary) setup
 local notation "Public" => CanonicalRuntime.wirePublic binary.description prime First Second (Fmt) Cfg
 local notation "BinaryRequest" => CanonicalRuntime.binaryRequest binary.description prime First Second (Fmt) Cfg
   (binary_count binary prime primePlan inputFits privateFits)
