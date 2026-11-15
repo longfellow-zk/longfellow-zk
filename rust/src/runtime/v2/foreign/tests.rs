@@ -15,7 +15,8 @@ fn masked_word_codec_is_canonical() {
     let k = Word::<10>::new(0x2a5).unwrap();
     assert!(Word::<10>::new(1 << 10).is_err());
     let o = Otp::<10>::sample(&mut rng);
-    let m = MaskedWord::mask(k, &o);
+    let pad: Vec<_> = o.bits().collect();
+    let m = MaskedWord::mask(k, o);
     let bytes = m.encoded();
     assert_eq!(bytes.len(), 2);
     let mut read = bytes.as_slice();
@@ -29,10 +30,29 @@ fn masked_word_codec_is_canonical() {
     }
     assert!(MaskedWord::<10>::read(&mut &bytes[..1]).is_err());
     // Unmasking recovers k bit by bit.
-    let pad: Vec<_> = o.bits().collect();
     for (j, &p) in pad.iter().enumerate() {
         assert_eq!(m.bit(j) ^ p, (k.value() >> j) & 1 != 0);
     }
+}
+
+/// A pad's `Debug` output does not depend on, or print, its value.
+#[test]
+fn pad_debug_omits_the_value() {
+    let mut rng = DeterministicRng::new(11);
+    let (a, b) = (Otp::<64>::sample(&mut rng), Otp::<64>::sample(&mut rng));
+    let value = |o: &Otp<64>| {
+        o.bits()
+            .enumerate()
+            .fold(0u64, |v, (j, bit)| v | (u64::from(bit) << j))
+    };
+    assert_ne!(value(&a), value(&b));
+    for o in [&a, &b] {
+        let printed = format!("{o:?} {o:#?}");
+        assert!(!printed.contains(&value(o).to_string()));
+        assert!(!printed.contains(&format!("{:x}", value(o))));
+    }
+    assert_eq!(format!("{a:?}"), "Otp { .. }");
+    assert_eq!(format!("{a:?}"), format!("{b:?}"));
 }
 
 #[test]

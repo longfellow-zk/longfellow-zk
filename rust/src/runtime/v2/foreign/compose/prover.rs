@@ -65,7 +65,7 @@ where
         let mut ta = joint.bound(&c.mode);
         let conversion = M::draw_conversion(&mut ta, fs);
         let (message, leaves) =
-            M::prove(&mut ta, &split.foreign, &values, &pads, conversion, fs, fh)?;
+            M::prove(&mut ta, &split.foreign, &values, pads, conversion, fs, fh)?;
         let mut th = joint.bound(&this.host);
         let top_host = joint::top_weights(&mut th)?;
         let (host, statement_host) =

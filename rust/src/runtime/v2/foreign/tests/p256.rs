@@ -60,9 +60,11 @@ fn mu_is_bound_and_derived_claims_are_not_absorbed() {
 
 #[test]
 fn masked_quotients_are_bound() {
-    let mut rng = DeterministicRng::new(3);
-    let pad = Otp::<10>::sample(&mut rng);
-    let word = |k| MaskedWord::mask(Word::<10>::new(k).unwrap(), &pad);
+    // One pad per word, each the same seeded draw, so only the words differ.
+    let word = |k| {
+        let pad = Otp::<10>::sample(&mut DeterministicRng::new(3));
+        MaskedWord::mask(Word::<10>::new(k).unwrap(), pad)
+    };
     let state = |m: [MaskedWord<10>; 2]| {
         let mut t = Transcript::for_test(b"advice-binding");
         send_quotients(&mut t.borrow(), &m);
@@ -89,7 +91,6 @@ fn tree_leaves_authenticate_claim_bits_and_masked_quotients() {
     let otp = [suffix.word::<Q>().unwrap(), suffix.word::<Q>().unwrap()];
     let values = [p.one(), p.u64_to_element(12345)];
     let mut rng = DeterministicRng::new(91);
-    let pads = [Otp::<Q>::sample(&mut rng), Otp::<Q>::sample(&mut rng)];
     for weights in [[p.u64_to_element(42), p.one()], [p.zero(), p.zero()]] {
         let claim = ModularClaim {
             terms: groups
@@ -102,10 +103,14 @@ fn tree_leaves_authenticate_claim_bits_and_masked_quotients() {
         let alpha = [p.u64_to_element(17), p.u64_to_element(31)];
         let encoded = plan.encode(&claim, &alpha, Some(&values), &p, &f).unwrap();
         let q = encoded.quotients.unwrap();
-        let masked = [
-            MaskedWord::mask(q[0], &pads[0]),
-            MaskedWord::mask(q[1], &pads[1]),
-        ];
+        // Fresh pads for each proof, committed before they mask the quotients.
+        let pads = [Otp::<Q>::sample(&mut rng), Otp::<Q>::sample(&mut rng)];
+        let mut reserved = suffix.witness();
+        for (g, pad) in otp.iter().zip(&pads) {
+            reserved.set(g.group(), pad.bits()).unwrap();
+        }
+        let [o0, o1] = pads;
+        let masked = [MaskedWord::mask(q[0], o0), MaskedWord::mask(q[1], o1)];
         let shape = plan.shape();
         let leaves = virtual_inputs(shape, encoded.trees(&claim, &otp, &masked, &f), &f).unwrap();
         let c = fragment(0, suffix.end(), shape).unwrap();
@@ -116,10 +121,6 @@ fn tree_leaves_authenticate_claim_bits_and_masked_quotients() {
             committed.extend(
                 (0..g.width()).map(|r| f.u128_to_element(u128::from((b[r / 8] >> (r % 8)) & 1))),
             );
-        }
-        let mut reserved = suffix.witness();
-        for (g, pad) in otp.iter().zip(&pads) {
-            reserved.set(g.group(), pad.bits()).unwrap();
         }
         committed.extend(
             reserved

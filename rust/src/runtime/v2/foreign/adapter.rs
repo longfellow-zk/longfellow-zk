@@ -244,12 +244,13 @@ pub trait AdapterMode<F: SerializableField>: Sized {
     /// `verify`, which accept it before sending (transcript I8).
     fn draw_conversion(t: &mut Bound<'_, Self>, f: &F) -> Challenge<Self::Conversion>;
     /// Prover rounds: `values` are the claim's term values, in term order.
+    /// They consume the proof's fresh `pads`, so a pad masks one message.
     #[cfg(any(test, feature = "prover"))]
     fn prove(
         t: &mut Bound<'_, Self>,
         claim: &ModularClaim<F::E>,
         values: &[F::E],
-        pads: &Self::Pads,
+        pads: Self::Pads,
         conversion: Challenge<Self::Conversion>,
         f: &F,
         gf2: &Gf2_128Field,

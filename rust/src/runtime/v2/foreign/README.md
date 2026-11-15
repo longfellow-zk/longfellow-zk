@@ -61,7 +61,8 @@ This module discharges the modular claims:
 - `word`: three types.
   - `Word<N>`: the integer quotient, used only inside the adapter.
   - `Otp<N>`: the committed one-time pad, built only by the prover from
-    `ceil(N/8)` fresh bytes.
+    `ceil(N/8)` fresh bytes. It is not `Copy` or `Clone`, masking consumes
+    it, and its `Debug` output omits the value.
   - `MaskedWord<N>`: an element of GF(2)^N. It is the only one of these
     types that appears in a proof, and its canonical encoding (zero
     padding enforced) is defined once here.

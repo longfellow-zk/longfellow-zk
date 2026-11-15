@@ -35,9 +35,35 @@ impl<const N: usize> Word<N> {
     }
 }
 
-/// A committed uniform pad for one `Word<N>`. Only the prover constructs it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// A committed uniform pad for one `Word<N>`. Only the prover constructs it,
+/// fresh for each proof. It is neither `Copy` nor `Clone`, and
+/// `MaskedWord::mask` consumes it, so one pad masks exactly one word: two
+/// words masked with one pad would publish their XOR. Its `Debug` output
+/// omits the value.
+///
+/// ```compile_fail,E0382
+/// use longfellow_zk::runtime::v2::foreign::word::{MaskedWord, Otp, Word};
+/// fn reuse(a: Word<8>, b: Word<8>, o: Otp<8>) -> [MaskedWord<8>; 2] {
+///     [MaskedWord::mask(a, o), MaskedWord::mask(b, o)]
+/// }
+/// ```
+///
+/// ```compile_fail,E0277
+/// use longfellow_zk::runtime::v2::foreign::word::Otp;
+/// fn duplicate<T: Clone>(o: &T) -> T {
+///     o.clone()
+/// }
+/// fn reuse(o: &Otp<8>) -> Otp<8> {
+///     duplicate(o)
+/// }
+/// ```
+#[derive(PartialEq, Eq)]
 pub struct Otp<const N: usize>(u64);
+impl<const N: usize> std::fmt::Debug for Otp<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Otp").finish_non_exhaustive()
+    }
+}
 impl<const N: usize> Otp<N> {
     pub fn sample(rng: &mut impl PrivateRandom) -> Self {
         let () = Word::<N>::WIDTH_OK;
@@ -58,7 +84,8 @@ pub struct MaskedWord<const N: usize>(u64);
 impl<const N: usize> MaskedWord<N> {
     /// Encoded length: N bits, least significant first, zero-padded to bytes.
     pub const BYTES: usize = N.div_ceil(8);
-    pub fn mask(k: Word<N>, o: &Otp<N>) -> Self {
+    /// Mask `k` with the pad `o`, which this consumes.
+    pub fn mask(k: Word<N>, o: Otp<N>) -> Self {
         Self(k.0 ^ o.0)
     }
     pub fn bit(self, j: usize) -> bool {

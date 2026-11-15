@@ -140,12 +140,16 @@ nonzero draw (type); `P256Plan::TREES = 2` fixes the fragment's
 **I5. Quotients are words, published only masked.** The honest quotient
 `k_t` is a `Word<Q>` and never leaves the adapter. The proof carries
 `MaskedWord<Q> = k_t xor o_t`, where `o_t` is an `Otp<Q>` committed in the
-binary witness. The claim's bit count is at most `2^Q`, so every honest
-quotient fits.
+binary witness. Each pad is sampled fresh for the proof and masks exactly
+one quotient: two words masked with one pad would publish their XOR. The
+claim's bit count is at most `2^Q`, so every honest quotient fits.
 *Enforced by:* `Word` has no encoder and `Otp` is built only by the
-prover's `Otp::sample` (type); `P256Plan::new` rejects `bits > 2^Q`
-(runtime); mdoc's const assertion `SHARED_BITS + MASK_BITS <= 1 <<
-QUOTIENT_BITS`; `MaskedWord::read` rejects nonzero padding (runtime).
+prover's `Otp::sample`, which `ComposedStatement::prove` calls through
+`sample_pads` for each proof; `Otp` is neither `Copy` nor `Clone`, its
+`Debug` omits the value, and `MaskedWord::mask` and `AdapterMode::prove`
+consume their pads (type); `P256Plan::new` rejects `bits > 2^Q` (runtime);
+mdoc's const assertion `SHARED_BITS + MASK_BITS <= 1 << QUOTIENT_BITS`;
+`MaskedWord::read` rejects nonzero padding (runtime).
 
 **I6. The binary input array is fixed and partitioned.** Its layout is
 
@@ -472,7 +476,7 @@ pub trait AdapterMode<F: SerializableField>: Sized {
     // Accepts the conversion, sends Message, returns the leaves (I3).
     #[cfg(any(test, feature = "prover"))]
     fn prove(t: &mut Bound<'_, Self>, claim: &ModularClaim<F::E>, values: &[F::E],
-             pads: &Self::Pads, conversion: Challenge<Self::Conversion>, f: &F, gf2: &Gf2_128Field)
+             pads: Self::Pads, conversion: Challenge<Self::Conversion>, f: &F, gf2: &Gf2_128Field)
         -> Result<(Self::Message, VirtualInputs<Gf2_128>), String>;
     #[cfg(any(test, feature = "verifier"))]
     fn verify(t: &mut Bound<'_, Self>, claim: &ModularClaim<F::E>, message: &Self::Message,
@@ -496,11 +500,12 @@ pub struct P256Mode<const Q: usize> { .. }              // AdapterMode<P256Field
 
 // runtime::v2::foreign::word (I5)
 pub struct Word<const N: usize>(u64);                   // adapter-internal, no encoder
-pub struct Otp<const N: usize>(u64);                    // built only by Otp::sample
+pub struct Otp<const N: usize>(u64);                    // built only by Otp::sample; not Copy or Clone
+impl<const N: usize> Debug for Otp<N> { .. }            // prints "Otp { .. }", never the value
 pub struct MaskedWord<const N: usize>(u64);             // the only word in a proof
 impl<const N: usize> MaskedWord<N> {
     pub const BYTES: usize = N.div_ceil(8);
-    pub fn mask(k: Word<N>, o: &Otp<N>) -> Self;
+    pub fn mask(k: Word<N>, o: Otp<N>) -> Self;          // consumes the pad: one pad, one word
     pub fn bit(self, j: usize) -> bool;                  // feeds Encoder::bits
     pub fn encoded(&self) -> Vec<u8>;
     pub(crate) fn read(bytes: &mut &[u8]) -> Result<Self, String>;  // rejects nonzero padding
@@ -533,6 +538,7 @@ frontend's `Bound`.
 | One tree instead of two | I4: `P256Plan::TREES` and `[_; 2]` arrays fix the shape |
 | A quotient wider than its word, or a claim too wide for `Q` | I5: `Word::new`, `P256Plan::new`, mdoc's const assertion |
 | Publishing an unmasked quotient | I5: `Word` has no encoder or `Message` impl |
+| Masking two quotients with one pad, or printing a pad | I5: `MaskedWord::mask` consumes its `Otp`, which is not `Copy` or `Clone`; its `Debug` omits the value |
 | Two encodings of one masked word | I5, I9: `MaskedWord::read` rejects padding bits; the Bits payload is the wire bytes |
 | The host circuit reading R, a pad or a leaf | I6: reserved bits start at its `ninput`; sumcheck prefix reads |
 | A foreign group in the public prefix or outside the host circuit | I6: `Composition::new` rejects it |

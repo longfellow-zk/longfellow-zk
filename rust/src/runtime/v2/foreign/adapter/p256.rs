@@ -335,7 +335,7 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         t: &mut Bound<'_, Self>,
         claim: &ModularClaim<P256Element>,
         values: &[P256Element],
-        pads: &Self::Pads,
+        pads: Self::Pads,
         conversion: Challenge<Conversion>,
         p: &P256Field,
         f: &Gf2_128Field,
@@ -344,10 +344,8 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         let Conversion(alpha) = t.accept(conversion).map_err(|e| e.to_string())?;
         let encoded = mode.plan.encode(claim, &alpha, Some(values), p, f)?;
         let k = encoded.quotients.ok_or("P256 adapter quotients")?;
-        let masked = [
-            MaskedWord::mask(k[0], &pads[0]),
-            MaskedWord::mask(k[1], &pads[1]),
-        ];
+        let [o0, o1] = pads;
+        let masked = [MaskedWord::mask(k[0], o0), MaskedWord::mask(k[1], o1)];
         send_quotients(&mut t.transcript(), &masked);
         let leaves =
             super::virtual_inputs(mode.shape, encoded.trees(claim, &mode.otp, &masked, f), f)?;
