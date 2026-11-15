@@ -5,7 +5,7 @@ use crate::runtime::{
         packing::{PackingExtension, PackingField},
         ZkField,
     },
-    v2::{dual_packing::generic::PackingProof, polygero::LinearStatement, transcript::Bound},
+    v2::{polygero::LinearStatement, proto::dual_packing::PackingProof, transcript::Bound},
 };
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
     /// Replay the packing reduction on the parameters bound to `t`.

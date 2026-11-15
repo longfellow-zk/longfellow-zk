@@ -15,7 +15,10 @@
 //! `formal/dual-packing/DualPacking/ArtinSchreierBackend.lean`, with pivot zero.
 use crate::{
     core::algebra::AlgebraicField,
-    runtime::algebra::packing::{AmbientElement as E, PackingExtension, PackingParameters},
+    runtime::{
+        algebra::packing::{AmbientElement as E, PackingExtension, PackingParameters},
+        v2::proto::dual_packing::PackingProof,
+    },
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -72,7 +75,6 @@ pub(in crate::runtime::v2) struct FieldEquation<E> {
     pub(in crate::runtime::v2) auxiliary: Vec<(usize, E)>,
     pub(in crate::runtime::v2) masks: Vec<E>,
 }
-pub(in crate::runtime::v2) use crate::runtime::v2::proto::dual_packing::PackingProof;
 /// Committed cells: t_1,...,t_(m-1),r,b. An identity extension uses no cells.
 /// One sample masks one source claim: the masks are not `Clone`, and
 /// `prove_packed` consumes them (dual packing I8).

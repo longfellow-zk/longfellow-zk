@@ -14,7 +14,7 @@ use crate::{
             RuntimeField, SupportsSampling,
         },
         random::{DeterministicRng, RandomEngine},
-        v2::transcript::Transcript,
+        v2::{proto::dual_packing::PackingProof, transcript::Transcript},
     },
 };
 

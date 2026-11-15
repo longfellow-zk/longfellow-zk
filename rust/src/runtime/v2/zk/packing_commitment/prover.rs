@@ -7,11 +7,9 @@ use crate::runtime::{
     },
     random::PrivateRandom,
     v2::{
-        dual_packing::{
-            generic::{PackingMasks, PackingProof},
-            prover::prove_packed,
-        },
+        dual_packing::{generic::PackingMasks, prover::prove_packed},
         polygero::LinearStatement,
+        proto::dual_packing::PackingProof,
         transcript::Bound,
     },
 };
