@@ -61,8 +61,6 @@ pub(super) type MsoPreimageBytes = ConcreteHashBytes<K_MSO_PREIMAGE_LEN>;
 
 #[derive(Clone, Debug)]
 pub struct ConcreteAttrGiven {
-    pub expected_name: Vec<u8>,
-    pub expected_cbor_value: Vec<u8>,
     pub padded_preimage: Vec<u8>,
     pub unpadded_preimage_len: usize,
     pub mso_digest_offset_in_preimage: usize,
@@ -118,8 +116,6 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
         let attr_sha_wit =
             crate::circuits::sha256msg::given(&a.cbor_issuer_signed_item, &INITIAL, 2).unwrap();
         attribute_given.push(ConcreteAttrGiven {
-            expected_name: a.expected_name.clone(),
-            expected_cbor_value: a.expected_cbor_value.clone(),
             padded_preimage: attr_sha_wit.padded_preimage,
             unpadded_preimage_len: a.cbor_issuer_signed_item.len(),
             mso_digest_offset_in_preimage: usize::from(offset(a.mso_digest_offset_in_preimage)),

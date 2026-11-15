@@ -387,10 +387,9 @@ fn required_map_key(
     key: &str,
     path: &'static str,
 ) -> Result<CborIndexVal, MdocParseError> {
-    let (key_element, value) = map_entry_unique(map, key, path)?;
+    let (key_element, _) = map_entry_unique(map, key, path)?;
     Ok(CborIndexVal {
         k: key_element.start,
-        v: value.start,
     })
 }
 

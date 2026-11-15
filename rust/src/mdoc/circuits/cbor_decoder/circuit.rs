@@ -43,7 +43,6 @@ pub struct CborDecodeResult<L: Logic, const N: usize> {
     pub count_is_next_v8: Bitw<L>,
     pub invalid: Bitw<L>,
     pub length: Bitvec<L, N>,
-    pub as_bits: V8<L>,
 }
 
 pub struct CborByteDecoder<'a, L: Logic> {
@@ -140,7 +139,6 @@ impl<'a, L: Logic> CborByteDecoder<'a, L> {
                 count_is_next_v8,
                 invalid,
                 length,
-                as_bits: v.clone(),
             },
             assert,
         )

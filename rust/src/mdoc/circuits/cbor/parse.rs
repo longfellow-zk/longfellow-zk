@@ -15,7 +15,6 @@
 #[derive(Debug, Clone, Copy)]
 pub struct CborIndexVal {
     pub k: usize,
-    pub v: usize,
 }
 
 #[derive(Debug, Clone)]

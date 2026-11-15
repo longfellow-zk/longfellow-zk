@@ -145,7 +145,6 @@ use crate::{
 };
 
 pub struct Twiddle<const W: usize, F: SupportsQuadraticExtension<W>> {
-    pub order: usize,
     pub w: Vec<Fp2Element<W, F>>,
 }
 
@@ -165,7 +164,7 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> Twiddle<W, F> {
             w.push(curr.clone());
             field_ext.mul(&mut curr, omega_order);
         }
-        Self { order, w }
+        Self { w }
     }
 
     pub fn reroot(
