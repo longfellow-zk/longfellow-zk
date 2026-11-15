@@ -153,11 +153,6 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
     ) -> std::io::Result<()> {
         Self::write_parts(&self.sumcheck_proof, &self.packing, buf, g, f)
     }
-    pub fn write(&self, g: &CircuitGeometry, f: &F) -> std::io::Result<Vec<u8>> {
-        let mut out = Vec::new();
-        self.write_to_buf(&mut out, g, f)?;
-        Ok(out)
-    }
     /// A component reader, called only by the complete readers (proto I2).
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn read(b: &mut &[u8], g: &CircuitGeometry, f: &F) -> std::io::Result<Self> {

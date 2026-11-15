@@ -309,8 +309,7 @@ impl<X: PackingExtension> PackingParameters<X> {
     pub fn pack(&self, values: &[BaseElement<X>]) -> Result<Vec<AmbientElement<X>>, String>;
     pub fn unpack(&self, words: &[AmbientElement<X>], len: usize) -> Result<Vec<BaseElement<X>>, String>;
     pub fn descriptor(&self) -> Vec<u8>;                    // written once, in the statement
-    // field, extension, frobenius, trace, coordinates_into, native_coefficients,
-    // binary128_profile
+    // field, extension, frobenius, trace, coordinates_into, native_coefficients
 }
 pub struct IdentityExtension<F>;   // binary: Gf2, Binary128Extension, Gf256, Binary128Over256
 

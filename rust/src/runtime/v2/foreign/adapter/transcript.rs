@@ -18,11 +18,6 @@ use crate::runtime::{
 /// The P-256 adapter's conversion pair, each nonzero. Only its draw
 /// (`draw_conversion`) builds it.
 pub struct Conversion(pub(super) [P256Element; 2]);
-impl Conversion {
-    pub fn values(&self) -> &[P256Element; 2] {
-        &self.0
-    }
-}
 
 /// `P256AdapterQuotients` (65): Bits(Q), Bits(Q), the two masked quotient
 /// words, each least significant bit first.

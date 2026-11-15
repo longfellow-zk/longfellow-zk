@@ -345,9 +345,6 @@ impl<X: PackingExtension> PackingParameters<X> {
             None
         }
     }
-    pub fn binary128_profile(&self) -> bool {
-        self.extension.binary128_profile() && self.inverse.is_none()
-    }
     pub fn descriptor(&self) -> Vec<u8>
     where X::Ambient: SerializableField {
         let mut bytes = b"longfellow/packing-extension/v1".to_vec();

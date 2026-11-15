@@ -236,7 +236,11 @@ fn report_proof_sizes(bytes: &[u8], geometry: &runtime::MdocProofGeometry) {
     )
     .unwrap();
     let (proof, geometry) = (&decoded.body, &geometry.body);
-    let hash = proof.host.write(geometry.host(), &binary).unwrap();
+    let mut hash = Vec::new();
+    proof
+        .host
+        .write_to_buf(&mut hash, geometry.host(), &binary)
+        .unwrap();
     let signature = proof
         .split
         .write(geometry.split().sumcheck(), &prime)

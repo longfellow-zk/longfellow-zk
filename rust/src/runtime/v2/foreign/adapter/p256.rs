@@ -298,12 +298,6 @@ pub struct P256Mode<const Q: usize> {
     virtual_inputs: usize,
     fragment: Circuit<Gf2_128Field>,
 }
-impl<const Q: usize> P256Mode<Q> {
-    /// The pads' bit groups in the binary witness.
-    pub fn pads(&self) -> &[BitGroup<Q>; 2] {
-        &self.otp
-    }
-}
 impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
     const MASK_BITS: usize = 256;
     type Pads = [crate::runtime::v2::foreign::word::Otp<Q>; 2];

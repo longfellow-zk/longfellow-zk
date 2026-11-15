@@ -26,16 +26,6 @@ pub enum ZkSpecRef {
     V1(&'static v1::ZkSpecStruct),
     V2(&'static v2::ZkSpecStruct),
 }
-impl ZkSpecRef {
-    #[must_use]
-    pub fn version(self) -> usize {
-        match self {
-            #[cfg(feature = "v1")]
-            Self::V1(s) => s.version,
-            Self::V2(s) => s.version,
-        }
-    }
-}
 #[must_use]
 pub fn find_zk_spec(system: &str, hash: &[u8; 32]) -> Option<ZkSpecRef> {
     match system {
