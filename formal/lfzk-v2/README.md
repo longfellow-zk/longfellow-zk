@@ -145,12 +145,14 @@ it into a native row for Polygero and a modular claim for the adapter.
 | Shared opening | Both complete `H/Z` response pairs | One ordered sample of 84 distinct columns |
 | Final seal | Chained prefix and complete canonical proof body | Separately domain-separated 32-byte seal |
 
-Before the shared root, every participant binds its packing frame (when its
-packing degree exceeds one) and `layered-sumcheck/commitment-layout/v1` with
-its additional circuit IDs and layer widths. The split participant also binds
-`foreign-storage/mixed-layout/v1` with its circuit ID, its storage map as runs
-(native or prime bit-group runs) and R's bit group. After the root, only the
-statement, prover messages and fixed labels are absorbed. Values derived per
+The statement, before the shared root, binds a `Circuit` message per circuit
+(its 32-byte circuit ID alone, which hashes the circuit's shape) and a
+`CommitmentLayout` message per field: its cell counts, its packing descriptor,
+the split participant's native storage runs as (first, count, cell) triples and
+its bit-stored runs as (first, count, start, width) quadruples (both lists
+empty for a native participant), and R's bit group. The `AdapterLayout` and
+`JointGeometry` messages follow. After the root, only prover messages are
+absorbed. Values derived per
 proof, such as claim weights, virtual leaf definitions and quotients, are never
 absorbed; both roles recompute them.
 

@@ -22,8 +22,13 @@ structure Identifiers where
   /-- The statement constants after the combined hash, as node 0 absorbs
   them: the statement message's (version, attribute count) value, then the
   `Circuit`, `CommitmentLayout`, `AdapterLayout` and `JointGeometry`
-  messages, all fixed by the trusted circuits. The Polygero profile is in
-  `JointGeometry` only. -/
+  messages, all fixed by the trusted circuits. Each `Circuit` message is the
+  32-byte circuit ID alone, which hashes the circuit's shape. Each
+  `CommitmentLayout` has five values: the cell counts, the packing
+  descriptor, the native storage runs as (first, count, cell) triples, the
+  bit-stored runs as (first, count, start, width) quadruples, each list in
+  increasing first value and both empty for a native participant, and the
+  mask's (start, width). The Polygero profile is in `JointGeometry` only. -/
   statement : Bytes
   hash : Bytes → Digest
 
