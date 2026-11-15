@@ -9,6 +9,10 @@ namespace LfzkV2.Current.Tests.TaggedGrammar
 open TranscriptV2.Framing (encodeLE)
 open LfzkV2.Current.TaggedGrammar
 
+-- The parses below run one at a time, in order: whatever the scheduling,
+-- the memory of one is reused by the next instead of adding to it.
+set_option Elab.async false
+
 /-- The payload is one node with the given terminator and no trailing byte. -/
 private def parses (payload : Bytes) (terminal : Grammar.End) : Bool :=
   match (Grammar.node table registry).decode payload with
