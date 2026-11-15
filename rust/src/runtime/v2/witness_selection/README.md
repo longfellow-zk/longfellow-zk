@@ -15,8 +15,9 @@ packing or sumcheck randomness, and never become circuit inputs.
 
 The transcript statement already fixes every field's layout. The draw that
 follows the joint `Commitment` message ends its node and reads two independent
-uniform vectors per field from that node's SHA-256 PRF stream. There is no prover message between the vectors or fields. Prime-field rejection
-sampling extends that reader. The responses are
+uniform vectors per field from that node's SHA-256 PRF stream. There is no
+prover message between the vectors or fields. Prime-field rejection sampling
+extends that reader. The responses are
 
 ```
 t₁ = m₁ + dot(a₁,w)
@@ -28,20 +29,24 @@ frontend. In mdoc this precedes
 the prime-field sumcheck as well as the binary sumcheck. Responses occupy
 96 bytes across those two fields; masks and coefficients are not serialized.
 
-The returned prover and verifier states retain private backend handles and own
-the original transcript. Frontends borrow only its `TranscriptRef` capability;
-later proof/authentication calls accept no replacement transcript or root. When
-given the frontend's later affine statements, they automatically append
-`dot(aⱼ,w) + mⱼ - tⱼ = 0` before invoking Polygero. Frontend equations cannot
+The returned prover and verifier states retain private backend handles, the
+coefficients, the responses and the stamp of the session they were created on;
+they do not hold the transcript, which the zk joint wrapper owns. Their
+crate-private `finish` checks the stamp, so a state completes only on its own
+transcript, and takes no replacement root. Given every field's later affine
+statements, it rejects any derived on another session, appends
+`dot(aⱼ,w) + mⱼ - tⱼ = 0`, and hands the system to joint Polygero, which draws
+the batching weights itself (DESIGN.md I5, I8). Frontend equations cannot
 address the dedicated mask cells. Consuming statements avoids copying their
 sparse arrays. The only temporary raw-witness copy is released after the early
 exchange; the retained state contains coefficients and the encoded backend.
 
 Field lists use recursive typed tuples ending in `()`, so one, two, repeated,
 or more fields use the same code. Fields need canonical serialization and
-uniform sampling. The trusted caller supplies the canonical field identity,
-including its modulus. No packing capability or generic sampling fallback is
-required.
+uniform sampling. A field's identity is its type's registered `FieldID`, and
+its layout is the statement's: `Field::new(param, domain)` takes no identity,
+and witness selection absorbs nothing of its own (DESIGN.md I2). No packing
+capability or generic sampling fallback is required.
 
 This is an intermediate protocol. Its early responses fix targets and its
 later backend check authenticates them. The enclosing complete-proof encoder

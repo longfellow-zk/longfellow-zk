@@ -24,11 +24,12 @@ uniform verifier challenges; it assumes independent uniform private coins.
 
 `ZkContext::new(domain)` obtains its field directly from the ordered interpolation
 domain. Parameters and participants use that same field; no separate arithmetic
-instance can be attached. Joint protocol handles own the commitment and transcript
-through receipt, frontend reductions and authentication. Their `transcript()`
-accessor exposes only `TranscriptRef`, which permits protocol operations without
-replacing, resetting or finalizing the owned session. Successful completion
-returns the original transcript for the complete-proof seal.
+instance can be attached. The joint handles take the transcript by value at
+commit or receive and own it through the frontend reductions and the
+authentication; they have no public transcript accessor. A frontend reaches the
+session only through a handle's crate-private `bound()`, after the fingerprint
+responses (DESIGN.md I6). Successful completion returns the transcript for the
+complete-proof seal.
 `CircuitParticipant::new` derives immutable proof geometry, witness layout and
 Polygero parameters. `prepare` validates and packs typed private inputs, samples
 sumcheck pads and returns the witness and owned reduction state. Binary source
@@ -56,9 +57,10 @@ After commitment, each participant runs its circuit and packing reduction.
 is not an acceptance decision: the caller must consume the opaque joint handle
 to authenticate the frontend and fingerprint equations together. Standalone
 verification receives the commitment and fingerprints internally before its
-circuit reduction. All statements are bound
-before backend batching challenges, and every field's responses precede the
-shared queries. The verifier checks the received root.
+circuit reduction. `JointProver::finish` and `JointVerifier::finish` take every
+field's equations after its last frontend message and draw the backend
+batching weights themselves, so no caller holds them (DESIGN.md I4); every
+field's responses precede the shared queries. The verifier checks the received root.
 
 Polygero retains encoded rows without copying the original witness. Proving
 consumes the commitment state, releasing the rows and tree when finished.
@@ -141,14 +143,14 @@ use `sum_w A[c,w]*w + b[c] = 0`; coefficients, explicit zeros, duplicate terms
 and constants are retained. The fresh sumcheck terminal scale makes the cross
 pad and product cell linear in these rows, without backend product-copy checks.
 
-Polygero binds each source circuit ID before its scalar and polynomial
-challenges. The public inputs, commitment, sumcheck messages and packing
-responses already precede that boundary on the same transcript. This handoff
-adds no query or proof bytes. Sparse A/b encoding and term order are outside
-this binding: both roles derive these rows locally. Standalone Polygero callers use `LinearStatement::new`, which hashes the
-complete static system and exposes immutable coefficients and targets. Internal
-frontends construct their derived rows from the already absorbed transcript;
-challenge-derived coefficients are never absorbed.
+The statement binds every circuit ID before the commitment (transcript I3).
+The public inputs, commitment, sumcheck messages and packing responses precede
+the batching boundary on the same transcript, so the handoff to Polygero adds
+no query or proof bytes. The rows are never absorbed: both roles derive them
+locally, and each `LinearStatement` carries the stamp of the session it was
+derived on, which the joint opening checks. `LinearStatement::new` builds a
+static system for tests and tools only; nothing absorbs it, and it belongs to
+no session, so a complete proof's joint opening rejects it.
 
 `context.rs` derives layouts for both roles. Merkle hashing uses the fixed
 Merkle hash domain of v2 commitments, so the statement is the only place

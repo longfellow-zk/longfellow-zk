@@ -218,8 +218,10 @@ arrays once, expands `m_l[i]` once, and forms `q_r` once. Intermediate arrays
 live within their layer; only the final combined input weights survive.
 Polygero continues on the advanced main transcript without replay.
 
-Each entering circuit samples one weight per output; each global layer then
-samples exactly `ceil(log2(nw))` round challenges. The codec independently caps
+Each entering circuit gets one weight per output: the first stage's are the
+top weights, a `Challenge<TopWeights>` the caller draws (DESIGN.md I1), and a
+later stage's are read from the previous stage's combine answer, after
+`alpha`. Each global layer samples exactly `ceil(log2(nw))` round challenges. The codec independently caps
 serialized layers at 40 rounds, regardless of host index width; circuit
 execution also checks its index capacity.
 
