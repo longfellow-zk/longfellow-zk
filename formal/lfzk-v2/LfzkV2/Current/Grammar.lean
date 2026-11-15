@@ -10,7 +10,8 @@ concatenation of nodes is an injective encoding of its node sequence.
 The deployed format, `TaggedFormat`, writes its nodes with the typed codecs
 of `TaggedCodec`. `TaggedGrammar` proves that their bytes are this grammar
 over the deployed registry, and `Tests.TaggedFormat` and `Tests.TaggedGrammar`
-check the Rust vectors. -/
+check the Rust vectors; the lemmas of the last section let a long vector be
+parsed in pieces. -/
 namespace LfzkV2.Current.Grammar
 open TranscriptV2.Framing (Byte encodeLE take take_length_append take_sound)
 
@@ -606,5 +607,106 @@ theorem encodeMessages_injective {first second : List (Message fields registry)}
               exact same)
           have node := List.head_eq_of_cons_eq nodes
           exact ⟨congrArg Node.messages node,congrArg Node.terminal node⟩
+
+/-! ## Checking a node in pieces
+
+A golden node of tens of kilobytes is too long to parse in one kernel
+evaluation, whose memory grows with the bytes it reads. These lemmas let a
+test check it in pieces, each by its own `decide +kernel`: a node is its
+messages, each a whole encoding of `message` (`node_of_messages`), and a
+long elements message is its header and slices of whole elements
+(`elementsMessage`). -/
+section Pieces
+variable {A : Type}
+
+/-- `bytes` is one encoding of `codec`. -/
+def IsEncoding (codec : PrefixCodec A) (bytes : Bytes) : Prop := ∃ value, codec.encode value = bytes
+
+/-- `bytes` is `count` consecutive encodings of `codec`. -/
+def AreEncodings (codec : PrefixCodec A) (count : ℕ) (bytes : Bytes) : Prop :=
+  ∃ values : List A, values.length = count ∧ values.flatMap codec.encode = bytes
+
+/-- `codec` reads all of `bytes`: the check of one piece. -/
+def readsAll (codec : PrefixCodec A) (bytes : Bytes) : Bool :=
+  match codec.decode bytes with
+  | some (_,[]) => true
+  | _ => false
+
+/-- `count` values of `codec` read all of `bytes`: the check of one slice. -/
+def readsMany (codec : PrefixCodec A) (count : ℕ) (bytes : Bytes) : Bool :=
+  match readMany codec count bytes with
+  | some (_,[]) => true
+  | _ => false
+
+theorem isEncoding_of_readsAll {codec : PrefixCodec A} {bytes : Bytes} (h : readsAll codec bytes = true) :
+    IsEncoding codec bytes := by
+  unfold readsAll at h
+  split at h
+  next value decoded => exact ⟨value,by rw [codec.canonical _ _ _ decoded,List.append_nil]⟩
+  next => contradiction
+
+theorem areEncodings_of_readsMany {codec : PrefixCodec A} {count : ℕ} {bytes : Bytes}
+    (h : readsMany codec count bytes = true) : AreEncodings codec count bytes := by
+  unfold readsMany at h
+  split at h
+  next values decoded =>
+    obtain ⟨length,rfl⟩ := readMany_sound codec _ _ _ _ decoded
+    exact ⟨values,length,(List.append_nil _).symm⟩
+  next => contradiction
+
+/-- Slices of whole values, each with its count, are their total count of
+values. -/
+theorem AreEncodings.flatten {codec : PrefixCodec A} {slices : List (ℕ × Bytes)}
+    (each : ∀ slice ∈ slices, AreEncodings codec slice.1 slice.2) :
+    AreEncodings codec (slices.map Prod.fst).sum (slices.flatMap Prod.snd) := by
+  induction slices with
+  | nil => exact ⟨[],rfl,rfl⟩
+  | cons slice slices ih =>
+      obtain ⟨first,firstLength,firstBytes⟩ := each slice List.mem_cons_self
+      obtain ⟨later,laterLength,laterBytes⟩ := ih fun slice mem => each slice (List.mem_cons_of_mem _ mem)
+      refine ⟨first ++ later,?_,?_⟩
+      · rw [List.length_append,firstLength,laterLength,List.map_cons,List.sum_cons]
+      · rw [List.flatMap_append,firstBytes,laterBytes,List.flatMap_cons]
+
+/-- One `.elements` message, checked as its header and its elements. -/
+theorem elementsMessage {tag : registry.Tag} (schema : registry.schema tag = [.elements]) (field : fields.Id)
+    {count : ℕ} (fits : count < 2^64) {bytes : Bytes}
+    (elements : AreEncodings (PrefixCodec.field (fields.codec field)) count bytes) :
+    IsEncoding (message fields registry) (u64.encode (registry.code tag) ++ u64.encode Kind.elements.code ++
+      u64.encode (fields.code field) ++ u64.encode ⟨count,fits⟩ ++ bytes) := by
+  obtain ⟨elements,rfl,rfl⟩ := elements
+  have one {kinds : List Kind} (same : kinds = [.elements]) : ∃ written : Values fields kinds,
+      (values fields kinds).encode written = (value fields .elements).encode ⟨field,⟨elements,fits⟩⟩ := by
+    subst same
+    exact ⟨(⟨field,⟨elements,fits⟩⟩,()),List.append_nil _⟩
+  obtain ⟨written,hwritten⟩ := one schema
+  refine ⟨⟨tag,written⟩,?_⟩
+  rw [message_encode,hwritten,elements_encode]
+  simp only [List.append_assoc]
+  rfl
+
+/-- A node checked message by message: if each piece is one message, the
+pieces and a terminator parse to one node, with no byte left. -/
+theorem node_of_messages {pieces : List Bytes} (nonempty : pieces ≠ [])
+    (each : ∀ piece ∈ pieces, IsEncoding (message fields registry) piece) (terminal : End) :
+    ∃ value : Node fields registry, value.terminal = terminal ∧
+      (node fields registry).decode (pieces.flatten ++ terminator.encode terminal) = some (value,[]) := by
+  obtain ⟨messages,rfl⟩ : ∃ messages : List (Message fields registry),
+      messages.map (message fields registry).encode = pieces := by
+    clear nonempty
+    induction pieces with
+    | nil => exact ⟨[],rfl⟩
+    | cons piece pieces ih =>
+        obtain ⟨first,hfirst⟩ := each piece List.mem_cons_self
+        obtain ⟨later,hlater⟩ := ih fun piece mem => each piece (List.mem_cons_of_mem _ mem)
+        exact ⟨first::later,by rw [List.map_cons,hfirst,hlater]⟩
+  have messagesNonempty : messages ≠ [] := by
+    rintro rfl
+    exact nonempty rfl
+  refine ⟨⟨messages,messagesNonempty,terminal⟩,rfl,?_⟩
+  rw [← List.flatMap_def,← List.append_nil (_ ++ _)]
+  exact (node fields registry).inverse ⟨messages,messagesNonempty,terminal⟩ []
+
+end Pieces
 
 end LfzkV2.Current.Grammar
