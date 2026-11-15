@@ -6,8 +6,8 @@
 //! The signature circuit reads 768 values stored as bits in the hash
 //! commitment: the issuer digest and the device public key coordinates.
 
-/// Signature-circuit inputs stored in the binary commitment.
-pub(crate) const SHARED_BITS: usize = super::layout::SHARED_BITS;
+use super::layout::SHARED_BITS;
+
 /// Bits of the mixed split's mask R.
 pub(crate) const MASK_BITS: usize = 256;
 /// Quotient width: the link claim reads `SHARED_BITS + MASK_BITS = 2^10` bits.
