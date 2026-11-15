@@ -363,7 +363,12 @@ establish that a cryptographic implementation satisfies their premises.
   sampler projections, advice decoding, adapter leaf definitions,
   authenticated row layouts and failure coverage are constructed and
   proved; no caller-supplied execution or soundness certificate replaces
-  those proofs.
+  those proofs. The schedule covers a binary host participant whose packing
+  degree exceeds one, which the deployed setup requires
+  (`ApplicationSetup` `degree_gt`). At degree one Rust reads the Polygero
+  batching draw from the preceding node (transcript I7), where the Lean
+  schedule would end an empty node, so a host of packing degree one is
+  outside the model.
 - **Adversary and witness scope.** The adversary is classical and makes
   finitely many calls within the stated budgets; extraction counts distinct
   original raw SHA inputs. Privacy permits arbitrary retained private context

@@ -267,7 +267,13 @@ def packingActions (degree : ℕ) : List Action :=
 
 /-- Verifier chronology, not proof serialization order. In particular the
 prime frontend runs before the binary frontend even though the joint typed
-participant list, fingerprint vectors and backend samples are binary first. -/
+participant list, fingerprint vectors and backend samples are binary first.
+
+The schedule models a binary (host) participant whose packing degree exceeds
+one, which the deployed setup requires (`ApplicationSetup` `degree_gt`). At
+degree one no message precedes the `batching` query, and Rust reads its draw
+from the preceding node instead of ending a node (transcript I7), so a host of
+packing degree one is outside the model. -/
 def Geometry.actions (g : Geometry) : List Action :=
   [.bind .setup, .query .fingerprint, .bind .fingerprints, .bind (.frontend .prime)] ++
   (g.prime.roles .prime).map Action.query ++
