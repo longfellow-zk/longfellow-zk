@@ -7,6 +7,7 @@
 use super::{
     joint::{CircuitParticipant, FrontendPart},
     storage::{Group, Run},
+    CircuitInput,
 };
 use crate::{
     core::{
@@ -167,6 +168,25 @@ pub struct ZkProofStatement<'a, const W: usize, F: ZkField<W> + PackingField> {
     pub(super) identity: ZkStatement<'a>,
     pub(super) part: FrontendPart<'a, W, F>,
     pub(super) geometry: ZkProofGeometry,
+}
+impl<'a, const W: usize, F: ZkField<W> + PackingField> ZkProofStatement<'a, W, F> {
+    /// The statement of a proof of `circuit`, the one circuit of
+    /// `participant`, on `public` under `context`. Both standalone roles
+    /// build their statements here.
+    pub(super) fn new(
+        context: &'a [u8],
+        participant: &'a CircuitParticipant<W, F>,
+        circuit: &'a Circuit<F>,
+        public: &'a [CircuitInput<F>],
+    ) -> Result<Self, String> {
+        let profile = participant.polygero()?.config();
+        Ok(Self {
+            identity: ZkStatement { context },
+            part: FrontendPart::new(participant, &[circuit], public)?,
+            geometry: ZkProofGeometry::new(participant.geometry(), profile)
+                .map_err(|e| e.to_string())?,
+        })
+    }
 }
 impl<'s, 'a: 's, const W: usize, F: ZkField<W> + PackingField>
     Opened<'s, ZkProofStatement<'a, W, F>>

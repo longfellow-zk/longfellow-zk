@@ -15,10 +15,10 @@ use crate::{
                 polygero::{PolygeroCommitment, PolygeroConfig},
                 sumcheck::SumcheckProof,
                 witness_selection::{FingerprintResponse, FINGERPRINTS},
-                zk::{CircuitGeometry, CircuitProof, ZkProof, ZkProofGeometry},
+                zk::{CircuitGeometry, CircuitProof, ZkProof},
             },
             sumcheck::{self, SumcheckPads, TopWeights},
-            transcript::{Bound, Challenge, Transcript, ZkStatement},
+            transcript::{Bound, Challenge, Transcript},
             zk::{
                 context::private_input_count,
                 joint::{top_weights, CircuitParticipant, FrontendPart, JointParam},
@@ -219,15 +219,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         context: &'a [u8],
         public: &'a [CircuitInput<F>],
     ) -> Result<ZkProofStatement<'a, W, F>, String> {
-        Ok(ZkProofStatement {
-            identity: ZkStatement { context },
-            part: FrontendPart::new(&self.participant, &[&self.circuit], public)?,
-            geometry: ZkProofGeometry::new(
-                self.participant.geometry(),
-                self.participant.polygero()?.config(),
-            )
-            .map_err(|e| e.to_string())?,
-        })
+        ZkProofStatement::new(context, &self.participant, &self.circuit, public)
     }
     /// Open a transcript with `statement` and commit to `private`. The
     /// commitment remembers the statement, which `prove` completes.

@@ -16,7 +16,7 @@ use crate::{
             },
             sumcheck::{self, symbolic::Constraints, TopWeights},
             transcript::{
-                Bound, Challenge, Opened, Transcript, Unverified, VerifiedProof, ZkStatement,
+                Bound, Challenge, Opened, Transcript, Unverified, VerifiedProof,
             },
             zk::{
                 joint::{top_weights, CircuitParticipant, FrontendPart, JointParam},
@@ -166,12 +166,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
                 actual: public.len(),
             });
         }
-        Ok(ZkProofStatement {
-            identity: ZkStatement { context },
-            part: FrontendPart::new(&self.participant, &[&self.circuit], public)
-                .map_err(ZkVerificationError::InvalidStatement)?,
-            geometry: self.geometry(),
-        })
+        ZkProofStatement::new(context, &self.participant, &self.circuit, public)
+            .map_err(ZkVerificationError::InvalidStatement)
     }
     /// Verify `proof` against the statement `session` opened with.
     #[doc = include_str!("verifier_compile_fail.md")]
