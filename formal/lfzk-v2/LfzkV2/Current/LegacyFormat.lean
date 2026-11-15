@@ -1,5 +1,7 @@
 import LfzkV2.Current.Format
 import LfzkV2.Current.CanonicalRequest
+import LfzkV2.Current.ProofBodyBounds
+import LfzkV2.Current.CanonicalRuntime
 
 /-! The deployed transcript format, `LegacyFormat`: the first-fingerprint
 prefix (`FingerprintPrefix`), the role-local wire blocks (`WireBlocks`), the
@@ -156,8 +158,23 @@ variable {g : Geometry} {fields : Fields} {Advice : Type}
 variable (repr : ProofBodyCodec.Representations fields Advice)
 variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup) (publicCount : ℕ)
 
+private theorem later_get (i : Fin g.roles.length) (h : i.val-1 <
+      (List.ofFn (QueryRuntime.Runtime.ordinary repr shape setup publicCount)).tail.length) (hi : i.val ≠ 0) :
+    (List.ofFn (QueryRuntime.Runtime.ordinary repr shape setup publicCount)).tail.get ⟨i.val-1,h⟩ =
+      QueryRuntime.Runtime.ordinary repr shape setup publicCount i := by
+  simp only [List.get_eq_getElem,List.getElem_tail,List.getElem_ofFn]
+  congr 1
+  ext
+  simp only
+  omega
+
+private theorem packet_block_cast {Fresh : Type} {capacity : ℕ} {first second : Packet Fresh capacity}
+    (h : first = second) (value : first.Data) : second.block (h ▸ value) = first.block value := by
+  cases h
+  rfl
+
 /-- The deployed format. -/
-def LegacyFormat : Format g fields Advice publicCount where
+@[reducible] def LegacyFormat : Format g fields Advice publicCount where
   wire := NodeWire.current
   Key := FingerprintPrefix.Key publicCount
   keyFintype := inferInstance
@@ -167,6 +184,7 @@ def LegacyFormat : Format g fields Advice publicCount where
   later := (List.ofFn (QueryRuntime.Runtime.ordinary repr shape setup publicCount)).tail
   roles_eq := QueryRuntime.Runtime.roles_eq repr shape setup publicCount
   body := ProofBodyCodec.codec repr g
+  scalars := repr
   binaryPublic := shape.binaryPublic
   primePublic := shape.primePublic
   context := FingerprintPrefix.context
@@ -194,12 +212,21 @@ def LegacyFormat : Format g fields Advice publicCount where
     CanonicalRequest.block_challengeIndependent repr shape setup publicCount binaryRequest metadata independent
       request ⟨body,fun _ => 0⟩ i first second
 
+  block_later binaryRequest metadata request body i past hi :=
+    ⟨(later_get repr shape setup publicCount i _ hi).symm ▸
+        CanonicalRequest.ordinaryData shape publicCount binaryRequest metadata request body i past,
+      (CanonicalRequest.block_pos repr shape setup publicCount binaryRequest metadata request ⟨body,fun _ => 0⟩
+        i hi past).trans (packet_block_cast _ _).symm⟩
+  bodyBound := ProofBodyBounds.bodyBound repr g
+  body_bound := ProofBodyBounds.encode_length_le repr g
+
 /-! The deployed format is the existing encoding, definitionally. -/
 namespace LegacyFormat
 local notation "L" => LegacyFormat repr shape setup publicCount
 
 theorem wire_eq : (L).wire = NodeWire.current := rfl
 theorem body_eq : (L).body = ProofBodyCodec.codec repr g := rfl
+theorem scalars_eq : (L).scalars = repr := rfl
 theorem first_eq : (L).first = FingerprintPrefix.codec setup publicCount := rfl
 theorem Key_eq : (L).Key = FingerprintPrefix.Key publicCount := rfl
 theorem Base_eq : (L).Base = CanonicalRequest.Base repr shape setup publicCount := rfl
@@ -228,3 +255,16 @@ theorem encoding_eq {C : Type} (binaryRequest : (Fin publicCount → Bool) → F
 
 end LegacyFormat
 end LfzkV2.Current
+
+namespace LfzkV2.Current.CanonicalRuntime
+variable {g : Geometry} {fields : Fields} {Advice B : Type}
+variable [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B] {shared maskBits adviceBits : ℕ}
+
+/-- Runtime outputs for requests of the deployed format, named by its
+public shape alone; equal to `FormatOutput binary (LegacyFormat ..)`. -/
+abbrev Output (binary : ApplicationSetup.BinaryPublic B shared maskBits adviceBits)
+    (shape : WireBlocks.Shape g fields) :=
+  RuntimeAdaptiveVerifier.Output (g := g) (fields := fields) (Advice := Advice)
+    (Request := CanonicalRequest.Request shape binary.nPublic)
+
+end LfzkV2.Current.CanonicalRuntime

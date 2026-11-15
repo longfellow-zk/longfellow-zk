@@ -63,7 +63,7 @@ end Selection
 section Reader
 variable {g : Geometry} {fields : Fields} {Advice Auth Key Fresh C : Type}
 variable {capacity blocks : ℕ}
-variable (bodyCodec : PrefixCodec (Body g fields Advice Auth))
+variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fields Advice Auth))
 variable (encoding : Replay.Encoding g fields Advice Auth Key (QueryRuntime.Block capacity Fresh) C)
 variable (fallback : C) (proof : Replay.Output g fields Advice Auth) (trace : StrandRecordedReplay.Trace)
 variable (sample : Replay.Point g fields Advice Auth Key (QueryRuntime.Block capacity Fresh) →
@@ -83,9 +83,9 @@ postprocessing of this reader, including ordered decode and column selection,
 inherits the equality. No Merkle answer is consulted to choose the path. -/
 theorem read_merkle_off (H H' : Strand.Oracle) (raw : Bytes)
     (merkle : IsMerkleInput (codec) raw) (agree : Bcs.TotalOracle.AgreeOff raw H H') :
-    StrandRecordedReplay.read bodyCodec encoding fallback proof trace sample H index =
-      StrandRecordedReplay.read bodyCodec encoding fallback proof trace sample H' index := by
-  apply StrandRecordedReplay.read_off bodyCodec encoding fallback proof trace sample H H' raw _ agree
+    StrandRecordedReplay.read wire bodyCodec encoding fallback proof trace sample H index =
+      StrandRecordedReplay.read wire bodyCodec encoding fallback proof trace sample H' index := by
+  apply StrandRecordedReplay.read_off wire bodyCodec encoding fallback proof trace sample H H' raw _ agree
   intro id digest counter
   rcases merkle with leaf | node
   · obtain ⟨value,rfl⟩ := leaf
@@ -105,16 +105,16 @@ variable (fallbackPath : SelectedPath (Enc := Bytes) (n := n) (Salt := MerkleWir
 def recordedSelect (H : Strand.Oracle) : SelectedPath (Enc := Bytes) (n := n)
     (Salt := MerkleWireCodec.Salt n) (M := (Joint.Pair.family P R).Leaf) (D := Digest) :=
   select (codec) (dec) (fun column nonce => (column,nonce)) indices fallback raw cut root fallbackPath
-    (StrandRecordedReplay.read bodyCodec encoding fallback proof trace sample H index)
+    (StrandRecordedReplay.read wire bodyCodec encoding fallback proof trace sample H index)
 
 theorem recordedSelect_off (H H' : Strand.Oracle) (input : Bytes)
     (merkle : IsMerkleInput (codec) input) (agree : Bcs.TotalOracle.AgreeOff input H H') :
-    recordedSelect bodyCodec encoding fallback proof trace sample index P R repr binary prime context columnsFit
+    recordedSelect wire bodyCodec encoding fallback proof trace sample index P R repr binary prime context columnsFit
         indices raw cut root fallbackPath H =
-      recordedSelect bodyCodec encoding fallback proof trace sample index P R repr binary prime context columnsFit
+      recordedSelect wire bodyCodec encoding fallback proof trace sample index P R repr binary prime context columnsFit
         indices raw cut root fallbackPath H' := by
   unfold recordedSelect
-  rw [read_merkle_off bodyCodec encoding fallback proof trace sample index
+  rw [read_merkle_off wire bodyCodec encoding fallback proof trace sample index
     P R repr binary prime context columnsFit H H' input merkle agree]
 
 /-- Outside missing transcript nodes, the selected path belongs to the
@@ -124,22 +124,22 @@ theorem recordedSelect_spec (initial : Digest) (H : Strand.Oracle)
     (independent : ∀ i first second, encoding.block proof i first = encoding.block proof i second)
     (sound : ∀ entry ∈ trace, H entry.1 = entry.2)
     (known : ∀ i ≤ index, ∃ digest,
-      ((StrandRuntime.history NodeWire.current bodyCodec ((encoding.chain initial).point proof
-        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample fallback H) i)).input.encode,
+      ((StrandRuntime.history wire bodyCodec ((encoding.chain initial).point proof
+        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history wire bodyCodec) sample fallback H) i)).input.encode,
         digest) ∈ trace)
     (claim : MH.OpeningClaim n (MerkleWireCodec.Salt n) (Joint.Pair.family P R).Leaf Digest)
     (decoded : OrderedOpening.decode (fun column nonce => (column,nonce))
-      (indices ((TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample fallback H)
+      (indices ((TranscriptV2.StrandVerifier.oracle (StrandRuntime.history wire bodyCodec) sample fallback H)
         ((encoding.chain initial).point proof
-          (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample fallback H) index)).2)
+          (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history wire bodyCodec) sample fallback H) index)).2)
       raw = some claim)
     (different : ∃ column, column ∈ claim.I ∧ messages (dec) cut root n column ≠ claim.a column) :
-    let path := recordedSelect bodyCodec encoding fallback proof trace sample index
+    let path := recordedSelect wire bodyCodec encoding fallback proof trace sample index
       P R repr binary prime context columnsFit indices raw cut root fallbackPath H
     path.toOpeningClaim = claim ∧ path.root = root ∧ path.cut = cut ∧
       messages (dec) path.cut path.root n path.column ≠ path.a path.column := by
   apply select_spec (codec) (dec) (fun column nonce => (column,nonce)) indices fallback raw cut root fallbackPath
-  · rw [StrandRecordedReplay.read_eq bodyCodec encoding fallback proof trace sample initial independent
+  · rw [StrandRecordedReplay.read_eq wire bodyCodec encoding fallback proof trace sample initial independent
       H index sound known]
     exact decoded
   · exact different

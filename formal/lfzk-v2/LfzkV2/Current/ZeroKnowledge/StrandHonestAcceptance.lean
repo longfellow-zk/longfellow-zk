@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalAcceptance
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalCompleteness
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalPrefix
@@ -64,9 +65,9 @@ theorem finish_accepts
       (fun i => ((leafEquiv binary prime binaryNodes primeNodes repr shape setup configuration)).symm (((RuntimeVerifier.Family binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).columnsEquiv W i.val))
       (Merkle.Indexed.openCore (((indexedCodec binary prime binaryNodes primeNodes repr shape setup configuration)).withOracle SHA) 2443 (OrderedOpening.query indices).coordinates
         (fun i => (i,nonces i)) (((RuntimeVerifier.Family binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration))).columnsEquiv W)) SHA
-    StrandVerifier.verify binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) (ProofBodyCodec.codec repr g) roundSampler
+    StrandVerifier.verify binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) NodeWire.current (ProofBodyCodec.codec repr g) roundSampler
       (CanonicalRequest.hashPublic binary.nPublic)
-      (CanonicalRuntime.decodePrimePublic binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) repr shape setup
+      (CanonicalRuntime.decodePrimePublic binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (LegacyFormat repr shape setup _)
         (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes repr shape setup configuration) primeCount)
       draw (indexedCodec binary prime binaryNodes primeNodes repr shape setup configuration) SHA id output = true := by
   let H := logicalOracle binary repr shape setup roundSampler configuration.fallback SHA
@@ -93,7 +94,7 @@ theorem finish_accepts
       roundSampler request frontend response indices (fun i => ((leafEquiv binary prime binaryNodes primeNodes repr shape setup configuration)).symm (columns i.val)) opening SHA H
       g.batchingIndex.val (by rw [g.openingIndex_val]; omega)
   have statement : RuntimeAdaptive.statementAt binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CanonicalRequest.hashPublic binary.nPublic)
-      (CanonicalRuntime.decodePrimePublic binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) repr shape setup
+      (CanonicalRuntime.decodePrimePublic binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (LegacyFormat repr shape setup _)
         (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes repr shape setup configuration) primeCount)
       parent.point (parent.point.priorAnswers H) = some data := by
     rw [priorPoint]
@@ -110,9 +111,9 @@ theorem finish_accepts
     exact sampleFacts.2
   have raw := finish_raw_honest binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata
     roundSampler scheme request frontend response indices nonces columns SHA
-  apply (StrandVerifier.verify_true_iff binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) (ProofBodyCodec.codec repr g) roundSampler
+  apply (StrandVerifier.verify_true_iff binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) NodeWire.current (ProofBodyCodec.codec repr g) roundSampler
     (CanonicalRequest.hashPublic binary.nPublic)
-    (CanonicalRuntime.decodePrimePublic binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) repr shape setup
+    (CanonicalRuntime.decodePrimePublic binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (LegacyFormat repr shape setup _)
       (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes repr shape setup configuration) primeCount)
     draw (indexedCodec binary prime binaryNodes primeNodes repr shape setup configuration) SHA id output).mpr
   refine ⟨decoded,?_,?_⟩
@@ -135,7 +136,7 @@ theorem finish_accepts
       exact IndexedCompleteOpening.decode_raw scheme (fun i nonce => (i,nonce)) indices nonces columns
     have decodedEq := RuntimeAdaptiveVerifier.decode_of_parts binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata)
       (CanonicalRequest.hashPublic binary.nPublic)
-      (CanonicalRuntime.decodePrimePublic binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) repr shape setup
+      (CanonicalRuntime.decodePrimePublic binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (LegacyFormat repr shape setup _)
         (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes repr shape setup configuration) primeCount)
       draw output H data claim (by dsimp only; rw [outputRequest,encoded]; exact statement) openingPart
     have coinEq : RuntimeVerifier.batchingDecoder binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) draw (H parent.point).2 = coin := by
@@ -145,7 +146,7 @@ theorem finish_accepts
     rw [outputRequest,encoded] at decodedEq
     change RuntimeAdaptiveVerifier.decode binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata)
       (CanonicalRequest.hashPublic binary.nPublic)
-      (CanonicalRuntime.decodePrimePublic binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) repr shape setup
+      (CanonicalRuntime.decodePrimePublic binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (LegacyFormat repr shape setup _)
         (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes repr shape setup configuration) primeCount)
       draw output H =
         some ⟨data.1,data.2,claim,RuntimeVerifier.batchingDecoder binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) draw (H parent.point).2,
@@ -153,7 +154,7 @@ theorem finish_accepts
             (H ((e.encoding.chain configuration.initialLink).point output.proof H g.openingIndex.val)).2)⟩ at decodedEq
     rw [chosenOnE,coinEq] at decodedEq
     exact decodedEq
-  · change StrandVerifier.samplersSucceeded binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) (ProofBodyCodec.codec repr g)
+  · change StrandVerifier.samplersSucceeded binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) NodeWire.current (ProofBodyCodec.codec repr g)
       roundSampler output SHA ∧ _
     refine ⟨?_,?_,?_,?_,?_,?_⟩
     · intro i

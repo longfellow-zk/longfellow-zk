@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.Mdoc.Runtime
 import LfzkV2.Current.Protocol.ExecutionSampler
 import LfzkV2.Current.ZeroKnowledge.StrandHonestFrontend
@@ -86,11 +87,11 @@ theorem rawReal_some_accepts (coins : HonestCoins) (nonces : Fin 2443 → Merkle
         Repr Sh runtime.fingerprint Public)
       (CompleteCanonicalVerifier.earlier runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes Repr Sh runtime.fingerprint
         Public (RuntimeStatement.binary_count runtime.binary runtime.prime runtime.primePlan runtime.inputFits runtime.privateFits) runtime.metadata)
-      (ProofBodyCodec.codec Repr (MdocRuntime.geometry runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan)) roundSampler
+      NodeWire.current (ProofBodyCodec.codec Repr (MdocRuntime.geometry runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan)) roundSampler
       (CanonicalRequest.hashPublic runtime.binary.description.nPublic)
       (CanonicalRuntime.decodePrimePublic runtime.binary.description runtime.prime
         (backend runtime.binaryNodes runtime.binary.description.cells)
-        (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells runtime.prime.remaining runtime.prime.pads)) Repr Sh runtime.fingerprint
+        (backend ConcreteSetup.primeNodes (CellLayout.Prime.cells runtime.prime.remaining runtime.prime.pads)) (LegacyFormat Repr Sh runtime.fingerprint _)
         (CompleteCanonicalVerifier.basePublic runtime.binary.description runtime.prime runtime.binaryNodes ConcreteSetup.primeNodes
           Repr Sh runtime.fingerprint Public) pCount)
       batchingSamples Codec SHA id output = true := by

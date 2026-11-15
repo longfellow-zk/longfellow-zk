@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalExperiments
 
 /-! Exact joint frontend/backend coin equivalence at a fixed oracle and ghost commitment. No statistical commitment argument enters this module. -/

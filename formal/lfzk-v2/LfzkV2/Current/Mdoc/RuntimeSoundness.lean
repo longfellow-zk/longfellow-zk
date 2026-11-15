@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.Mdoc.Setup
 import LfzkV2.Current.Soundness.Composition
 import LfzkV2.Current.MdocDefaults
@@ -46,7 +47,7 @@ local notation "primeFits" => Nat.le_max_right ((Layered.Circuit.layers (PrimePu
 local notation "df" => Nat.le_max_left (BinaryPublic.degree bp) binary.plan.capacity
 local notation "rf" => Nat.le_max_left ((Layered.Circuit.layers (PrimePublic.circuit pp))+1) prime.plan.capacity
 local notation "Point" => QueryRuntime.Runtime.Point repr shape setup (BinaryPublic.nPublic bp)
-local notation "Values" => Protocol.Sampling.values c bp pp P R cb cp bc pc repr shape setup
+local notation "Values" => Protocol.Sampling.values c bp pp P R cb cp bc pc (LegacyFormat repr shape setup (BinaryPublic.nPublic bp))
 local notation "First" => FieldBackend.participant (FieldBackend.indexed P cb)
 local notation "Second" => FieldBackend.participant (FieldBackend.indexed R cp)
 
@@ -67,7 +68,7 @@ private def fallbackPath :
   opened := Finset.mem_singleton_self _
   cut := []
 
-abbrev Request := CanonicalRuntime.Request bp shape
+abbrev Request := CanonicalRequest.Request shape (BinaryPublic.nPublic bp)
 abbrev RoundPoint := Point
 abbrev RoundValue (point : Point) := Values point
 

@@ -26,32 +26,31 @@ def Valid (publicBits : Fin binary.nPublic → Bool) (publicPrime : Fin prime.nP
 
 variable {g : Geometry} {fields : Fields} {Advice C Salt : Type} {k s n t : ℕ}
 variable (P : FieldBackend B k s n t) (R : FieldBackend N k s n t)
-variable (repr : ProofBodyCodec.Representations fields Advice)
-variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
+variable (fmt : Format g fields Advice binary.nPublic)
 variable (cfg : RuntimeVerifier.Public (g := g) binary.description prime.description P R (fields := fields) (Advice := Advice)
-  (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Salt))
-variable (binaryCount : shape.binaryPublic = binary.nPublic) (primeCount : shape.primePublic = prime.nPublic)
-variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
-local notation "W" => CanonicalRuntime.wirePublic bp pp P R repr shape setup cfg
-local notation "earlier" => CanonicalRuntime.earlier bp pp P R repr shape setup cfg binaryCount metadata
+  (Base := fmt.Base)
+  (Key := fmt.Key) (C := C) (Salt := Salt))
+variable (binaryCount : fmt.binaryPublic = binary.nPublic) (primeCount : fmt.primePublic = prime.nPublic)
+variable (metadata : fmt.RequestMetadata C)
+local notation "W" => CanonicalRuntime.wirePublic bp pp P R fmt cfg
+local notation "earlier" => CanonicalRuntime.earlier bp pp P R fmt cfg binaryCount metadata
 variable (draw : C → RuntimeVerifier.RawSamples binary.description prime.description P R
-  (CanonicalRuntime.wirePublic binary.description prime.description P R repr shape setup cfg))
+  (CanonicalRuntime.wirePublic binary.description prime.description P R fmt cfg))
 variable [Inhabited (RuntimeVerifier.Family binary.description prime.description P R
-  (CanonicalRuntime.wirePublic binary.description prime.description P R repr shape setup cfg)).Leaf]
+  (CanonicalRuntime.wirePublic binary.description prime.description P R fmt cfg)).Leaf]
 
 theorem valid_at_request
-    (output : CanonicalRuntime.Output (Advice := Advice) bp shape)
-    (H : CanonicalRuntime.Point bp repr shape setup → Digest × C)
+    (output : CanonicalRuntime.FormatOutput bp fmt)
+    (H : CanonicalRuntime.Point bp fmt → Digest × C)
     (decoded : RuntimeVerifier.Decoded bp pp P R W)
     (found : RuntimeAdaptiveVerifier.decode bp pp P R W earlier
-      (CanonicalRequest.hashPublic binary.nPublic)
-      (CanonicalRuntime.decodePrimePublic bp pp P R repr shape setup cfg primeCount) draw output H = some decoded)
+      (fmt.hashPublic)
+      (CanonicalRuntime.decodePrimePublic bp pp P R fmt cfg primeCount) draw output H = some decoded)
     (w : Witness) (truth : decoded.application.True w) :
     Valid binary prime output.request.publicBits
-      (CanonicalRuntime.primeInputs bp pp P R repr shape setup cfg primeCount output.request) w := by
+      (CanonicalRuntime.primeInputs bp pp P R fmt cfg primeCount output.request) w := by
   obtain ⟨nd,bd,_,_,hash,signature⟩ := CanonicalRuntime.decoded_true_at_request
-    bp pp P R repr shape setup cfg binaryCount primeCount metadata draw output H decoded found w truth
+    bp pp P R fmt cfg binaryCount primeCount metadata draw output H decoded found w truth
   refine ⟨?_,signature⟩
   exact hashValid_of_satisfies {binary with publicBits := output.request.publicBits} w.1 bd.entries hash
 

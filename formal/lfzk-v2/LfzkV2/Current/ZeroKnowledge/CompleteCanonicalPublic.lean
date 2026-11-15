@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.CanonicalRuntime
 import LfzkV2.Current.ConcreteSetup
 import LfzkV2.Current.MerkleWireCodec
@@ -32,7 +33,7 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime
 
 def basePublic := { cfg with bindSalt := MerkleWireCodec.bindSalt }
 
-def publicConfig := CanonicalRuntime.wirePublic binary prime P R repr shape setup
+def publicConfig := CanonicalRuntime.wirePublic binary prime P R (LegacyFormat repr shape setup _)
   (basePublic binary prime binaryNodes primeNodes repr shape setup cfg)
 
 instance leafInhabited : Inhabited (RuntimeVerifier.Family binary prime P R

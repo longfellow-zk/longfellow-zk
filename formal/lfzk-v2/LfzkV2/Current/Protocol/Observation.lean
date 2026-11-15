@@ -72,7 +72,7 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fiel
   (Base := BoundedBytes capacity) (Key := Key) (C := C) (Salt := Salt))
 variable (earlier : Request → Replay.Encoding g fields Advice (RuntimeVerifier.Authentication (g := g)) Key
   (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := BoundedBytes capacity)) C)
-variable (bodyCodec : PrefixCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
+variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
 variable (sample : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := BoundedBytes capacity) (Key := Key) → Tree Strand.Word Digest (Option C) blocks)
 variable [Inhabited Salt] [Inhabited (RuntimeVerifier.Family binary prime P R cfg).Leaf]
@@ -85,62 +85,62 @@ local notation "Output" => RuntimeAdaptiveVerifier.Output (g := g) (fields := fi
   (Advice := Advice) (Request := Request)
 local notation "Annotated" => RuntimeAdaptiveMerkle.Annotated (g := g) (fields := fields)
   (Advice := Advice) (Base := BoundedBytes capacity) (Key := Key) (C := C) (Request := Request)
-local notation "fullReplay" => StrandAuthentication.replay binary prime P R cfg earlier bodyCodec sample codec merkleInput
+local notation "fullReplay" => StrandAuthentication.replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput
 
 /-- The decoded application is recovered from the same recorded trace as
 acceptance, so observing extraction failure needs no additional oracle reads. -/
 def decoded (view : View Output Result Context) :=
   RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw view.original.1
-    (StrandVerifier.oracle binary prime P R cfg bodyCodec sample (complete view.verifier.2))
+    (StrandVerifier.oracle binary prime P R cfg wire bodyCodec sample (complete view.verifier.2))
 
 /-- Decoding depends only on the verifier trace. Its retained result and
 application bookkeeping need no equality conversion. -/
 theorem decoded_of_trace (view : View Output Result Context) (SHA : Bytes → Digest)
     (replayed : view.verifier.2 = ((fullReplay view.original.1).run SHA).2) :
-    decoded binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw view =
+    decoded binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw view =
       RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw view.original.1
-        (StrandVerifier.oracle binary prime P R cfg bodyCodec sample SHA) := by
+        (StrandVerifier.oracle binary prime P R cfg wire bodyCodec sample SHA) := by
   unfold decoded
   rw [replayed]
-  exact (StrandAuthentication.decode_raw_congr binary prime P R cfg earlier bodyCodec sample codec merkleInput
+  exact (StrandAuthentication.decode_raw_congr binary prime P R cfg earlier wire bodyCodec sample codec merkleInput
     hashPublic decodePublic draw view.original.1 SHA (complete ((fullReplay view.original.1).run SHA).2)
     (complete_run_agrees (fullReplay view.original.1) SHA)).symm
 
 theorem decoded_actual (output : Output) (SHA : Bytes → Digest)
     (original : List (Bytes × Digest)) (cuts : Context → List (Bytes × Digest)) :
-    decoded binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw
+    decoded binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw
         { original := (output,original), verifier := (fullReplay output).run SHA, cuts := cuts } =
       RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw output
-        (StrandVerifier.oracle binary prime P R cfg bodyCodec sample SHA) :=
-  decoded_of_trace binary prime P R cfg earlier bodyCodec sample codec merkleInput hashPublic decodePublic draw
+        (StrandVerifier.oracle binary prime P R cfg wire bodyCodec sample SHA) :=
+  decoded_of_trace binary prime P R cfg earlier wire bodyCodec sample codec merkleInput hashPublic decodePublic draw
     _ SHA rfl
 
 /-- Actual runtime acceptance read from the submitted proof and complete
 verifier observation. This invokes the existing verifier, including tuple
 Merkle authentication and the final seal, against the trace completion. -/
 def decision (view : View Output Result Context) : Bool :=
-  StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+  StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
     (complete view.verifier.2) merkleInput view.original.1
 
 /-- Acceptance uses the same trace completion as decoding. -/
 theorem decision_of_trace (view : View Output Result Context) (SHA : Bytes → Digest)
     (replayed : view.verifier.2 = ((fullReplay view.original.1).run SHA).2) :
-    decision binary prime P R cfg earlier bodyCodec sample codec merkleInput hashPublic decodePublic draw view =
-      StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+    decision binary prime P R cfg earlier wire bodyCodec sample codec merkleInput hashPublic decodePublic draw view =
+      StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
         SHA merkleInput view.original.1 := by
   unfold decision
   rw [replayed]
-  exact (StrandAuthentication.verify_congr binary prime P R cfg earlier bodyCodec sample codec merkleInput
+  exact (StrandAuthentication.verify_congr binary prime P R cfg earlier wire bodyCodec sample codec merkleInput
     hashPublic decodePublic draw view.original.1 SHA (complete ((fullReplay view.original.1).run SHA).2)
     (complete_run_agrees (fullReplay view.original.1) SHA)).symm
 
 theorem decision_actual (output : Output) (SHA : Bytes → Digest)
     (original : List (Bytes × Digest)) (cuts : Context → List (Bytes × Digest)) :
-    decision binary prime P R cfg earlier bodyCodec sample codec merkleInput hashPublic decodePublic draw
+    decision binary prime P R cfg earlier wire bodyCodec sample codec merkleInput hashPublic decodePublic draw
       { original := (output,original), verifier := (fullReplay output).run SHA, cuts := cuts } =
-        StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+        StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
           SHA merkleInput output :=
-  decision_of_trace binary prime P R cfg earlier bodyCodec sample codec merkleInput hashPublic decodePublic draw
+  decision_of_trace binary prime P R cfg earlier wire bodyCodec sample codec merkleInput hashPublic decodePublic draw
     _ SHA rfl
 
 end Runtime

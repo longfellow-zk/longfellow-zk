@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.Protocol.Execution
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalContext
 import LfzkV2.Current.ZeroKnowledge.FrontendCanonicalRows

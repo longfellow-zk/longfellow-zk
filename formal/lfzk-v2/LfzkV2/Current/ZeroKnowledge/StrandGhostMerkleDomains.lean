@@ -71,7 +71,7 @@ end Congruence
 
 section Finish
 variable {g : Geometry} {fs : Fields} {A Auth Key Answer : Type} {capacity blocks : ℕ}
-variable (bodyCodec : PrefixCodec (Body g fs A Auth))
+variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fs A Auth))
 variable (encoding : ProofBodyReplay.BodyEncoding (g := g) (fields := fs) (Advice := A)
   (Authentication := Auth) (Context := Key)
   (Block := QueryRuntime.Block capacity (ProtocolWrites.Fresh g fs A)) (C := Answer))
@@ -83,18 +83,18 @@ variable (fallback : Answer) (initial : Digest)
 theorem finish_congr_reads (body : Body g fs A Auth) (H G : Strand.Oracle)
     (agree : StrandReadWindow.Agree
       (Point := Replay.Point g fs A Auth Key (QueryRuntime.Block capacity (ProtocolWrites.Fresh g fs A)))
-      (StrandRuntime.history NodeWire.current bodyCodec) H G) :
-    StrandCompletion.finish bodyCodec encoding sample fallback initial body H =
-      StrandCompletion.finish bodyCodec encoding sample fallback initial body G := by
+      (StrandRuntime.history wire bodyCodec) H G) :
+    StrandCompletion.finish wire bodyCodec encoding sample fallback initial body H =
+      StrandCompletion.finish wire bodyCodec encoding sample fallback initial body G := by
   have logical := StrandReadWindow.Agree.oracle _ sample fallback agree
   simp only [StrandCompletion.finish,logical]
   rw [agree.node,agree.prf]
 
 theorem finish_congr (body : Body g fs A Auth) (H G : Strand.Oracle)
     (agree : ∀ input : Strand.Input, H input.encode = G input.encode) :
-    StrandCompletion.finish bodyCodec encoding sample fallback initial body H =
-      StrandCompletion.finish bodyCodec encoding sample fallback initial body G := by
-  exact finish_congr_reads bodyCodec encoding sample fallback initial body H G
+    StrandCompletion.finish wire bodyCodec encoding sample fallback initial body H =
+      StrandCompletion.finish wire bodyCodec encoding sample fallback initial body G := by
+  exact finish_congr_reads wire bodyCodec encoding sample fallback initial body H G
     (StrandReadWindow.Agree.of_inputs _ H G agree)
 
 end Finish

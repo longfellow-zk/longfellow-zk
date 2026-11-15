@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalCommitmentHiding
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalExactSimulation
 import LfzkV2.Current.ZeroKnowledge.StrandLeafWindow

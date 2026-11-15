@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ZeroKnowledge.CompleteCanonicalPublic
 import LfzkV2.Current.ZeroKnowledge.FrontendCompleteSimulation
 
@@ -52,7 +53,7 @@ def base (request : Request) (root : Digest) :
     (CanonicalRuntime.binaryRequest binary.description prime
       (ConcreteSetup.backend binaryNodes binary.description.cells)
       (ConcreteSetup.backend ConcreteSetup.primeNodes (CellLayout.Prime.cells prime.remaining prime.pads))
-      repr shape setup
+      (LegacyFormat repr shape setup _)
       (CompleteCanonicalVerifier.basePublic binary.description prime binaryNodes ConcreteSetup.primeNodes repr shape setup cfg)
       binaryCount) metadata request root
 

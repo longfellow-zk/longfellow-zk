@@ -307,7 +307,7 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fiel
   (Base := BoundedBytes capacity) (Key := Key) (C := C) (Salt := Salt))
 variable (earlier : Request → Replay.Encoding g fields Advice (RuntimeVerifier.Authentication (g := g)) Key
   (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := BoundedBytes capacity)) C)
-variable (bodyCodec : PrefixCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
+variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
 variable (sample : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := BoundedBytes capacity) (Key := Key) → Tree Strand.Word Digest (Option C) blocks)
 variable [Inhabited Salt] [Inhabited (RuntimeVerifier.Family binary prime P R cfg).Leaf]
@@ -318,8 +318,8 @@ local notation "Output" => RuntimeAdaptiveVerifier.Output (g := g) (fields := fi
   (Advice := Advice) (Request := Request)
 local notation "Annotated" => RuntimeAdaptiveMerkle.Annotated (g := g) (fields := fields)
   (Advice := Advice) (Base := BoundedBytes capacity) (Key := Key) (C := C) (Request := Request)
-local notation "history" => StrandRuntime.history NodeWire.current bodyCodec
-local notation "oracle" => StrandVerifier.oracle binary prime P R cfg bodyCodec sample
+local notation "history" => StrandRuntime.history wire bodyCodec
+local notation "oracle" => StrandVerifier.oracle binary prime P R cfg wire bodyCodec sample
 local notation "ordinary" => TranscriptV2.StrandVerifier.replay history sample cfg.fallback (M)
 local notation "claims" => RuntimeAdaptiveMerkle.claimOf binary prime P R cfg
 local notation "authentication" => checkRaw codec claims merkleInput
@@ -331,18 +331,18 @@ def replay (output : Output) :
   Physical.authenticate history sample cfg.fallback (M) authentication output
 
 theorem replay_result (output : Output) (SHA : Bytes → Digest) :
-    ((replay binary prime P R cfg earlier bodyCodec sample codec merkleInput output).run SHA).1 =
+    ((replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output).run SHA).1 =
       ((output,(M).replay output (oracle SHA) g.roles.length),
-        StrandVerifier.finalSeal binary prime P R cfg earlier bodyCodec sample output SHA) :=
+        StrandVerifier.finalSeal binary prime P R cfg earlier wire bodyCodec sample output SHA) :=
   Physical.authenticate_result history sample cfg.fallback (M) authentication output SHA
 
 theorem authentication_trace_subset (output : Output) (SHA : Bytes → Digest) :
     ((authentication (output,(M).replay output (oracle SHA) g.roles.length)).run SHA).2 ⊆
-      ((replay binary prime P R cfg earlier bodyCodec sample codec merkleInput output).run SHA).2 :=
+      ((replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output).run SHA).2 :=
   Physical.authentication_trace_subset history sample cfg.fallback (M) authentication output SHA
 
 theorem replay_nonPrf_card (output : Output) (SHA : Bytes → Digest) :
-    ((seen (replay binary prime P R cfg earlier bodyCodec sample codec merkleInput output) SHA).filter
+    ((seen (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output) SHA).filter
       (fun raw => Strand.decodePrf raw = none)).card ≤ g.roles.length+1+2*n :=
   Physical.authenticate_nonPrf_card history sample cfg.fallback (M) authentication output SHA
 
@@ -398,7 +398,7 @@ theorem decode_congr (output : Output) (H H' : Point → Digest × C)
   rw [← parentEq,← points _ (Nat.le_of_lt g.openingIndex.isLt),← pastEq,← batchingEq,← openingEq]
 
 theorem decode_raw_congr (output : Output) (SHA SHA' : Bytes → Digest)
-    (agree : ∀ qa ∈ ((replay binary prime P R cfg earlier bodyCodec sample codec merkleInput output).run SHA).2,
+    (agree : ∀ qa ∈ ((replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output).run SHA).2,
       SHA' qa.1 = qa.2) :
     RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw output
         (oracle SHA) =
@@ -423,10 +423,10 @@ theorem decoded_path_visible (output : Output) (SHA : Bytes → Digest)
     let input := pathInput codec decoded.claim.I decoded.claim.a decoded.claim.pf column opened
       (SHA ∘ merkleInput) vertex
     (merkleInput input,SHA (merkleInput input)) ∈
-      ((replay binary prime P R cfg earlier bodyCodec sample codec merkleInput output).run SHA).2 := by
+      ((replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output).run SHA).2 := by
   have claim := RuntimeAdaptiveMerkle.claimOf_replay binary prime P R cfg earlier
     hashPublic decodePublic draw output (oracle SHA) decoded decodedAt
-  apply authentication_trace_subset binary prime P R cfg earlier bodyCodec sample codec merkleInput output SHA
+  apply authentication_trace_subset binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output SHA
   rw [checkRaw_run]
   apply List.mem_map.mpr
   refine ⟨(_,SHA (merkleInput _)),?_,rfl⟩
@@ -436,36 +436,36 @@ theorem decoded_path_visible (output : Output) (SHA : Bytes → Digest)
     column opened (SHA ∘ merkleInput) vertex onPath
 
 theorem verify_congr (output : Output) (SHA SHA' : Bytes → Digest)
-    (agree : ∀ qa ∈ ((replay binary prime P R cfg earlier bodyCodec sample codec merkleInput output).run SHA).2,
+    (agree : ∀ qa ∈ ((replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output).run SHA).2,
       SHA' qa.1 = qa.2) :
-    StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+    StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
         SHA merkleInput output =
-      StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+      StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
         SHA' merkleInput output := by
   have ordinaryAgree : ∀ qa ∈ ((ordinary output).run SHA).2, SHA' qa.1 = qa.2 :=
     fun qa member => agree qa (Physical.ordinary_trace_subset history sample cfg.fallback (M) authentication output SHA member)
-  have decodedEq := decode_raw_congr binary prime P R cfg earlier bodyCodec sample codec merkleInput
+  have decodedEq := decode_raw_congr binary prime P R cfg earlier wire bodyCodec sample codec merkleInput
     hashPublic decodePublic draw output SHA SHA' agree
-  have sampledEq : StrandVerifier.samplersSucceeded binary prime P R cfg earlier bodyCodec sample output SHA ↔
-      StrandVerifier.samplersSucceeded binary prime P R cfg earlier bodyCodec sample output SHA' := by
+  have sampledEq : StrandVerifier.samplersSucceeded binary prime P R cfg earlier wire bodyCodec sample output SHA ↔
+      StrandVerifier.samplersSucceeded binary prime P R cfg earlier wire bodyCodec sample output SHA' := by
     unfold StrandVerifier.samplersSucceeded
     exact forall_congr' (fun i => Physical.path_sampled_agree history sample cfg.fallback (M) output SHA SHA' ordinaryAgree i)
   have resultEq := congrArg Prod.fst (Tree.run_congr_on_trace
-    (replay binary prime P R cfg earlier bodyCodec sample codec merkleInput output) SHA SHA' agree)
+    (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output) SHA SHA' agree)
   rw [replay_result,replay_result] at resultEq
   have sealEq := congrArg Prod.snd resultEq
-  change StrandVerifier.finalSeal binary prime P R cfg earlier bodyCodec sample output SHA' =
-    StrandVerifier.finalSeal binary prime P R cfg earlier bodyCodec sample output SHA at sealEq
+  change StrandVerifier.finalSeal binary prime P R cfg earlier wire bodyCodec sample output SHA' =
+    StrandVerifier.finalSeal binary prime P R cfg earlier wire bodyCodec sample output SHA at sealEq
   have checksEq (decoded : RuntimeVerifier.Decoded binary prime P R cfg)
       (decodedAtSHA : RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw
         output (oracle SHA) = some decoded) :
-      StrandVerifier.Checks binary prime P R cfg earlier bodyCodec sample codec SHA merkleInput output decoded ↔
-        StrandVerifier.Checks binary prime P R cfg earlier bodyCodec sample codec SHA' merkleInput output decoded := by
+      StrandVerifier.Checks binary prime P R cfg earlier wire bodyCodec sample codec SHA merkleInput output decoded ↔
+        StrandVerifier.Checks binary prime P R cfg earlier wire bodyCodec sample codec SHA' merkleInput output decoded := by
     have claim := RuntimeAdaptiveMerkle.claimOf_replay binary prime P R cfg earlier hashPublic decodePublic draw
       output (oracle SHA) decoded decodedAtSHA
     have root := checkRaw_root_congr codec claims merkleInput
       (output,(M).replay output (oracle SHA) g.roles.length) SHA SHA'
-      (fun qa member => agree qa (authentication_trace_subset binary prime P R cfg earlier bodyCodec sample codec
+      (fun qa member => agree qa (authentication_trace_subset binary prime P R cfg earlier wire bodyCodec sample codec
         merkleInput output SHA member))
     rw [claim] at root
     unfold StrandVerifier.Checks
@@ -486,14 +486,14 @@ verification query. Equal raw observations therefore preserve the actual
 accepting decision for the same submitted proof. -/
 theorem verify_after_search_congr {fuel : ℕ} (program : Tree Bytes Digest Output fuel)
     (SHA SHA' : Bytes → Digest)
-    (same : (program.bind (replay binary prime P R cfg earlier bodyCodec sample codec merkleInput)).run SHA =
-      (program.bind (replay binary prime P R cfg earlier bodyCodec sample codec merkleInput)).run SHA') :
-    StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+    (same : (program.bind (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput)).run SHA =
+      (program.bind (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput)).run SHA') :
+    StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
         SHA merkleInput (program.run SHA).1 =
-      StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+      StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
         SHA' merkleInput (program.run SHA').1 := by
   have agree : ∀ qa ∈ ((program.bind
-      (replay binary prime P R cfg earlier bodyCodec sample codec merkleInput)).run SHA).2,
+      (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput)).run SHA).2,
       SHA' qa.1 = qa.2 := by
     intro qa member
     exact (Tree.trace_sound _ SHA' qa (by rw [← same]; exact member)).symm
@@ -503,7 +503,7 @@ theorem verify_after_search_congr {fuel : ℕ} (program : Tree Bytes Digest Outp
     rw [Tree.run_bind]
     exact List.mem_append_left _ member))
   rw [searchSame]
-  apply verify_congr binary prime P R cfg earlier bodyCodec sample codec merkleInput hashPublic decodePublic draw
+  apply verify_congr binary prime P R cfg earlier wire bodyCodec sample codec merkleInput hashPublic decodePublic draw
   intro qa member
   apply agree qa
   rw [Tree.run_bind]
@@ -517,17 +517,17 @@ theorem verify_cache_completion {T : Type} {fuel : ℕ} (schema : Strand.History
     (SHA SHA' : Bytes → Digest)
     (cacheMatches : ((StrandSearch.searchState schema Subtype.val
       (recordTrace (mapQueries Strand.rawPoint (program.bind
-        (replay binary prime P R cfg earlier bodyCodec sample codec merkleInput))))
+        (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput))))
           StrandCoupling.Cache.empty []).run H).1.1.2.Matches (SHA ∘ Strand.rawBytes))
     (cacheMatches' : ((StrandSearch.searchState schema Subtype.val
       (recordTrace (mapQueries Strand.rawPoint (program.bind
-        (replay binary prime P R cfg earlier bodyCodec sample codec merkleInput))))
+        (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput))))
           StrandCoupling.Cache.empty []).run H).1.1.2.Matches (SHA' ∘ Strand.rawBytes)) :
-    StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+    StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
         SHA merkleInput (program.run SHA).1 =
-      StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+      StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
         SHA' merkleInput (program.run SHA').1 := by
-  apply verify_after_search_congr binary prime P R cfg earlier bodyCodec sample codec merkleInput
+  apply verify_after_search_congr binary prime P R cfg earlier wire bodyCodec sample codec merkleInput
     hashPublic decodePublic draw program SHA SHA'
   exact named_completion_run schema _ H SHA SHA' cacheMatches cacheMatches'
 

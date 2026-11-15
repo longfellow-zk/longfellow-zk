@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ZeroKnowledge.BackendPrefix
 import LfzkV2.Current.ZeroKnowledge.StrandHonestBackend
 import LfzkV2.Current.ZeroKnowledge.StrandHonestAcceptance
@@ -59,9 +60,9 @@ theorem respondHonest_accepts
       (fun i => committedColumns binary prime binaryNodes primeNodes cells tape i.val)
       (Merkle.Indexed.openCore (((indexedCodec binary prime binaryNodes primeNodes repr shape setup configuration)).withOracle SHA) 2443 (OrderedOpening.query indices).coordinates
         (fun i => (i,nonces i)) columns) SHA
-    StrandVerifier.verify binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) (ProofBodyCodec.codec repr g) roundSampler
+    StrandVerifier.verify binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) NodeWire.current (ProofBodyCodec.codec repr g) roundSampler
       (CanonicalRequest.hashPublic binary.nPublic)
-      (CanonicalRuntime.decodePrimePublic binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) repr shape setup
+      (CanonicalRuntime.decodePrimePublic binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (LegacyFormat repr shape setup _)
         (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes repr shape setup configuration) primeCount)
       draw (indexedCodec binary prime binaryNodes primeNodes repr shape setup configuration) SHA id output = true := by
   obtain ⟨data,parsed,responseEq,selected⟩ := respondHonest_spec binary prime binaryNodes primeNodes repr shape setup

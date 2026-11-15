@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ZeroKnowledge.RequestedPublic
 import LfzkV2.Current.ZeroKnowledge.FrontendFullSatisfaction
 import LfzkV2.Current.ZeroKnowledge.FrontendRuntimeStatement
@@ -122,7 +123,7 @@ theorem exists_satisfied (coins : Coins) (request : Request) (root : Digest)
       (CompleteTranscript.step writer H (CompleteTranscript.initial (FingerprintPrefix.context request root) samples.fallback)).2
       (CompleteHonest.run b p primePlan samples writer H selection (FingerprintPrefix.context request root)
         (original request) (remaining request) source coins.2)) (original request) source at hash
-  let binaryRequest := CanonicalRuntime.binaryRequest binary.description prime First Second Repr Sh setup
+  let binaryRequest := CanonicalRuntime.binaryRequest binary.description prime First Second (LegacyFormat Repr Sh setup _)
     (CompleteCanonicalVerifier.basePublic binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup Cfg) bCount
   let publicCoins := FullCoupling.coupling b p primePlan samples writer H (FingerprintPrefix.context request root)
     (original request) (remaining request) pivotOne hashAll selection (source,coins.2)
@@ -145,16 +146,16 @@ theorem exists_satisfied (coins : Coins) (request : Request) (root : Digest)
     exact BackendPath.parent_point _ _ _ _ _
   have primeStart : (G).primeStart ≤ (G).batchingIndex.val := by
     exact le_trans (Nat.le_add_right _ _) (ParserApplication.prime_window binary prime primePlan)
-  have hbits := CanonicalRuntime.hashPublic_replay binary.description prime First Second Repr Sh setup
+  have hbits := CanonicalRuntime.hashPublic_replay binary.description prime First Second (LegacyFormat Repr Sh setup _)
     (CompleteCanonicalVerifier.basePublic binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup Cfg)
     bCount metadata request (Cfg).initialLink proof H (G).batchingIndex.val
-  have hinputs := CanonicalRuntime.primePublic_replay binary.description prime First Second Repr Sh setup
+  have hinputs := CanonicalRuntime.primePublic_replay binary.description prime First Second (LegacyFormat Repr Sh setup _)
     (CompleteCanonicalVerifier.basePublic binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup Cfg)
     bCount pCount metadata request (Cfg).initialLink proof H (G).batchingIndex.val (G).batchingIndex.isLt.le primeStart
   have application : RuntimeAdaptive.application binary.description prime First Second
       (CompleteCanonicalVerifier.publicConfig binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup Cfg)
       (CanonicalRequest.hashPublic binary.nPublic)
-      (CanonicalRuntime.decodePrimePublic binary.description prime First Second Repr Sh setup
+      (CanonicalRuntime.decodePrimePublic binary.description prime First Second (LegacyFormat Repr Sh setup _)
         (CompleteCanonicalVerifier.basePublic binary.description prime binaryNodes ConcreteSetup.primeNodes Repr Sh setup Cfg) pCount)
       point (point.priorAnswers H) = some system := by
     rw [RequestedApplication.application_eq _ _ _ _ _ _ _ point (point.priorAnswers H) request.publicBits

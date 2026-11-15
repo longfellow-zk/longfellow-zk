@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalExperiments
 import LfzkV2.Current.ZeroKnowledge.ProbabilityInstances
 import LfzkV2.Current.ZeroKnowledge.StrandGhostMerkleSlice

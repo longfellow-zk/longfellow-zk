@@ -25,7 +25,7 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fiel
   (Base := BoundedBytes capacity) (Key := Key) (C := C) (Salt := Salt))
 variable (earlier : Request → Replay.Encoding g fields Advice (RuntimeVerifier.Authentication (g := g)) Key
   (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := BoundedBytes capacity)) C)
-variable (bodyCodec : PrefixCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
+variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
 variable (sample : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := BoundedBytes capacity) (Key := Key) →
     Tree TranscriptV2.Strand.Word Digest (Option C) blocks)
@@ -36,7 +36,7 @@ local notation "Output" => RuntimeAdaptiveVerifier.Output (g := g) (fields := fi
   (Advice := Advice) (Request := Request)
 local notation "Decoded" => RuntimeVerifier.Decoded binary prime P R cfg
 local notation "M" => RuntimeAdaptiveVerifier.chain binary prime P R cfg earlier
-local notation "history" => StrandRuntime.history NodeWire.current bodyCodec
+local notation "history" => StrandRuntime.history wire bodyCodec
 
 /-- Replaying the physical sampler determines the original typed runtime
 answers. Unused failure values are harmless because `samplersSucceeded`
@@ -46,28 +46,27 @@ def oracle (G : TranscriptV2.Strand.Oracle) : Point → Digest × C :=
 
 def samplersSucceeded (output : Output) (G : TranscriptV2.Strand.Oracle) : Prop :=
   ∀ i : Fin g.roles.length, TranscriptV2.StrandVerifier.sampled history sample G
-    ((M).point output (oracle binary prime P R cfg bodyCodec sample G) i.val)
+    ((M).point output (oracle binary prime P R cfg wire bodyCodec sample G) i.val)
 
 /-- The stored final seal is a challenge of the final node, not that node's
 hash. The node is reconstructed from the actual submitted complete body. -/
 def finalSealAddress (output : Output) (G : TranscriptV2.Strand.Oracle) : Bytes :=
   (TranscriptV2.Strand.Input.prf
-    (history ((M).finalSealPoint output (oracle binary prime P R cfg bodyCodec sample G))).id
-    (G (history ((M).finalSealPoint output (oracle binary prime P R cfg bodyCodec sample G))).input.encode) 0).encode
+    (history ((M).finalSealPoint output (oracle binary prime P R cfg wire bodyCodec sample G))).id
+    (G (history ((M).finalSealPoint output (oracle binary prime P R cfg wire bodyCodec sample G))).input.encode) 0).encode
 
 def finalSeal (output : Output) (G : TranscriptV2.Strand.Oracle) : Digest :=
-  G (finalSealAddress binary prime P R cfg earlier bodyCodec sample output G)
+  G (finalSealAddress binary prime P R cfg earlier wire bodyCodec sample output G)
 
 theorem finalSeal_body (output : Output) (G : TranscriptV2.Strand.Oracle) :
-    ∃ state, finalSeal binary prime P R cfg earlier bodyCodec sample output G =
+    ∃ state, finalSeal binary prime P R cfg earlier wire bodyCodec sample output G =
       G (TranscriptV2.Strand.Input.prf
         state.id
-        (G (TranscriptV2.StrandTranscript.finalNodeInput state (bodyCodec.encode output.proof.body))) 0).encode := by
+        (G (TranscriptV2.StrandTranscript.sealNodeInput wire.sealFrame state (bodyCodec.encode output.proof.body))) 0).encode := by
   let e := RuntimeAdaptiveVerifier.encodings binary prime P R cfg earlier output.request
-  obtain ⟨state,encoded⟩ := StrandRuntime.complete_body_node NodeWire.current bodyCodec e cfg.initialLink output.proof
-    (oracle binary prime P R cfg bodyCodec sample G)
-  change _ = TranscriptV2.StrandTranscript.finalNodeInput state _ at encoded
-  have ids := TranscriptV2.StrandTranscript.finalNodeInput_id _ state _
+  obtain ⟨state,encoded⟩ := StrandRuntime.complete_body_node wire bodyCodec e cfg.initialLink output.proof
+    (oracle binary prime P R cfg wire bodyCodec sample G)
+  have ids := TranscriptV2.StrandTranscript.sealNodeInput_id wire.sealFrame _ state _
     (TranscriptV2.Strand.History.valid _) encoded
   rw [TranscriptV2.Strand.History.input_id] at ids
   refine ⟨state,?_⟩
@@ -91,7 +90,7 @@ def Checks (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (output : Outp
     (decoded : Decoded) : Prop :=
   let e := RuntimeAdaptiveVerifier.encodings binary prime P R cfg earlier output.request
   let key := e.context output.proof
-  samplersSucceeded binary prime P R cfg earlier bodyCodec sample output SHA ∧
+  samplersSucceeded binary prime P R cfg earlier wire bodyCodec sample output SHA ∧
   cfg.root key = output.proof.body.commitment ∧
   output.proof.body.authentication.context = cfg.authenticationContext key ∧
   ((RuntimeVerifier.Family binary prime P R cfg).compiler cfg.openingPositive).AcceptsIndexed
@@ -100,52 +99,52 @@ def Checks (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (output : Outp
     ((Joint.Pair.coinEquiv _ _).symm decoded.coin)
     ((Joint.Pair.responseEquiv _ _).symm (RuntimeVerifier.responses binary prime P R cfg output.proof))
     decoded.query decoded.claim ∧
-  finalSeal binary prime P R cfg earlier bodyCodec sample output SHA = output.proof.finalSeal ∧
+  finalSeal binary prime P R cfg earlier wire bodyCodec sample output SHA = output.proof.finalSeal ∧
   prefixZeros binary prime P R cfg output
 
 def verify (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (output : Output) : Bool :=
   match RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw output
-      (oracle binary prime P R cfg bodyCodec sample SHA) with
+      (oracle binary prime P R cfg wire bodyCodec sample SHA) with
   | none => false
-  | some decoded => decide (Checks binary prime P R cfg earlier bodyCodec sample codec SHA merkleInput output decoded)
+  | some decoded => decide (Checks binary prime P R cfg earlier wire bodyCodec sample codec SHA merkleInput output decoded)
 
 theorem verify_true_iff (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (output : Output) :
-    verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec SHA merkleInput output = true ↔
+    verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec SHA merkleInput output = true ↔
       ∃ decoded, RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw output
-        (oracle binary prime P R cfg bodyCodec sample SHA) = some decoded ∧
-          Checks binary prime P R cfg earlier bodyCodec sample codec SHA merkleInput output decoded := by
+        (oracle binary prime P R cfg wire bodyCodec sample SHA) = some decoded ∧
+          Checks binary prime P R cfg earlier wire bodyCodec sample codec SHA merkleInput output decoded := by
   unfold verify
   cases decoded : RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw output
-      (oracle binary prime P R cfg bodyCodec sample SHA) with
+      (oracle binary prime P R cfg wire bodyCodec sample SHA) with
   | none => simp only [Bool.false_eq_true,reduceCtorEq,false_and,exists_false]
   | some value => simp only [decide_eq_true_eq,Option.some.injEq,exists_eq_left']
 
 /-- Acceptance checks PRF counter zero of the reconstructed final node.
 This supplies exactly the raw final-seal query obligation. -/
 theorem accepted_seal (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (output : Output)
-    (accepted : verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+    (accepted : verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
       SHA merkleInput output = true) :
     TranscriptV2.StrandVerifier.sealValid history sample cfg.fallback (M) output SHA := by
-  obtain ⟨decoded,_,checks⟩ := (verify_true_iff binary prime P R cfg earlier bodyCodec sample
+  obtain ⟨decoded,_,checks⟩ := (verify_true_iff binary prime P R cfg earlier wire bodyCodec sample
     hashPublic decodePublic draw codec SHA merkleInput output).mp accepted
   rw [TranscriptV2.StrandVerifier.sealValid_iff]
   exact checks.2.2.2.2.1
 
 theorem accepted_samples (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (output : Output)
-    (accepted : verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+    (accepted : verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
       SHA merkleInput output = true) :
-    samplersSucceeded binary prime P R cfg earlier bodyCodec sample output SHA := by
-  obtain ⟨_,_,checks⟩ := (verify_true_iff binary prime P R cfg earlier bodyCodec sample
+    samplersSucceeded binary prime P R cfg earlier wire bodyCodec sample output SHA := by
+  obtain ⟨_,_,checks⟩ := (verify_true_iff binary prime P R cfg earlier wire bodyCodec sample
     hashPublic decodePublic draw codec SHA merkleInput output).mp accepted
   exact checks.1
 
 theorem reject_final_seal (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (output : Output)
-    (wrong : finalSeal binary prime P R cfg earlier bodyCodec sample output SHA ≠ output.proof.finalSeal) :
-    verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+    (wrong : finalSeal binary prime P R cfg earlier wire bodyCodec sample output SHA ≠ output.proof.finalSeal) :
+    verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
       SHA merkleInput output = false := by
   apply Bool.eq_false_iff.mpr
   intro accepted
-  obtain ⟨_,_,checks⟩ := (verify_true_iff binary prime P R cfg earlier bodyCodec sample
+  obtain ⟨_,_,checks⟩ := (verify_true_iff binary prime P R cfg earlier wire bodyCodec sample
     hashPublic decodePublic draw codec SHA merkleInput output).mp accepted
   exact wrong checks.2.2.2.2.1
 
@@ -154,12 +153,12 @@ uses a dummy value to finish constructing its path. -/
 theorem reject_failed_sample (SHA : Bytes → Digest) (merkleInput : Enc → Bytes) (output : Output)
     (i : Fin g.roles.length)
     (failed : ¬TranscriptV2.StrandVerifier.sampled history sample SHA
-      ((M).point output (oracle binary prime P R cfg bodyCodec sample SHA) i.val)) :
-    verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+      ((M).point output (oracle binary prime P R cfg wire bodyCodec sample SHA) i.val)) :
+    verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
       SHA merkleInput output = false := by
   apply Bool.eq_false_iff.mpr
   intro accepted
-  exact failed (accepted_samples binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+  exact failed (accepted_samples binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
     SHA merkleInput output accepted i)
 
 /-- The concrete adaptive runtime's accepting decision forces the seal
@@ -168,7 +167,7 @@ requested public values and proof body may be adaptive. -/
 theorem accepted_seal_query {fuel : ℕ} (search : Tree Bytes Digest Output fuel)
     (SHA : Bytes → Digest) (merkleInput : Enc → Bytes)
     (fits : g.roles.length < 2^64)
-    (accepted : verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+    (accepted : verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
       SHA merkleInput (search.run SHA).1 = true)
     (unguessed : ¬TranscriptV2.StrandSealCharging.Guess
       (TranscriptV2.StrandVerifier.sealModel history (M))
@@ -176,9 +175,9 @@ theorem accepted_seal_query {fuel : ℕ} (search : Tree Bytes Digest Output fuel
     (TranscriptV2.StrandVerifier.sealModel history (M)).point
       ((search.bind (TranscriptV2.StrandVerifier.beforeSeal history sample cfg.fallback (M))).run SHA).1 SHA ∈
         TranscriptV2.seen search SHA := by
-  apply StrandRuntime.seal_required NodeWire.current bodyCodec (M) (fun _ => rfl)
+  apply StrandRuntime.seal_required wire bodyCodec (M) (fun _ => rfl)
     sample cfg.fallback search SHA fits unguessed
-  exact accepted_seal binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+  exact accepted_seal binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
     SHA merkleInput (search.run SHA).1 accepted
 
 end LfzkV2.Current.StrandVerifier

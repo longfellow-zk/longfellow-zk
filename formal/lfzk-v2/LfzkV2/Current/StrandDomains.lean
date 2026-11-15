@@ -135,7 +135,7 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fiel
   (Base := BoundedBytes capacity) (Key := Key) (C := C) (Salt := Salt))
 variable (earlier : Request → Replay.Encoding g fields Advice (RuntimeVerifier.Authentication (g := g)) Key
   (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := BoundedBytes capacity)) C)
-variable (bodyCodec : PrefixCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
+variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
 variable (sample : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := BoundedBytes capacity) (Key := Key) → Tree Strand.Word Digest (Option C) blocks)
 variable [Inhabited Salt] [Inhabited (RuntimeVerifier.Family binary prime P R cfg).Leaf]
@@ -147,7 +147,7 @@ variable (node : ∀ index value, protocol (merkleInput (codec.nodeEnc index val
 include leaf node in
 theorem replay (output : RuntimeAdaptiveVerifier.Output (g := g) (fields := fields)
     (Advice := Advice) (Request := Request)) :
-    UsesOnly protocol (StrandAuthentication.replay binary prime P R cfg earlier bodyCodec sample codec merkleInput output) := by
+    UsesOnly protocol (StrandAuthentication.replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output) := by
   apply complete _ _ _ _ _ _
   intro annotated
   exact ((indexed_check codec (fun input => protocol (merkleInput input)) leaf node _ _ _ _).map _).mapQueries
@@ -156,10 +156,10 @@ theorem replay (output : RuntimeAdaptiveVerifier.Output (g := g) (fields := fiel
 include leaf node in
 theorem replay_merge (outside inside : Bytes → Digest)
     (output : RuntimeAdaptiveVerifier.Output (g := g) (fields := fields) (Advice := Advice) (Request := Request)) :
-    (StrandAuthentication.replay binary prime P R cfg earlier bodyCodec sample codec merkleInput output).run
+    (StrandAuthentication.replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output).run
         (SHAOracle.merge protocol outside inside) =
-      (StrandAuthentication.replay binary prime P R cfg earlier bodyCodec sample codec merkleInput output).run inside :=
-  (replay binary prime P R cfg earlier bodyCodec sample codec merkleInput leaf node output).run_eq _ _
+      (StrandAuthentication.replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput output).run inside :=
+  (replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput leaf node output).run_eq _ _
     (fun raw member => SHAOracle.merge_inside protocol outside inside raw member)
 
 variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
@@ -169,15 +169,15 @@ variable (draw : C → RuntimeVerifier.RawSamples binary prime P R cfg)
 include leaf node in
 theorem verify_merge (outside inside : Bytes → Digest)
     (output : RuntimeAdaptiveVerifier.Output (g := g) (fields := fields) (Advice := Advice) (Request := Request)) :
-    StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+    StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
         (SHAOracle.merge protocol outside inside) merkleInput output =
-      StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec inside merkleInput output := by
+      StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec inside merkleInput output := by
   apply Eq.symm
-  apply StrandAuthentication.verify_congr binary prime P R cfg earlier bodyCodec sample codec merkleInput
+  apply StrandAuthentication.verify_congr binary prime P R cfg earlier wire bodyCodec sample codec merkleInput
     hashPublic decodePublic draw output inside _
   intro qa member
   exact (SHAOracle.merge_inside protocol outside inside qa.1
-    ((replay binary prime P R cfg earlier bodyCodec sample codec merkleInput leaf node output).trace inside qa member)).trans
+    ((replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput leaf node output).trace inside qa member)).trans
       (Tree.trace_sound _ inside qa member).symm
 
 end Runtime

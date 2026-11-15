@@ -21,24 +21,24 @@ variable (A : Protocol.Execution.Adversary S.protocol.Output fuel Q)
 variable [Inhabited (Fin c.n × MerkleNonce)]
 variable [leafDefault : Inhabited (Joint.Pair.family S.protocol.First S.protocol.Second).Leaf]
 
-local notation "Other" => Soundness.OracleTransport.other S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.repr S.protocol.shape S.protocol.fingerprint (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
+local notation "Other" => Soundness.OracleTransport.other S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.fmt (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
   M.data.execution.sample S.protocol.merkleCodec id A.toProgram.tree
 local notation "Node" => StrandWindow.Node (Other)
 local notation "Name" => StrandSearch.Name Node S.protocol.Value
 local notation "View" => Protocol.Execution.View S.protocol.Output ((S.protocol.Output × Chain.State (S.protocol.chain)) × Digest)
-  (FingerprintPrefix.Key S.protocol.binary.nPublic)
-local notation "decision" => Protocol.Observation.decision S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R (S.protocol.wire) (S.protocol.earlier) S.protocol.bodyCodec M.data.execution.sample S.protocol.merkleCodec id
+  (S.protocol.fmt.Key)
+local notation "decision" => Protocol.Observation.decision S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R (S.protocol.wire) (S.protocol.earlier) S.protocol.fmt.wire S.protocol.bodyCodec M.data.execution.sample S.protocol.merkleCodec id
   S.protocol.hashPublic S.protocol.primePublic S.protocol.draw
 local notation "failsView" => extractionFails S.protocol M.data
 local notation "valueFinite" => Fintype.ofInjective
-  (QueryRuntime.Runtime.toPoint S.protocol.repr S.protocol.shape S.protocol.fingerprint S.protocol.binary.nPublic)
-  (QueryRuntime.Runtime.toPoint_injective S.protocol.repr S.protocol.shape S.protocol.fingerprint S.protocol.binary.nPublic S.fits)
+  (S.protocol.fmt.toPoint)
+  (S.protocol.fmt.toPoint_injective_bounded S.fits)
 local notation "ordinaryRate" => (2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ))
 local notation "acceptedFailure" => fun (view : View) => decision view = true ∧ failsView view
-local notation "observe" => Soundness.OracleTransport.observe S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.repr S.protocol.shape S.protocol.fingerprint (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
+local notation "observe" => Soundness.OracleTransport.observe S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.fmt (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
   M.data.execution.sample S.protocol.merkleCodec id A.toProgram.tree
 local notation "sourceView" => fun K => observe (Prod.fst (Tree.run (searchTree S.protocol S.fits M.data A.toProgram) K)) K
-local notation "hashBad" => Soundness.Recovery.hashException S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.repr S.protocol.shape S.protocol.fingerprint (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata
+local notation "hashBad" => Soundness.Recovery.hashException S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.fmt (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata
   S.protocol.columnsFit M.data.execution.sample S.protocol.primeCount S.protocol.draw
 
 /-- The final step shared by both estimates: transport a named-oracle bound
@@ -54,11 +54,11 @@ theorem raw_failure_le (cap : ℚ)
   letI : Fintype S.protocol.Value := valueFinite
   letI : Fintype Name := inferInstance
   unfold rawFailure
-  rw [Soundness.OracleTransport.observation_law S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.repr S.protocol.shape S.protocol.fingerprint (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
+  rw [Soundness.OracleTransport.observation_law S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.fmt (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
     M.data.execution.sample S.protocol.merkleCodec id A.toProgram.tree (fun view => acceptedFailure view)]
   apply named.trans
   apply add_le_add le_rfl
-  have hash := Soundness.Recovery.hashException_ratio_le S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.repr S.protocol.shape S.protocol.fingerprint (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
+  have hash := Soundness.Recovery.hashException_ratio_le S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.fmt (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
     S.protocol.columnsFit M.data.execution.sample S.protocol.primeCount S.protocol.draw A.toProgram.tree S.fallbackPath S.independent S.bindSalt S.inputs.bodyFits A.queryBound
   apply hash.trans_eq
   unfold Soundness.OracleBounds.delta Soundness.Recovery.hashCorrection

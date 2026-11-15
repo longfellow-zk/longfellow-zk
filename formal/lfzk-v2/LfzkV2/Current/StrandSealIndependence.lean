@@ -15,7 +15,7 @@ open scoped Classical
 section Replay
 variable {g : Geometry} {fields : Fields} {Advice Auth Key Fresh C : Type}
 variable {capacity blocks : ℕ}
-variable (bodyCodec : PrefixCodec (Body g fields Advice Auth))
+variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fields Advice Auth))
 variable (encoding : Replay.Encoding g fields Advice Auth Key (Block capacity Fresh) C)
 variable (sample : Replay.Point g fields Advice Auth Key (Block capacity Fresh) →
   Tree Strand.Word Digest (Option C) blocks) (initial : Digest)
@@ -28,15 +28,15 @@ theorem point_nodes_congr (default : C) (proof : Replay.Output g fields Advice A
     (nodes : ∀ history : Strand.History, G history.input.encode = G' history.input.encode)
     (index : ℕ) :
     (encoding.chain initial).point proof
-        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample default G) index =
+        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history wire bodyCodec) sample default G) index =
       (encoding.chain initial).point proof
-        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample default G') index := by
+        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history wire bodyCodec) sample default G') index := by
   rw [encoding.replay_transcript proof default independent,
     encoding.replay_transcript proof default independent]
   have same : (fun point =>
-      (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample default G point).1) =
+      (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history wire bodyCodec) sample default G point).1) =
       (fun point =>
-        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history NodeWire.current bodyCodec) sample default G' point).1) := by
+        (TranscriptV2.StrandVerifier.oracle (StrandRuntime.history wire bodyCodec) sample default G' point).1) := by
     funext point
     rw [TranscriptV2.StrandVerifier.oracle_node,TranscriptV2.StrandVerifier.oracle_node]
     exact nodes _
@@ -51,78 +51,77 @@ variable {shared maskBits adviceBits k s n t blocks : ℕ}
 local notation "N" => ZMod Adapter.Mdoc.primeOrder
 variable (binary : BinaryPublic B shared maskBits adviceBits) (prime : PrimePublic N shared)
 variable (P : FieldBackend B k s n t) (R : FieldBackend N k s n t)
-variable (repr : ProofBodyCodec.Representations fields Advice)
-variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
+variable (fmt : Format g fields Advice binary.nPublic)
 variable (cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fields) (Advice := Advice)
-  (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Salt))
-variable (binaryCount : shape.binaryPublic = binary.nPublic)
-variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
-variable (independent : CanonicalRequest.ChallengeIndependent shape binary.nPublic metadata)
-variable (sample : QueryRuntime.Runtime.Point repr shape setup binary.nPublic →
+  (Base := fmt.Base)
+  (Key := fmt.Key) (C := C) (Salt := Salt))
+variable (binaryCount : fmt.binaryPublic = binary.nPublic)
+variable (metadata : fmt.RequestMetadata C)
+variable (independent : fmt.ChallengeIndependent metadata)
+variable (sample : fmt.Point →
   Tree Strand.Word Digest (Option C) blocks)
 
-local notation "W" => CanonicalRuntime.wirePublic binary prime P R repr shape setup cfg
-local notation "Earlier" => CanonicalRuntime.earlier binary prime P R repr shape setup cfg binaryCount metadata
+local notation "W" => CanonicalRuntime.wirePublic binary prime P R fmt cfg
+local notation "Earlier" => CanonicalRuntime.earlier binary prime P R fmt cfg binaryCount metadata
 local notation "M" => RuntimeAdaptiveVerifier.chain binary prime P R (W) (Earlier)
-local notation "bodyCodec" => ProofBodyCodec.codec repr g
-local notation "oracle" => StrandVerifier.oracle binary prime P R (W) bodyCodec sample
-local notation "address" => StrandVerifier.finalSealAddress binary prime P R (W) (Earlier) bodyCodec sample
+local notation "bodyCodec" => fmt.body
+local notation "oracle" => StrandVerifier.oracle binary prime P R (W) fmt.wire bodyCodec sample
+local notation "address" => StrandVerifier.finalSealAddress binary prime P R (W) (Earlier) fmt.wire bodyCodec sample
 
 include independent in
-theorem runtime_point_congr (output : CanonicalRuntime.Output (Advice := Advice) binary shape)
+theorem runtime_point_congr (output : CanonicalRuntime.FormatOutput binary fmt)
     (G G' : Strand.Oracle)
     (nodes : ∀ history : Strand.History, G history.input.encode = G' history.input.encode)
     (index : ℕ) :
     (M).point output (oracle G) index = (M).point output (oracle G') index := by
   rw [RuntimeAdaptiveVerifier.point_eq,RuntimeAdaptiveVerifier.point_eq,
     CanonicalRuntime.encodings_eq]
-  apply point_nodes_congr bodyCodec (Earlier output.request) sample cfg.initialLink cfg.fallback output.proof
-  · exact CanonicalRequest.block_challengeIndependent repr shape setup binary.nPublic
-      (CanonicalRuntime.binaryRequest binary prime P R repr shape setup cfg binaryCount)
-      metadata independent output.request output.proof
+  apply point_nodes_congr fmt.wire bodyCodec (Earlier output.request) sample cfg.initialLink cfg.fallback output.proof
+  · exact fmt.block_challengeIndependent
+      (CanonicalRuntime.binaryRequest binary prime P R fmt cfg binaryCount)
+      metadata output.request independent output.proof
   · exact nodes
 
 include independent in
 /-- The actual request/proof encoder supplies the packets in the numbered
 linear chain. Neither field challenges nor reconstructed adapter coefficients
 occur in this packet function. -/
-theorem runtime_history_replay (output : CanonicalRuntime.Output (Advice := Advice) binary shape)
+theorem runtime_history_replay (output : CanonicalRuntime.FormatOutput binary fmt)
     (G : Strand.Oracle) (index : ℕ) (within : index ≤ g.roles.length) :
-    StrandRuntime.history NodeWire.current bodyCodec ((M).point output (oracle G) index) =
+    StrandRuntime.history fmt.wire bodyCodec ((M).point output (oracle G) index) =
       StrandLinear.replay
-        (StrandLinearReplay.packets NodeWire.current bodyCodec (Earlier output.request) cfg.fallback output.proof)
+        (StrandLinearReplay.packets fmt.wire bodyCodec (Earlier output.request) cfg.fallback output.proof)
         G index := by
   rw [RuntimeAdaptiveVerifier.point_eq,CanonicalRuntime.encodings_eq]
-  apply StrandLinearReplay.history_replay NodeWire.current bodyCodec (Earlier output.request) cfg.fallback output.proof
+  apply StrandLinearReplay.history_replay fmt.wire bodyCodec (Earlier output.request) cfg.fallback output.proof
     _ cfg.initialLink sample G index within
-  exact CanonicalRequest.block_challengeIndependent repr shape setup binary.nPublic
-    (CanonicalRuntime.binaryRequest binary prime P R repr shape setup cfg binaryCount)
-    metadata independent output.request output.proof
+  exact fmt.block_challengeIndependent
+    (CanonicalRuntime.binaryRequest binary prime P R fmt cfg binaryCount)
+    metadata output.request independent output.proof
 
 include independent in
 /-- The address of the complete-proof seal depends only on node answers,
 not on any PRF answer. No injectivity or collision exception is needed. -/
-theorem finalSealAddress_congr (output : CanonicalRuntime.Output (Advice := Advice) binary shape)
+theorem finalSealAddress_congr (output : CanonicalRuntime.FormatOutput binary fmt)
     (G G' : Strand.Oracle)
     (nodes : ∀ history : Strand.History, G history.input.encode = G' history.input.encode) :
     address output G = address output G' := by
-  have point := runtime_point_congr binary prime P R repr shape setup cfg binaryCount metadata
+  have point := runtime_point_congr binary prime P R fmt cfg binaryCount metadata
     independent sample output G G' nodes g.roles.length
   unfold StrandVerifier.finalSealAddress
   change (Strand.Input.prf
-      (StrandRuntime.history NodeWire.current bodyCodec ((M).point output (oracle G) g.roles.length)).id
-      (G (StrandRuntime.history NodeWire.current bodyCodec ((M).point output (oracle G) g.roles.length)).input.encode) 0).encode = _
+      (StrandRuntime.history fmt.wire bodyCodec ((M).point output (oracle G) g.roles.length)).id
+      (G (StrandRuntime.history fmt.wire bodyCodec ((M).point output (oracle G) g.roles.length)).input.encode) 0).encode = _
   rw [point,nodes]
   rfl
 
 include independent in
 /-- Changing the seal's own PRF answer leaves its address unchanged. This
 remains true if a verifier sampler happens to read that same PRF block. -/
-theorem finalSealAddress_off (output : CanonicalRuntime.Output (Advice := Advice) binary shape)
+theorem finalSealAddress_off (output : CanonicalRuntime.FormatOutput binary fmt)
     (G G' : Strand.Oracle) (agree : Bcs.TotalOracle.AgreeOff (address output G) G G') :
     address output G = address output G' := by
-  apply finalSealAddress_congr binary prime P R repr shape setup cfg binaryCount metadata independent sample
+  apply finalSealAddress_congr binary prime P R fmt cfg binaryCount metadata independent sample
   intro history
   apply agree
   exact history.input_ne_prf _ _ 0

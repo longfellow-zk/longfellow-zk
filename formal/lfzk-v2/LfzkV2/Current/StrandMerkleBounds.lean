@@ -21,44 +21,43 @@ variable [Inhabited (Fin n × MerkleNonce)]
 local notation "N" => ZMod Adapter.Mdoc.primeOrder
 variable (binary : BinaryPublic B shared maskBits adviceBits) (prime : PrimePublic N shared)
 variable (P : FieldBackend B k s n t) (R : FieldBackend N k s n t)
-variable (repr : ProofBodyCodec.Representations fields Advice)
-variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
+variable (fmt : Format g fields Advice binary.nPublic)
 variable (cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fields) (Advice := Advice)
-  (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Fin n × MerkleNonce))
-variable (binaryCount : shape.binaryPublic = binary.nPublic)
-variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
+  (Base := fmt.Base)
+  (Key := fmt.Key) (C := C) (Salt := Fin n × MerkleNonce))
+variable (binaryCount : fmt.binaryPublic = binary.nPublic)
+variable (metadata : fmt.RequestMetadata C)
 variable (fits : g.roles.length < 2^64) (columnsFit : n ≤ 2^64)
-variable (sample : QueryRuntime.Runtime.Point repr shape setup binary.nPublic →
+variable (sample : fmt.Point →
   Tree Strand.Word Digest (Option C) blocks)
-local notation "W" => CanonicalRuntime.wirePublic binary prime P R repr shape setup cfg
+local notation "W" => CanonicalRuntime.wirePublic binary prime P R fmt cfg
 local notation "First" => RuntimeVerifier.first binary prime P R (W)
 local notation "Second" => RuntimeVerifier.second binary prime P R (W)
 local notation "Family" => Joint.Pair.family (FieldBackend.participant (First)) (FieldBackend.participant (Second))
-local notation "codec" => MerkleWireCodec.codec (FieldBackend.participant (First)) (FieldBackend.participant (Second)) repr
-  cfg.binaryField cfg.primeField setup.jointContext columnsFit
-local notation "dec" => MerkleWireCodec.decoders (FieldBackend.participant (First)) (FieldBackend.participant (Second)) repr
-  cfg.binaryField cfg.primeField setup.jointContext columnsFit
+local notation "codec" => MerkleWireCodec.codec (FieldBackend.participant (First)) (FieldBackend.participant (Second)) fmt.scalars
+  cfg.binaryField cfg.primeField fmt.jointContext columnsFit
+local notation "dec" => MerkleWireCodec.decoders (FieldBackend.participant (First)) (FieldBackend.participant (Second)) fmt.scalars
+  cfg.binaryField cfg.primeField fmt.jointContext columnsFit
 variable [leafDefault : Inhabited
   (Joint.Pair.family (P.indexed cfg.countBinary).participant (R.indexed cfg.countPrime).participant).Leaf]
 local instance runtimeLeafInhabited : Inhabited (RuntimeVerifier.Family binary prime P R
-    (CanonicalRuntime.wirePublic binary prime P R repr shape setup cfg)).Leaf := by
+    (CanonicalRuntime.wirePublic binary prime P R fmt cfg)).Leaf := by
   change Inhabited
     (Joint.Pair.family (P.indexed cfg.countBinary).participant (R.indexed cfg.countPrime).participant).Leaf
   exact leafDefault
-local notation "Output" => CanonicalRuntime.Output (Advice := Advice) binary shape
-local notation "Earlier" => CanonicalRuntime.earlier binary prime P R repr shape setup cfg binaryCount metadata
+local notation "Output" => CanonicalRuntime.FormatOutput binary fmt
+local notation "Earlier" => CanonicalRuntime.earlier binary prime P R fmt cfg binaryCount metadata
 local notation "E" => RuntimeAdaptiveVerifier.encodings binary prime P R (W) (Earlier)
-local notation "bodyCodec" => ProofBodyCodec.codec repr g
-local notation "schema" => StrandRuntime.Runtime.schema NodeWire.current repr shape setup binary.nPublic
-local notation "context" => QueryRuntime.Runtime.key repr shape setup binary.nPublic
+local notation "bodyCodec" => fmt.body
+local notation "schema" => fmt.schema
+local notation "context" => fmt.key
 variable {fuel : ℕ} (program : Merkle.RandomOracle.Tree Bytes Digest
-  (CanonicalRuntime.Output (Advice := Advice) binary shape) fuel)
-local notation "O" => Soundness.OracleTransport.other binary prime P R repr shape setup cfg binaryCount metadata
+  (CanonicalRuntime.FormatOutput binary fmt) fuel)
+local notation "O" => Soundness.OracleTransport.other binary prime P R fmt cfg binaryCount metadata
   fits sample (codec) id program
 local notation "Node" => StrandWindow.Node (O)
 local notation "Raw" => StrandWindow.Point (O)
-local notation "fallbackNode" => Soundness.OracleTransport.fallback binary prime P R repr shape setup cfg binaryCount metadata
+local notation "fallbackNode" => Soundness.OracleTransport.fallback binary prime P R fmt cfg binaryCount metadata
   fits sample (codec) id program
 local notation "decodeRaw" => StrandWindow.decode (O) fallbackNode
 local notation "bytes" => StrandWindow.Node.bytes (other := O)
@@ -72,7 +71,7 @@ def cut (result : Output × List (Raw × Digest)) : List (Bytes × Digest) :=
   StrandCutObservation.byteCut (schema) bytes context ((E result.1.request).context result.1.proof) result.2
 
 theorem cut_subset (result : Output × List (Raw × Digest)) :
-    cut binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample program result ⊆
+    cut binary prime P R fmt cfg binaryCount metadata fits columnsFit sample program result ⊆
       result.2.map (fun qa => (StrandWindow.encode qa.1,qa.2)) := by
   intro entry member
   obtain ⟨⟨raw,digest⟩,present,rfl⟩ := List.mem_map.mp member
@@ -90,32 +89,32 @@ variable (fallbackPath : SelectedPath (n := n) (Salt := Fin n × MerkleNonce)
 column disagreeing with the original-cut extraction. Only the rejected or
 already-agreeing cases use the irrelevant fallback path. -/
 def selected (result : Output × List (Raw × Digest)) (SHA : Strand.Oracle) : Path :=
-  StrandMerkleSelector.recordedSelect bodyCodec (E result.1.request) cfg.fallback result.1.proof
+  StrandMerkleSelector.recordedSelect fmt.wire bodyCodec (E result.1.request) cfg.fallback result.1.proof
     (result.2.map fun qa => (StrandWindow.encode qa.1,qa.2)) sample g.openingIndex
-    (FieldBackend.participant (First)) (FieldBackend.participant (Second)) repr cfg.binaryField cfg.primeField setup.jointContext columnsFit
+    (FieldBackend.participant (First)) (FieldBackend.participant (Second)) fmt.scalars cfg.binaryField cfg.primeField fmt.jointContext columnsFit
     cfg.sample
     (OpeningBody.raw (FieldBackend.participant (First)) (FieldBackend.participant (Second)) cfg.binaryField cfg.primeField
       cfg.binaryRows cfg.primeRows cfg.openings result.1.proof)
-    (cut binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample program result)
+    (cut binary prime P R fmt cfg binaryCount metadata fits columnsFit sample program result)
     ((W).root ((E result.1.request).context result.1.proof)) fallbackPath SHA
 
 theorem selected_off (result : Output × List (Raw × Digest)) (SHA SHA' : Strand.Oracle)
     (input : Bytes) (merkle : IsMerkleInput (codec) input)
     (agree : Bcs.TotalOracle.AgreeOff input SHA SHA') :
-    selected binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample program fallbackPath result SHA =
-      selected binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample program fallbackPath result SHA' := by
+    selected binary prime P R fmt cfg binaryCount metadata fits columnsFit sample program fallbackPath result SHA =
+      selected binary prime P R fmt cfg binaryCount metadata fits columnsFit sample program fallbackPath result SHA' := by
   unfold selected StrandMerkleSelector.recordedSelect
   apply congrArg
-  apply StrandRecordedReplay.read_off _ _ _ _ _ _ SHA SHA' input _ agree
+  apply StrandRecordedReplay.read_off _ _ _ _ _ _ _ SHA SHA' input _ agree
   intro id digest counter
   rcases merkle with leaf | node
   · obtain ⟨value,rfl⟩ := leaf
     exact Ne.symm (StrandMerkleDomains.input_ne_leaf (FieldBackend.participant (First))
-      (FieldBackend.participant (Second)) repr cfg.binaryField cfg.primeField setup.jointContext columnsFit
+      (FieldBackend.participant (Second)) fmt.scalars cfg.binaryField cfg.primeField fmt.jointContext columnsFit
       (.prf id digest counter) value)
   · obtain ⟨index,children,rfl⟩ := node
     exact Ne.symm (StrandMerkleDomains.input_ne_node (FieldBackend.participant (First))
-      (FieldBackend.participant (Second)) repr cfg.binaryField cfg.primeField setup.jointContext columnsFit
+      (FieldBackend.participant (Second)) fmt.scalars cfg.binaryField cfg.primeField fmt.jointContext columnsFit
       (.prf id digest counter) index children)
 
 /-- A represented Merkle input has one raw preimage. The only address
@@ -130,14 +129,14 @@ theorem merkle_fiber (input : Bytes) (merkle : IsMerkleInput (codec) input)
       exact represented
     rcases merkle with leaf | node
     · obtain ⟨value,rfl⟩ := leaf
-      exact StrandMerkleDomains.input_ne_leaf (FieldBackend.participant (First)) (FieldBackend.participant (Second)) repr
-        cfg.binaryField cfg.primeField setup.jointContext columnsFit (.root []) value bad
+      exact StrandMerkleDomains.input_ne_leaf (FieldBackend.participant (First)) (FieldBackend.participant (Second)) fmt.scalars
+        cfg.binaryField cfg.primeField fmt.jointContext columnsFit (.root []) value bad
     · obtain ⟨index,children,rfl⟩ := node
-      exact StrandMerkleDomains.input_ne_node (FieldBackend.participant (First)) (FieldBackend.participant (Second)) repr
-        cfg.binaryField cfg.primeField setup.jointContext columnsFit (.root []) index children bad
+      exact StrandMerkleDomains.input_ne_node (FieldBackend.participant (First)) (FieldBackend.participant (Second)) fmt.scalars
+        cfg.binaryField cfg.primeField fmt.jointContext columnsFit (.root []) index children bad
   exact (StrandWindow.decode_fiber (O) fallbackNode (decodeRaw input) distinct other same).trans represented
 
-local notation "choose" => selected binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit
+local notation "choose" => selected binary prime P R fmt cfg binaryCount metadata fits columnsFit
   sample program fallbackPath
 
 /-- This event uses the submitted proof and the original query table.
@@ -151,32 +150,32 @@ def freshHit (G : Raw → Digest) : Prop :=
 /-- The existing one-path estimate instantiated with the runtime's actual
 SHA reader, indexed tuple codec, and original finite query table. -/
 theorem freshHit_ratio_le :
-    density (freshHit binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit
+    density (freshHit binary prime P R fmt cfg binaryCount metadata fits columnsFit
       sample program fallbackPath) ≤ (Heap.heapDepth n+1 : ℚ) / 2^256 := by
   have bound := restricted_any_hit_density_le (codec) (dec)
     choose
-    (MerkleWireCodec.separated (FieldBackend.participant (First)) (FieldBackend.participant (Second)) repr
-      cfg.binaryField cfg.primeField setup.jointContext columnsFit)
+    (MerkleWireCodec.separated (FieldBackend.participant (First)) (FieldBackend.participant (Second)) fmt.scalars
+      cfg.binaryField cfg.primeField fmt.jointContext columnsFit)
     (by
       intro result SHA SHA' input merkle agree
-      exact selected_off binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit
+      exact selected_off binary prime P R fmt cfg binaryCount metadata fits columnsFit
         sample program fallbackPath result SHA SHA' input merkle agree)
     StrandWindow.encode decodeRaw
-    (merkle_fiber binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample program)
+    (merkle_fiber binary prime P R fmt cfg binaryCount metadata fits columnsFit sample program)
     (recordTrace compiled)
   have size : (Fintype.card Digest : ℚ) = 2^256 := by
     rw [Strand.digest_card,Nat.cast_pow,Nat.cast_ofNat]
   exact bound.trans_eq (by rw [size])
 
-variable (independent : CanonicalRequest.ChallengeIndependent shape binary.nPublic metadata)
+variable (independent : fmt.ChallengeIndependent metadata)
 variable (bindSalt : ∀ key column nonce, cfg.bindSalt key column nonce = (column,nonce))
-variable (primeCount : shape.primePublic = prime.nPublic)
+variable (primeCount : fmt.primePublic = prime.nPublic)
 variable (draw : C → RuntimeVerifier.RawSamples binary prime P R
-  (CanonicalRuntime.wirePublic binary prime P R repr shape setup cfg))
+  (CanonicalRuntime.wirePublic binary prime P R fmt cfg))
 local notation "M" => RuntimeAdaptiveVerifier.chain binary prime P R (W) (Earlier)
-local notation "ordinary" => StrandVerifier.oracle binary prime P R (W) bodyCodec sample
-local notation "hashPublic" => CanonicalRequest.hashPublic binary.nPublic
-local notation "primePublic" => CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount
+local notation "ordinary" => StrandVerifier.oracle binary prime P R (W) fmt.wire bodyCodec sample
+local notation "hashPublic" => fmt.hashPublic
+local notation "primePublic" => CanonicalRuntime.decodePrimePublic binary prime P R fmt cfg primeCount
 
 include independent bindSalt in
 /-- Once the original table contains the transcript nodes, selection is
@@ -189,16 +188,16 @@ theorem selected_spec (G : Raw → Digest)
       hashPublic primePublic draw ((compiled).run G).1 (ordinary (G ∘ decodeRaw)) = some decoded)
     (known : ∀ i ≤ g.openingIndex.val, QueryTable.Known
       (((compiled).run G).2.map fun qa => (StrandWindow.encode qa.1,qa.2))
-      (StrandRuntime.history NodeWire.current bodyCodec ((M).point ((compiled).run G).1 (ordinary (G ∘ decodeRaw)) i)).input.encode)
+      (StrandRuntime.history fmt.wire bodyCodec ((M).point ((compiled).run G).1 (ordinary (G ∘ decodeRaw)) i)).input.encode)
     (different : ∃ column, column ∈ decoded.claim.I ∧
       messages (dec)
-        (cut binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample program ((compiled).run G))
+        (cut binary prime P R fmt cfg binaryCount metadata fits columnsFit sample program ((compiled).run G))
         ((W).root ((E ((compiled).run G).1.request).context ((compiled).run G).1.proof)) n column ≠
           decoded.claim.a column) :
     let path := choose ((compiled).run G) (G ∘ decodeRaw)
     path.toOpeningClaim = decoded.claim ∧
       path.root = (W).root ((E ((compiled).run G).1.request).context ((compiled).run G).1.proof) ∧
-      path.cut = cut binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample program ((compiled).run G) ∧
+      path.cut = cut binary prime P R fmt cfg binaryCount metadata fits columnsFit sample program ((compiled).run G) ∧
       messages (dec) path.cut path.root n path.column ≠ path.a path.column := by
   let result := (compiled).run G
   have sound : ∀ entry ∈ result.2.map (fun qa => (StrandWindow.encode qa.1,qa.2)),
@@ -210,9 +209,9 @@ theorem selected_spec (G : Raw → Digest)
   have blocksIndependent : ∀ i first second,
       (E result.1.request).block result.1.proof i first = (E result.1.request).block result.1.proof i second := by
     rw [CanonicalRuntime.encodings_eq]
-    exact CanonicalRequest.block_challengeIndependent repr shape setup binary.nPublic
-      (CanonicalRuntime.binaryRequest binary prime P R repr shape setup cfg binaryCount)
-      metadata independent result.1.request result.1.proof
+    exact fmt.block_challengeIndependent
+      (CanonicalRuntime.binaryRequest binary prime P R fmt cfg binaryCount)
+      metadata result.1.request independent result.1.proof
   have openingDecoded := (RuntimeAdaptiveVerifier.decode_spec binary prime P R (W) (Earlier)
     hashPublic primePublic draw result.1 (ordinary (G ∘ decodeRaw)) decoded decodedAt).2.1
   have salts : (W).bindSalt ((E result.1.request).context result.1.proof) =
@@ -220,10 +219,10 @@ theorem selected_spec (G : Raw → Digest)
     funext column nonce
     exact bindSalt _ column nonce
   rw [salts] at openingDecoded
-  apply StrandMerkleSelector.recordedSelect_spec bodyCodec (E result.1.request) cfg.fallback result.1.proof
+  apply StrandMerkleSelector.recordedSelect_spec fmt.wire bodyCodec (E result.1.request) cfg.fallback result.1.proof
     (result.2.map fun qa => (StrandWindow.encode qa.1,qa.2)) sample g.openingIndex
-    (FieldBackend.participant (First)) (FieldBackend.participant (Second)) repr
-    cfg.binaryField cfg.primeField setup.jointContext columnsFit cfg.sample _ _ _ fallbackPath
+    (FieldBackend.participant (First)) (FieldBackend.participant (Second)) fmt.scalars
+    cfg.binaryField cfg.primeField fmt.jointContext columnsFit cfg.sample _ _ _ fallbackPath
     cfg.initialLink (G ∘ decodeRaw) blocksIndependent sound _ decoded.claim openingDecoded different
   intro i within
   have present := known i within
@@ -244,19 +243,19 @@ theorem path_represented (G : Raw → Digest)
     rw [← sameClaim]
     exact path.opened
   have visible := StrandAuthentication.decoded_path_visible binary prime P R (W) (Earlier)
-    bodyCodec sample (codec) id hashPublic primePublic draw ((compiled).run G).1 (G ∘ decodeRaw)
+    fmt.wire bodyCodec sample (codec) id hashPublic primePublic draw ((compiled).run G).1 (G ∘ decodeRaw)
     decoded decodedAt path.column opened (vertex path slot) (vertex_mem path slot)
   have inputEq := claim_pathInput_congr (codec) path.toOpeningClaim decoded.claim
     sameClaim path.column path.opened opened (G ∘ decodeRaw) (vertex path slot)
   simp only [Function.comp_id,id_eq,← inputEq] at visible
-  apply Soundness.OracleTransport.input_represented binary prime P R repr shape setup cfg binaryCount metadata
+  apply Soundness.OracleTransport.input_represented binary prime P R fmt cfg binaryCount metadata
     fits sample (codec) id program
   apply OracleWindow.trace_mem_queries (program.bind
-    (StrandAuthentication.replay binary prime P R (W) (Earlier) bodyCodec sample (codec) id))
+    (StrandAuthentication.replay binary prime P R (W) (Earlier) fmt.wire bodyCodec sample (codec) id))
     (G ∘ decodeRaw) (point (codec) path (G ∘ decodeRaw) slot,G (decodeRaw (point (codec) path (G ∘ decodeRaw) slot)))
   rw [Tree.run_bind]
   apply List.mem_append_right
-  have outputEq := congrArg Prod.fst (Soundness.OracleTransport.original_actual binary prime P R repr shape setup cfg
+  have outputEq := congrArg Prod.fst (Soundness.OracleTransport.original_actual binary prime P R fmt cfg
     binaryCount metadata fits sample (codec) id program G)
   change ((compiled).run G).1 = (program.run (G ∘ decodeRaw)).1 at outputEq
   rw [← outputEq]
@@ -273,7 +272,7 @@ theorem accepted_cover (G : Raw → Digest)
       hashPublic primePublic draw ((compiled).run G).1 (ordinary (G ∘ decodeRaw)) = some decoded)
     (known : ∀ i ≤ g.openingIndex.val, QueryTable.Known
       (((compiled).run G).2.map fun qa => (StrandWindow.encode qa.1,qa.2))
-      (StrandRuntime.history NodeWire.current bodyCodec ((M).point ((compiled).run G).1 (ordinary (G ∘ decodeRaw)) i)).input.encode)
+      (StrandRuntime.history fmt.wire bodyCodec ((M).point ((compiled).run G).1 (ordinary (G ∘ decodeRaw)) i)).input.encode)
     (unique : Merkle.MH.CollisionFree
       (((compiled).run G).2.map fun qa => (StrandWindow.encode qa.1,qa.2)))
     (accepted : Merkle.Indexed.Accepts ((codec).withOracle (G ∘ decodeRaw)) n
@@ -281,26 +280,26 @@ theorem accepted_cover (G : Raw → Digest)
       decoded.claim.I decoded.claim.a decoded.claim.pf)
     (different : ∃ column, column ∈ decoded.claim.I ∧
       messages (dec)
-        (cut binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample program ((compiled).run G))
+        (cut binary prime P R fmt cfg binaryCount metadata fits columnsFit sample program ((compiled).run G))
         ((W).root ((E ((compiled).run G).1.request).context ((compiled).run G).1.proof)) n column ≠
           decoded.claim.a column) :
     OriginalHit (codec) (dec)
       (((compiled).run G).2.map fun qa => (StrandWindow.encode qa.1,qa.2))
-      (cut binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample program ((compiled).run G))
+      (cut binary prime P R fmt cfg binaryCount metadata fits columnsFit sample program ((compiled).run G))
       ((W).root ((E ((compiled).run G).1.request).context ((compiled).run G).1.proof)) ∨
-    freshHit binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample program fallbackPath G := by
+    freshHit binary prime P R fmt cfg binaryCount metadata fits columnsFit sample program fallbackPath G := by
   let result := (compiled).run G
   let path := choose result (G ∘ decodeRaw)
-  have spec := selected_spec binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample
+  have spec := selected_spec binary prime P R fmt cfg binaryCount metadata fits columnsFit sample
     program fallbackPath independent bindSalt primeCount draw G decoded decodedAt known different
-  have represented := fun slot => path_represented binary prime P R repr shape setup cfg binaryCount metadata
+  have represented := fun slot => path_represented binary prime P R fmt cfg binaryCount metadata
     fits columnsFit sample program primeCount draw G decoded decodedAt path spec.1 slot
   have cutUnique : Merkle.MH.CollisionFree path.cut := by
     rw [spec.2.2.1]
     intro first hf second hs eq
     exact unique first
-      (cut_subset binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample program result hf)
-      second (cut_subset binary prime P R repr shape setup cfg binaryCount metadata fits columnsFit sample program result hs) eq
+      (cut_subset binary prime P R fmt cfg binaryCount metadata fits columnsFit sample program result hf)
+      second (cut_subset binary prime P R fmt cfg binaryCount metadata fits columnsFit sample program result hs) eq
   have pathAccepted : Merkle.Indexed.Accepts ((codec).withOracle (G ∘ decodeRaw)) n
       path.root path.I path.a path.pf := by
     change Merkle.Indexed.Accepts _ n path.root path.toOpeningClaim.I path.toOpeningClaim.a path.toOpeningClaim.pf

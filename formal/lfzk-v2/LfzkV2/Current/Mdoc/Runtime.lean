@@ -1,5 +1,6 @@
 import LfzkV2.Current.MdocRuntime
 import LfzkV2.Current.Protocol.Setup
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ConcreteSetup
 import LfzkV2.Current.Parameters.Rate7
 
@@ -41,10 +42,9 @@ abbrev protocol : Protocol.Setup FixedRate.Rate7.certificate g (MdocRuntime.fiel
   countPrime := Geometry.affineRows g Side.prime
   binaryCapacity := MdocRuntime.binaryCapacity S.binary.description S.binary.plan
   primeCapacity := MdocRuntime.primeCapacity S.prime S.primePlan
-  repr := MdocRuntime.representations S.scalars
-  shape := MdocRuntime.shape S.binary.description S.prime S.binary.plan S.primePlan
-    S.inputFits S.privateFits (by change 128 < 2^64; decide)
-  fingerprint := S.fingerprint
+  fmt := LegacyFormat (MdocRuntime.representations S.scalars)
+    (MdocRuntime.shape S.binary.description S.prime S.binary.plan S.primePlan
+      S.inputFits S.privateFits (by change 128 < 2^64; decide)) S.fingerprint S.binary.nPublic
   binaryPlan := S.binary.plan
   primePlan := S.primePlan
   binaryGeometry := rfl

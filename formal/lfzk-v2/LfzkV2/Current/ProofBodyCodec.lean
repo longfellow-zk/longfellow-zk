@@ -1,4 +1,5 @@
 import LfzkV2.Current.ByteCodecs
+import LfzkV2.Current.BodyScalars
 import LfzkV2.Current.OpeningBody
 
 /-! Canonical MDA7/JPG2 body encoding, in the runtime's physical order.
@@ -9,22 +10,6 @@ open TranscriptV2.Framing (FieldCodec)
 open scoped Classical
 
 variable {g : Geometry} {fields : Fields} {Advice F : Type}
-
-/-- Raw scalar and fixed-size canonical advice representations. Scalar
-bytes carry no transcript-operation tags inside the proof body. -/
-structure Representations (fields : Fields) (Advice : Type) where
-  binary : FieldCodec (fields .binary)
-  prime : FieldCodec (fields .prime)
-  binaryWidth : binary.width = 16
-  primeWidth : prime.width = 32
-  advice : PrefixCodec Advice
-  adviceWidth : ℕ
-  adviceLength : ∀ value, (advice.encode value).length = adviceWidth
-  /-- The transcript writes of the same advice after its domain label. Each
-  masked word is its own framed `write_bytes`; no derived value is written. -/
-  adviceWrites : PrefixCodec Advice
-  adviceWritesWidth : ℕ
-  adviceWritesLength : ∀ value, (adviceWrites.encode value).length = adviceWritesWidth
 
 private def layerData (rounds : ℕ) :
     ((Fin rounds → F × F) × (F × (F × F))) ≃ LayerPayload F rounds where

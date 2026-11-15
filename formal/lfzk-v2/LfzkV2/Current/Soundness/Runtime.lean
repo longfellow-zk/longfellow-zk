@@ -28,9 +28,9 @@ variable (inputs : Soundness.Inputs E)
 variable [Inhabited (Fin c.n × MerkleNonce)]
 variable [leafDefault : Inhabited (Joint.Pair.family E.First E.Second).Leaf]
 
-local notation "names" => Soundness.OracleTransport.queryCodec E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+local notation "names" => Soundness.OracleTransport.queryCodec E.binary E.prime E.P E.R E.fmt (E.ideal) E.binaryCount E.metadata
   fits D.execution.sample E.merkleCodec id prog.tree
-local notation "Other" => Soundness.OracleTransport.other E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata fits
+local notation "Other" => Soundness.OracleTransport.other E.binary E.prime E.P E.R E.fmt (E.ideal) E.binaryCount E.metadata fits
   D.execution.sample E.merkleCodec id prog.tree
 local notation "Node" => StrandWindow.Node (Other)
 local notation "Name" => StrandSearch.Name Node E.Value
@@ -39,28 +39,28 @@ local notation "Row" => Strand.Word → Digest
 local notation "Residual" => Fin (Fintype.card Row)
 local notation "split" => coordinateSplit E fits D L prog
 local notation "namedH" => namedOracle E fits D L prog
-local notation "actualVerify" => StrandVerifier.verify E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample
+local notation "actualVerify" => StrandVerifier.verify E.binary E.prime E.P E.R (E.wire) (E.earlier) E.fmt.wire E.bodyCodec D.execution.sample
   E.hashPublic E.primePublic E.draw E.merkleCodec
 local notation "search" => searchTree E fits D prog
 local notation "analysis" => analysisTree E fits D L prog
 local notation "charges" => localProof E fits D L prog inputs
 local notation "View" => Protocol.Execution.View E.Output ((E.Output × Chain.State (E.chain)) × Digest)
-  (FingerprintPrefix.Key E.binary.nPublic)
-local notation "decision" => Protocol.Observation.decision E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample E.merkleCodec id
+  (E.fmt.Key)
+local notation "decision" => Protocol.Observation.decision E.binary E.prime E.P E.R (E.wire) (E.earlier) E.fmt.wire E.bodyCodec D.execution.sample E.merkleCodec id
   E.hashPublic E.primePublic E.draw
-local notation "observe" => Soundness.OracleTransport.observe E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+local notation "observe" => Soundness.OracleTransport.observe E.binary E.prime E.P E.R E.fmt (E.ideal) E.binaryCount E.metadata
   fits D.execution.sample E.merkleCodec id prog.tree
 local notation "sourceView" => fun K => observe (Prod.fst (Tree.run (search) K)) K
 local notation "viewOf" => fun residual H => sourceView (namedH residual H)
 local notation "failsView" => extractionFails E D
 local notation "marked" => (LfzkV2.Current.Soundness.RuntimeRoles.marked (Aux := Name) g.batchingIndex : Tagged → Bool)
 local notation "causal" => causalProof E fits D prog inputs
-local notation "hashBad" => Soundness.Recovery.hashException E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+local notation "hashBad" => Soundness.Recovery.hashException E.binary E.prime E.P E.R E.fmt (E.ideal) E.binaryCount E.metadata
   E.columnsFit D.execution.sample E.primeCount E.draw
 local notation "costOf" => stoppedCost E fits D L prog inputs
 local notation "valueFinite" => Fintype.ofInjective
-  (QueryRuntime.Runtime.toPoint E.repr E.shape E.fingerprint E.binary.nPublic)
-  (QueryRuntime.Runtime.toPoint_injective E.repr E.shape E.fingerprint E.binary.nPublic fits)
+  (E.fmt.toPoint)
+  (E.fmt.toPoint_injective_bounded fits)
 local notation "ordinaryRate" => (2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ))
 variable {Q : ℕ} (queries : ∀ SHA : Bytes → Digest, (seen prog.tree SHA).card ≤ Q)
 local notation "acceptedFailure" => fun (view : View) => decision view = true ∧ failsView view
@@ -185,7 +185,7 @@ theorem named_saturated_failure_le (opaqueFraction : ℚ)
         density (fun K : Name → Digest × Row => hashBad (sourceView K)) :=
   named_failure_le E fits D L prog _ fun residual => conditioned_saturated_failure_le E fits D L prog inputs queries
     residual opaqueFraction nonnegative atMostOne budget parentBound guessFits
-local notation "rawView" => Soundness.OracleTransport.rawView E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+local notation "rawView" => Soundness.OracleTransport.rawView E.binary E.prime E.P E.R E.fmt (E.ideal) E.binaryCount E.metadata
   fits D.execution.sample E.merkleCodec id prog.tree
 abbrev Raw := StrandWindow.Point (Other)
 
@@ -194,7 +194,7 @@ def failure (view : View) : Prop := acceptedFailure view
 def verify (SHA : Bytes → Digest) (output : E.Output) : Bool := actualVerify SHA id output
 
 def verifierReplay (output : E.Output) :=
-  StrandAuthentication.replay E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample E.merkleCodec id output
+  StrandAuthentication.replay E.binary E.prime E.P E.R (E.wire) (E.earlier) E.fmt.wire E.bodyCodec D.execution.sample E.merkleCodec id output
 
 omit [∀ side, Fintype (fields side)] [Fintype Advice] in
 theorem failure_verified (view : View) (SHA : Bytes → Digest)
@@ -202,7 +202,7 @@ theorem failure_verified (view : View) (SHA : Bytes → Digest)
       (verifierReplay E D view.original.1).run SHA)
     (failed : failure E D view) :
     verify E D SHA view.original.1 = true := by
-  have actual := Protocol.Observation.decision_of_trace E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample E.merkleCodec id
+  have actual := Protocol.Observation.decision_of_trace E.binary E.prime E.P E.R (E.wire) (E.earlier) E.fmt.wire E.bodyCodec D.execution.sample E.merkleCodec id
     E.hashPublic E.primePublic E.draw view SHA (congrArg Prod.snd replayed)
   exact actual.symm.trans failed.1
 
@@ -210,22 +210,22 @@ omit [∀ side, Fintype (fields side)] [Fintype Advice] in
 theorem verifierReplay_domain (output : E.Output) :
     OracleDomain.UsesOnly StrandDomains.protocol
       (verifierReplay E D output) :=
-  StrandDomains.replay E.binary E.prime E.P E.R (E.wire) (E.earlier) E.bodyCodec D.execution.sample E.merkleCodec id
-    (fun value => StrandDomains.of_merkle (SHAOracle.leaf_in_domain E.First E.Second E.repr
-      E.cfg.binaryField E.cfg.primeField E.fingerprint.jointContext E.columnsFit value))
-    (fun index value => StrandDomains.of_merkle (SHAOracle.node_in_domain E.First E.Second E.repr
-      E.cfg.binaryField E.cfg.primeField E.fingerprint.jointContext E.columnsFit value index)) output
+  StrandDomains.replay E.binary E.prime E.P E.R (E.wire) (E.earlier) E.fmt.wire E.bodyCodec D.execution.sample E.merkleCodec id
+    (fun value => StrandDomains.of_merkle (SHAOracle.leaf_in_domain E.First E.Second E.fmt.scalars
+      E.cfg.binaryField E.cfg.primeField E.fmt.jointContext E.columnsFit value))
+    (fun index value => StrandDomains.of_merkle (SHAOracle.node_in_domain E.First E.Second E.fmt.scalars
+      E.cfg.binaryField E.cfg.primeField E.fmt.jointContext E.columnsFit value index)) output
 
 def rawObservation (G : Raw E fits D prog → Digest) := rawView G
 
 def rawOracle (G : Raw E fits D prog → Digest) : Bytes → Digest :=
-  Soundness.OracleTransport.rawSHA E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal) E.binaryCount E.metadata
+  Soundness.OracleTransport.rawSHA E.binary E.prime E.P E.R E.fmt (E.ideal) E.binaryCount E.metadata
     fits D.execution.sample E.merkleCodec id prog.tree G
 
 theorem rawObservation_original (G : Raw E fits D prog → Digest) :
     (rawObservation E fits D prog G).original =
       prog.tree.run (rawOracle E fits D prog G) :=
-  congrArg (fun view => view.original) (Soundness.OracleTransport.rawView_actual E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal)
+  congrArg (fun view => view.original) (Soundness.OracleTransport.rawView_actual E.binary E.prime E.P E.R E.fmt (E.ideal)
     E.binaryCount E.metadata fits D.execution.sample E.merkleCodec id prog.tree G)
 
 theorem rawObservation_verifier (G : Raw E fits D prog → Digest) :
@@ -233,7 +233,7 @@ theorem rawObservation_verifier (G : Raw E fits D prog → Digest) :
       (verifierReplay E D (prog.tree.run
           (rawOracle E fits D prog G)).1).run
         (rawOracle E fits D prog G) :=
-  congrArg (fun view => view.verifier) (Soundness.OracleTransport.rawView_actual E.binary E.prime E.P E.R E.repr E.shape E.fingerprint (E.ideal)
+  congrArg (fun view => view.verifier) (Soundness.OracleTransport.rawView_actual E.binary E.prime E.P E.R E.fmt (E.ideal)
     E.binaryCount E.metadata fits D.execution.sample E.merkleCodec id prog.tree G)
 
 def rawFailure (G : Raw E fits D prog → Digest) : Prop := acceptedFailure (rawView G)

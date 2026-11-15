@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalBackend
 import LfzkV2.Current.StrandVerifier
 
@@ -33,7 +34,7 @@ variable (roundSampler : (QueryRuntime.Runtime.Point repr shape setup binary.nPu
 /-- The canonical prover and verifier replay literally the same encoder. -/
 theorem completion_encodings (request : (CanonicalRequest.Request shape binary.nPublic)) :
     RuntimeAdaptiveVerifier.encodings binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request = ((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request).encoding :=
-  CanonicalRuntime.encodings_eq binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) repr shape setup
+  CanonicalRuntime.encodings_eq binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (LegacyFormat repr shape setup _)
     (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes repr shape setup configuration)
     binaryCount metadata request
 
@@ -57,7 +58,7 @@ theorem finish_current_seal
     (columns : (OrderedOpening.query indices).coordinates → (PhysicalColumn binary prime))
     (opening : Opening 2443 (OrderedOpening.query indices).coordinates (Fin 2443 × MerkleNonce) Digest)
     (SHA : Strand.Oracle) :
-    StrandVerifier.finalSeal binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) (ProofBodyCodec.codec repr g) roundSampler
+    StrandVerifier.finalSeal binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (CompleteCanonicalVerifier.publicConfig binary prime binaryNodes primeNodes repr shape setup configuration) (CompleteCanonicalVerifier.earlier binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) NodeWire.current (ProofBodyCodec.codec repr g) roundSampler
       ((finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler) request frontend response indices columns opening SHA) SHA =
       ((finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler) request frontend response indices columns opening SHA).proof.finalSeal := by
   have valid := finish_valid binary prime binaryNodes primeNodes repr shape setup configuration

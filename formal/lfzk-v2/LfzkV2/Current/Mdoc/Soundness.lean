@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.Mdoc.Setup
 import LfzkV2.Current.Mdoc.OracleSoundness
 import LfzkV2.Current.MdocWitnessRequest
@@ -56,7 +57,7 @@ local notation "primeFits" => Nat.le_max_right ((Layered.Circuit.layers (PrimePu
 local notation "df" => Nat.le_max_left (BinaryPublic.degree bp) binary.plan.capacity
 local notation "rf" => Nat.le_max_left ((Layered.Circuit.layers (PrimePublic.circuit pp))+1) prime.plan.capacity
 local notation "Point" => QueryRuntime.Runtime.Point repr shape setup (BinaryPublic.nPublic bp)
-local notation "Values" => Protocol.Sampling.values c bp pp P R cb cp bc pc repr shape setup
+local notation "Values" => Protocol.Sampling.values c bp pp P R cb cp bc pc (LegacyFormat repr shape setup (BinaryPublic.nPublic bp))
 local notation "First" => FieldBackend.participant (FieldBackend.indexed P cb)
 local notation "Second" => FieldBackend.participant (FieldBackend.indexed R cp)
 
@@ -73,9 +74,9 @@ private instance familyLeafInhabited {k s n t : ℕ} (family : Joint.Family k s 
 
 
 local notation "I" => IdealRuntime.challengePublic bp pp P R cb cp bc pc cfg
-local notation "W" => CanonicalRuntime.wirePublic bp pp P R repr shape setup I
-local notation "earlier" => CanonicalRuntime.earlier bp pp P R repr shape setup I rfl metadata
-local notation "decodePublic" => CanonicalRuntime.decodePrimePublic bp pp P R repr shape setup I rfl
+local notation "W" => CanonicalRuntime.wirePublic bp pp P R (LegacyFormat repr shape setup (BinaryPublic.nPublic bp)) I
+local notation "earlier" => CanonicalRuntime.earlier bp pp P R (LegacyFormat repr shape setup (BinaryPublic.nPublic bp)) I rfl metadata
+local notation "decodePublic" => CanonicalRuntime.decodePrimePublic bp pp P R (LegacyFormat repr shape setup (BinaryPublic.nPublic bp)) I rfl
 local notation "draw" => IdealRuntime.draw bp pp P R cb cp bc pc cfg
 local notation "codec" => MerkleWireCodec.codec First Second repr
   (RuntimeVerifier.Public.binaryField cfg) (RuntimeVerifier.Public.primeField cfg)
@@ -94,7 +95,7 @@ theorem decoded_valid (output : Output) (H : Point → Digest × Answer)
     (found : RuntimeAdaptiveVerifier.decode bp pp P R W earlier
       (CanonicalRequest.hashPublic (BinaryPublic.nPublic bp)) decodePublic draw output H = some decoded)
     (w : Witness) (truth : decoded.application.True w) : Valid binary prime bounds output.request w := by
-  exact MdocWitness.valid_at_request binary prime P R repr shape setup I rfl rfl metadata draw
+  exact MdocWitness.valid_at_request binary prime P R (LegacyFormat repr shape setup (BinaryPublic.nPublic bp)) I rfl rfl metadata draw
     output H decoded found w truth
 
 variable {fuel blocks Q : ℕ}
@@ -104,12 +105,12 @@ variable (sample : (point : Mdoc.RuntimeSoundness.RoundPoint binary prime cantor
     (Mdoc.OracleSoundness.identifiers ids outside) bounds) →
   Tree Strand.Word Digest (Option (Mdoc.RuntimeSoundness.RoundValue binary prime cantor scalars
     (Mdoc.OracleSoundness.identifiers ids outside) bounds point)) blocks)
-local notation "physical" => Protocol.Sampling.sampler c bp pp P R cb cp bc pc repr shape setup
+local notation "physical" => Protocol.Sampling.sampler c bp pp P R cb cp bc pc (LegacyFormat repr shape setup (BinaryPublic.nPublic bp))
   binary.plan prime.plan rfl rfl bf primeFits df rf cfg sample
 local notation "Raw" => Mdoc.OracleSoundness.Raw binary prime cantor scalars ids bounds body outside fits sample
 local notation "view" G => Mdoc.OracleSoundness.observation binary prime cantor scalars ids bounds body outside fits sample G
 local notation "SHA" G => Mdoc.OracleSoundness.sha binary prime cantor scalars ids bounds body outside fits sample G
-local notation "decodedView" => Protocol.Observation.decoded bp pp P R W earlier (ProofBodyCodec.codec repr g)
+local notation "decodedView" => Protocol.Observation.decoded bp pp P R W earlier (Format.wire (Protocol.Setup.fmt (E))) (Protocol.Setup.bodyCodec (E))
   physical (CanonicalRequest.hashPublic (BinaryPublic.nPublic bp)) decodePublic draw
 local notation "authentication" => Soundness.Runtime.viewAuthentication E
 
@@ -132,14 +133,14 @@ set_option maxHeartbeats 400000 in
 theorem event_implies_extraction_failure (G : Raw → Digest) (bad : event binary prime cantor scalars ids bounds outside body fits sample G) :
     Mdoc.OracleSoundness.event binary prime cantor scalars ids bounds body outside fits sample G := by
   have replayed := Mdoc.OracleSoundness.verifier_actual binary prime cantor scalars ids bounds body outside fits sample G
-  have decoding := Protocol.Observation.decoded_of_trace bp pp P R W earlier (ProofBodyCodec.codec repr g)
+  have decoding := Protocol.Observation.decoded_of_trace bp pp P R W earlier (Format.wire (Protocol.Setup.fmt (E))) (Protocol.Setup.bodyCodec (E))
     physical codec id (CanonicalRequest.hashPublic (BinaryPublic.nPublic bp)) decodePublic draw
     (view G) (SHA G) (congrArg Prod.snd replayed)
-  obtain ⟨decoded,found,_⟩ := (StrandVerifier.verify_true_iff bp pp P R W earlier (ProofBodyCodec.codec repr g)
+  obtain ⟨decoded,found,_⟩ := (StrandVerifier.verify_true_iff bp pp P R W earlier (Format.wire (Protocol.Setup.fmt (E))) (Protocol.Setup.bodyCodec (E))
     physical (CanonicalRequest.hashPublic (BinaryPublic.nPublic bp)) decodePublic draw codec
     (SHA G) id (view G).original.1).mp bad.2.1
   have foundView : decodedView (view G) = some decoded := decoding.trans found
-  have decision := Protocol.Observation.decision_of_trace bp pp P R W earlier (ProofBodyCodec.codec repr g)
+  have decision := Protocol.Observation.decision_of_trace bp pp P R W earlier (Format.wire (Protocol.Setup.fmt (E))) (Protocol.Setup.bodyCodec (E))
     physical codec id (CanonicalRequest.hashPublic (BinaryPublic.nPublic bp)) decodePublic draw
     (view G) (SHA G) (congrArg Prod.snd replayed)
   refine ⟨bad.1,decision.trans bad.2.1,decoded,foundView,?_⟩

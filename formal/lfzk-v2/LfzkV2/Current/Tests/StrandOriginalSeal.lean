@@ -60,12 +60,12 @@ set_option pp.fullNames true in
 #print axioms StrandOriginalSeal.accepted_original_ratio_le
 
 /--
-info: 'LfzkV2.Current.StrandOriginalSeal.concrete_original_ratio_le' depends on axioms: [propext,
+info: 'LfzkV2.Current.StrandOriginalSeal.setupOnly_original_ratio_le' depends on axioms: [propext,
  Classical.choice,
  Quot.sound]
 -/
 #guard_msgs in
 set_option pp.fullNames true in
-#print axioms StrandOriginalSeal.concrete_original_ratio_le
+#print axioms StrandOriginalSeal.setupOnly_original_ratio_le
 
 end LfzkV2.Current.Tests.StrandOriginalSeal

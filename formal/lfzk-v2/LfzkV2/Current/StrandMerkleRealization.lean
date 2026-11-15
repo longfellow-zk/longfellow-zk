@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.Format
 import LfzkV2.Current.StrandCommitment
 import TranscriptV2.CompositionTransport
 import LfzkV2.Current.StrandRuntime
@@ -337,21 +337,21 @@ theorem wire_late_query_charged [DecidableEq Raw]
   exact DigestProjection.receiving_hit_charged _ _ tree H _ receiving charged
 
 section RuntimeReceiving
-variable {g : Geometry} (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
-variable (publicCount : ℕ) (fits : g.roles.length < 2^64)
-variable (locate : QueryRuntime.Runtime.Value repr shape setup publicCount → Raw)
+variable {g : Geometry} {publicCount : ℕ} (fmt : Format g fields Advice publicCount)
+
+variable (locate : fmt.Value → Raw)
 variable (bytes : Raw → Framing.Bytes)
 variable (located : ∀ value, bytes (locate value) =
-  ((StrandRuntime.Runtime.schema NodeWire.current repr shape setup publicCount).encode value).input.encode)
+  ((fmt.schema).encode value).input.encode)
 include located
 
 /-- The concrete codecs establish the auxiliary classification required
 by the receiving mean, including arbitrary annotations on the raw name. -/
 theorem wire_receives_auxiliary
-    (raw : Raw) (value : Option (QueryRuntime.Runtime.Value repr shape setup publicCount))
+    (raw : Raw) (value : Option (fmt.Value))
     (receiving : receives (MerkleWireCodec.codec P R repr binary prime context columnsFit) bytes (.inl (raw,value))) :
-    (StrandRuntime.Runtime.pointCodec repr shape setup publicCount fits locate).decode (.inl (raw,value)) = none := by
-  apply StrandRuntime.Runtime.pointCodec_merkle_auxiliary NodeWire.current repr shape setup publicCount fits locate bytes located
+    (fmt.pointCodec locate).decode (.inl (raw,value)) = none := by
+  apply fmt.pointCodec_merkle_auxiliary locate bytes located
   rcases receiving with ⟨leaf,equal⟩ | ⟨index,children,equal⟩
   · rw [equal]
     rfl
@@ -361,41 +361,41 @@ theorem wire_receives_auxiliary
 /-- The runtime codec's entire canonical image is outside the Merkle
 receiving domain. No recognition, query-order, or hash assumption is needed. -/
 theorem wire_receives_disjoint
-    (point : {point // QueryRuntime.Runtime.Canonical repr shape setup publicCount point}) :
+    (point : {point // fmt.Canonical point}) :
     ¬receives (MerkleWireCodec.codec P R repr binary prime context columnsFit) bytes
-      ((StrandRuntime.Runtime.pointCodec repr shape setup publicCount fits locate).encode point) := by
+      ((fmt.pointCodec locate).encode point) := by
   intro receiving
   have missing := wire_receives_auxiliary P R repr binary prime context columnsFit
-    shape setup publicCount fits locate bytes located _ _ receiving
-  have decoded := (StrandRuntime.Runtime.pointCodec repr shape setup publicCount fits locate).decode_encode point
-  change (StrandRuntime.Runtime.pointCodec repr shape setup publicCount fits locate).decode
-    ((StrandRuntime.Runtime.pointCodec repr shape setup publicCount fits locate).encode point) = none at missing
+    fmt locate bytes located _ _ receiving
+  have decoded := (fmt.pointCodec locate).decode_encode point
+  change (fmt.pointCodec locate).decode
+    ((fmt.pointCodec locate).encode point) = none at missing
   have impossible := missing.symm.trans decoded
   cases impossible
 
 variable [DecidableEq Raw] [Fintype Raw]
-variable [Fintype (QueryRuntime.Runtime.Value repr shape setup publicCount)]
+variable [Fintype (fmt.Value)]
 variable {Challenge : Type} [Fintype Challenge] [Nonempty Challenge]
 
 /-- The actual wire codecs discharge the sole disjointness premise of the
 receiving mean. The remaining `located` identity is the definition of the
 runtime's canonical finite node location, not a probabilistic assumption. -/
 theorem wire_receiving_sum_le {fuel Q : ℕ}
-    (tree : Tree (StrandSearch.Name Raw (QueryRuntime.Runtime.Value repr shape setup publicCount))
+    (tree : Tree (StrandSearch.Name Raw (fmt.Value))
       (Digest × Challenge) Out fuel)
     (queries : ∀ H, (seen tree H).card ≤ Q)
-    {Key : Type} (key : QueryRuntime.Runtime.Value repr shape setup publicCount → Key) (root : Key → Digest) :
+    {Key : Type} (key : fmt.Value → Key) (root : Key → Digest) :
     (∑ H,
       DigestProjection.receivingCharge
         (receives (MerkleWireCodec.codec P R repr binary prime context columnsFit) bytes)
         (StrandCommitment.claims MerkleWireCodec.nodeChildren key root ∘ byteName bytes) tree H) ≤
       ∑ H, ∑ p ∈ seen tree H,
-        if (StrandRuntime.Runtime.pointCodec repr shape setup publicCount fits locate).decode p = none
+        if (fmt.pointCodec locate).decode p = none
           then (Q*2 : ℚ)/(2^256 : ℚ) else 0 := by
   have bound := receiving_sum_le (MerkleWireCodec.codec P R repr binary prime context columnsFit)
     MerkleWireCodec.nodeChildren bytes key root
-    (StrandRuntime.Runtime.pointCodec repr shape setup publicCount fits locate)
-    (wire_receives_disjoint P R repr binary prime context columnsFit shape setup publicCount fits locate bytes located)
+    (fmt.pointCodec locate)
+    (wire_receives_disjoint P R repr binary prime context columnsFit fmt locate bytes located)
     tree queries
   simpa only [TranscriptV2.Strand.digest_card,Nat.cast_pow,Nat.cast_ofNat] using bound
 
@@ -403,19 +403,19 @@ theorem wire_receiving_sum_le {fuel Q : ℕ}
 speculation uses strand inputs, while Merkle receiving uses Merkle inputs.
 The combined allowance is 2Q/M per auxiliary slot, not the sum 3Q/M. -/
 theorem wire_hash_sum_le {fuel Q : ℕ}
-    (tree : Tree (StrandSearch.Name Raw (QueryRuntime.Runtime.Value repr shape setup publicCount))
+    (tree : Tree (StrandSearch.Name Raw (fmt.Value))
       (Digest × Challenge) Out fuel)
     (queries : ∀ H, (seen tree H).card ≤ Q)
-    {Key : Type} (key : QueryRuntime.Runtime.Value repr shape setup publicCount → Key) (root : Key → Digest) :
+    {Key : Type} (key : fmt.Value → Key) (root : Key → Digest) :
     (∑ H, (DigestProjection.charge (StrandSearch.claims bytes) tree H +
       DigestProjection.receivingCharge
         (receives (MerkleWireCodec.codec P R repr binary prime context columnsFit) bytes)
         (StrandCommitment.claims MerkleWireCodec.nodeChildren key root ∘ byteName bytes) tree H)) ≤
       ∑ H, ∑ p ∈ seen tree H,
-        if (StrandRuntime.Runtime.pointCodec repr shape setup publicCount fits locate).decode p = none
+        if (fmt.pointCodec locate).decode p = none
           then (2*Q : ℚ)/(2^256 : ℚ) else 0 := by
-  let names := StrandRuntime.Runtime.pointCodec repr shape setup publicCount fits locate
-  let plants := fun point : StrandSearch.Name Raw (QueryRuntime.Runtime.Value repr shape setup publicCount) =>
+  let names := fmt.pointCodec locate
+  let plants := fun point : StrandSearch.Name Raw (fmt.Value) =>
     (StrandSearch.claims bytes point).Nonempty
   have plantAuxiliary point (planted : plants point) : names.decode point = none := by
     cases point with
@@ -429,8 +429,8 @@ theorem wire_hash_sum_le {fuel Q : ℕ}
       receives (MerkleWireCodec.codec P R repr binary prime context columnsFit) bytes point) :
       names.decode point = none :=
     receives_auxiliary (MerkleWireCodec.codec P R repr binary prime context columnsFit) bytes names
-      (wire_receives_disjoint P R repr binary prime context columnsFit shape setup publicCount
-        fits locate bytes located) point receiving
+      (wire_receives_disjoint P R repr binary prime context columnsFit fmt
+        locate bytes located) point receiving
   have disjoint point (planted : plants point) :
       ¬receives (MerkleWireCodec.codec P R repr binary prime context columnsFit) bytes point := by
     intro receiving

@@ -20,7 +20,7 @@ variable (cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fiel
   (Base := BoundedBytes capacity) (Key := Key) (C := C) (Salt := Salt))
 variable (earlier : Request → Replay.Encoding g fields Advice (RuntimeVerifier.Authentication (g := g)) Key
   (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := BoundedBytes capacity)) C)
-variable (bodyCodec : PrefixCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
+variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
 variable (sample : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := BoundedBytes capacity) (Key := Key) → Tree Strand.Word Digest (Option C) blocks)
 variable [Inhabited Salt] [Inhabited (RuntimeVerifier.Family binary prime P R cfg).Leaf]
@@ -33,19 +33,19 @@ local notation "Output" => RuntimeAdaptiveVerifier.Output (g := g) (fields := fi
   (Advice := Advice) (Request := Request)
 local notation "Annotated" => RuntimeAdaptiveMerkle.Annotated (g := g) (fields := fields)
   (Advice := Advice) (Base := BoundedBytes capacity) (Key := Key) (C := C) (Request := Request)
-local notation "fullReplay" => StrandAuthentication.replay binary prime P R cfg earlier bodyCodec sample codec merkleInput
+local notation "fullReplay" => StrandAuthentication.replay binary prime P R cfg earlier wire bodyCodec sample codec merkleInput
 
 
 def observe (output : Output) : Tree Bytes Digest Bool (2+2*n+(blocks+1)*g.roles.length) :=
   (recordTrace (fullReplay output)).map fun recorded =>
-    StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec
+    StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec
       (Protocol.Observation.complete recorded.2) merkleInput output
 
 theorem observe_result (output : Output) (SHA : Bytes → Digest) :
-    ((observe binary prime P R cfg earlier bodyCodec sample codec merkleInput hashPublic decodePublic draw output).run SHA).1 =
-      StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec SHA merkleInput output := by
+    ((observe binary prime P R cfg earlier wire bodyCodec sample codec merkleInput hashPublic decodePublic draw output).run SHA).1 =
+      StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec SHA merkleInput output := by
   rw [observe,Tree.run_map,run_recordTrace]
-  exact (StrandAuthentication.verify_congr binary prime P R cfg earlier bodyCodec sample codec merkleInput
+  exact (StrandAuthentication.verify_congr binary prime P R cfg earlier wire bodyCodec sample codec merkleInput
     hashPublic decodePublic draw output SHA (Protocol.Observation.complete ((fullReplay output).run SHA).2)
     (Protocol.Observation.complete_run_agrees (fullReplay output) SHA)).symm
 
@@ -53,13 +53,13 @@ theorem observe_result (output : Output) (SHA : Bytes → Digest) :
 This lets privacy compare actual acceptance even on simulator aborts. -/
 def optional : Option Output → Tree Bytes Digest Bool (2+2*n+(blocks+1)*g.roles.length)
   | none => .done false
-  | some output => observe binary prime P R cfg earlier bodyCodec sample codec merkleInput hashPublic decodePublic draw output
+  | some output => observe binary prime P R cfg earlier wire bodyCodec sample codec merkleInput hashPublic decodePublic draw output
 
 theorem optional_result (output : Option Output) (SHA : Bytes → Digest) :
-    ((optional binary prime P R cfg earlier bodyCodec sample codec merkleInput hashPublic decodePublic draw output).run SHA).1 =
-      output.any (StrandVerifier.verify binary prime P R cfg earlier bodyCodec sample hashPublic decodePublic draw codec SHA merkleInput) := by
+    ((optional binary prime P R cfg earlier wire bodyCodec sample codec merkleInput hashPublic decodePublic draw output).run SHA).1 =
+      output.any (StrandVerifier.verify binary prime P R cfg earlier wire bodyCodec sample hashPublic decodePublic draw codec SHA merkleInput) := by
   cases output with
   | none => rfl
-  | some out => exact observe_result binary prime P R cfg earlier bodyCodec sample codec merkleInput hashPublic decodePublic draw out SHA
+  | some out => exact observe_result binary prime P R cfg earlier wire bodyCodec sample codec merkleInput hashPublic decodePublic draw out SHA
 
 end LfzkV2.Current.ZeroKnowledge.StrandVerifierObserver

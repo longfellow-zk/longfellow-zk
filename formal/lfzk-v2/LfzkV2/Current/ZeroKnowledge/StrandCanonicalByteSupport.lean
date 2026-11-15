@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ZeroKnowledge.StrandMerkleWindow
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalHiding
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalOracleSupport
@@ -74,8 +75,8 @@ local notation "History" => (StrandRuntime.history NodeWire.current
   (ProofBodyCodec.codec Repr (MdocRuntime.geometry binary.description prime binary.plan primePlan)) :
   RuntimePoint → Strand.History)
 local notation "Output" => CanonicalRuntime.Output (Advice := MdocAdvice.Value) binary.description Sh
-local instance requestFintype : Fintype (CanonicalRuntime.Request binary.description Sh) := by
-  apply Fintype.ofInjective (fun request : CanonicalRuntime.Request binary.description Sh =>
+local instance requestFintype : Fintype (CanonicalRequest.Request Sh binary.description.nPublic) := by
+  apply Fintype.ofInjective (fun request : CanonicalRequest.Request Sh binary.description.nPublic =>
     (request.session,request.publicBits,request.primeInputs))
   intro first second same
   cases first

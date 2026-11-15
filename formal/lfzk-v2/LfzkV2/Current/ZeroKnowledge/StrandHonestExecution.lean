@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalExecution
 
 /-! The successful result of the actual indexed honest experiment is the

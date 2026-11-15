@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ZeroKnowledge.StrandCanonicalBackend
 import LfzkV2.Current.ZeroKnowledge.StrandCompletenessPrefix
 
@@ -42,7 +43,7 @@ theorem finish_point_before
   have same := congrArg (((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request).encoding.chain configuration.initialLink).input
     (ProofBodyReplay.replay_same_body ((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request) configuration.initialLink output.proof
       (CompleteTerminal.proof pending output.proof.body) rfl H index)
-  exact same.trans (CompleteTerminal.point_before repr shape setup binary.nPublic (CanonicalRuntime.binaryRequest binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) repr shape setup (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes repr shape setup configuration) binaryCount) metadata request
+  exact same.trans (CompleteTerminal.point_before repr shape setup binary.nPublic (CanonicalRuntime.binaryRequest binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (LegacyFormat repr shape setup _) (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes repr shape setup configuration) binaryCount) metadata request
     configuration.initialLink pending output.proof.body H index before)
 
 theorem finish_point_responses
@@ -61,7 +62,7 @@ theorem finish_point_responses
   have same := congrArg (((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request).encoding.chain configuration.initialLink).input
     (ProofBodyReplay.replay_same_body ((CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata) request) configuration.initialLink output.proof
       (CompleteTerminal.proof pending output.proof.body) rfl H index)
-  exact same.trans (CompleteTerminal.point_same_responses repr shape setup binary.nPublic (CanonicalRuntime.binaryRequest binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) repr shape setup (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes repr shape setup configuration) binaryCount) metadata request
+  exact same.trans (CompleteTerminal.point_same_responses repr shape setup binary.nPublic (CanonicalRuntime.binaryRequest binary prime (ConcreteSetup.backend binaryNodes binary.cells) (ConcreteSetup.backend primeNodes (CellLayout.Prime.cells prime.remaining prime.pads)) (LegacyFormat repr shape setup _) (CompleteCanonicalVerifier.basePublic binary prime binaryNodes primeNodes repr shape setup configuration) binaryCount) metadata request
     configuration.initialLink pending output.proof.body rfl rfl H index inside)
 
 end LfzkV2.Current.ZeroKnowledge.StrandCanonicalBackend

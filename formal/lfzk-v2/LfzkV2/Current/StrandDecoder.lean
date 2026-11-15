@@ -62,7 +62,7 @@ local notation "Output" => RuntimeAdaptiveVerifier.Output (g := g) (fields := fi
   (Advice := Advice) (Request := Request)
 variable (earlier : Request → Replay.Encoding g fields Advice (RuntimeVerifier.Authentication (g := g)) Key
   (RuntimeVerifier.Block (g := g) (fields := fields) (Advice := Advice) (Base := BoundedBytes capacity)) C)
-variable (bodyCodec : PrefixCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
+variable (wire : NodeWire) (bodyCodec : PrefixCodec (Body g fields Advice (RuntimeVerifier.Authentication (g := g))))
 variable {Values Unused : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
   (Base := BoundedBytes capacity) (Key := Key) → Type}
 variable (factor : (point : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice)
@@ -78,10 +78,10 @@ variable (hashPublic : Key → Option (Fin binary.nPublic → Bool))
 variable (decodePublic : BoundedBytes capacity → Option (Fin prime.nPublic → N))
 variable (draw : C → RuntimeVerifier.RawSamples binary prime P R cfg)
 variable [Inhabited (RuntimeVerifier.Family binary prime P R cfg).Leaf]
-local notation "history" => StrandRuntime.history NodeWire.current bodyCodec
+local notation "history" => StrandRuntime.history wire bodyCodec
 local notation "M" => RuntimeAdaptiveVerifier.chain binary prime P R cfg earlier
 local notation "read" => fun point => StrandSampling.read (factor point) cfg.fallback (sample point)
-local notation "physical" => StrandVerifier.oracle binary prime P R cfg bodyCodec read
+local notation "physical" => StrandVerifier.oracle binary prime P R cfg wire bodyCodec read
 
 /-- Equality of the actual requested rows on successful reads suffices for
 the complete runtime decoder and every replay point, including the final-seal
@@ -98,7 +98,7 @@ theorem decode_and_path (output : Output) (SHA : Strand.Oracle) (H : Point → D
         (SHA (history point).input.encode) counter).encode) =
         ((StrandSampling.componentEquiv (factor point) (fun stream => ((sample point).run stream).1)
           (fiber point) (uniform point)).symm ((H point).2,residual point)).1)
-    (success : StrandVerifier.samplersSucceeded binary prime P R cfg earlier bodyCodec read output SHA) :
+    (success : StrandVerifier.samplersSucceeded binary prime P R cfg earlier wire bodyCodec read output SHA) :
     RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw output (physical SHA) =
         RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw output
           (normalizedOracle factor cfg.fallback H) ∧

@@ -1,7 +1,9 @@
 import LfzkV2.Current.StrandRuntime
+import LfzkV2.Current.PacketReplay
 import LfzkV2.Current.PublicRequest
 import LfzkV2.Current.BodyEncoding
 import LfzkV2.Current.BackendBody
+import LfzkV2.Current.BodyScalars
 
 /-! A transcript format: everything the soundness, extraction and
 zero-knowledge development needs to know about the bytes that a proof's
@@ -29,6 +31,14 @@ open scoped Classical
 abbrev FormatBody (g : Geometry) (fields : Fields) (Advice : Type) :=
   Body g fields Advice (OpeningBody.Authentication g)
 
+theorem laterPacket_lt {α : Type _} {later : List α} {role : α → Role} {roles : List Role}
+    (h : Role.fingerprint :: later.map role = roles) (i : Fin roles.length) (hi : i.val ≠ 0) :
+    i.val-1 < later.length := by
+  have length := congrArg List.length h
+  simp only [List.length_cons,List.length_map] at length
+  have := i.isLt
+  omega
+
 structure Format (g : Geometry) (fields : Fields) (Advice : Type) (publicCount : ℕ) where
   /-- Node closing bytes: the round terminator and the seal frame. -/
   wire : NodeWire
@@ -43,6 +53,8 @@ structure Format (g : Geometry) (fields : Fields) (Advice : Type) (publicCount :
   later : List (Packet (ProtocolWrites.Fresh g fields Advice) capacity)
   roles_eq : Role.fingerprint :: later.map Packet.role = g.roles
   body : PrefixCodec (FormatBody g fields Advice)
+  /-- The scalar and advice representations, shared with the Merkle leaves. -/
+  scalars : ProofBodyCodec.Representations fields Advice
   /-- The public input counts of the hash and signature circuits. -/
   binaryPublic : ℕ
   primePublic : ℕ
@@ -91,6 +103,14 @@ structure Format (g : Geometry) (fields : Fields) (Advice : Type) (publicCount :
     (∀ request index writes first second, metadata request index writes first = metadata request index writes second) →
     ∀ request body (i : Fin g.roles.length) (first second : Fin i.val → C),
       block binaryRequest metadata request body i first = block binaryRequest metadata request body i second
+  /-- Every later node is its role packet's encoding of some packet value. -/
+  block_later : ∀ {C} binaryRequest metadata request body (i : Fin g.roles.length) (past : Fin i.val → C)
+    (hi : i.val ≠ 0), ∃ data : (later.get ⟨i.val-1,laterPacket_lt roles_eq i hi⟩).Data,
+      block binaryRequest metadata request body i past =
+      (later.get ⟨i.val-1,laterPacket_lt roles_eq i hi⟩).block data
+  /-- An ambient bound on the body bytes; it adds no bytes. -/
+  bodyBound : ℕ
+  body_bound : ∀ value, (body.encode value).length ≤ bodyBound
 
 namespace Format
 variable {g : Geometry} {fields : Fields} {Advice C : Type} {publicCount : ℕ}
@@ -112,6 +132,17 @@ abbrev RequestMetadata (C : Type) := (request : fmt.Request) → (i : Fin g.role
 
 def ChallengeIndependent (metadata : fmt.RequestMetadata C) : Prop :=
   ∀ request index writes first second, metadata request index writes first = metadata request index writes second
+
+/-- The global absorption invariant: the metadata depends on the boundary
+alone, so only setup constants, the statement and prover messages are
+absorbed. -/
+def SetupOnly (metadata : fmt.RequestMetadata C) : Prop :=
+  ∀ request request' index writes writes' first second,
+    metadata request index writes first = metadata request' index writes' second
+
+theorem SetupOnly.challengeIndependent {metadata : fmt.RequestMetadata C}
+    (setupOnly : fmt.SetupOnly metadata) : fmt.ChallengeIndependent metadata :=
+  fun request index writes first second => setupOnly request request index writes writes first second
 
 /-- The fresh writes up to and including boundary `i`. -/
 def writes (body : FormatBody g fields Advice) (i : Fin g.roles.length) :
@@ -235,6 +266,19 @@ def pointCodec (locate : fmt.Value → P) :
               simp only [Equiv.symm_apply_apply,equal]
             · rw [if_neg equal] at found
               contradiction
+
+/-! Forms taking the u64 schedule bound. The strand codec needs no such
+bound; these keep the signatures of callers that thread it for the seal. -/
+
+theorem toPoint_injective_bounded (_fits : g.roles.length < 2^64) : Function.Injective fmt.toPoint :=
+  fmt.toPoint_injective
+
+def boundedValuesEquiv (_fits : g.roles.length < 2^64) :
+    fmt.Value ≃ {point : fmt.Point // fmt.Canonical point} := fmt.valuesEquiv
+
+def boundedPointCodec (_fits : g.roles.length < 2^64) (locate : fmt.Value → P) :
+    ByteOracleTransport.Codec fmt.Point (StrandSearch.Name P fmt.Value) fmt.Canonical :=
+  fmt.pointCodec locate
 
 /-- A Merkle preimage (first byte `p`) never names a canonical node. -/
 theorem pointCodec_merkle_auxiliary (locate : fmt.Value → P) (bytes : P → Bytes)
@@ -364,6 +408,49 @@ theorem primePublic_replay (initial : Digest) (proof : Output) (H : fmt.Point �
     (primeBoundary g).val (fun block => fmt.decodePrimePublic block.1) = _
   rw [Replay.Encoding.readAt_replay _ _ _ _ _ hi (primeBoundary g) hstart]
   exact fmt.block_prime binaryRequest metadata request proof.body _ _ rfl
+
+/-! ## Canonical replay -/
+
+/-- The packet data of every node of a request replay. -/
+def producer (proof : Output) (ip : Fin fmt.packets.length) (past : Fin ip.val → C) : (fmt.packets.get ip).Data :=
+  match ip with
+  | ⟨0,_⟩ => (fmt.context request proof.body.commitment : fmt.Key)
+  | ⟨j+1,h⟩ => Classical.choose (fmt.block_later binaryRequest metadata request proof.body
+      (CanonicalReplay.index fmt.packets fmt.packets_roles ⟨j+1,h⟩) past (by simp [CanonicalReplay.index]))
+
+theorem producer_block (proof : Output) (ip : Fin fmt.packets.length) (past : Fin ip.val → C) :
+    (fmt.encoding binaryRequest metadata request).block proof
+        (CanonicalReplay.index fmt.packets fmt.packets_roles ip) past =
+      (fmt.packets.get ip).block (fmt.producer binaryRequest metadata request proof ip past) := by
+  match ip with
+  | ⟨0,h⟩ =>
+      exact fmt.block_zero binaryRequest metadata request proof.body
+        (CanonicalReplay.index fmt.packets fmt.packets_roles ⟨0,h⟩) past rfl
+  | ⟨j+1,h⟩ =>
+      exact Classical.choose_spec (fmt.block_later binaryRequest metadata request proof.body
+        (CanonicalReplay.index fmt.packets fmt.packets_roles ⟨j+1,h⟩) past (by simp [CanonicalReplay.index]))
+
+/-- Every replayed point of a request is canonical: its nodes parse as the
+format's packets, including the final seal of a bounded body. -/
+theorem point_canonical (bodyFits : fmt.bodyBound ≤ maxLength) (initialLink : Digest) (proof : Output)
+    (H : fmt.Point → Digest × C) (n : ℕ) (hn : n ≤ g.roles.length) :
+    fmt.Canonical (((fmt.encoding binaryRequest metadata request).chain initialLink).point proof H n) := by
+  let e := fmt.encoding binaryRequest metadata request
+  have hlen : fmt.packets.length = g.roles.length := by
+    simpa only [List.length_map] using congrArg List.length fmt.packets_roles
+  have hn' : n ≤ fmt.packets.length := by omega
+  have hbody := (fmt.body_bound proof.body).trans bodyFits
+  let values := CanonicalReplay.replayValues e fmt.packets (fmt.producer binaryRequest metadata request)
+    initialLink proof H
+  let value := CanonicalReplay.valueAt fmt.body fmt.packets values
+    (fun i => (H ((e.chain initialLink).point proof H i.val)).1) ⟨proof.body,hbody⟩ n hn'
+  have hkey : fmt.key value = e.context proof := by cases n <;> rfl
+  refine ⟨value,?_⟩
+  change reindex fmt.packets_roles (embed fmt.body (fmt.key value) fmt.packets value) = _
+  rw [hkey]
+  exact CanonicalReplay.point_eq_replay e fmt.body fmt.packets fmt.packets_roles
+    (fmt.producer binaryRequest metadata request) (fmt.producer_block binaryRequest metadata request)
+    initialLink proof hbody H n hn'
 
 end Format
 end LfzkV2.Current

@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.ZeroKnowledge.CompleteCanonicalReaders
 import LfzkV2.Current.ZeroKnowledge.CompletePublicBody
 import LfzkV2.Current.RuntimeVerifier
@@ -305,7 +306,7 @@ def finish (configuration : RuntimeVerifier.Public (g := g) binary prime P R
     (capacity binary prime binaryNodes primeNodes repr shape setup configuration indices columns opening)
   let encoding := CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration
     binaryCount metadata request
-  ⟨request,StrandCompletion.finish (ProofBodyCodec.codec repr g) encoding roundSampler configuration.fallback configuration.initialLink full SHA⟩
+  ⟨request,StrandCompletion.finish NodeWire.current (ProofBodyCodec.codec repr g) encoding roundSampler configuration.fallback configuration.initialLink full SHA⟩
 
 theorem finish_valid (configuration : RuntimeVerifier.Public (g := g) binary prime P R
   (fields := fields) (Advice := Advice)
@@ -318,12 +319,12 @@ theorem finish_valid (configuration : RuntimeVerifier.Public (g := g) binary pri
     (columns : (OrderedOpening.query indices).coordinates → Physical)
     (opening : Opening 2443 (OrderedOpening.query indices).coordinates (Fin 2443 × MerkleNonce) Digest)
     (SHA : Strand.Oracle) :
-    StrandCompletion.Valid (ProofBodyCodec.codec repr g)
+    StrandCompletion.Valid NodeWire.current (ProofBodyCodec.codec repr g)
       (CompleteCanonicalVerifier.encoding binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata request)
       roundSampler configuration.fallback configuration.initialLink
       (finish binary prime binaryNodes primeNodes repr shape setup configuration binaryCount metadata roundSampler
         request frontend response indices columns opening SHA).proof SHA := by
-  exact StrandCompletion.finish_valid _ _ _ _ _ _ _
+  exact StrandCompletion.finish_valid _ _ _ _ _ _ _ _
 
 theorem finish_oracle_congr_reads (configuration : RuntimeVerifier.Public (g := g) binary prime P R
     (fields := fields) (Advice := Advice)
@@ -342,7 +343,7 @@ theorem finish_oracle_congr_reads (configuration : RuntimeVerifier.Public (g := 
         request frontend response indices columns opening SHA' := by
   unfold finish
   apply congrArg (fun proof => (⟨request,proof⟩ : CanonicalRuntime.Output (Advice := Advice) binary shape))
-  exact StrandGhostMerkle.Domains.finish_congr_reads _ _ _ _ _ _ SHA SHA' agree
+  exact StrandGhostMerkle.Domains.finish_congr_reads _ _ _ _ _ _ _ SHA SHA' agree
 
 theorem finish_oracle_congr (configuration : RuntimeVerifier.Public (g := g) binary prime P R
     (fields := fields) (Advice := Advice)
@@ -361,6 +362,6 @@ theorem finish_oracle_congr (configuration : RuntimeVerifier.Public (g := g) bin
         request frontend response indices columns opening SHA' := by
   unfold finish
   apply congrArg (fun proof => (⟨request,proof⟩ : CanonicalRuntime.Output (Advice := Advice) binary shape))
-  exact StrandGhostMerkle.Domains.finish_congr _ _ _ _ _ _ SHA SHA' agree
+  exact StrandGhostMerkle.Domains.finish_congr _ _ _ _ _ _ _ SHA SHA' agree
 
 end LfzkV2.Current.ZeroKnowledge.StrandCanonicalBackend

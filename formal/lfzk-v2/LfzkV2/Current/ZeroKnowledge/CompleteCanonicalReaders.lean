@@ -1,3 +1,4 @@
+import LfzkV2.Current.LegacyFormat
 import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ZeroKnowledge.CompleteCanonicalPublic
 
@@ -32,12 +33,12 @@ variable (binaryCount : shape.binaryPublic = binary.nPublic)
 variable (primeCount : shape.primePublic = prime.nPublic)
 variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
 
-def earlier := CanonicalRuntime.earlier binary prime P R repr shape setup
+def earlier := CanonicalRuntime.earlier binary prime P R (LegacyFormat repr shape setup _)
   (basePublic binary prime binaryNodes primeNodes repr shape setup cfg) binaryCount metadata
 
 def encoding (request : CanonicalRequest.Request shape binary.nPublic) :=
   CanonicalRequest.bodyEncoding repr shape setup binary.nPublic
-    (CanonicalRuntime.binaryRequest binary prime P R repr shape setup
+    (CanonicalRuntime.binaryRequest binary prime P R (LegacyFormat repr shape setup _)
       (basePublic binary prime binaryNodes primeNodes repr shape setup cfg) binaryCount) metadata request
 
 local notation "Cfg" => publicConfig binary prime binaryNodes primeNodes repr shape setup cfg
@@ -57,7 +58,7 @@ def statementAt (request : CanonicalRequest.Request shape binary.nPublic) (front
     (H : Point → Digest × C) : Option Data :=
   let point := batchingPoint binary prime binaryNodes primeNodes repr shape setup cfg binaryCount metadata request frontend H
   RuntimeAdaptive.statementAt binary prime P R Cfg (CanonicalRequest.hashPublic binary.nPublic)
-    (CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup
+    (CanonicalRuntime.decodePrimePublic binary prime P R (LegacyFormat repr shape setup _)
       (basePublic binary prime binaryNodes primeNodes repr shape setup cfg) primeCount)
     point (point.priorAnswers H)
 

@@ -16,12 +16,11 @@ local notation "N" => ZMod Adapter.Mdoc.primeOrder
 variable (binary : BinaryPublic B shared maskBits adviceBits) (prime : PrimePublic N shared)
 variable (P : FieldBackend B c.k c.s c.n c.t) (R : FieldBackend N c.k c.s c.n c.t)
 variable (countBinary countPrime binaryCapacity primeCapacity : ℕ)
-variable (repr : ProofBodyCodec.Representations fields Advice)
-variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
+variable (fmt : Format g fields Advice binary.nPublic)
 local notation "Answer" => IdealRuntime.Answer binary prime P R countBinary countPrime binaryCapacity primeCapacity
-local notation "Point" => QueryRuntime.Runtime.Point repr shape setup binary.nPublic
-local notation "Value" => QueryRuntime.Runtime.Value repr shape setup binary.nPublic
-local notation "Output" => CanonicalRuntime.Output (Advice := Advice) binary shape
+local notation "Point" => fmt.Point
+local notation "Value" => fmt.Value
+local notation "Output" => CanonicalRuntime.FormatOutput binary fmt
 local notation "kind" => StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1)
 local notation "RoleValue" => StrandRoleSampling.Value B N binary.Original prime.Original
   (IdealRuntime.RawBinary P countBinary) (IdealRuntime.RawPrime R countPrime) (Fin c.t ↪ Fin c.n)
@@ -41,8 +40,8 @@ local instance answerFintype : Fintype Answer := by
   dsimp only [IdealRuntime.Answer,IdealSamples.Answer]
   infer_instance
 
-local notation "Values" => values c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup
-local notation "Unused" => unused c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup
+local notation "Values" => values c binary prime P R countBinary countPrime binaryCapacity primeCapacity fmt
+local notation "Unused" => unused c binary prime P R countBinary countPrime binaryCapacity primeCapacity fmt
 
 local instance valuesFintype (point : Point) : Fintype (Values point) := by
   cases point <;> dsimp only [values] <;> infer_instance
@@ -66,14 +65,14 @@ def factor (point : Point) : Answer ≃ Values point × Unused point := by
         binaryCapacity primeCapacity (kind (g.roles.get index)) (fitsRoles index)
   | finalSeal history body => exact (Equiv.prodUnique Answer Unit).symm
 
-local notation "Factor" => factor c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup
+local notation "Factor" => factor c binary prime P R countBinary countPrime binaryCapacity primeCapacity fmt
   binaryPlan primePlan binaryGeometry primeGeometry binaryFits primeFits degreeFits rowsFit
 
 variable (cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fields) (Advice := Advice)
-  (Base := CanonicalRequest.Base repr shape setup binary.nPublic) (Key := FingerprintPrefix.Key binary.nPublic)
+  (Base := fmt.Base) (Key := fmt.Key)
   (C := IdealRuntime.Answer binary prime P R countBinary countPrime binaryCapacity primeCapacity) (Salt := Fin c.n × MerkleNonce))
-variable (sample : (point : QueryRuntime.Runtime.Point repr shape setup binary.nPublic) →
-  Tree Strand.Word Digest (Option (values c binary prime P R countBinary countPrime binaryCapacity primeCapacity repr shape setup point)) blocks)
+variable (sample : (point : fmt.Point) →
+  Tree Strand.Word Digest (Option (values c binary prime P R countBinary countPrime binaryCapacity primeCapacity fmt point)) blocks)
 def sampler (point : Point) : Tree Strand.Word Digest (Option Answer) blocks :=
   StrandSampling.read (Factor point) cfg.fallback (sample point)
 
@@ -90,17 +89,17 @@ namespace Setup
 variable (S : Setup c g fields Advice B (shared := shared) (maskBits := maskBits) (adviceBits := adviceBits))
 
 abbrev RoleValue (point : S.Point) := Sampling.values c S.binary S.prime S.P S.R
-  S.countBinary S.countPrime S.binaryCapacity S.primeCapacity S.repr S.shape S.fingerprint point
+  S.countBinary S.countPrime S.binaryCapacity S.primeCapacity S.fmt point
 
 abbrev RoleUnused (point : S.Point) := Sampling.unused c S.binary S.prime S.P S.R
-  S.countBinary S.countPrime S.binaryCapacity S.primeCapacity S.repr S.shape S.fingerprint point
+  S.countBinary S.countPrime S.binaryCapacity S.primeCapacity S.fmt point
 
 abbrev roleFits := StrandRoleSampling.roleFits S.binaryCapacity S.primeCapacity g S.binaryPlan S.primePlan
   S.binaryGeometry S.primeGeometry S.binaryFits S.primeFits S.binary.degree (S.prime.circuit.layers+1)
   S.degreeFits S.rowsFit
 
 abbrev factor (point : S.Point) := Sampling.factor c S.binary S.prime S.P S.R
-  S.countBinary S.countPrime S.binaryCapacity S.primeCapacity S.repr S.shape S.fingerprint
+  S.countBinary S.countPrime S.binaryCapacity S.primeCapacity S.fmt
   S.binaryPlan S.primePlan S.binaryGeometry S.primeGeometry S.binaryFits S.primeFits S.degreeFits S.rowsFit point
 
 end Setup
@@ -132,7 +131,7 @@ variable {blocks : ℕ} (sampler : SamplerData S blocks)
 
 abbrev execution : ExecutionSampler S blocks where
   sample := Sampling.sampler c S.binary S.prime S.P S.R S.countBinary S.countPrime
-    S.binaryCapacity S.primeCapacity S.repr S.shape S.fingerprint S.binaryPlan S.primePlan
+    S.binaryCapacity S.primeCapacity S.fmt S.binaryPlan S.primePlan
     S.binaryGeometry S.primeGeometry S.binaryFits S.primeFits S.degreeFits S.rowsFit S.cfg sampler.sample
 
 end SamplerData

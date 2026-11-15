@@ -24,38 +24,37 @@ variable {shared maskBits adviceBits k s n t blocks : ℕ}
 local notation "N" => ZMod Adapter.Mdoc.primeOrder
 variable (binary : BinaryPublic B shared maskBits adviceBits) (prime : PrimePublic N shared)
 variable (P : FieldBackend B k s n t) (R : FieldBackend N k s n t)
-variable (repr : ProofBodyCodec.Representations fields Advice)
-variable (shape : WireBlocks.Shape g fields) (setup : FingerprintPrefix.Setup)
+variable (fmt : Format g fields Advice binary.nPublic)
 variable (cfg : RuntimeVerifier.Public (g := g) binary prime P R (fields := fields) (Advice := Advice)
-  (Base := CanonicalRequest.Base repr shape setup binary.nPublic)
-  (Key := FingerprintPrefix.Key binary.nPublic) (C := C) (Salt := Salt))
-variable (binaryCount : shape.binaryPublic = binary.nPublic)
-variable (metadata : CanonicalRequest.Metadata (Advice := Advice) (C := C) shape binary.nPublic)
-variable (bodyFits : ProofBodyBounds.bodyBound repr g ≤ CanonicalPrefix.maxLength)
+  (Base := fmt.Base)
+  (Key := fmt.Key) (C := C) (Salt := Salt))
+variable (binaryCount : fmt.binaryPublic = binary.nPublic)
+variable (metadata : fmt.RequestMetadata C)
+variable (bodyFits : fmt.bodyBound ≤ CanonicalPrefix.maxLength)
 variable (fits : g.roles.length < 2^64)
-variable (sample : QueryRuntime.Runtime.Point repr shape setup binary.nPublic →
+variable (sample : fmt.Point →
   Tree Strand.Word Digest (Option C) blocks)
-variable (primeCount : shape.primePublic = prime.nPublic)
+variable (primeCount : fmt.primePublic = prime.nPublic)
 variable (draw : C → RuntimeVerifier.RawSamples binary prime P R
-  (CanonicalRuntime.wirePublic binary prime P R repr shape setup cfg))
+  (CanonicalRuntime.wirePublic binary prime P R fmt cfg))
 variable [Inhabited Salt]
 variable [Inhabited (RuntimeVerifier.Family binary prime P R
-  (CanonicalRuntime.wirePublic binary prime P R repr shape setup cfg)).Leaf]
+  (CanonicalRuntime.wirePublic binary prime P R fmt cfg)).Leaf]
 variable (codec : Merkle.Indexed.Codec Salt (RuntimeVerifier.Family binary prime P R
-  (CanonicalRuntime.wirePublic binary prime P R repr shape setup cfg)).Leaf Digest Enc)
+  (CanonicalRuntime.wirePublic binary prime P R fmt cfg)).Leaf Digest Enc)
 variable (merkleInput : Enc → Bytes)
-variable {fuel : ℕ} (program : Tree Bytes Digest (CanonicalRuntime.Output (Advice := Advice) binary shape) fuel)
+variable {fuel : ℕ} (program : Tree Bytes Digest (CanonicalRuntime.FormatOutput binary fmt) fuel)
 
-local notation "W" => CanonicalRuntime.wirePublic binary prime P R repr shape setup cfg
-local notation "Earlier" => CanonicalRuntime.earlier binary prime P R repr shape setup cfg binaryCount metadata
+local notation "W" => CanonicalRuntime.wirePublic binary prime P R fmt cfg
+local notation "Earlier" => CanonicalRuntime.earlier binary prime P R fmt cfg binaryCount metadata
 local notation "M" => RuntimeAdaptiveVerifier.chain binary prime P R (W) (Earlier)
-local notation "Value" => QueryRuntime.Runtime.Value repr shape setup binary.nPublic
-local notation "Output" => CanonicalRuntime.Output (Advice := Advice) binary shape
-local notation "bodyCodec" => ProofBodyCodec.codec repr g
-local notation "schema" => StrandRuntime.Runtime.schema NodeWire.current repr shape setup binary.nPublic
-local notation "history" => StrandRuntime.history NodeWire.current bodyCodec
+local notation "Value" => fmt.Value
+local notation "Output" => CanonicalRuntime.FormatOutput binary fmt
+local notation "bodyCodec" => fmt.body
+local notation "schema" => fmt.schema
+local notation "history" => StrandRuntime.history fmt.wire bodyCodec
 local notation "ordinaryOracle" => TranscriptV2.StrandVerifier.oracle history sample cfg.fallback
-local notation "fullReplay" => StrandAuthentication.replay binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
+local notation "fullReplay" => StrandAuthentication.replay binary prime P R (W) (Earlier) fmt.wire bodyCodec sample codec merkleInput
 
 private def rootNode : Strand.OtherPoint := TranscriptV2.Strand.History.nodePoint (.root [])
 
@@ -63,19 +62,19 @@ private def rootNode : Strand.OtherPoint := TranscriptV2.Strand.History.nodePoin
 fallback address solely to make the finite address compiler total. -/
 def other : Finset Strand.OtherPoint := by
   letI : Fintype Value := Fintype.ofInjective
-    (QueryRuntime.Runtime.toPoint repr shape setup binary.nPublic)
-    (QueryRuntime.Runtime.toPoint_injective repr shape setup binary.nPublic fits)
+    (fmt.toPoint)
+    (fmt.toPoint_injective_bounded fits)
   exact insert rootNode (StrandWindow.support (schema) (program.bind fullReplay))
 
-local notation "O" => other binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
+local notation "O" => other binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
 local notation "Node" => StrandWindow.Node (O)
 local notation "Raw" => StrandWindow.Point (O)
 
 def fallback : Node := ⟨rootNode,Finset.mem_insert_self _ _⟩
-local notation "fallbackNode" => fallback binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
+local notation "fallbackNode" => fallback binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
 local notation "decodeRaw" => StrandWindow.decode (O) fallbackNode
 local notation "bytes" => StrandWindow.Node.bytes (other := O)
-local notation "context" => QueryRuntime.Runtime.key repr shape setup binary.nPublic
+local notation "context" => fmt.key
 local notation "Name" => StrandSearch.Name Node Value
 local notation "Answer" => StrandCoupling.Sample Digest Strand.Word
 local notation "compiled" => mapQueries decodeRaw program
@@ -92,14 +91,14 @@ original table, all extraction cuts and the verifier trace use physical
 SHA inputs thereafter. No application proof needs a second view type. -/
 def viewMap {Result : Type} (view : (Output × List (Raw × Digest)) ×
     (Result × List (Raw × Digest))) :
-    Protocol.Execution.View Output Result (FingerprintPrefix.Key binary.nPublic) where
+    Protocol.Execution.View Output Result (fmt.Key) where
   original := (view.1.1,view.1.2.map fun qa => (StrandWindow.encode qa.1,qa.2))
   verifier := (view.2.1,view.2.2.map fun qa => (StrandWindow.encode qa.1,qa.2))
   cuts key := StrandCutObservation.byteCut (schema) bytes context key view.1.2
 
 /-- Actual proof submission, all context cuts, and full verification trace. -/
 def rawView (G : Raw → Digest) :=
-  viewMap binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
+  viewMap binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
     ((compiled).run G,(compiledReplay ((compiled).run G).1).run G)
 
 /-- Completion of the final cache supplies the one raw oracle used by
@@ -111,13 +110,13 @@ def completion (H : Name → Answer) : Raw → Digest :=
 returns the same raw execution observation; it does not construct another
 verifier or another extraction view. -/
 def observe (_ : (StrandReplay.Cut Node Output)) (H : Name → Answer) :=
-  rawView binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
-    (completion binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program H)
+  rawView binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
+    (completion binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program H)
 
-local notation "completed" => completion binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
-local notation "SHAof" => rawSHA binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
-local notation "rawObservation" => rawView binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
-local notation "namedObservation" => observe binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
+local notation "completed" => completion binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
+local notation "SHAof" => rawSHA binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
+local notation "rawObservation" => rawView binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
+local notation "namedObservation" => observe binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
 
 theorem rawSHA_node (G : Raw → Digest) (raw : Node) :
     SHAof G raw.val.val = G (.inl raw) :=
@@ -155,7 +154,7 @@ theorem replay_actual (G : Raw → Digest) :
     (((compiledReplay ((compiled).run G).1).run G).1,
       ((compiledReplay ((compiled).run G).1).run G).2.map (fun qa => (StrandWindow.encode qa.1,qa.2))) =
         (fullReplay (program.run (SHAof G)).1).run (SHAof G) := by
-  rw [compiled_output binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program G,
+  rw [compiled_output binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program G,
     run_mapQueries]
   apply Prod.ext
   · rfl
@@ -167,39 +166,39 @@ theorem replay_actual (G : Raw → Digest) :
         OracleWindow.trace_mem_queries (program.bind fullReplay) (SHAof G) qa (by
           rw [Tree.run_bind]
           exact List.mem_append_right _ member)
-      have address := input_represented binary prime P R repr shape setup cfg binaryCount metadata
+      have address := input_represented binary prime P R fmt cfg binaryCount metadata
         fits sample codec merkleInput program qa.1 queried
       exact Prod.ext address rfl
     exact (List.map_congr_left names).trans (List.map_id _)
 
-local notation "actualDecision" => Protocol.Observation.decision binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
-  (CanonicalRequest.hashPublic binary.nPublic)
-  (CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount) draw
-local notation "actualVerify" => StrandVerifier.verify binary prime P R (W) (Earlier) bodyCodec sample
-  (CanonicalRequest.hashPublic binary.nPublic)
-  (CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount) draw codec
+local notation "actualDecision" => Protocol.Observation.decision binary prime P R (W) (Earlier) fmt.wire bodyCodec sample codec merkleInput
+  (fmt.hashPublic)
+  (CanonicalRuntime.decodePrimePublic binary prime P R fmt cfg primeCount) draw
+local notation "actualVerify" => StrandVerifier.verify binary prime P R (W) (Earlier) fmt.wire bodyCodec sample
+  (fmt.hashPublic)
+  (CanonicalRuntime.decodePrimePublic binary prime P R fmt cfg primeCount) draw codec
 
 /-- The accepting predicate is exactly the existing verifier's decision,
 not a relaxed semantic predicate on the reconstructed transcript. -/
 theorem decision_actual (G : Raw → Digest) :
     actualDecision (rawObservation G) = actualVerify (SHAof G) merkleInput (program.run (SHAof G)).1 := by
   unfold rawView viewMap
-  rw [replay_actual binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program G,
-    compiled_output binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program G]
-  exact Protocol.Observation.decision_actual binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
-    (CanonicalRequest.hashPublic binary.nPublic)
-    (CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount) draw _ _ _ _
+  rw [replay_actual binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program G,
+    compiled_output binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program G]
+  exact Protocol.Observation.decision_actual binary prime P R (W) (Earlier) fmt.wire bodyCodec sample codec merkleInput
+    (fmt.hashPublic)
+    (CanonicalRuntime.decodePrimePublic binary prime P R fmt cfg primeCount) draw _ _ _ _
 
 def locate (value : Value) : Node := by
   letI : Fintype Value := Fintype.ofInjective
-    (QueryRuntime.Runtime.toPoint repr shape setup binary.nPublic)
-    (QueryRuntime.Runtime.toPoint_injective repr shape setup binary.nPublic fits)
+    (fmt.toPoint)
+    (fmt.toPoint_injective_bounded fits)
   refine ⟨TranscriptV2.Strand.History.nodePoint ((schema).encode value),?_⟩
   apply Finset.mem_insert_of_mem
   apply Finset.mem_union_right
   exact StrandWindow.mem_canonical (schema) value
 
-local notation "nodeOf" => locate binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
+local notation "nodeOf" => locate binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
 
 /-- Locating a logical input preserves its actual strand bytes. This
 supplies the deterministic codec identity used by Merkle-domain separation. -/
@@ -208,15 +207,15 @@ theorem locate_bytes (value : Value) :
 
 /-- Canonical runtime prefixes use their actual finite node names. Every
 other raw name remains an auxiliary query under the codec's injective tag. -/
-def queryCodec : ByteOracleTransport.Codec (QueryRuntime.Runtime.Point repr shape setup binary.nPublic) Name
-    (QueryRuntime.Runtime.Canonical repr shape setup binary.nPublic) :=
-  StrandRuntime.Runtime.pointCodec repr shape setup binary.nPublic fits nodeOf
+def queryCodec : ByteOracleTransport.Codec (fmt.Point) Name
+    (fmt.Canonical) :=
+  fmt.boundedPointCodec fits nodeOf
 
-local notation "names" => queryCodec binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
+local notation "names" => queryCodec binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
 
 theorem queryCodec_label (name : Name)
-    (point : {point : QueryRuntime.Runtime.Point repr shape setup binary.nPublic //
-      QueryRuntime.Runtime.Canonical repr shape setup binary.nPublic point})
+    (point : {point : fmt.Point //
+      fmt.Canonical point})
     (decoded : (names).decode name = some point) :
     StrandCut.label context name = some point.val.context := by
   cases name with
@@ -226,16 +225,16 @@ theorem queryCodec_label (name : Name)
       cases value with
       | none => cases decoded
       | some value =>
-          simp only [queryCodec,StrandRuntime.Runtime.pointCodec] at decoded
+          simp only [queryCodec,Format.boundedPointCodec,Format.pointCodec] at decoded
           split_ifs at decoded with same
           cases Option.some.inj decoded
-          exact congrArg some (QueryRuntime.Runtime.toPoint_context repr shape setup binary.nPublic value).symm
+          exact congrArg some (Format.toPoint_context fmt value).symm
 
 /-- Reached points are obtained from the canonical runtime decoder. They
 are not values or histories supplied by a prover or an execution record. -/
 def path (_ : StrandReplay.Cut Node Output) (H : Name → Answer) (i : ℕ) : Name :=
   let SHA := SHAof (completed H)
-  let value := StrandAcceptedPath.value binary prime P R repr shape setup cfg binaryCount metadata bodyFits fits sample
+  let value := StrandAcceptedPath.value binary prime P R fmt cfg binaryCount metadata bodyFits fits sample
     (program.run SHA).1 SHA i
   .inl (nodeOf value,some value)
 
@@ -243,11 +242,11 @@ def path (_ : StrandReplay.Cut Node Output) (H : Name → Answer) (i : ℕ) : Na
 replay inputs, including the final node. No path correspondence is assumed. -/
 theorem tag_path (cut : StrandReplay.Cut Node Output) (H : Name → Answer) (index : ℕ)
     (within : index ≤ g.roles.length) :
-    (names).tag (path binary prime P R repr shape setup cfg binaryCount metadata bodyFits fits sample codec merkleInput program cut H index) =
+    (names).tag (path binary prime P R fmt cfg binaryCount metadata bodyFits fits sample codec merkleInput program cut H index) =
       .inl ((M).point (program.run (SHAof (completed H))).1 (ordinaryOracle (SHAof (completed H))) index) := by
   unfold path
-  simp only [queryCodec,ByteOracleTransport.Codec.tag,StrandRuntime.Runtime.pointCodec,if_true]
-  exact congrArg Sum.inl (StrandAcceptedPath.value_point binary prime P R repr shape setup cfg binaryCount metadata
+  simp only [queryCodec,ByteOracleTransport.Codec.tag,Format.boundedPointCodec,Format.pointCodec,if_true]
+  exact congrArg Sum.inl (StrandAcceptedPath.value_point binary prime P R fmt cfg binaryCount metadata
     bodyFits fits sample _ _ index within)
 
 /-- Only original collisions and missing original strand nodes are
@@ -257,7 +256,7 @@ Fresh verifier-replay collisions are not excluded. -/
 def rawException (G : Raw → Digest) : Prop :=
   let SHA := SHAof G
   let output := (program.run SHA).1
-  StrandVerifier.finalSeal binary prime P R (W) (Earlier) bodyCodec sample output SHA = output.proof.finalSeal ∧
+  StrandVerifier.finalSeal binary prime P R (W) (Earlier) fmt.wire bodyCodec sample output SHA = output.proof.finalSeal ∧
     (¬Merkle.MH.CollisionFree (program.run SHA).2 ∨
       ¬∀ i ≤ g.roles.length, Merkle.QueryTable.Known (program.run SHA).2
         (history ((M).point output (ordinaryOracle SHA) i)).input.encode)
@@ -267,7 +266,7 @@ def rawException (G : Raw → Digest) : Prop :=
 execution; the probability transfer below uses observations, not an assumed
 uniform distribution on all coordinates of that completion. -/
 def exception (H : Name → Answer) : Prop :=
-  rawException binary prime P R repr shape setup cfg binaryCount metadata fits
+  rawException binary prime P R fmt cfg binaryCount metadata fits
     sample codec merkleInput program (completed H)
 
 /-- One auxiliary-query charge shares the original search budget. Verifier
@@ -283,7 +282,7 @@ private theorem covers :
 private theorem covers_original :
     StrandWindow.complement (OracleWindow.queries program) ⊆ (O) := by
   intro raw member
-  apply covers binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
+  apply covers binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
   apply (StrandWindow.mem_complement _ _).mpr
   exact OracleWindow.queries_bind_left program fullReplay ((StrandWindow.mem_complement _ _).mp member)
 
@@ -294,7 +293,7 @@ theorem original_actual (G : Raw → Digest) :
       ((compiled).run G).2.map (fun qa => (StrandWindow.encode qa.1,qa.2))) =
         program.run (SHAof G) :=
   StrandWindow.decode_run (O) fallbackNode program
-    (covers_original binary prime P R repr shape setup cfg binaryCount metadata fits
+    (covers_original binary prime P R fmt cfg binaryCount metadata fits
       sample codec merkleInput program) G
 
 /-- The public observation is precisely the original raw execution and
@@ -306,15 +305,15 @@ theorem rawView_actual (G : Raw → Digest) :
         verifier := (fullReplay (program.run (SHAof G)).1).run (SHAof G)
         cuts := (rawObservation G).cuts } := by
   apply Protocol.Execution.View.ext
-  · exact original_actual binary prime P R repr shape setup cfg binaryCount metadata fits
+  · exact original_actual binary prime P R fmt cfg binaryCount metadata fits
       sample codec merkleInput program G
-  · exact replay_actual binary prime P R repr shape setup cfg binaryCount metadata fits
+  · exact replay_actual binary prime P R fmt cfg binaryCount metadata fits
       sample codec merkleInput program G
   · rfl
 
 /-- Grouping preserves the original extraction cut, expressed in the same
 physical byte addresses as the verifier's observation. -/
-theorem observe_cut (H : Name → Answer) (key : FingerprintPrefix.Key binary.nPublic) :
+theorem observe_cut (H : Name → Answer) (key : fmt.Key) :
     (namedObservation ((searchTree).run H).1 H).cuts key =
       (StrandCut.trace context searchTree H key).map (fun qa => (bytes qa.1,qa.2)) := by
   exact congrArg (List.map (fun qa : Node × Digest => (bytes qa.1,qa.2)))
@@ -330,24 +329,24 @@ theorem observe_actual (H : Name → Answer) :
   rw [← observe_source,rawView_actual]
   congr 1
   funext key
-  exact observe_cut binary prime P R repr shape setup cfg binaryCount metadata fits
+  exact observe_cut binary prime P R fmt cfg binaryCount metadata fits
     sample codec merkleInput program H key
 
 /-- Decoding is a projection of the same execution that determines
 acceptance. The extraction proof need not re-establish this correspondence. -/
 theorem decoded_actual (G : Raw → Digest) :
-    Protocol.Observation.decoded binary prime P R (W) (Earlier) bodyCodec sample
-        (CanonicalRequest.hashPublic binary.nPublic)
-        (CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount) draw
+    Protocol.Observation.decoded binary prime P R (W) (Earlier) fmt.wire bodyCodec sample
+        (fmt.hashPublic)
+        (CanonicalRuntime.decodePrimePublic binary prime P R fmt cfg primeCount) draw
         (rawObservation G) =
       RuntimeAdaptiveVerifier.decode binary prime P R (W) (Earlier)
-        (CanonicalRequest.hashPublic binary.nPublic)
-        (CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount) draw
+        (fmt.hashPublic)
+        (CanonicalRuntime.decodePrimePublic binary prime P R fmt cfg primeCount) draw
         (program.run (SHAof G)).1 (ordinaryOracle (SHAof G)) := by
   rw [rawView_actual]
-  exact Protocol.Observation.decoded_actual binary prime P R (W) (Earlier) bodyCodec sample codec merkleInput
-    (CanonicalRequest.hashPublic binary.nPublic)
-    (CanonicalRuntime.decodePrimePublic binary prime P R repr shape setup cfg primeCount) draw _ _ _ _
+  exact Protocol.Observation.decoded_actual binary prime P R (W) (Earlier) fmt.wire bodyCodec sample codec merkleInput
+    (fmt.hashPublic)
+    (CanonicalRuntime.decodePrimePublic binary prime P R fmt cfg primeCount) draw _ _ _ _
 
 /-- The exception is observable from the submitted proof, its original
 query table, and the terminal verifier state and seal. Reading ancestors
@@ -360,9 +359,9 @@ def observedException (original : Output × List (Bytes × Digest))
         Merkle.QueryTable.Known original.2 raw)
 
 theorem rawException_observed (G : Raw → Digest) :
-    rawException binary prime P R repr shape setup cfg binaryCount metadata fits
+    rawException binary prime P R fmt cfg binaryCount metadata fits
         sample codec merkleInput program G ↔
-      observedException binary prime P R repr shape setup cfg binaryCount metadata
+      observedException binary prime P R fmt cfg binaryCount metadata
         (program.run (SHAof G)) ((fullReplay (program.run (SHAof G)).1).run (SHAof G)).1 := by
   rw [StrandAuthentication.replay_result]
   unfold rawException observedException
@@ -371,10 +370,10 @@ theorem rawException_observed (G : Raw → Digest) :
   apply not_congr
   constructor
   · intro known
-    exact StrandRuntime.replay_ancestors NodeWire.current bodyCodec (M) cfg.initialLink
+    exact StrandRuntime.replay_ancestors fmt.wire bodyCodec (M) cfg.initialLink
       (fun _ => rfl) (fun _ => rfl) _ _ _ known g.roles.length le_rfl
   · intro known i within
-    exact known _ (StrandRuntime.replay_node_mem NodeWire.current bodyCodec (M) cfg.initialLink
+    exact known _ (StrandRuntime.replay_node_mem fmt.wire bodyCodec (M) cfg.initialLink
       (fun _ => rfl) _ _ g.roles.length i le_rfl within)
 
 /-- Exact transport of the original-query exception. The only observed
@@ -382,33 +381,33 @@ queries counted here are those in the submitted proof's original search;
 verifier replay supplies the terminal state but never enlarges that table. -/
 theorem exception_law :
     letI : Fintype Value := Fintype.ofInjective
-      (QueryRuntime.Runtime.toPoint repr shape setup binary.nPublic)
-      (QueryRuntime.Runtime.toPoint_injective repr shape setup binary.nPublic fits)
+      (fmt.toPoint)
+      (fmt.toPoint_injective_bounded fits)
     letI : Fintype Name := inferInstance
     letI : Fintype Answer := inferInstance
-    Bcs.FiniteProbability.density (rawException binary prime P R repr shape setup cfg
+    Bcs.FiniteProbability.density (rawException binary prime P R fmt cfg
       binaryCount metadata fits sample codec merkleInput program) =
-    Bcs.FiniteProbability.density (exception binary prime P R repr shape setup cfg
+    Bcs.FiniteProbability.density (exception binary prime P R fmt cfg
       binaryCount metadata fits sample codec merkleInput program) := by
   letI : Fintype Value := Fintype.ofInjective
-    (QueryRuntime.Runtime.toPoint repr shape setup binary.nPublic)
-    (QueryRuntime.Runtime.toPoint_injective repr shape setup binary.nPublic fits)
+    (fmt.toPoint)
+    (fmt.toPoint_injective_bounded fits)
   letI : Fintype Name := inferInstance
   letI : Fintype Answer := inferInstance
   let event : (Output × List (Raw × Digest)) ×
       (((Output × (M).State) × Digest) × List (Raw × Digest)) → Prop :=
-    fun view => observedException binary prime P R repr shape setup cfg binaryCount metadata
+    fun view => observedException binary prime P R fmt cfg binaryCount metadata
     (view.1.1,view.1.2.map (fun qa : Raw × Digest => (StrandWindow.encode qa.1,qa.2))) view.2.1
   have represented (G : Raw → Digest) :
-      rawException binary prime P R repr shape setup cfg binaryCount metadata fits
+      rawException binary prime P R fmt cfg binaryCount metadata fits
           sample codec merkleInput program G ↔
         event ((compiled).run G,(compiledReplay ((compiled).run G).1).run G) := by
     dsimp only [event]
-    rw [original_actual binary prime P R repr shape setup cfg binaryCount metadata fits
+    rw [original_actual binary prime P R fmt cfg binaryCount metadata fits
       sample codec merkleInput program G,
-      congrArg Prod.fst (replay_actual binary prime P R repr shape setup cfg binaryCount metadata fits
+      congrArg Prod.fst (replay_actual binary prime P R fmt cfg binaryCount metadata fits
         sample codec merkleInput program G)]
-    exact rawException_observed binary prime P R repr shape setup cfg binaryCount metadata fits
+    exact rawException_observed binary prime P R fmt cfg binaryCount metadata fits
       sample codec merkleInput program G
   exact (Bcs.FiniteProbability.density_congr represented).trans
     ((StrandCutObservation.completion_law (schema) bytes compiled compiledReplay event).trans
@@ -436,20 +435,20 @@ theorem full_node_observations (H : Name → Answer) :
         ((.inl (raw,logical),answer) : Name × Answer) ∈ (((searchTree).bind resumeTree).run H).2) := by
   let G := completed H
   have observations := StrandReplay.node_observations (schema) bytes compiled compiledReplay H G
-    (completion_matches binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program H)
+    (completion_matches binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program H)
   constructor
   · intro raw logical answer member
     obtain ⟨same,present⟩ := observations.1 raw logical answer member
-    refine ⟨(rawSHA_node binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program G raw).trans same,?_⟩
+    refine ⟨(rawSHA_node binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program G raw).trans same,?_⟩
     exact StrandWindow.decode_seen (O) fallbackNode (program.bind fullReplay)
-      (covers binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program) G (.inl raw)
+      (covers binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program) G (.inl raw)
       (by simpa only [mapQueries_bind] using present)
   · intro address member nonPrf
     obtain ⟨⟨input,digest⟩,present,same⟩ := List.mem_map.mp (List.mem_toFinset.mp member)
     change input = address at same
     subst input
     have supported : (⟨address,nonPrf⟩ : Strand.OtherPoint) ∈ (O) :=
-      covers binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
+      covers binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
         ((StrandWindow.mem_complement _ _).mpr
           (OracleWindow.trace_mem_queries (program.bind fullReplay) (SHAof G) (address,digest) present))
     let raw : Node := ⟨⟨address,nonPrf⟩,supported⟩
@@ -474,19 +473,19 @@ theorem original_node_observations (H : Name → Answer) :
   let G := completed H
   let SHA := SHAof G
   have agreement := StrandReplay.original_matches (schema) bytes compiled compiledReplay H G
-    (completion_matches binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program H)
+    (completion_matches binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program H)
   have source := StrandSearch.searchState_source (schema) bytes (recordTrace compiled) StrandCoupling.Cache.empty [] H G agreement
   constructor
   · intro raw logical answer member
-    refine ⟨(rawSHA_node binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program G raw).trans
+    refine ⟨(rawSHA_node binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program G raw).trans
       (source.2 raw logical answer member),?_⟩
     apply StrandWindow.decode_seen (O) fallbackNode program
-      (covers_original binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program) G (.inl raw)
+      (covers_original binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program) G (.inl raw)
     simpa only [seen,List.mem_toFinset,Bcs.TotalOracle.queried,run_recordTrace] using
       StrandSearch.searchState_node_queried (schema) bytes (recordTrace compiled) StrandCoupling.Cache.empty [] H G agreement raw logical answer member
   · rintro ⟨address,digest⟩ present nonPrf
     have supported : (⟨address,nonPrf⟩ : Strand.OtherPoint) ∈ (O) :=
-      covers_original binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
+      covers_original binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
         ((StrandWindow.mem_complement _ _).mpr
           (OracleWindow.trace_mem_queries program SHA (address,digest) present))
     let raw : Node := ⟨⟨address,nonPrf⟩,supported⟩
@@ -495,7 +494,7 @@ theorem original_node_observations (H : Name → Answer) :
       exact Finset.mem_image.mpr ⟨address,List.mem_toFinset.mpr (List.mem_map_of_mem (f := Prod.fst) present),
         StrandWindow.decode_encode (O) fallbackNode (.inl raw)⟩
     obtain ⟨logical,answer,origin⟩ := StrandReplay.original_node_origin (schema) bytes compiled H G agreement raw named
-    have agrees := (rawSHA_node binary prime P R repr shape setup cfg binaryCount metadata fits
+    have agrees := (rawSHA_node binary prime P R fmt cfg binaryCount metadata fits
       sample codec merkleInput program G raw).trans (source.2 raw logical answer origin)
     exact ⟨raw,logical,answer,Prod.ext rfl
       (agrees.symm.trans (Tree.trace_sound program SHA (address,digest) present).symm),origin⟩
@@ -506,7 +505,7 @@ theorem node_answer (H : Name → Answer) (raw : Node) (value : Option Value)
     (member : ((.inl (raw,value),H (.inl (raw,value))) : Name × Answer) ∈ ((searchTree).run H).2) :
     completed H (.inl raw) = (H (.inl (raw,value))).1 :=
   StrandReplay.node_answer (schema) bytes compiled compiledReplay H (completed H)
-    (completion_matches binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program H)
+    (completion_matches binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program H)
     raw value _ member
 
 /-- Finite addresses in the original search represent original byte
@@ -519,10 +518,10 @@ theorem original_finite_collision_free (H : Name → Answer)
   intro a ha b hb same
   let SHA := SHAof (completed H)
   have knownA := StrandWindow.decode_seen (O) fallbackNode program
-    (covers_original binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program)
+    (covers_original binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program)
     (completed H) (.inl a) ha
   have knownB := StrandWindow.decode_seen (O) fallbackNode program
-    (covers_original binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program)
+    (covers_original binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program)
     (completed H) (.inl b) hb
   apply Subtype.ext
   apply Subtype.ext
@@ -530,31 +529,31 @@ theorem original_finite_collision_free (H : Name → Answer)
     (fun qa member => (Tree.trace_sound program SHA qa member).symm) free a.val.val b.val.val
     ((Merkle.QueryTable.known_run_iff program SHA _).mpr knownA)
     ((Merkle.QueryTable.known_run_iff program SHA _).mpr knownB)
-  exact (rawSHA_node binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program
+  exact (rawSHA_node binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
     (completed H) a).trans (same.trans
-      (rawSHA_node binary prime P R repr shape setup cfg binaryCount metadata fits sample codec merkleInput program (completed H) b).symm)
+      (rawSHA_node binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program (completed H) b).symm)
 
 /-- Uniform raw tables and named grouped tables preserve the entire view,
 including the precise extraction cut and the full authentication replay. -/
 theorem observation_law :
     letI : Fintype Value := Fintype.ofInjective
-      (QueryRuntime.Runtime.toPoint repr shape setup binary.nPublic)
-      (QueryRuntime.Runtime.toPoint_injective repr shape setup binary.nPublic fits)
+      (fmt.toPoint)
+      (fmt.toPoint_injective_bounded fits)
     letI : Fintype Name := inferInstance
     letI : Fintype Answer := inferInstance
     ∀ event : _ → Prop,
-    Bcs.FiniteProbability.density (fun G : Raw → Digest => event (rawView binary prime P R repr shape setup cfg
+    Bcs.FiniteProbability.density (fun G : Raw → Digest => event (rawView binary prime P R fmt cfg
       binaryCount metadata fits sample codec merkleInput program G)) =
-    Bcs.FiniteProbability.density (fun H : Name → Answer => event (observe binary prime P R repr shape setup cfg
+    Bcs.FiniteProbability.density (fun H : Name → Answer => event (observe binary prime P R fmt cfg
       binaryCount metadata fits sample codec merkleInput program ((searchTree).run H).1 H)) := by
   letI : Fintype Value := Fintype.ofInjective
-    (QueryRuntime.Runtime.toPoint repr shape setup binary.nPublic)
-    (QueryRuntime.Runtime.toPoint_injective repr shape setup binary.nPublic fits)
+    (fmt.toPoint)
+    (fmt.toPoint_injective_bounded fits)
   letI : Fintype Name := inferInstance
   letI : Fintype Answer := inferInstance
   intro event
   exact StrandCutObservation.completion_law (schema) bytes compiled compiledReplay
-    (fun view => event (viewMap binary prime P R repr shape setup cfg binaryCount metadata fits
+    (fun view => event (viewMap binary prime P R fmt cfg binaryCount metadata fits
       sample codec merkleInput program view))
 
 
