@@ -235,3 +235,24 @@ fn nonce_codec_uses_the_full_salt_width_and_preserves_the_following_message() {
     // The mdoc profile opens 84 shared columns with one 32-byte salt each.
     assert_eq!(84 * NONCE_LEN, 2688);
 }
+
+/// The frontier count never exceeds the formal model's cap of 2^32 - 1
+/// digests: no valid geometry reaches it, and the length check rejects a
+/// `(t, n)` above it even when `t <= n <= 2^28`.
+#[test]
+fn the_frontier_capacity_stays_within_the_formal_cap() {
+    use super::super::polygero::{checked_body, PolygeroConfig};
+    // The largest valid geometry: at least four committed rows of n columns
+    // fit in 2^28 cells, so n <= 2^26 and t < k <= 2^25, with 27 digests per
+    // query: below 2^25 * 27 < 2^32 - 1 frontier digests.
+    let config = PolygeroConfig {
+        k: 1 << 25,
+        s: 0,
+        n: 1 << 26,
+        t: (1 << 25) - 1,
+    };
+    assert!(PolygeroGeometry::new(1, config).is_ok());
+    // t = n = 2^28 would allow 2^28 * 29 > 2^32 - 1 digests: rejected.
+    let (t, n) = (1usize << 28, 1usize << 28);
+    assert!(checked_body(&[0; 64], 4, 10, t, n).is_err());
+}

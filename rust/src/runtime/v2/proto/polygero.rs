@@ -35,6 +35,19 @@ fn frontier_per_query(n: usize) -> usize {
     n.next_power_of_two().trailing_zeros() as usize + 1
 }
 
+/// Upper bound on a proof's Merkle frontier count, the formal model's cap
+/// (Lean `OpeningBody.frontierCapacity`). Every valid geometry stays far below
+/// it (at least four rows of `n` columns fit in `MAX_SIZE` cells, so
+/// `t < k <= n / 2 <= 2^25`); the opening checks enforce it too.
+const MAX_FRONTIER: usize = u32::MAX as usize;
+
+/// The frontier capacity `t (ceil(log2 n) + 1)` of an opening, if it is at
+/// most `MAX_FRONTIER`.
+fn frontier_capacity(t: usize, n: usize) -> Option<usize> {
+    t.checked_mul(frontier_per_query(n))
+        .filter(|&cap| cap <= MAX_FRONTIER)
+}
+
 /// Public dimensions of a nonrecursive invocation, selected by the caller.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PolygeroConfig {
@@ -95,6 +108,7 @@ impl PolygeroGeometry {
             || self.t > self.n
             || self.k.checked_add(self.s).is_none_or(|d| d > self.n)
             || self.k.checked_mul(2).is_none_or(|d| d > self.n)
+            || frontier_capacity(self.t, self.n).is_none()
         {
             return Err(invalid());
         }
@@ -249,8 +263,7 @@ pub(in crate::runtime::v2) fn validate_opening(p: &MerkleProof, t: usize, n: usi
         || t > n
         || n > MAX_SIZE
         || p.nonce.len() != t
-        || t.checked_mul(frontier_per_query(n))
-            .is_none_or(|max| p.path.len() > max)
+        || frontier_capacity(t, n).is_none_or(|max| p.path.len() > max)
     {
         return Err(invalid("joint opening shape"));
     }
@@ -279,9 +292,7 @@ pub(crate) fn checked_body(
         .get(start..)
         .and_then(|rest| rest.first_chunk::<8>())
         .ok_or_else(|| invalid("proof length"))?;
-    let cap = t
-        .checked_mul(frontier_per_query(n))
-        .ok_or_else(|| invalid("frontier capacity overflow"))?;
+    let cap = frontier_capacity(t, n).ok_or_else(|| invalid("frontier capacity"))?;
     let expected = usize::try_from(u64::from_le_bytes(*count))
         .ok()
         .filter(|&f| f <= cap)
