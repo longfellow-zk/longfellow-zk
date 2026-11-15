@@ -18,11 +18,11 @@ use crate::{
                 zk::{CircuitProof, ZkProof, ZkProofGeometry},
             },
             sumcheck::{self, TranscriptSumcheck},
-            transcript::{Transcript, TranscriptRef},
+            transcript::{Bound, Transcript},
             zk::{
                 context::private_input_count,
-                joint::{CircuitParticipant, JointParam},
-                packing_commitment::prover::PackingState,
+                joint::{CircuitParticipant, FrontendPart, JointParam},
+                packing_commitment::{prover::PackingState, PackingCommitment},
                 split::PendingSplit,
                 storage::Storage,
                 CircuitInput, JointProver, VirtualInputs, ZkContext,
@@ -64,77 +64,79 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             witness,
         ))
     }
-    /// Prove `circuits` (the primary circuit first, as at construction) as one
-    /// layered sumcheck, then reduce its input claim through packing.
-    ///
-    /// `virtual_inputs` defines this proof's virtual input suffix. Its
-    /// definitions must be fixed before this call draws any challenge: derive
-    /// them only from data the transcript already binds, never from this
-    /// proof's own messages. Use `VirtualInputs::none()` when the participant
-    /// has no virtual inputs.
-    ///
-    /// The resulting affine statement is authenticated only when the caller
-    /// completes the shared Polygero proof against the original commitment.
-    /// Continue the transcript used for that commitment. All participants must
-    /// finish this reduction before the joint backend samples its challenges.
-    pub fn prove<D: EvaluationDomain<W, F>>(
-        &self,
-        circuits: &[&Circuit<F>],
-        public: &[CircuitInput<F>],
-        state: CircuitState<W, F>,
-        virtual_inputs: &VirtualInputs<F::E>,
-        t: &mut TranscriptRef<'_>,
-        ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
-        self.validate_circuits(circuits, public.len())?;
-        virtual_inputs.validate(&self.inputs)?;
-        if state.id != self.id
-            || state.config != self.config
-            || state.additional_ids != self.additional_ids
-        {
-            return Err("commitment belongs to another circuit or configuration".into());
-        }
-        state
-            .pads
-            .validate(&self.geometry.sc_geom)
-            .map_err(|e| e.to_string())?;
-        let extension = self.backend.parameters.extension();
-        let public = extension.input_elements(ctx.field(), public);
-        let private = extension.into_input_elements(ctx.field(), state.private);
-        let mut inputs = prepare_inputs(&public, private);
-        let f = ctx.field();
-        for v in &virtual_inputs.entries {
-            let value = f.addf(&v.constant, &f.mulf(&v.coefficient, &inputs[v.source]));
-            inputs.push(value);
-        }
-        for c in circuits {
-            t.write_sumcheck_statement(c, &public, ctx.field());
-        }
-        let (sumcheck_proof, constraints) =
-            sumcheck::evaluate_and_prove_circuits(circuits, inputs, &state.pads, t, ctx.field())?;
-        let pad_layout = self
-            .geometry
-            .sc_geom
-            .pad_layout(self.backend.layout.suffix_start);
-        let statement = super::constraint_compiler::compile_packed(
-            constraints,
-            &pad_layout,
-            &public,
-            &self.backend.layout,
-            virtual_inputs,
-            ctx.field(),
-        )?;
-        let (packing, statement) =
-            self.backend
-                .prove::<W>(state.packing, statement, &self.id, t)?;
-        Ok((
-            CircuitProof {
-                sumcheck_proof,
-                packing,
-            },
-            statement,
-        ))
+}
+/// Prove the circuits of `t`'s frontend part as one layered sumcheck on its
+/// public inputs, then reduce its input claim through packing.
+///
+/// `virtual_inputs` defines this proof's virtual input suffix. Its
+/// definitions must be fixed before this call draws any challenge: derive
+/// them only from data the transcript already binds, never from this
+/// proof's own messages. Use `VirtualInputs::none()` when the participant
+/// has no virtual inputs.
+///
+/// The resulting affine statement is authenticated only when the caller
+/// completes the shared Polygero proof against the original commitment.
+/// Continue the transcript used for that commitment. All participants must
+/// finish this reduction before the joint backend samples its challenges.
+pub fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+    state: CircuitState<W, F>,
+    virtual_inputs: &VirtualInputs<F::E>,
+    ctx: &ZkContext<'_, W, F, D>,
+) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
+    let part = t.part();
+    let p = part.participant;
+    virtual_inputs.validate(&p.inputs)?;
+    if state.id != p.id || state.config != p.config || state.additional_ids != p.additional_ids {
+        return Err("commitment belongs to another circuit or configuration".into());
     }
+    state
+        .pads
+        .validate(&p.geometry.sc_geom)
+        .map_err(|e| e.to_string())?;
+    let f = ctx.field();
+    let private = p
+        .backend
+        .parameters
+        .extension()
+        .into_input_elements(f, state.private);
+    let mut inputs = prepare_inputs(&part.public, private);
+    for v in &virtual_inputs.entries {
+        let value = f.addf(&v.constant, &f.mulf(&v.coefficient, &inputs[v.source]));
+        inputs.push(value);
+    }
+    for c in &part.circuits {
+        t.transcript().write_sumcheck_statement(c, &part.public, f);
+    }
+    let (sumcheck_proof, constraints) = sumcheck::evaluate_and_prove_circuits(
+        &part.circuits,
+        inputs,
+        &state.pads,
+        &mut t.transcript(),
+        f,
+    )?;
+    let pad_layout = p.geometry.sc_geom.pad_layout(p.backend.layout.suffix_start);
+    let statement = super::constraint_compiler::compile_packed(
+        constraints,
+        &pad_layout,
+        &part.public,
+        &p.backend.layout,
+        virtual_inputs,
+        f,
+    )?;
+    let (packing, statement) = PackingCommitment::prove::<W>(
+        &mut t.project(|q| &q.participant.backend),
+        state.packing,
+        statement,
+        &p.id,
+    )?;
+    Ok((
+        CircuitProof {
+            sumcheck_proof,
+            packing,
+        },
+        statement,
+    ))
 }
 
 pub struct ZkProver<const W: usize, F: ZkField<W> + PackingField> {
@@ -194,12 +196,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         if committed.participant.config != self.config {
             return Err("commitment belongs to another circuit or configuration".into());
         }
-        let (circuit, statement) = committed.participant.prove(
-            &[&self.circuit],
-            public,
+        let part = FrontendPart::new(&committed.participant, &[&self.circuit], public)?;
+        let (circuit, statement) = prove(
+            &mut committed.joint.bound(&part),
             committed.state,
             &VirtualInputs::none(),
-            &mut committed.joint.transcript(),
             ctx,
         )?;
         let param = JointParam::new((committed.participant.participant(ctx)?, ()))?;
@@ -275,40 +276,40 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             witness,
         ))
     }
-    /// Run the frontend and reduce its constraints to the claim its storage
-    /// discharges (`split_claim`), before the split challenge.
-    pub fn prove_split<D: EvaluationDomain<W, F>>(
-        &self,
-        circuit: &Circuit<F>,
-        public: &[CircuitInput<F>],
-        state: SplitState<W, F>,
-        t: &mut TranscriptRef<'_>,
-        ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<(SumcheckProof<W, F>, PendingSplit<F::E>), String> {
-        self.split()?;
-        self.validate_circuits(&[circuit], public.len())?;
-        if state.id != self.id {
-            return Err("split state belongs to another circuit".into());
-        }
-        let f = ctx.field();
-        let public = self
-            .backend
-            .parameters
-            .extension()
-            .input_elements(f, public);
-        let mut inputs = public.to_vec();
-        inputs.extend_from_slice(&state.values[..self.inputs.committed()]);
-        t.write_sumcheck_statement(circuit, &public, f);
-        let (proof, constraints) =
-            sumcheck::evaluate_and_prove_circuits(&[circuit], inputs, &state.pads, t, f)?;
-        let claim = self.split_claim(circuit, &public, constraints, t, f)?;
-        Ok((
-            proof,
-            PendingSplit {
-                claim,
-                values: state.values,
-                mask: state.mask,
-            },
-        ))
+}
+/// Run the split frontend of `t`'s part and reduce its constraints to the
+/// claim its storage discharges (`split_claim`), before the split challenge.
+pub fn prove_split<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+    state: SplitState<W, F>,
+    ctx: &ZkContext<'_, W, F, D>,
+) -> Result<(SumcheckProof<W, F>, PendingSplit<F::E>), String> {
+    let part = t.part();
+    let p = part.participant;
+    p.split()?;
+    if state.id != p.id {
+        return Err("split state belongs to another circuit".into());
     }
+    let f = ctx.field();
+    let mut inputs = part.public.to_vec();
+    inputs.extend_from_slice(&state.values[..p.inputs.committed()]);
+    for c in &part.circuits {
+        t.transcript().write_sumcheck_statement(c, &part.public, f);
+    }
+    let (proof, constraints) = sumcheck::evaluate_and_prove_circuits(
+        &part.circuits,
+        inputs,
+        &state.pads,
+        &mut t.transcript(),
+        f,
+    )?;
+    let claim = CircuitParticipant::split_claim(t, constraints, f)?;
+    Ok((
+        proof,
+        PendingSplit {
+            claim,
+            values: state.values,
+            mask: state.mask,
+        },
+    ))
 }

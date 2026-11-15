@@ -1,5 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Authenticate the shared columns, then check each field's equations.
+use core::marker::PhantomData;
+
 use sha2::Digest as _;
 
 use super::{constraints, ensure, hash, joint::*, PolygeroError, PolygeroParam};
@@ -15,56 +17,67 @@ use crate::runtime::{
             polygero::{validate_opening, FieldProof, JointPolygeroProof, PolygeroCommitment},
             Digest,
         },
-        transcript::{Transcript, TranscriptRef, Unverified, VerifiedProof},
+        transcript::{Bound, SessionStamp, Transcript, Unverified, VerifiedProof},
     },
 };
+/// Verifier state between the commitment and the opening. It records the
+/// session that received the commitment and checks only on that session.
 #[cfg(any(test, feature = "verifier"))]
 pub struct JointPolygeroVerifier<L: Participants> {
-    param: JointPolygeroParam<L>,
+    session: SessionStamp,
+    context: Digest,
     commitment: PolygeroCommitment,
-    transcript: Transcript,
+    _participants: PhantomData<fn() -> L>,
 }
 #[cfg(any(test, feature = "verifier"))]
 impl<L: Participants> JointPolygeroVerifier<L> {
-    pub fn new(
-        param: JointPolygeroParam<L>,
-        root: &PolygeroCommitment,
-        mut transcript: Transcript,
-    ) -> Self {
-        param.receive(root, &mut transcript.borrow());
+    /// Receive the root on `t`'s session.
+    pub fn receive(t: &mut Bound<'_, JointPolygeroParam<L>>, root: &PolygeroCommitment) -> Self {
+        let param = t.part();
+        param.receive(root, &mut t.transcript());
         Self {
-            param,
+            session: t.session(),
+            context: param.context,
             commitment: root.clone(),
-            transcript,
+            _participants: PhantomData,
         }
     }
-    /// Continue the frontend on the session that received this commitment.
-    pub fn transcript(&mut self) -> TranscriptRef<'_> {
-        self.transcript.borrow()
-    }
-    /// Complete standalone verification, including the mandatory final seal.
+    /// Complete standalone verification on the session that received the
+    /// commitment, including the mandatory final seal.
     pub fn verify(
         self,
+        mut transcript: Transcript,
+        param: &JointPolygeroParam<L>,
         proof: Unverified<'_, JointPolygeroProof<L::Bodies>>,
         s: &L::Statements,
     ) -> Result<VerifiedProof, PolygeroError> {
-        let transcript = self.reduce(&proof, s)?;
+        self.reduce(&mut transcript.bound(param), &proof, s)?;
         proof
             .checked(transcript)
             .map_err(|e| PolygeroError(e.into()))
     }
+    /// Check the opening on the session that received the commitment. This
+    /// is not complete verification: the caller still checks the seal.
     pub(crate) fn reduce(
-        mut self,
+        self,
+        t: &mut Bound<'_, JointPolygeroParam<L>>,
         proof: &JointPolygeroProof<L::Bodies>,
         s: &L::Statements,
-    ) -> Result<Transcript, PolygeroError> {
-        let p = &self.param;
-        ensure(proof.context == p.context, "joint proof context mismatch")?;
+    ) -> Result<(), PolygeroError> {
+        ensure(
+            self.session == t.session(),
+            "joint verifier session mismatch",
+        )?;
+        let p = t.part();
+        ensure(
+            self.context == p.context && proof.context == p.context,
+            "joint proof context mismatch",
+        )?;
         p.participants.validate_statements(s)?;
         p.participants.validate_bodies(&proof.bodies)?;
         validate_opening(&proof.opening, p.config.t, p.config.n)?;
-        let c = p.challenges(s, &mut self.transcript.borrow());
-        let indices = p.queries(&proof.bodies, &mut self.transcript.borrow());
+        let c = p.challenges(s, &mut t.transcript());
+        let indices = p.queries(&proof.bodies, &mut t.transcript());
         let leaves: Vec<_> = indices
             .iter()
             .enumerate()
@@ -91,7 +104,7 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         // The one opening authenticates every field's column values. Each field
         // still needs its own low-degree and affine-equation checks.
         p.participants.check(&proof.bodies, s, &c, &indices)?;
-        Ok(self.transcript)
+        Ok(())
     }
 }
 #[cfg(any(test, feature = "verifier"))]

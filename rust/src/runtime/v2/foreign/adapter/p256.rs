@@ -24,7 +24,7 @@ use crate::{
         },
         v2::{
             foreign::word::MaskedWord,
-            transcript::TranscriptRef,
+            transcript::{Bound, Challenge},
             zk::{
                 storage::{BitGroup, ModularClaim, ReservedSuffix},
                 VirtualInputs,
@@ -256,7 +256,7 @@ impl<const Q: usize> P256Encoded<Q> {
     }
 }
 
-pub use super::transcript::{absorb_masked, conversion};
+pub use super::transcript::{absorb_masked, conversion, Conversion};
 
 /// The P-256 wrapping mode as an adapter mode: two trees, each with a
 /// `Word<Q>` quotient published as `MaskedWord<Q>` over a committed `Otp<Q>`.
@@ -278,6 +278,7 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
     const MASK_BITS: usize = 256;
     type Pads = [crate::runtime::v2::foreign::word::Otp<Q>; 2];
     type Message = [MaskedWord<Q>; 2];
+    type Conversion = Conversion;
     fn new(
         widths: Vec<usize>,
         npublic: usize,
@@ -318,40 +319,45 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         }
         Ok(())
     }
+    fn draw_conversion(t: &mut Bound<'_, Self>, p: &P256Field) -> Challenge<Conversion> {
+        super::transcript::draw_conversion(t, p)
+    }
     #[cfg(any(test, feature = "prover"))]
     fn prove(
-        &self,
+        t: &mut Bound<'_, Self>,
         claim: &ModularClaim<P256Element>,
         values: &[P256Element],
         pads: &Self::Pads,
-        t: &mut TranscriptRef<'_>,
+        conversion: Challenge<Conversion>,
         p: &P256Field,
         f: &Gf2_128Field,
     ) -> Result<(Self::Message, VirtualInputs<Gf2_128>), String> {
-        let alpha = conversion(t, p);
-        let encoded = self.plan.encode(claim, &alpha, Some(values), p, f)?;
+        let mode = t.part();
+        let Conversion(alpha) = t.accept(conversion).map_err(|e| e.to_string())?;
+        let encoded = mode.plan.encode(claim, &alpha, Some(values), p, f)?;
         let k = encoded.quotients.ok_or("P256 adapter quotients")?;
         let masked = [
             MaskedWord::mask(k[0], &pads[0]),
             MaskedWord::mask(k[1], &pads[1]),
         ];
-        absorb_masked(t, &masked);
+        absorb_masked(&mut t.transcript(), &masked);
         let leaves =
-            super::virtual_inputs(self.shape, encoded.trees(claim, &self.otp, &masked, f), f)?;
+            super::virtual_inputs(mode.shape, encoded.trees(claim, &mode.otp, &masked, f), f)?;
         Ok((masked, leaves))
     }
     #[cfg(any(test, feature = "verifier"))]
     fn verify(
-        &self,
+        t: &mut Bound<'_, Self>,
         claim: &ModularClaim<P256Element>,
         masked: &Self::Message,
-        t: &mut TranscriptRef<'_>,
+        conversion: Challenge<Conversion>,
         p: &P256Field,
         f: &Gf2_128Field,
     ) -> Result<VirtualInputs<Gf2_128>, String> {
-        let alpha = conversion(t, p);
-        let encoded = self.plan.encode(claim, &alpha, None, p, f)?;
-        absorb_masked(t, masked);
-        super::virtual_inputs(self.shape, encoded.trees(claim, &self.otp, masked, f), f)
+        let mode = t.part();
+        let Conversion(alpha) = t.accept(conversion).map_err(|e| e.to_string())?;
+        let encoded = mode.plan.encode(claim, &alpha, None, p, f)?;
+        absorb_masked(&mut t.transcript(), masked);
+        super::virtual_inputs(mode.shape, encoded.trees(claim, &mode.otp, masked, f), f)
     }
 }

@@ -1,7 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Selected joint commitments and circuit metadata for v2 composition.
+use std::borrow::Cow;
+
 use super::{
-    context::{prepare_circuit_layout, prepare_parameter, InputLayout},
+    context::{prepare_circuit_layout, prepare_parameter, CircuitInput, InputLayout},
     packing_commitment::PackingCommitment,
     ZkContext,
 };
@@ -332,6 +334,43 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             )?
             .with_layout(self),
         )
+    }
+}
+
+/// A frontend's statement part: its participant, its circuits (the primary
+/// circuit first, as at construction) and the primary circuit's public
+/// inputs, checked against each other once. A frontend reads its circuits
+/// and public inputs only from here, through its `Bound` (transcript I2).
+pub struct FrontendPart<'a, const W: usize, F: ZkField<W> + PackingField> {
+    pub(super) participant: &'a CircuitParticipant<W, F>,
+    pub(super) circuits: Vec<&'a Circuit<F>>,
+    /// The public inputs as elements of the circuit's field.
+    pub(super) public: Cow<'a, [F::E]>,
+}
+impl<'a, const W: usize, F: ZkField<W> + PackingField> FrontendPart<'a, W, F> {
+    pub fn new(
+        participant: &'a CircuitParticipant<W, F>,
+        circuits: &[&'a Circuit<F>],
+        public: &'a [CircuitInput<F>],
+    ) -> Result<Self, String> {
+        participant.validate_circuits(circuits, public.len())?;
+        let parameters = &participant.backend.parameters;
+        Ok(Self {
+            participant,
+            circuits: circuits.to_vec(),
+            public: parameters
+                .extension()
+                .input_elements(parameters.field(), public),
+        })
+    }
+    pub fn participant(&self) -> &'a CircuitParticipant<W, F> {
+        self.participant
+    }
+    pub fn circuits(&self) -> &[&'a Circuit<F>] {
+        &self.circuits
+    }
+    pub fn public(&self) -> &[F::E] {
+        &self.public
     }
 }
 

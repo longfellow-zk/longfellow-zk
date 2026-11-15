@@ -28,7 +28,7 @@ use crate::{
         algebra::gf2_128::{Gf2_128, Gf2_128Field},
         v2::{
             proto::composed::AdapterMessage,
-            transcript::TranscriptRef,
+            transcript::{Bound, Challenge},
             zk::{
                 storage::{ModularClaim, ReservedSuffix},
                 VirtualInput, VirtualInputs,
@@ -235,24 +235,30 @@ pub trait AdapterMode<F: SerializableField>: Sized {
         pads: &Self::Pads,
         reserved: &mut ReservedWitness<'_>,
     ) -> Result<(), String>;
+    /// The input challenge of the mode's rounds, nonzero by construction.
+    type Conversion;
+    /// Draw the conversion challenge on the mode's session. The driver calls
+    /// it after the split message and hands the challenge to `prove` or
+    /// `verify`, which accept it before sending (transcript I8).
+    fn draw_conversion(t: &mut Bound<'_, Self>, f: &F) -> Challenge<Self::Conversion>;
     /// Prover rounds: `values` are the claim's term values, in term order.
     #[cfg(any(test, feature = "prover"))]
     fn prove(
-        &self,
+        t: &mut Bound<'_, Self>,
         claim: &ModularClaim<F::E>,
         values: &[F::E],
         pads: &Self::Pads,
-        t: &mut TranscriptRef<'_>,
+        conversion: Challenge<Self::Conversion>,
         f: &F,
         gf2: &Gf2_128Field,
     ) -> Result<(Self::Message, VirtualInputs<Gf2_128>), String>;
     /// Verifier rounds from the published message.
     #[cfg(any(test, feature = "verifier"))]
     fn verify(
-        &self,
+        t: &mut Bound<'_, Self>,
         claim: &ModularClaim<F::E>,
         message: &Self::Message,
-        t: &mut TranscriptRef<'_>,
+        conversion: Challenge<Self::Conversion>,
         f: &F,
         gf2: &Gf2_128Field,
     ) -> Result<VirtualInputs<Gf2_128>, String>;

@@ -7,32 +7,31 @@ use crate::runtime::{
     },
     v2::{
         dual_packing::generic::PackingProof, polygero::LinearStatement, proto::Digest,
-        transcript::TranscriptRef,
+        transcript::Bound,
     },
 };
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
+    /// Replay the packing reduction on the parameters bound to `t`.
     pub(crate) fn reduce<const W: usize>(
-        &self,
+        t: &mut Bound<'_, Self>,
         statement: CommitmentStatement<F::E>,
         packing: &PackingProof<F::E>,
         id: &[u8; 32],
-        t: &mut TranscriptRef<'_>,
     ) -> Result<LinearStatement<F::E>, String>
     where
         F: ZkField<W>,
     {
         let rows = crate::runtime::v2::dual_packing::verifier::reduce(
-            &self.parameters,
+            &mut t.project(|c| &c.parameters),
             &statement.claim,
             packing,
             id,
-            t,
         )?;
         // Dynamic source messages are already bound to this same transcript.
         // Identify the circuit without another query; sparse rows are derived
         // locally rather than accepted as proof data.
         let digest = Digest { data: *id };
-        let (a, b) = self.append_equations::<W>(statement, &rows)?;
+        let (a, b) = t.part().append_equations::<W>(statement, &rows)?;
         Ok(LinearStatement { a, b, digest })
     }
 }

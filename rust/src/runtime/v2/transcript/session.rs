@@ -31,8 +31,49 @@ type RoundCount = ();
 /// A ready session. It never implements RandomEngine, PrivateRandom or Clone.
 pub struct Transcript {
     strand: Strand,
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    position: Position,
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    session: SessionStamp,
     _round_count: RoundCount,
 }
+
+/// Where a session stands: the index and digest of its last finalized node
+/// (zero before the first boundary) and the number of messages written so
+/// far. Challenges carry a copy; the digest never leaves this module tree.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) struct Position {
+    node: u64,
+    digest: [u8; super::strand::BLOCK_BYTES],
+    messages: u64,
+}
+
+/// The identity of one transcript session. The session owns a fresh
+/// allocation and every stamp holds a clone of it, so stamps compare by
+/// address, and no address is reused while a stamp exists. A protocol state
+/// that spans several calls records it at creation and rejects a later call
+/// on any other session (transcript I2).
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+#[derive(Clone, Debug)]
+pub struct SessionStamp(std::sync::Arc<()>);
+
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+impl SessionStamp {
+    /// A fresh identity, owned by the session it is created for. It changes
+    /// no transcript byte.
+    fn fresh() -> Self {
+        Self(std::sync::Arc::new(()))
+    }
+}
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+impl PartialEq for SessionStamp {
+    fn eq(&self, other: &Self) -> bool {
+        std::sync::Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+impl Eq for SessionStamp {}
 /// Borrowed protocol operations on one owned session. This capability cannot
 /// expose, replace, reset or finalize its owner's transcript.
 pub struct TranscriptRef<'a> {
@@ -63,6 +104,14 @@ impl Transcript {
     pub fn new(context: &[u8]) -> Self {
         let mut t = Self {
             strand: Strand::new(),
+            #[cfg(any(test, feature = "prover", feature = "verifier"))]
+            position: Position {
+                node: 0,
+                digest: [0; super::strand::BLOCK_BYTES],
+                messages: 0,
+            },
+            #[cfg(any(test, feature = "prover", feature = "verifier"))]
+            session: SessionStamp::fresh(),
             _round_count: Default::default(),
         };
         t.absorb(|w| {
@@ -73,6 +122,14 @@ impl Transcript {
     }
     pub(crate) fn borrow(&mut self) -> TranscriptRef<'_> {
         TranscriptRef { session: self }
+    }
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub(super) fn position(&self) -> Position {
+        self.position
+    }
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub(super) fn session(&self) -> SessionStamp {
+        self.session.clone()
     }
     /// Bind setup or terminal messages without sampling. The borrowed writer
     /// cannot be consumed to begin_squeeze; only round grants that capability.
@@ -120,7 +177,15 @@ impl TranscriptRef<'_> {
     }
 }
 impl Writing<'_> {
+    /// Each write is one message of the session's count.
+    fn count_message(&mut self) {
+        #[cfg(any(test, feature = "prover", feature = "verifier"))]
+        {
+            self.session.position.messages += 1;
+        }
+    }
     pub fn write_bytes(&mut self, bytes: &[u8]) {
+        self.count_message();
         self.session.strand.write(&[0]);
         self.session
             .strand
@@ -131,10 +196,12 @@ impl Writing<'_> {
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl Writing<'_> {
     pub fn write_elt_field<F: SerializableField>(&mut self, e: &ElementOf<F>, f: &F) {
+        self.count_message();
         self.session.strand.write(&[1]);
         self.field(e, f);
     }
     pub fn write_elt_field_slice<F: SerializableField>(&mut self, e: &[ElementOf<F>], f: &F) {
+        self.count_message();
         self.session.strand.write(&[2]);
         self.session.strand.write(&(e.len() as u64).to_le_bytes());
         for x in e {
@@ -168,6 +235,9 @@ impl<'a> Writing<'a> {
         // than being consumed for a separate link. The owned strand advances
         // without temporarily replacing the session with a fresh root.
         let prf = self.session.strand.continue_in_place();
+        let (node, digest) = prf.boundary();
+        self.session.position.node = node;
+        self.session.position.digest = *digest;
         Reading {
             session: self.session,
             reader: Reader::new(prf),

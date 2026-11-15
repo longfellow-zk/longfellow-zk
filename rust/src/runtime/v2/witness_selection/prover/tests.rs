@@ -111,17 +111,23 @@ fn generic_sampling_and_three_fields_need_no_packing_capability() {
         rng.elt_field_slice(3, &f),
         (rng.elt_field_slice(2, &p), (vec![], ())),
     );
-    let tp = Transcript::new(b"three-fields");
-    let (prover, root, responses) = commit(&param, witnesses, tp, &mut rng).unwrap();
-    let tv = Transcript::new(b"three-fields");
-    let verifier = Verifier::receive(param.clone(), &root, responses, tv);
-    let (proof, mut tp) = prover
-        .prove(&param, (statement(), (statement(), (statement(), ()))))
+    let mut tp = Transcript::new(b"three-fields");
+    let (prover, root, responses) = commit(&mut tp.bound(&param), witnesses, &mut rng).unwrap();
+    let mut tv = Transcript::new(b"three-fields");
+    let verifier = Verifier::receive(&mut tv.bound(&param), &root, responses);
+    let proof = prover
+        .prove(
+            &mut tp.bound(&param),
+            (statement(), (statement(), (statement(), ()))),
+        )
         .unwrap();
-    let mut tv = verifier
-        .authenticate(&proof, (statement(), (statement(), (statement(), ()))))
-        .unwrap()
-        .into_transcript();
+    verifier
+        .authenticate(
+            &mut tv.bound(&param),
+            &proof,
+            (statement(), (statement(), (statement(), ()))),
+        )
+        .unwrap();
     assert_eq!(tp.u128(), tv.u128());
 }
 
@@ -130,9 +136,9 @@ fn frontend_cannot_address_fingerprint_masks_and_bad_lengths_do_not_consume_mask
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
     let param = Param::new((field(3, &f, &d), ())).unwrap();
-    let t = Transcript::new(b"shape");
+    let mut t = Transcript::new(b"shape");
     let mut rng = DeterministicRng::new(1);
-    assert!(commit(&param, (vec![f.one(); 5], ()), t, &mut rng).is_err());
+    assert!(commit(&mut t.bound(&param), (vec![f.one(); 5], ()), &mut rng).is_err());
     assert_eq!(rng.bytes(32), DeterministicRng::new(1).bytes(32));
     let mut t = Transcript::new(b"shape");
     let root = PolygeroCommitment {
@@ -244,9 +250,10 @@ fn joint_roundtrip_and_each_forged_response_are_checked_by_backend() {
             rng.elt_field_slice(17, &f),
             (rng.elt_field_slice(13, &p), ()),
         );
-        let tp = Transcript::new(b"selection/backend");
-        let (mut prover, root, mut responses) = commit(&param, witnesses, tp, &mut rng).unwrap();
-        let tv = Transcript::new(b"selection/backend");
+        let mut tp = Transcript::new(b"selection/backend");
+        let (mut prover, root, mut responses) =
+            commit(&mut tp.bound(&param), witnesses, &mut rng).unwrap();
+        let mut tv = Transcript::new(b"selection/backend");
         if forged > 0 {
             // Rebind the forged response on BOTH sides. Arithmetic rejection is
             // required even when the transcript prefix and final seal agree.
@@ -256,27 +263,32 @@ fn joint_roundtrip_and_each_forged_response_are_checked_by_backend() {
                 p.add(&mut responses.1 .0.values[forged - 3], &p.one());
             }
         }
-        let mut verifier = Verifier::receive(param.clone(), &root, responses.clone(), tv);
+        let verifier = Verifier::receive(&mut tv.bound(&param), &root, responses.clone());
         if forged == 0 {
-            assert_eq!(prover.transcript().u128(), verifier.transcript().u128());
+            assert_eq!(tp.u128(), tv.u128());
             // Sampling this extra common round is deliberate and symmetric.
         } else {
-            // Retain the original committed oracle but authenticate a false row.
-            prover
-                .backend
-                .replace_transcript_for_test(verifier.transcript().fork_for_test());
+            // Retain the original committed oracle but authenticate a false row,
+            // on a copy of the verifier's session.
+            tp = tv.fork_for_test();
+            let b = tp.bound(&param);
+            prover.backend.adopt_session_for_test(&b);
+            prover.session = b.session();
         }
         let prover = Prover {
             responses,
             ..prover
         };
-        let (proof, mut tp) = prover
-            .prove(&param, (statement(), (statement(), ())))
+        let proof = prover
+            .prove(&mut tp.bound(&param), (statement(), (statement(), ())))
             .unwrap();
-        let result = verifier.authenticate(&proof, (statement(), (statement(), ())));
+        let result = verifier.authenticate(
+            &mut tv.bound(&param),
+            &proof,
+            (statement(), (statement(), ())),
+        );
         assert_eq!(result.is_ok(), forged == 0);
         if forged == 0 {
-            let mut tv = result.unwrap().into_transcript();
             assert_eq!(tp.u128(), tv.u128());
         }
     }
@@ -350,8 +362,8 @@ fn receipt_binds_the_joint_root_once_before_fingerprint_sampling() {
         },
         (),
     );
-    let actual = Transcript::new(b"selection/root-binding");
-    let mut verifier = Verifier::receive(param.clone(), &root, responses.clone(), actual);
+    let mut actual = Transcript::new(b"selection/root-binding");
+    let _verifier = Verifier::receive(&mut actual.bound(&param), &root, responses.clone());
 
     // Preserve the existing root framing and order while removing the detached
     // receipt API: the first challenge round must see exactly this prefix.
@@ -363,8 +375,8 @@ fn receipt_binds_the_joint_root_once_before_fingerprint_sampling() {
     expected.absorb(|w| w.write_bytes(&root.root.data));
     let _coefficients = param.challenges(&root, &mut expected.borrow());
     param.absorb_responses(&responses, &mut expected.borrow());
-    assert_eq!(verifier.transcript().round_count_for_test(), 1);
-    assert_eq!(verifier.transcript().bytes(32), expected.bytes(32));
+    assert_eq!(actual.round_count_for_test(), 1);
+    assert_eq!(actual.bytes(32), expected.bytes(32));
 }
 
 /// distinct fingerprint responses must change every later challenge.
@@ -378,14 +390,47 @@ fn fingerprint_responses_are_bound_before_later_challenges() {
     };
     let state = |values| {
         let responses = (FingerprintResponse { values }, ());
-        let mut v = Verifier::receive(
-            param.clone(),
-            &root,
-            responses,
-            Transcript::new(b"selection/response-binding"),
-        );
-        v.transcript().bytes(32)
+        let mut t = Transcript::new(b"selection/response-binding");
+        let _verifier = Verifier::receive(&mut t.bound(&param), &root, responses);
+        t.bytes(32)
     };
     assert_ne!(state([f.zero(), f.one()]), state([f.one(), f.one()]));
     assert_ne!(state([f.zero(), f.one()]), state([f.zero(), f.zero()]));
+}
+
+#[test]
+fn prover_and_verifier_states_complete_only_on_their_own_session() {
+    let f = Gf2_128Field::new();
+    let d = BinaryInterpolatorFactory::full_field(&f);
+    let param = Param::new((field(3, &f, &d), ())).unwrap();
+    let commit_on = |t: &mut Transcript| {
+        let mut rng = DeterministicRng::new(5);
+        let witnesses = (rng.elt_field_slice(3, &f), ());
+        commit(&mut t.bound(&param), witnesses, &mut rng).unwrap()
+    };
+    // Forks hold the same bytes but are other sessions.
+    let mut stale = Transcript::new(b"selection/session");
+    let (stale_prover, _, _) = commit_on(&mut stale);
+    let mut stale_fork = stale.fork_for_test();
+    assert_eq!(
+        stale_prover
+            .prove(&mut stale_fork.bound(&param), (statement(), ()))
+            .unwrap_err(),
+        "witness selection session mismatch"
+    );
+    let mut tp = Transcript::new(b"selection/session");
+    let (prover, root, responses) = commit_on(&mut tp);
+    let proof = prover
+        .prove(&mut tp.bound(&param), (statement(), ()))
+        .unwrap();
+    let mut tv = Transcript::new(b"selection/session");
+    let verifier = Verifier::receive(&mut tv.bound(&param), &root, responses);
+    let mut tv_fork = tv.fork_for_test();
+    assert_eq!(
+        verifier
+            .authenticate(&mut tv_fork.bound(&param), &proof, (statement(), ()))
+            .err()
+            .unwrap(),
+        "witness selection session mismatch"
+    );
 }

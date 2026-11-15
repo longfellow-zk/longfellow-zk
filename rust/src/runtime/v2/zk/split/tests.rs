@@ -14,8 +14,9 @@ use crate::{
             proto::polygero::PolygeroConfig,
             transcript::Transcript,
             zk::{
-                joint::CircuitParticipant,
-                split::value_count,
+                joint::{CircuitParticipant, FrontendPart},
+                prove_split, reduce_split,
+                split::{transcript, value_count},
                 storage::{Group, StorageMap},
                 ZkContext,
             },
@@ -82,12 +83,18 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     );
     let mut tp = Transcript::new(b"mixed-rows");
     let mut tv = tp.fork_for_test();
-    let (proof, reduction) = part
-        .prove_split(&c, &[f.one()], state, &mut tp.borrow(), &ctx)
-        .unwrap();
-    let checked = part
-        .reduce_split(&c, &[f.one()], &proof, &mut tv.borrow(), &ctx)
-        .unwrap();
+    let (proof, reduction) = prove_split(
+        &mut tp.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
+        state,
+        &ctx,
+    )
+    .unwrap();
+    let checked = reduce_split(
+        &mut tv.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
+        &proof,
+        &ctx,
+    )
+    .unwrap();
     assert_eq!(reduction.claim.claim.weights, checked.claim.weights);
     assert_eq!(reduction.claim.claim.target, checked.claim.target);
     let eta = f.u64_to_element(19);
@@ -113,7 +120,7 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
         }
         rows.iter().all(|x| f.is_zero(x))
     };
-    let statement = part.split_statement(&checked, &eta, &mu, &f).unwrap();
+    let statement = part.split_statement(checked, &eta, &mu, &f).unwrap();
     // The layer rows, unbatched, then the split row.
     assert_eq!(statement.b.len(), c.raw.layers.len() + 1);
     assert!(holds(&statement, &witness));
@@ -127,14 +134,17 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     let mut forged = proof;
     f.add(&mut forged.layers[0].cross, &f.one());
     let mut t = Transcript::new(b"mixed-rows");
-    let claim = part
-        .reduce_split(&c, &[f.one()], &forged, &mut t.borrow(), &ctx)
-        .unwrap();
+    let claim = reduce_split(
+        &mut t.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
+        &forged,
+        &ctx,
+    )
+    .unwrap();
     let mu = f.addf(
         &f.mulf(&eta, &f.mulf(&claim.claim.weights[0], &source)),
         &mask,
     );
-    let statement = part.split_statement(&claim, &eta, &mu, &f).unwrap();
+    let statement = part.split_statement(claim, &eta, &mu, &f).unwrap();
     assert!(!holds(&statement, &witness));
 }
 
@@ -166,12 +176,18 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
     assert!(witness.is_empty());
     let mut tp = Transcript::new(b"pure");
     let mut tv = tp.fork_for_test();
-    let (proof, pending) = part
-        .prove_split(&c, &[f.one()], state, &mut tp.borrow(), &ctx)
-        .unwrap();
-    let claim = part
-        .reduce_split(&c, &[f.one()], &proof, &mut tv.borrow(), &ctx)
-        .unwrap();
+    let (proof, pending) = prove_split(
+        &mut tp.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
+        state,
+        &ctx,
+    )
+    .unwrap();
+    let claim = reduce_split(
+        &mut tv.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
+        &proof,
+        &ctx,
+    )
+    .unwrap();
     assert_eq!(pending.claim.claim.weights, claim.claim.weights);
     assert_eq!(pending.claim.claim.target, claim.claim.target);
     // The whole claim is foreign, over every value, with its public target.
@@ -182,4 +198,61 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
     let eta = f.one();
     assert!(part.split_message(&pending, &eta, &f).is_err());
     assert!(part.foreign_claim(&claim, &eta, &eta, &f).is_err());
+}
+
+#[test]
+fn open_and_receive_accept_eta_only_at_its_boundary() {
+    let f = P256Field::new();
+    let domain = ScalarInterpolatorFactory::new(&f, 128);
+    let ctx = ZkContext::new(&domain);
+    let c = small_circuit(&f);
+    let values = value_count(&c).unwrap();
+    let storage = StorageMap::new(values, &[(0, Group::new(7, 1).unwrap())]).unwrap();
+    let mask = Group::new(20, 256).unwrap();
+    let part = CircuitParticipant::with_storage(&c, storage, Some(mask), CONFIG, &ctx).unwrap();
+    let public = [f.one()];
+    let frontend = FrontendPart::new(&part, &[&c], &public).unwrap();
+    assert!(std::ptr::eq(frontend.participant(), &part));
+    assert!(std::ptr::eq(frontend.circuits()[0], &c));
+    assert_eq!(frontend.public(), &public);
+    // `late` sends a message between the draw of eta and its use.
+    let run = |late: bool| {
+        let (state, _) = part
+            .prepare_split(
+                vec![f.one(), f.zero()],
+                Some(f.u64_to_element(17)),
+                &mut DeterministicRng::new(42),
+            )
+            .unwrap();
+        let mut tp = Transcript::new(b"split/eta");
+        let mut tv = tp.fork_for_test();
+        let mut prover = tp.bound(&frontend);
+        let (proof, pending) = prove_split(&mut prover, state, &ctx).unwrap();
+        let prover_eta = transcript::eta(&mut prover, &f);
+        if late {
+            prover.transcript().absorb(|w| w.write_bytes(b"late"));
+        }
+        let opened = pending.open(&mut prover, prover_eta, &f);
+        let mut verifier = tv.bound(&frontend);
+        let claim = reduce_split(&mut verifier, &proof, &ctx).unwrap();
+        let verifier_eta = transcript::eta(&mut verifier, &f);
+        let received = match &opened {
+            Ok((mu, _)) => Some(claim.receive(&mut verifier, verifier_eta, mu, &f)),
+            Err(_) => None,
+        };
+        (opened, received, tp.bytes(32), tv.bytes(32))
+    };
+    let (honest, received, after_p, after_v) = run(false);
+    let (_, split) = honest.unwrap();
+    let checked = received.unwrap().unwrap();
+    assert_eq!(split.statement.a, checked.statement.a);
+    assert_eq!(split.statement.b, checked.statement.b);
+    assert_eq!(split.foreign.terms, checked.foreign.terms);
+    assert_eq!(split.foreign.target, checked.foreign.target);
+    assert_eq!(after_p, after_v);
+    let (stale, _, _, _) = run(true);
+    assert_eq!(
+        stale.err().unwrap(),
+        "challenge drawn at another transcript position"
+    );
 }

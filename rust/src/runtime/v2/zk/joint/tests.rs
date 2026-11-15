@@ -14,7 +14,7 @@ use crate::{
             proto::{dual_packing::PackingProof, zk::CircuitProof},
             sumcheck::eval_circuit,
             transcript::Transcript,
-            zk::VirtualInputs,
+            zk::{prove, reduce, VirtualInputs},
         },
     },
 };
@@ -186,26 +186,21 @@ fn binary_circuits_authenticate_one_shared_input() {
                 .unwrap();
         let t = Transcript::new(b"fragmented-pcs-test");
         let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
-        let (proof, statement) = p
-            .prove(
-                &components,
-                &[true],
-                state,
-                &VirtualInputs::none(),
-                &mut joint.transcript(),
-                &ctx,
-            )
-            .unwrap();
+        let (proof, statement) = prove(
+            &mut joint.bound(&FrontendPart::new(&p, &components, &[true]).unwrap()),
+            state,
+            &VirtualInputs::none(),
+            &ctx,
+        )
+        .unwrap();
         let (opening, _) = joint.prove(&param, (statement, ())).unwrap();
         let verify = |candidate: &CircuitProof<2, Gf2_128Field>, public: bool| {
             let t = Transcript::new(b"fragmented-pcs-test");
             let mut v = param.clone().receive(&root, responses.clone(), t);
-            let statement = p.reduce(
-                &components,
-                &[public],
+            let statement = reduce(
+                &mut v.bound(&FrontendPart::new(&p, &components, &[public])?),
                 candidate,
                 &VirtualInputs::none(),
-                &mut v.transcript(),
                 &ctx,
             )?;
             v.authenticate(&opening, (statement, ()))
@@ -225,19 +220,8 @@ fn binary_circuits_authenticate_one_shared_input() {
             let wrong = Circuit::with_test_id(id, raw.build());
             let mut invalid = vec![&main];
             invalid.extend(vec![&wrong; count]);
-            let mut t = Transcript::new(b"bad-shared-layout");
-            let before = t.fork_for_test().bytes(32);
-            assert!(p
-                .reduce(
-                    &invalid,
-                    &[true],
-                    &proof,
-                    &VirtualInputs::none(),
-                    &mut t.borrow(),
-                    &ctx
-                )
-                .is_err());
-            assert_eq!(before, t.bytes(32));
+            // No frontend part, and so no transcript use, for a mismatched layout.
+            assert!(FrontendPart::new(&p, &invalid, &[true]).is_err());
             assert!(CircuitParticipant::new(&invalid, 0, config, &ctx).is_err());
         }
     }
@@ -286,30 +270,24 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
         crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ())).unwrap();
     let t = Transcript::new(b"prime-fragmented-pcs-test");
     let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
-    let (proof, statement) = p
-        .prove(
-            &components,
-            &public,
-            state,
-            &VirtualInputs::none(),
-            &mut joint.transcript(),
-            &ctx,
-        )
-        .unwrap();
+    let (proof, statement) = prove(
+        &mut joint.bound(&FrontendPart::new(&p, &components, &public).unwrap()),
+        state,
+        &VirtualInputs::none(),
+        &ctx,
+    )
+    .unwrap();
     assert!(matches!(proof.packing, PackingProof::Direct));
     let (opening, mut tp) = joint.prove(&param, (statement, ())).unwrap();
     let t = Transcript::new(b"prime-fragmented-pcs-test");
     let mut v = param.receive(&root, responses, t);
-    let statement = p
-        .reduce(
-            &components,
-            &public,
-            &proof,
-            &VirtualInputs::none(),
-            &mut v.transcript(),
-            &ctx,
-        )
-        .unwrap();
+    let statement = reduce(
+        &mut v.bound(&FrontendPart::new(&p, &components, &public).unwrap()),
+        &proof,
+        &VirtualInputs::none(),
+        &ctx,
+    )
+    .unwrap();
     let mut tv = v
         .authenticate(&opening, (statement, ()))
         .unwrap()
@@ -449,26 +427,21 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     let (state, w) = p.prepare(vec![true, true, false], &mut rng).unwrap();
     let t = Transcript::new(b"virtual-inputs-test");
     let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
-    let (proof, statement) = p
-        .prove(
-            &[&main, &fragment],
-            &[true],
-            state,
-            &honest,
-            &mut joint.transcript(),
-            &ctx,
-        )
-        .unwrap();
+    let (proof, statement) = prove(
+        &mut joint.bound(&FrontendPart::new(&p, &[&main, &fragment], &[true]).unwrap()),
+        state,
+        &honest,
+        &ctx,
+    )
+    .unwrap();
     let (opening, _) = joint.prove(&param, (statement, ())).unwrap();
     let verify = |definition: &VirtualInputs<_>| {
         let t = Transcript::new(b"virtual-inputs-test");
         let mut v = param.clone().receive(&root, responses.clone(), t);
-        let statement = p.reduce(
-            &[&main, &fragment],
-            &[true],
+        let statement = reduce(
+            &mut v.bound(&FrontendPart::new(&p, &[&main, &fragment], &[true])?),
             &proof,
             definition,
-            &mut v.transcript(),
             &ctx,
         )?;
         v.authenticate(&opening, (statement, ()))
@@ -495,16 +468,13 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     let (mut joint, _, _) = param
         .commit((w, ()), Transcript::new(b"virtual-inputs-test"), &mut rng)
         .unwrap();
-    assert!(p
-        .prove(
-            &[&main, &fragment],
-            &[true],
-            state,
-            &tampered,
-            &mut joint.transcript(),
-            &ctx,
-        )
-        .is_err());
+    assert!(prove(
+        &mut joint.bound(&FrontendPart::new(&p, &[&main, &fragment], &[true]).unwrap()),
+        state,
+        &tampered,
+        &ctx,
+    )
+    .is_err());
     // The primary circuit cannot read the virtual suffix.
     assert!(CircuitParticipant::new(&[&fragment, &main], 1, config, &ctx).is_err());
 }

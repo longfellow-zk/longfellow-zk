@@ -26,16 +26,21 @@ use crate::{
 /// consumes its input. Duplication is confined to tests; production state is not Clone.
 pub(super) fn snapshot<E: Clone>(
     prover: &JointPolygeroProver<(Vec<Vec<E>>, ())>,
-) -> JointPolygeroProver<(Vec<Vec<E>>, ())> {
-    JointPolygeroProver {
+    ts: &Transcript,
+) -> (JointPolygeroProver<(Vec<Vec<E>>, ())>, Transcript) {
+    // The copy completes on a copy of its session: a fork, whose stamp it takes.
+    let mut fork = ts.fork_for_test();
+    let session = fork.bound(&()).session();
+    let copy = JointPolygeroProver {
+        session,
         context: prover.context,
         states: prover.states.clone(),
         oracle: ColumnOracle {
             tree: prover.oracle.tree.clone(),
             salts: prover.oracle.salts.clone(),
         },
-        transcript: prover.transcript.fork_for_test(),
-    }
+    };
+    (copy, fork)
 }
 
 /// Recommitting a wrong witness authenticates successfully but must fail the
@@ -53,7 +58,7 @@ pub(super) fn check_recommitted_wrong_witness<
     mut ts: Transcript,
     f: &F,
 ) {
-    let mut forged = snapshot(prover);
+    let (mut forged, _) = snapshot(prover, &ts);
     let param = &joint.participants.0.param;
     for value in &mut forged.states.0[param.data_start()] {
         f.add(value, &f.one());
@@ -67,13 +72,17 @@ pub(super) fn check_recommitted_wrong_witness<
     let commitment = PolygeroCommitment {
         root: forged.oracle.root(),
     };
-    let verifier_ts = ts.fork_for_test();
+    let mut verifier_ts = ts.fork_for_test();
     joint.receive(&commitment, &mut ts.borrow());
-    forged.replace_transcript_for_test(ts);
+    // The forged state completes on the session that received its root.
+    forged.session = ts.bound(joint).session();
     let statements = (linear(a, b, *statement), ());
-    let (proof, _) = forged.prove(joint, &statements).unwrap();
-    let verifier = JointPolygeroVerifier::new(joint.clone(), &commitment, verifier_ts);
-    let error = verifier.reduce(&proof, &statements).err().unwrap();
+    let proof = forged.prove(&mut ts.bound(joint), &statements).unwrap();
+    let verifier = JointPolygeroVerifier::receive(&mut verifier_ts.bound(joint), &commitment);
+    let error = verifier
+        .reduce(&mut verifier_ts.bound(joint), &proof, &statements)
+        .err()
+        .unwrap();
     assert_eq!(error.0, "Polygero global arithmetic sum failed");
 }
 
@@ -146,7 +155,7 @@ pub(super) fn check<
     b: &[F::E],
     a: &[PolygeroLinearTerm<F::E>],
     statement: &Digest,
-    ts: Transcript,
+    mut ts: Transcript,
     domain: &D,
     f: &F,
 ) {
@@ -157,8 +166,7 @@ pub(super) fn check<
         root: prover.oracle.root(),
     };
     let original = ts.fork_for_test();
-    let mut verifier = JointPolygeroVerifier::new(joint.clone(), &commitment, ts);
-    let mut ts = verifier.transcript().fork_for_test();
+    let _ = JointPolygeroVerifier::receive(&mut ts.bound(joint), &commitment);
     let g = p.geom;
     let omega: Vec<_> = (0..g.k).map(|i| domain.point(i)).collect();
     let nodes: Vec<_> = p.oracle_range().map(|i| domain.point(i)).collect();
@@ -270,9 +278,12 @@ pub(super) fn check<
             bodies,
             opening: prover.oracle.open(&indices),
         };
-        let verifier =
-            JointPolygeroVerifier::new(joint.clone(), &commitment, original.fork_for_test());
-        let error = verifier.reduce(&forged, &statements).err().unwrap();
+        let mut tv = original.fork_for_test();
+        let verifier = JointPolygeroVerifier::receive(&mut tv.bound(joint), &commitment);
+        let error = verifier
+            .reduce(&mut tv.bound(joint), &forged, &statements)
+            .err()
+            .unwrap();
         assert_eq!(error.0, expected);
     }
     // isolate the column arithmetic and primary response checks.
@@ -309,12 +320,11 @@ pub(super) fn check<
             bodies,
             opening: prover.oracle.open(&indices),
         };
-        let verifier =
-            JointPolygeroVerifier::new(joint.clone(), &commitment, original.fork_for_test());
+        let mut tv = original.fork_for_test();
+        let verifier = JointPolygeroVerifier::receive(&mut tv.bound(joint), &commitment);
         let error = verifier
-            .reduce(&forged, &statements)
-            .err()
-            .expect("forged Polygero response accepted");
+            .reduce(&mut tv.bound(joint), &forged, &statements)
+            .expect_err("forged Polygero response accepted");
         assert_eq!(error.0, expected);
     }
 }

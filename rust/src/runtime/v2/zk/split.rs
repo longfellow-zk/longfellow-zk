@@ -19,23 +19,27 @@
 //!   input equation into one foreign claim with a public target (`batching`).
 use super::{
     batching::LinearClaim,
-    joint::CircuitParticipant,
+    joint::{CircuitParticipant, FrontendPart},
     storage::{ModularClaim, Split, Storage},
 };
 use crate::{
-    core::{algebra::SerializableField, proto::v2::Circuit},
+    core::{
+        algebra::{BareField, SerializableField},
+        proto::v2::Circuit,
+    },
     runtime::{
         algebra::{blas, packing::PackingField, ZkField},
         v2::{
             polygero::{LinearStatement, PolygeroLinearTerm},
             proto::Digest,
             sumcheck::{circuit_geometry, symbolic::Constraints},
-            transcript::TranscriptRef,
+            transcript::{Bound, Challenge},
         },
     },
 };
 
 pub mod transcript;
+use transcript::Eta;
 
 /// A split participant's frontend claim over `[private inputs | pads]`.
 pub struct SplitClaim<E> {
@@ -53,25 +57,26 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             .ok_or_else(|| "participant has only native storage".into())
     }
     /// Reduce the frontend's constraints to the claim its storage discharges.
-    /// Both roles call this after the frontend's last message.
+    /// Both roles call this after the frontend's last message, on the
+    /// frontend's own part: its circuit and public inputs.
     pub(super) fn split_claim(
-        &self,
-        circuit: &Circuit<F>,
-        public: &[F::E],
+        t: &mut Bound<'_, FrontendPart<'_, W, F>>,
         constraints: Constraints<F::E>,
-        t: &mut TranscriptRef<'_>,
         f: &F,
     ) -> Result<SplitClaim<F::E>, String> {
-        let split = self.split()?;
+        let part = t.part();
+        let (p, circuit, public) = (part.participant, part.circuits[0], &part.public[..]);
+        let split = p.split()?;
         if split.mask.is_none() {
-            let claim = super::batching::batch(circuit, public, constraints, t, f)?;
+            let claim =
+                super::batching::batch(circuit, public, constraints, &mut t.transcript(), f)?;
             return Ok(SplitClaim {
                 rows: (Vec::new(), Vec::new()),
                 claim,
             });
         }
-        let private = self.inputs.committed();
-        let pads = self.geometry.sc_geom.pad_layout(private);
+        let private = p.inputs.committed();
+        let pads = p.geometry.sc_geom.pad_layout(private);
         if public.len() != circuit.raw.npublic_input
             || constraints.input_weights.len() != circuit.raw.ninput
             || constraints.layers.len() != pads.layers.len()
@@ -110,23 +115,21 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     }
     /// This field's statement: the layer rows, then the native row
     /// `eta*<w_N, v_N> - R + mu - eta*t = 0`.
-    pub fn split_statement(
+    /// It consumes the claim: its layer rows become the statement's rows.
+    fn split_statement(
         &self,
-        claim: &SplitClaim<F::E>,
+        claim: SplitClaim<F::E>,
         eta: &F::E,
         mu: &F::E,
         f: &F,
     ) -> Result<LinearStatement<F::E>, String> {
-        let split = self.check_claim(claim, eta, f)?;
-        let (mut a, mut b) = claim.rows.clone();
+        let split = self.check_claim(&claim, eta, f)?;
+        let SplitClaim {
+            rows: (mut a, mut b),
+            claim,
+        } = claim;
         let c = b.len();
-        for (i, (s, w)) in split
-            .map
-            .entries()
-            .iter()
-            .zip(&claim.claim.weights)
-            .enumerate()
-        {
+        for (i, (s, w)) in split.map.entries().iter().zip(&claim.weights).enumerate() {
             if matches!(s, Storage::Native(_)) {
                 a.push(PolygeroLinearTerm {
                     c,
@@ -140,7 +143,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             w: split.mask_cell,
             k: f.mone(),
         });
-        b.push(f.subf(mu, &f.mulf(eta, &claim.claim.target)));
+        b.push(f.subf(mu, &f.mulf(eta, &claim.target)));
         Ok(LinearStatement {
             a,
             b,
@@ -150,7 +153,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         })
     }
     /// Foreign claim `<eta*w_F, v_F> + R_bits = mu (mod p)` for the adapter.
-    pub fn foreign_claim(
+    fn foreign_claim(
         &self,
         claim: &SplitClaim<F::E>,
         eta: &F::E,
@@ -204,9 +207,62 @@ pub struct PendingSplit<E> {
     pub(crate) values: Vec<E>,
     pub(crate) mask: Option<E>,
 }
+/// The two outputs of a mixed split: this field's statement (the layer rows
+/// and the native row) and the foreign claim for the adapter.
+#[must_use]
+pub struct SplitOutput<E> {
+    pub statement: LinearStatement<E>,
+    pub foreign: ModularClaim<E>,
+}
+
+#[cfg(any(test, feature = "prover"))]
+impl<E> PendingSplit<E> {
+    /// Accept `eta`, send the split message `mu` on the frontend's session,
+    /// and return `mu` with both outputs, all built from this `eta` and `mu`.
+    pub fn open<const W: usize, F>(
+        self,
+        t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+        eta: Challenge<Eta<E>>,
+        f: &F,
+    ) -> Result<(E, SplitOutput<E>), String>
+    where
+        F: ZkField<W> + PackingField + BareField<E = E>,
+    {
+        let Eta(scale) = t.accept(eta).map_err(|e| e.to_string())?;
+        let p = t.part().participant;
+        let mu = p.split_message(&self, &scale, f)?;
+        transcript::absorb_mu(&mut t.transcript(), &mu, f);
+        let foreign = p.foreign_claim(&self.claim, &scale, &mu, f)?;
+        let statement = p.split_statement(self.claim, &scale, &mu, f)?;
+        Ok((mu, SplitOutput { statement, foreign }))
+    }
+}
+#[cfg(any(test, feature = "verifier"))]
+impl<E> SplitClaim<E> {
+    /// Accept `eta`, absorb the proof's split message `mu` on the frontend's
+    /// session, and return both outputs, built from this `eta` and `mu`.
+    pub fn receive<const W: usize, F>(
+        self,
+        t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+        eta: Challenge<Eta<E>>,
+        mu: &E,
+        f: &F,
+    ) -> Result<SplitOutput<E>, String>
+    where
+        F: ZkField<W> + PackingField + BareField<E = E>,
+    {
+        let Eta(scale) = t.accept(eta).map_err(|e| e.to_string())?;
+        let p = t.part().participant;
+        transcript::absorb_mu(&mut t.transcript(), mu, f);
+        let foreign = p.foreign_claim(&self, &scale, mu, f)?;
+        let statement = p.split_statement(self, &scale, mu, f)?;
+        Ok(SplitOutput { statement, foreign })
+    }
+}
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     /// The split message `mu = eta*<w_F, v_F> + R`.
-    pub fn split_message(
+    #[cfg(any(test, feature = "prover"))]
+    fn split_message(
         &self,
         pending: &PendingSplit<F::E>,
         eta: &F::E,

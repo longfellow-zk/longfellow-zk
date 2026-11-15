@@ -6,16 +6,29 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
-        v2::{proto::RoundLabel, transcript::TranscriptRef},
+        v2::{
+            proto::RoundLabel,
+            transcript::{Bound, Challenge, TranscriptRef},
+        },
     },
 };
 
-/// The mixed split's nonzero rescaling challenge.
-pub fn eta<const W: usize, F: RuntimeField<W> + SupportsSampling>(
-    t: &mut TranscriptRef<'_>,
+/// The mixed split's nonzero rescaling challenge `eta`. Only its draw
+/// (`eta`) builds it.
+pub struct Eta<E>(pub(super) E);
+impl<E> Eta<E> {
+    pub fn value(&self) -> &E {
+        &self.0
+    }
+}
+
+/// The mixed split's nonzero rescaling challenge, drawn by the driver after
+/// the split frontend's last message and accepted by the split.
+pub fn eta<const W: usize, F: RuntimeField<W> + SupportsSampling, P: ?Sized>(
+    t: &mut Bound<'_, P>,
     f: &F,
-) -> F::E {
-    t.round(RoundLabel::Rescaling, |mut w| {
+) -> Challenge<Eta<F::E>> {
+    t.challenge(RoundLabel::Rescaling, |mut w| {
         w.write_bytes(b"native-shared-prefix/nonzero-rescaling/v2");
         let mut r = w.begin_squeeze();
         let value = loop {
@@ -24,7 +37,7 @@ pub fn eta<const W: usize, F: RuntimeField<W> + SupportsSampling>(
                 break x;
             }
         };
-        r.end_round(value)
+        r.end_round(Eta(value))
     })
 }
 

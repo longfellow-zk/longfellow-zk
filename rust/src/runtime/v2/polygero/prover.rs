@@ -15,22 +15,25 @@ use crate::runtime::{
             polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment},
             Digest,
         },
-        transcript::{Transcript, TranscriptRef},
+        transcript::{Bound, SessionStamp},
     },
 };
+/// Prover state between the commitment and the opening. It records the
+/// session that received its commitment and opens only on that session.
 pub struct JointPolygeroProver<S> {
+    pub(super) session: SessionStamp,
     pub(super) context: Digest,
     pub(super) states: S,
     pub(super) oracle: ColumnOracle,
-    pub(super) transcript: Transcript,
 }
 impl<S> JointPolygeroProver<S> {
+    /// Commit the witnesses and send the root on `t`'s session.
     pub fn commit<L: Participants<States = S>>(
-        param: &JointPolygeroParam<L>,
+        t: &mut Bound<'_, JointPolygeroParam<L>>,
         witnesses: L::Witnesses,
-        mut t: Transcript,
         rng: &mut impl PrivateRandom,
     ) -> Result<(Self, PolygeroCommitment), PolygeroError> {
+        let param = t.part();
         param.participants.validate_witnesses(&witnesses)?;
         let states = param.participants.encode(witnesses, rng);
         let oracle = ColumnOracle::new(param.config.n, &param.context, rng, |j, h| {
@@ -39,43 +42,38 @@ impl<S> JointPolygeroProver<S> {
         let com = PolygeroCommitment {
             root: oracle.root(),
         };
-        param.receive(&com, &mut t.borrow());
+        param.receive(&com, &mut t.transcript());
         Ok((
             Self {
+                session: t.session(),
                 context: param.context,
                 states,
                 oracle,
-                transcript: t,
             },
             com,
         ))
     }
-    /// Continue the frontend on the session that received this commitment.
-    pub fn transcript(&mut self) -> TranscriptRef<'_> {
-        self.transcript.borrow()
-    }
+    /// Open the commitment on the session that received it.
     pub fn prove<L: Participants<States = S>>(
-        mut self,
-        param: &JointPolygeroParam<L>,
+        self,
+        t: &mut Bound<'_, JointPolygeroParam<L>>,
         s: &L::Statements,
-    ) -> Result<(JointPolygeroProof<L::Bodies>, Transcript), PolygeroError> {
-        let p = param;
+    ) -> Result<JointPolygeroProof<L::Bodies>, PolygeroError> {
+        ensure(self.session == t.session(), "joint prover session mismatch")?;
+        let p = t.part();
         ensure(self.context == p.context, "joint prover parameter mismatch")?;
         p.participants.validate_statements(s)?;
-        let c = p.challenges(s, &mut self.transcript.borrow());
+        let c = p.challenges(s, &mut t.transcript());
         let mut bodies = p.participants.respond(&self.states, s, &c);
         // Challenge polynomials are no longer needed while collecting openings.
         drop(c);
-        let indices = p.queries(&bodies, &mut self.transcript.borrow());
+        let indices = p.queries(&bodies, &mut t.transcript());
         p.participants.gather(&self.states, &mut bodies, &indices);
-        Ok((
-            JointPolygeroProof {
-                context: p.context,
-                bodies,
-                opening: self.oracle.open(&indices),
-            },
-            self.transcript,
-        ))
+        Ok(JointPolygeroProof {
+            context: p.context,
+            bodies,
+            opening: self.oracle.open(&indices),
+        })
     }
 }
 /// Form the masked arithmetic response directly on the first 2k oracle

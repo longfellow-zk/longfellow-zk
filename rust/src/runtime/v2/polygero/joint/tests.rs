@@ -16,15 +16,16 @@ use crate::{
                 prover_commitment::ColumnOracle, JointPolygeroProver, JointPolygeroVerifier,
             },
             proto::polygero::PolygeroCommitment,
+            transcript::Bound,
         },
     },
 };
 
 impl<S> JointPolygeroProver<S> {
-    // Deliberately forged proofs need a matching transcript to exercise the
+    // Deliberately forged proofs need a matching session to exercise the
     // arithmetic checks rather than failing only at commitment authentication.
-    pub(crate) fn replace_transcript_for_test(&mut self, transcript: Transcript) {
-        self.transcript = transcript;
+    pub(crate) fn adopt_session_for_test<P>(&mut self, t: &Bound<'_, P>) {
+        self.session = t.session();
     }
 }
 
@@ -73,12 +74,12 @@ fn field<
     )
 }
 fn roundtrip<L: Participants + Clone>(p: JointPolygeroParam<L>, w: L::Witnesses, s: L::Statements) {
-    let tp = Transcript::new(b"joint/test");
-    let tv = tp.fork_for_test();
-    let (mut prover, root) =
-        JointPolygeroProver::commit(&p, w, tp, &mut DeterministicRng::new(7)).unwrap();
-    assert_eq!(prover.transcript().round_count_for_test(), 0);
-    let (proof, mut tp) = prover.prove(&p, &s).unwrap();
+    let mut tp = Transcript::new(b"joint/test");
+    let mut tv = tp.fork_for_test();
+    let (prover, root) =
+        JointPolygeroProver::commit(&mut tp.bound(&p), w, &mut DeterministicRng::new(7)).unwrap();
+    assert_eq!(tp.round_count_for_test(), 0);
+    let proof = prover.prove(&mut tp.bound(&p), &s).unwrap();
     // All participants share one batching round and one opening round.
     assert_eq!(tp.round_count_for_test(), 2);
     let bytes = p.write(&proof, tp.fork_for_test()).unwrap().into_bytes();
@@ -89,14 +90,15 @@ fn roundtrip<L: Participants + Clone>(p: JointPolygeroParam<L>, w: L::Witnesses,
         p.write(&decoded, tp.fork_for_test()).unwrap().into_bytes(),
         bytes
     );
-    let mut verifier = JointPolygeroVerifier::new(p.clone(), &root, tv);
-    assert_eq!(verifier.transcript().round_count_for_test(), 0);
-    let mut tv = verifier.reduce(&decoded, &s).unwrap();
+    let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&p), &root);
+    assert_eq!(tv.round_count_for_test(), 0);
+    verifier.reduce(&mut tv.bound(&p), &decoded, &s).unwrap();
     assert_eq!(tv.round_count_for_test(), 2);
     assert_eq!(tp.u128(), tv.u128());
     let decoded = p.read(&mut bytes.as_slice()).unwrap();
-    let full = JointPolygeroVerifier::new(p.clone(), &root, Transcript::new(b"joint/test"));
-    full.verify(decoded, &s).unwrap();
+    let mut tf = Transcript::new(b"joint/test");
+    let full = JointPolygeroVerifier::receive(&mut tf.bound(&p), &root);
+    full.verify(tf, &p, decoded, &s).unwrap();
     for len in 0..bytes.len() {
         assert!(p.read(&mut &bytes[..len]).is_err(), "prefix {len}");
     }
@@ -143,14 +145,18 @@ fn joint_authenticates_every_field_response_column_and_opening() {
     let (b, wb, sb) = field(&p, &pd, 5, config());
     let param = JointPolygeroParam::new((a, (b, ()))).unwrap();
     let s = (sa, (sb, ()));
-    let t = Transcript::new(b"joint/tamper");
-    let (prover, root) =
-        JointPolygeroProver::commit(&param, (wa, (wb, ())), t, &mut DeterministicRng::new(9))
-            .unwrap();
-    let (proof, _) = prover.prove(&param, &s).unwrap();
+    let mut t = Transcript::new(b"joint/tamper");
+    let (prover, root) = JointPolygeroProver::commit(
+        &mut t.bound(&param),
+        (wa, (wb, ())),
+        &mut DeterministicRng::new(9),
+    )
+    .unwrap();
+    let proof = prover.prove(&mut t.bound(&param), &s).unwrap();
     let verify = |candidate: &JointPolygeroProof<_>, statements: &_| {
-        let v = JointPolygeroVerifier::new(param.clone(), &root, Transcript::new(b"joint/tamper"));
-        v.reduce(candidate, statements)
+        let mut tv = Transcript::new(b"joint/tamper");
+        let v = JointPolygeroVerifier::receive(&mut tv.bound(&param), &root);
+        v.reduce(&mut tv.bound(&param), candidate, statements)
     };
     verify(&proof, &s).unwrap();
     for part in 0..2 {
@@ -220,12 +226,14 @@ fn joint_authenticates_every_field_response_column_and_opening() {
             param.queries(&bad.bodies, &mut Transcript::new(b"queries").borrow()) != original;
     }
     assert!(changed);
-    let v = JointPolygeroVerifier::new(param.clone(), &root, Transcript::new(b"wrong-session"));
-    assert!(v.reduce(&proof, &s).is_err());
+    let mut wrong = Transcript::new(b"wrong-session");
+    let v = JointPolygeroVerifier::receive(&mut wrong.bound(&param), &root);
+    assert!(v.reduce(&mut wrong.bound(&param), &proof, &s).is_err());
     let mut other = root.clone();
     other.root.data[0] ^= 1;
-    let v = JointPolygeroVerifier::new(param, &other, Transcript::new(b"joint/tamper"));
-    assert!(v.reduce(&proof, &s).is_err());
+    let mut tv = Transcript::new(b"joint/tamper");
+    let v = JointPolygeroVerifier::receive(&mut tv.bound(&param), &other);
+    assert!(v.reduce(&mut tv.bound(&param), &proof, &s).is_err());
 }
 #[test]
 fn invalid_lists_witnesses_and_statements_do_not_sample() {
@@ -236,19 +244,19 @@ fn invalid_lists_witnesses_and_statements_do_not_sample() {
     let (b, _, _) = field(&f, &d, 5, PolygeroConfig { k: 9, ..config() });
     assert!(JointPolygeroParam::new((a.clone(), (b, ()))).is_err());
     let param = JointPolygeroParam::new((a, ())).unwrap();
-    let t = Transcript::new(b"invalid");
+    let mut t = Transcript::new(b"invalid");
     let mut rng = DeterministicRng::new(4);
     let mut before_rng = rng.clone();
     let mut bad = w.clone();
     bad.pop();
-    assert!(JointPolygeroProver::commit(&param, (bad, ()), t, &mut rng).is_err());
+    assert!(JointPolygeroProver::commit(&mut t.bound(&param), (bad, ()), &mut rng).is_err());
     assert_eq!(rng.bytes(32), before_rng.bytes(32));
+    let mut valid = Transcript::new(b"invalid");
     let (prover, _) =
-        JointPolygeroProver::commit(&param, (w, ()), Transcript::new(b"invalid"), &mut rng)
-            .unwrap();
+        JointPolygeroProver::commit(&mut valid.bound(&param), (w, ()), &mut rng).unwrap();
     let mut bad = s;
     bad.a[0].w = usize::MAX;
-    assert!(prover.prove(&param, &(bad, ())).is_err());
+    assert!(prover.prove(&mut valid.bound(&param), &(bad, ())).is_err());
 }
 
 #[test]
@@ -257,9 +265,13 @@ fn forged_linear_witness_is_rejected_even_with_a_genuine_opening() {
     let d = ScalarInterpolatorFactory::new(&f, 128);
     let (a, w, s) = field(&f, &d, 5, config());
     let param = JointPolygeroParam::new((a, ())).unwrap();
-    let t = Transcript::new(b"virtual");
-    let (mut prover, _) =
-        JointPolygeroProver::commit(&param, (w, ()), t, &mut DeterministicRng::new(11)).unwrap();
+    let mut t = Transcript::new(b"virtual");
+    let (mut prover, _) = JointPolygeroProver::commit(
+        &mut t.bound(&param),
+        (w, ()),
+        &mut DeterministicRng::new(11),
+    )
+    .unwrap();
     let g = param.participants.0.param.geom;
     let z = 2; // First ordinary data row; every row is sent and authenticated.
     for x in &mut prover.states.0[z] {
@@ -274,12 +286,18 @@ fn forged_linear_witness_is_rejected_even_with_a_genuine_opening() {
     let root = PolygeroCommitment {
         root: prover.oracle.root(),
     };
-    let mut t = Transcript::new(b"virtual");
-    param.receive(&root, &mut t.borrow());
-    prover.replace_transcript_for_test(t);
-    let (proof, _) = prover.prove(&param, &(s.clone(), ())).unwrap();
-    let v = JointPolygeroVerifier::new(param, &root, Transcript::new(b"virtual"));
-    let error = v.reduce(&proof, &(s, ())).err().unwrap();
+    let mut forged = Transcript::new(b"virtual");
+    param.receive(&root, &mut forged.borrow());
+    prover.adopt_session_for_test(&forged.bound(&param));
+    let proof = prover
+        .prove(&mut forged.bound(&param), &(s.clone(), ()))
+        .unwrap();
+    let mut tv = Transcript::new(b"virtual");
+    let v = JointPolygeroVerifier::receive(&mut tv.bound(&param), &root);
+    let error = v
+        .reduce(&mut tv.bound(&param), &proof, &(s, ()))
+        .err()
+        .unwrap();
     assert_eq!(error.0, "Polygero global arithmetic sum failed");
 }
 
@@ -292,11 +310,14 @@ fn tuple_codec_rejects_noncanonical_field_bytes_and_context_changes() {
     let (a, wa, sa) = field(&f, &d, 17, config());
     let (b, wb, sb) = field(&p, &pd, 5, config());
     let param = JointPolygeroParam::new((a, (b, ()))).unwrap();
-    let t = Transcript::new(b"codec");
-    let (prover, _) =
-        JointPolygeroProver::commit(&param, (wa, (wb, ())), t, &mut DeterministicRng::new(2))
-            .unwrap();
-    let (proof, t) = prover.prove(&param, &(sa, (sb, ()))).unwrap();
+    let mut t = Transcript::new(b"codec");
+    let (prover, _) = JointPolygeroProver::commit(
+        &mut t.bound(&param),
+        (wa, (wb, ())),
+        &mut DeterministicRng::new(2),
+    )
+    .unwrap();
+    let proof = prover.prove(&mut t.bound(&param), &(sa, (sb, ()))).unwrap();
     let bytes = param.write(&proof, t.fork_for_test()).unwrap().into_bytes();
     let mut bad = bytes.clone();
     let first_prime = 36 + proof.bodies.0.payload_bytes(&f);
@@ -336,19 +357,22 @@ fn all_statements_and_responses_precede_joint_sampling() {
     let (b, wb, sb) = field(&p, &pd, 5, config());
     let param = JointPolygeroParam::new((a, (b, ()))).unwrap();
     let s = (sa, (sb, ()));
-    let tp = Transcript::new(b"joint/order");
-    let (mut prover, _root) =
-        JointPolygeroProver::commit(&param, (wa, (wb, ())), tp, &mut DeterministicRng::new(98))
-            .unwrap();
-    let mut manual = prover.transcript().fork_for_test();
+    let mut tp = Transcript::new(b"joint/order");
+    let (prover, _root) = JointPolygeroProver::commit(
+        &mut tp.bound(&param),
+        (wa, (wb, ())),
+        &mut DeterministicRng::new(98),
+    )
+    .unwrap();
+    let mut manual = tp.fork_for_test();
     let first = param.challenges(&s, &mut manual.borrow()).0;
     // A change to the last statement must change the first participant's challenges.
     let mut changed = s.clone();
     changed.1 .0.digest.data[0] ^= 1;
-    let mut changed_ts = prover.transcript().fork_for_test();
+    let mut changed_ts = tp.fork_for_test();
     let changed_challenges = param.challenges(&changed, &mut changed_ts.borrow());
     assert_ne!(first.alpha, changed_challenges.0.alpha);
-    let (proof, mut tp) = prover.prove(&param, &s).unwrap();
+    let proof = prover.prove(&mut tp.bound(&param), &s).unwrap();
     let _indices = param.queries(&proof.bodies, &mut manual.borrow());
     assert_eq!(manual.bytes(32), tp.bytes(32));
 }
@@ -362,35 +386,79 @@ fn participant_order_and_late_errors_are_bound_before_sampling() {
     let forward = JointPolygeroParam::new((a.clone(), (b.clone(), ()))).unwrap();
     let reverse = JointPolygeroParam::new((b, (a, ()))).unwrap();
     assert_ne!(forward.context, reverse.context);
-    let tp = Transcript::new(b"joint/late-error");
+    let mut tp = Transcript::new(b"joint/late-error");
     let mut rng = DeterministicRng::new(99);
     let mut before_rng = rng.clone();
     let mut invalid = wb.clone();
     invalid.pop();
-    assert!(
-        JointPolygeroProver::commit(&forward, (wa.clone(), (invalid, ())), tp, &mut rng).is_err()
-    );
+    assert!(JointPolygeroProver::commit(
+        &mut tp.bound(&forward),
+        (wa.clone(), (invalid, ())),
+        &mut rng
+    )
+    .is_err());
     assert_eq!(rng.bytes(32), before_rng.bytes(32));
+    let mut reversed = Transcript::new(b"joint/late-error");
     let (prover, _) = JointPolygeroProver::commit(
-        &forward,
+        &mut reversed.bound(&forward),
         (wa.clone(), (wb.clone(), ())),
-        Transcript::new(b"joint/late-error"),
         &mut rng,
     )
     .unwrap();
     assert!(prover
-        .prove(&reverse, &(sb.clone(), (sa.clone(), ())))
+        .prove(
+            &mut reversed.bound(&reverse),
+            &(sb.clone(), (sa.clone(), ()))
+        )
         .is_err());
-    let (prover, _) = JointPolygeroProver::commit(
-        &forward,
-        (wa, (wb, ())),
-        Transcript::new(b"joint/late-error"),
-        &mut rng,
-    )
-    .unwrap();
+    let mut late = Transcript::new(b"joint/late-error");
+    let (late_prover, _) =
+        JointPolygeroProver::commit(&mut late.bound(&forward), (wa, (wb, ())), &mut rng).unwrap();
     let mut invalid = sb;
     invalid.a[0].c = invalid.b.len();
-    assert!(prover.prove(&forward, &(sa, (invalid, ()))).is_err());
+    assert!(late_prover
+        .prove(&mut late.bound(&forward), &(sa, (invalid, ())))
+        .is_err());
 }
 
 mod participant;
+
+#[test]
+fn prover_and_verifier_states_complete_only_on_their_own_session() {
+    let f = P256Field::new();
+    let d = ScalarInterpolatorFactory::new(&f, 128);
+    let (a, w, statement) = field(&f, &d, 5, config());
+    let param = JointPolygeroParam::new((a, ())).unwrap();
+    let statements = (statement, ());
+    let commit = |t: &mut Transcript| {
+        JointPolygeroProver::commit(
+            &mut t.bound(&param),
+            (w.clone(), ()),
+            &mut DeterministicRng::new(3),
+        )
+        .unwrap()
+    };
+    // A fork holds the same bytes but is another session.
+    let mut stale = Transcript::new(b"joint/session");
+    let (stale_prover, _) = commit(&mut stale);
+    let mut stale_fork = stale.fork_for_test();
+    let prover_error = stale_prover
+        .prove(&mut stale_fork.bound(&param), &statements)
+        .expect_err("prover state completed on another session");
+    assert_eq!(prover_error.0, "joint prover session mismatch");
+
+    let mut tp = Transcript::new(b"joint/session");
+    let (prover, root) = commit(&mut tp);
+    let proof = prover.prove(&mut tp.bound(&param), &statements).unwrap();
+    let mut tv = Transcript::new(b"joint/session");
+    let wrong = JointPolygeroVerifier::receive(&mut tv.bound(&param), &root);
+    let mut tv_fork = tv.fork_for_test();
+    let verifier_error = wrong
+        .reduce(&mut tv_fork.bound(&param), &proof, &statements)
+        .expect_err("verifier state completed on another session");
+    assert_eq!(verifier_error.0, "joint verifier session mismatch");
+    let mut honest = Transcript::new(b"joint/session");
+    JointPolygeroVerifier::receive(&mut honest.bound(&param), &root)
+        .reduce(&mut honest.bound(&param), &proof, &statements)
+        .unwrap();
+}

@@ -6,13 +6,15 @@ use crate::runtime::{
     v2::{
         polygero::Participants,
         proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-        transcript::{Transcript, TranscriptRef},
+        transcript::{Bound, Transcript, TranscriptRef},
         witness_selection,
     },
 };
 
-/// The underlying backend state is inaccessible to frontend callers.
+/// Owns the session from the commitment through the opening. The underlying
+/// backend state is inaccessible to frontend callers.
 pub struct JointProver<S, C, R> {
+    transcript: Transcript,
     selection: witness_selection::Prover<S, C, R>,
 }
 impl<L: Fields> JointParam<L> {
@@ -39,16 +41,27 @@ impl<L: Fields> JointParam<L> {
     {
         self.fields.absorb_layouts(&mut transcript.borrow());
         let (selection, root, responses) =
-            witness_selection::commit(&self.selection, witnesses, transcript, rng)?;
-        Ok((JointProver { selection }, root, responses))
+            witness_selection::commit(&mut transcript.bound(&self.selection), witnesses, rng)?;
+        Ok((
+            JointProver {
+                transcript,
+                selection,
+            },
+            root,
+            responses,
+        ))
     }
 }
 impl<S, C, R> JointProver<S, C, R> {
     pub fn transcript(&mut self) -> TranscriptRef<'_> {
-        self.selection.transcript()
+        self.transcript.borrow()
+    }
+    /// The owned session, bound to the statement part a frontend reads.
+    pub fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P> {
+        self.transcript.bound(part)
     }
     pub fn prove<L: Fields>(
-        self,
+        mut self,
         param: &JointParam<L>,
         statements: Statements<L>,
     ) -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>
@@ -56,6 +69,9 @@ impl<S, C, R> JointProver<S, C, R> {
         L::Selection: witness_selection::Fields<Coefficients = C, Responses = R>,
         <L::Selection as witness_selection::Fields>::Backend: Participants<States = S>,
     {
-        self.selection.prove(&param.selection, statements)
+        let proof = self
+            .selection
+            .prove(&mut self.transcript.bound(&param.selection), statements)?;
+        Ok((proof, self.transcript))
     }
 }

@@ -6,7 +6,7 @@ use crate::runtime::{
     v2::{
         proto::{composed::ComposedProof, dual_packing::PackingProof, zk::CircuitProof},
         transcript::Transcript,
-        zk::{split, CircuitInput},
+        zk::{self, joint::FrontendPart, split, CircuitInput},
     },
 };
 
@@ -46,37 +46,35 @@ where
         let param = self.param()?;
         let (state_host, w_host) = self.host.prepare(host_private, rng)?;
         let (state_split, w_split) = self.split.prepare_split(split_private, Some(mask), rng)?;
-        let (mut joint, commitment, fingerprints) =
-            param.commit((w_host, (w_split, ())), transcript, rng)?;
-        let mut t = joint.transcript();
-
-        // Split frontend, then the split of its input equation.
-        let (sumcheck, pending) = self.split.prove_split(
-            self.split_circuit,
-            split_public,
-            state_split,
-            &mut t,
-            &self.split_ctx,
-        )?;
-        let eta = split::transcript::eta(&mut t, fs);
-        let mu = self.split.split_message(&pending, &eta, fs)?;
-        split::transcript::absorb_mu(&mut t, &mu, fs);
-        let claim = self.split.foreign_claim(&pending.claim, &eta, &mu, fs)?;
-
-        // Adapter rounds, then the host frontend with the mode's fragment.
-        let values = self.split.foreign_values(&pending)?;
-        let (message, leaves) = self.mode.prove(&claim, &values, &pads, &mut t, fs, fh)?;
-        let (host, statement_host) = self.host.prove(
+        let split_part = FrontendPart::new(&self.split, &[self.split_circuit], split_public)?;
+        let host_part = FrontendPart::new(
+            &self.host,
             &[self.host_circuit, self.mode.fragment()],
             host_public,
+        )?;
+        let (mut joint, commitment, fingerprints) =
+            param.commit((w_host, (w_split, ())), transcript, rng)?;
+
+        // Split frontend, then the split of its input equation.
+        let mut ts = joint.bound(&split_part);
+        let (sumcheck, pending) = zk::prove_split(&mut ts, state_split, &self.split_ctx)?;
+        let values = self.split.foreign_values(&pending)?;
+        let eta = split::transcript::eta(&mut ts, fs);
+        let (mu, split) = pending.open(&mut ts, eta, fs)?;
+
+        // Adapter rounds, then the host frontend with the mode's fragment.
+        let mut ta = joint.bound(&self.mode);
+        let conversion = M::draw_conversion(&mut ta, fs);
+        let (message, leaves) =
+            M::prove(&mut ta, &split.foreign, &values, &pads, conversion, fs, fh)?;
+        let (host, statement_host) = zk::prove(
+            &mut joint.bound(&host_part),
             state_host,
             &leaves,
-            &mut t,
             &self.host_ctx,
         )?;
-        let statement_split = self.split.split_statement(&pending.claim, &eta, &mu, fs)?;
         let (polygero, transcript) =
-            joint.prove(&param, (statement_host, (statement_split, ())))?;
+            joint.prove(&param, (statement_host, (split.statement, ())))?;
         Ok((
             ComposedProof {
                 commitment,

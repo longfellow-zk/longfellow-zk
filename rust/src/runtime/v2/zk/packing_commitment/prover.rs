@@ -13,7 +13,7 @@ use crate::runtime::{
         },
         polygero::LinearStatement,
         proto::Digest,
-        transcript::TranscriptRef,
+        transcript::Bound,
     },
 };
 pub(crate) struct PreparedInputs<E> {
@@ -64,24 +64,23 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
             witness,
         )
     }
+    /// Reduce the input claim on the packing parameters bound to `t`.
     pub(crate) fn prove<const W: usize>(
-        &self,
+        t: &mut Bound<'_, Self>,
         state: PackingState<F::E>,
         statement: CommitmentStatement<F::E>,
         id: &[u8; 32],
-        t: &mut TranscriptRef<'_>,
     ) -> Result<(PackingProof<F::E>, LinearStatement<F::E>), String>
     where
         F: ZkField<W>,
     {
         let (packing, rows) = prove_packed(
-            &self.parameters,
+            &mut t.project(|c| &c.parameters),
             &statement.claim,
             &state.words,
             &state.suffix,
             state.masks,
             id,
-            t,
         )?;
         drop(state.words);
         drop(state.suffix);
@@ -89,7 +88,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         // and packing messages. The circuit ID identifies their source without
         // introducing a query between the frontend and joint batching.
         let digest = Digest { data: *id };
-        let (a, b) = self.append_equations::<W>(statement, &rows)?;
+        let (a, b) = t.part().append_equations::<W>(statement, &rows)?;
         Ok((packing, LinearStatement { a, b, digest }))
     }
 }

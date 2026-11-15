@@ -2,65 +2,71 @@
 use super::*;
 use crate::runtime::v2::{
     polygero::JointPolygeroVerifier,
-    proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-    transcript::{Transcript, TranscriptRef},
+    proto::{
+        polygero::{JointPolygeroProof, PolygeroCommitment},
+        Digest,
+    },
+    transcript::{Bound, SessionStamp},
 };
 
 /// Evidence that the fingerprint and frontend equations were authenticated.
 /// This is not complete-proof verification; the enclosing protocol checks its seal.
 pub struct Authenticated {
-    transcript: Transcript,
-}
-impl Authenticated {
-    /// Release the checked session for the enclosing complete-proof seal.
-    pub fn into_transcript(self) -> Transcript {
-        self.transcript
-    }
+    _private: (),
 }
 
 /// Retains the early fingerprint state while the caller runs the frontend.
-/// The backend owns the session through authentication and frontend reduction.
+/// It records the session that received the commitment and authenticates
+/// only on that session.
 pub struct Verifier<L: Fields> {
-    param: Param<L>,
     backend: JointPolygeroVerifier<L::Backend>,
+    session: SessionStamp,
+    context: Digest,
     coefficients: L::Coefficients,
     responses: L::Responses,
 }
 impl<L: Fields> Verifier<L> {
+    /// Receive the root, draw the coefficients and absorb the responses on
+    /// `t`'s session: the same schedule as `commit`.
     pub fn receive(
-        param: Param<L>,
+        t: &mut Bound<'_, Param<L>>,
         root: &PolygeroCommitment,
         responses: L::Responses,
-        t: Transcript,
     ) -> Self {
-        let mut backend = JointPolygeroVerifier::new(param.backend.clone(), root, t);
-        let coefficients = param.challenges(root, &mut backend.transcript());
-        param.absorb_responses(&responses, &mut backend.transcript());
+        let param = t.part();
+        let backend = JointPolygeroVerifier::receive(&mut t.project(|p| &p.backend), root);
+        let coefficients = param.challenges(root, &mut t.transcript());
+        param.absorb_responses(&responses, &mut t.transcript());
         Self {
-            param,
             backend,
+            session: t.session(),
+            context: param.context(),
             coefficients,
             responses,
         }
-    }
-    pub fn transcript(&mut self) -> TranscriptRef<'_> {
-        self.backend.transcript()
     }
     /// Intermediate authentication only; the enclosing complete verifier must
     /// additionally check its mandatory final transcript seal.
     pub fn authenticate(
         self,
+        t: &mut Bound<'_, Param<L>>,
         proof: &JointPolygeroProof<Bodies<L>>,
         statements: Statements<L>,
     ) -> Result<Authenticated, String> {
+        let param = t.part();
+        if self.session != t.session() {
+            return Err("witness selection session mismatch".into());
+        }
+        if self.context != param.context() {
+            return Err("witness selection parameter mismatch".into());
+        }
         let statements =
-            self.param
+            param
                 .fields
                 .authenticate(statements, self.coefficients, &self.responses)?;
-        let transcript = self
-            .backend
-            .reduce(proof, &statements)
+        self.backend
+            .reduce(&mut t.project(|p| &p.backend), proof, &statements)
             .map_err(|e| e.to_string())?;
-        Ok(Authenticated { transcript })
+        Ok(Authenticated { _private: () })
     }
 }

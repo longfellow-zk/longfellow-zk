@@ -7,7 +7,7 @@ use crate::{
     core::algebra::SerializableField,
     runtime::{
         algebra::packing::{AmbientElement as E, PackingExtension, PackingParameters},
-        v2::transcript::TranscriptRef,
+        v2::transcript::Bound,
     },
 };
 /// Check response shape and traces, replay the challenges, and return the
@@ -15,15 +15,15 @@ use crate::{
 /// `c` must be the claim derived by ZK on this same transcript; `statement`
 /// identifies its source without reabsorbing the derived coefficients.
 pub(in crate::runtime::v2) fn reduce<X: PackingExtension>(
-    p: &PackingParameters<X>,
+    ts: &mut Bound<'_, PackingParameters<X>>,
     c: &SourceClaim<E<X>>,
     proof: &PackingProof<E<X>>,
     statement: &[u8],
-    ts: &mut TranscriptRef<'_>,
 ) -> Result<Vec<FieldEquation<E<X>>>, String>
 where
     X::Ambient: SerializableField,
 {
+    let p = ts.part();
     validate_proof(p, c, proof)?;
     if p.degree() == 1 {
         return reconstruct_validated(p, c, proof, &[]);
@@ -31,8 +31,15 @@ where
     let PackingProof::TraceZero { u, a } = proof else {
         unreachable!()
     };
-    begin(p, statement, c.weights.len(), c.auxiliary_count, ts);
-    let delta = challenges(p, u, ts);
-    finish(p, a, ts);
+    let mut session = ts.transcript();
+    begin(
+        p,
+        statement,
+        c.weights.len(),
+        c.auxiliary_count,
+        &mut session,
+    );
+    let delta = challenges(p, u, &mut session);
+    finish(p, a, &mut session);
     reconstruct_validated(p, c, proof, &delta)
 }

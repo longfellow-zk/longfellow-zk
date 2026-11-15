@@ -10,9 +10,13 @@ impl Transcript {
     pub(crate) fn round_count_for_test(&self) -> u64 {
         self._round_count.0
     }
+    /// A copy of this session's state with a fresh identity: a fork is
+    /// another session, so multi-call states reject it.
     pub(crate) fn fork_for_test(&self) -> Self {
         Self {
             strand: self.strand.clone_for_test(),
+            position: self.position,
+            session: SessionStamp::fresh(),
             _round_count: RoundCount(self._round_count.0),
         }
     }
@@ -28,24 +32,8 @@ impl Transcript {
     }
 }
 impl TranscriptRef<'_> {
-    pub(crate) fn round_count_for_test(&self) -> u64 {
-        self.session._round_count.0
-    }
     pub(crate) fn fork_for_test(&self) -> Transcript {
-        Transcript {
-            strand: self.session.strand.clone_for_test(),
-            _round_count: RoundCount(self.session._round_count.0),
-        }
-    }
-    pub(crate) fn bytes(&mut self, n: usize) -> Vec<u8> {
-        self.round(TEST_ROUND, |w| {
-            let mut reader = w.begin_squeeze();
-            let bytes = reader.bytes(n);
-            reader.end_round(bytes)
-        })
-    }
-    pub(crate) fn u128(&mut self) -> u128 {
-        u128::from_le_bytes(self.bytes(16).try_into().unwrap())
+        self.session.fork_for_test()
     }
 }
 #[test]

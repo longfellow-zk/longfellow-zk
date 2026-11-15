@@ -46,8 +46,8 @@ pub use context::{CircuitInput, InputLayout, VirtualInput, VirtualInputs, ZkCont
 pub(crate) mod constraint_compiler;
 cfg_prover! { mod joint_prover; pub use joint_prover::JointProver; }
 cfg_verifier! { mod joint_verifier; pub use joint_verifier::{Authenticated, JointVerifier}; }
-cfg_prover! { mod prover; pub use prover::{ZkProver, ZkProverCommitment}; }
-cfg_verifier! { mod verifier; pub use verifier::{ZkVerifier,ZkVerificationError}; }
+cfg_prover! { mod prover; pub use prover::{prove, prove_split, ZkProver, ZkProverCommitment}; }
+cfg_verifier! { mod verifier; pub use verifier::{reduce, reduce_split, ZkVerificationError, ZkVerifier}; }
 
 #[cfg(test)]
 mod tests;

@@ -95,6 +95,12 @@ impl Default for Strand {
 }
 
 impl Prf {
+    /// The finalized node's index and digest, for challenge stamps. The
+    /// digest stays inside the transcript module.
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub(super) fn boundary(&self) -> (u64, &[u8; BLOCK_BYTES]) {
+        (self.id, &self.parent)
+    }
     /// Return SHA256(PRF || id || parent || counter), then advance the counter.
     pub fn next_block(&mut self) -> [u8; BLOCK_BYTES] {
         let counter = self.counter;

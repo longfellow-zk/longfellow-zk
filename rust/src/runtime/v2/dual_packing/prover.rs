@@ -7,7 +7,7 @@ use crate::{
     core::algebra::{AlgebraicField, SerializableField},
     runtime::{
         algebra::packing::{AmbientElement as E, PackingExtension, PackingParameters},
-        v2::transcript::TranscriptRef,
+        v2::transcript::Bound,
     },
 };
 impl<E: Clone> PackingMasks<E> {
@@ -36,17 +36,17 @@ impl<E: Clone> PackingMasks<E> {
 /// uses no words. `statement` identifies a claim already determined by the
 /// preceding transcript; both returned rows still require authentication.
 pub(in crate::runtime::v2) fn prove_packed<X: PackingExtension>(
-    p: &PackingParameters<X>,
+    ts: &mut Bound<'_, PackingParameters<X>>,
     c: &SourceClaim<E<X>>,
     words: &[E<X>],
     aux: &[E<X>],
     masks: PackingMasks<E<X>>,
     statement: &[u8],
-    ts: &mut TranscriptRef<'_>,
 ) -> Result<(PackingProof<E<X>>, Vec<FieldEquation<E<X>>>), String>
 where
     X::Ambient: SerializableField,
 {
+    let p = ts.part();
     c.validate()?;
     if (p.degree() > 1 && words.len() != c.weights.len().div_ceil(p.degree()))
         || aux.len() != c.auxiliary_count
@@ -87,13 +87,20 @@ where
         })
         .collect::<Vec<_>>();
     validate_u(p, &u)?;
-    begin(p, statement, c.weights.len(), c.auxiliary_count, ts);
-    let delta = challenges(p, &u, ts);
+    let mut session = ts.transcript();
+    begin(
+        p,
+        statement,
+        c.weights.len(),
+        c.auxiliary_count,
+        &mut session,
+    );
+    let delta = challenges(p, &u, &mut session);
     let mut a = masks.cells[m - 1].clone();
     for (d, mask) in delta.iter().zip(&t) {
         f.add(&mut a, &f.mulf(d, mask));
     }
-    finish(p, &a, ts);
+    finish(p, &a, &mut session);
     let proof = PackingProof::TraceZero { u, a };
     let eq = reconstruct_validated(p, c, &proof, &delta)?;
     Ok((proof, eq))

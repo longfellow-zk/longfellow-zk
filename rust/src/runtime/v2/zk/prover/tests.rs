@@ -34,7 +34,7 @@ use crate::{
             proto::{polygero::PolygeroConfig, Digest},
             zk::{
                 constraint_compiler,
-                joint::{JointParam, SelectedField},
+                joint::{FrontendPart, JointParam, SelectedField},
                 packing_commitment::PackingCommitment,
                 ZkContext,
             },
@@ -144,7 +144,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     {
         let inputs: &[bool] = &[];
         let transcript = Transcript::new(seed);
-        let (mut committed, _) = prover
+        let (committed, _) = prover
             .commit(
                 witness.to_vec(),
                 &context,
@@ -152,20 +152,11 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
                 &mut DeterministicRng::new(42),
             )
             .unwrap();
-        let mut transcript = committed.joint.transcript();
-        let mut unchanged = transcript.fork_for_test();
+        // No frontend part, and so no transcript use, for the wrong inputs.
         assert!(matches!(
-            committed.participant.prove(
-                &[&prover.circuit],
-                inputs,
-                committed.state,
-                &VirtualInputs::none(),
-                &mut transcript,
-                &context
-            ),
+            FrontendPart::new(&committed.participant, &[&prover.circuit], inputs),
             Err(error) if error == "public inputs length mismatch"
         ));
-        assert_eq!(transcript.bytes(32), unchanged.bytes(32));
     }
 
     let actual_ts = Transcript::new(seed);
@@ -278,25 +269,21 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     assert_eq!(source.b, verifier_source.b);
     let verifier_backend = PackingCommitment::new(f.clone(), layout, Binary128Extension).unwrap();
     let commitment = reference.commitment.clone();
-    let (packing, native) = reference
-        .participant
-        .backend
-        .prove::<2>(
-            reference.state.packing,
-            source,
-            &prover.circuit.id,
-            &mut numerical,
-        )
-        .unwrap();
+    let (packing, native) = PackingCommitment::prove::<2>(
+        &mut reference.joint.bound(&reference.participant.backend),
+        reference.state.packing,
+        source,
+        &prover.circuit.id,
+    )
+    .unwrap();
     let joint =
         JointParam::new((reference.participant.participant(&context).unwrap(), ())).unwrap();
     let (com_proof, mut numerical) = reference.joint.prove(&joint, (native, ())).unwrap();
     let rows = reduce(
-        &verifier_backend.parameters,
+        &mut independent_verifier.bound(&verifier_backend.parameters),
         &verifier_source.claim,
         &packing,
         &prover.circuit.id,
-        &mut independent,
     )
     .unwrap();
     let verifier_statement = Digest {

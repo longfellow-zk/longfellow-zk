@@ -12,7 +12,7 @@ use crate::{
             RuntimeField, SupportsSampling,
         },
         random::{DeterministicRng, RandomEngine},
-        v2::transcript::{Transcript, TranscriptRef},
+        v2::transcript::Transcript,
     },
 };
 
@@ -82,7 +82,7 @@ fn prove<X: PackingExtension>(
     aux: &[AmbientElement<X>],
     masks: PackingMasks<AmbientElement<X>>,
     statement: &[u8],
-    ts: &mut TranscriptRef<'_>,
+    ts: &mut Transcript,
 ) -> Result<
     (
         PackingProof<AmbientElement<X>>,
@@ -97,10 +97,10 @@ where
         return Err("packing witness shape".into());
     }
     if p.degree() == 1 {
-        return prove_packed(p, c, &[], aux, masks, statement, ts);
+        return prove_packed(&mut ts.bound(p), c, &[], aux, masks, statement);
     }
     let words = p.pack(values)?;
-    prove_packed(p, c, &words, aux, masks, statement, ts)
+    prove_packed(&mut ts.bound(p), c, &words, aux, masks, statement)
 }
 
 #[derive(Clone, Copy)]
@@ -346,11 +346,11 @@ fn roundtrip<X: PackingExtension>(
         &aux,
         masks,
         b"commitment context",
-        &mut tp.borrow(),
+        &mut tp,
     )
     .unwrap();
     assert_eq!(
-        reduce(p, &claim, &proof, b"commitment context", &mut tv.borrow()).unwrap(),
+        reduce(&mut tv.bound(p), &claim, &proof, b"commitment context").unwrap(),
         rows
     );
     assert_eq!(tp.u128(), tv.u128());
@@ -364,19 +364,17 @@ fn roundtrip<X: PackingExtension>(
     if let PackingProof::TraceZero { u, .. } = &mut bad {
         u.pop();
         assert!(reduce(
-            p,
+            &mut Transcript::new(b"generic/test").bound(p),
             &claim,
             &bad,
             b"commitment context",
-            &mut Transcript::new(b"generic/test").borrow()
         )
         .is_err());
         let different = reduce(
-            p,
+            &mut Transcript::new(b"generic/test").bound(p),
             &claim,
             &proof,
             b"other context",
-            &mut Transcript::new(b"generic/test").borrow(),
         )
         .unwrap();
         assert_ne!(rows, different);
@@ -430,8 +428,7 @@ fn identity_has_no_masks_messages_or_challenges() {
     };
     let mut ts = Transcript::new(b"identity");
     let mut before = ts.fork_for_test();
-    let (proof, rows) =
-        prove(&p, &c, &[1, 4, 2], &[], masks, b"ignored", &mut ts.borrow()).unwrap();
+    let (proof, rows) = prove(&p, &c, &[1, 4, 2], &[], masks, b"ignored", &mut ts).unwrap();
     assert_eq!(proof, PackingProof::Direct);
     assert_eq!(rows.len(), 1);
     assert_eq!(ts.u128(), before.u128());
@@ -452,7 +449,7 @@ fn identity_has_no_masks_messages_or_challenges() {
     let mut verifier = Transcript::new(b"identity");
     let mut unchanged = verifier.fork_for_test();
     assert_eq!(
-        reduce(&p, &c, &proof, b"ignored", &mut verifier.borrow()).unwrap(),
+        reduce(&mut verifier.bound(&p), &c, &proof, b"ignored").unwrap(),
         rows
     );
     assert_eq!(verifier.u128(), unchanged.u128());
@@ -620,11 +617,11 @@ fn authenticate<const W: usize, X: PackingExtension, D: EvaluationDomain<W, X::A
     .unwrap();
     let param =
         JointPolygeroParam::new((Participant::new(field_param, domain).unwrap(), ())).unwrap();
-    let initial_prover = Transcript::new(b"generic/backend");
-    let initial_verifier = initial_prover.fork_for_test();
-    let (mut prover, root) =
-        JointPolygeroProver::commit(&param, (witness, ()), initial_prover, &mut rng).unwrap();
-    let mut verifier = JointPolygeroVerifier::new(param.clone(), &root, initial_verifier);
+    let mut tp = Transcript::new(b"generic/backend");
+    let mut tv = tp.fork_for_test();
+    let (prover, root) =
+        JointPolygeroProver::commit(&mut tp.bound(&param), (witness, ()), &mut rng).unwrap();
+    let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&param), &root);
     let weights = (0..values.len())
         .map(|_| rng.elt_field(f))
         .collect::<Vec<_>>();
@@ -641,25 +638,10 @@ fn authenticate<const W: usize, X: PackingExtension, D: EvaluationDomain<W, X::A
         },
         auxiliary_count: 1,
     };
-    let (proof, equations) = prove(
-        p,
-        &claim,
-        values,
-        &aux,
-        masks,
-        &root.root.data,
-        &mut prover.transcript(),
-    )
-    .unwrap();
+    let (proof, equations) =
+        prove(p, &claim, values, &aux, masks, &root.root.data, &mut tp).unwrap();
     assert_eq!(
-        reduce(
-            p,
-            &claim,
-            &proof,
-            &root.root.data,
-            &mut verifier.transcript()
-        )
-        .unwrap(),
+        reduce(&mut tv.bound(p), &claim, &proof, &root.root.data).unwrap(),
         equations
     );
     let mut terms = Vec::new();
@@ -687,9 +669,9 @@ fn authenticate<const W: usize, X: PackingExtension, D: EvaluationDomain<W, X::A
         .map(|e| e.constant.clone())
         .collect::<Vec<_>>();
     let statement = Digest {
-        data: prover.transcript().bytes(32).try_into().unwrap(),
+        data: tp.bytes(32).try_into().unwrap(),
     };
-    assert_eq!(statement.data, verifier.transcript().bytes(32).as_slice());
+    assert_eq!(statement.data, tv.bytes(32).as_slice());
     let statements = (
         LinearStatement {
             a: terms,
@@ -698,8 +680,10 @@ fn authenticate<const W: usize, X: PackingExtension, D: EvaluationDomain<W, X::A
         },
         (),
     );
-    let (backend, mut tp) = prover.prove(&param, &statements).unwrap();
-    let mut tv = verifier.reduce(&backend, &statements).unwrap();
+    let backend = prover.prove(&mut tp.bound(&param), &statements).unwrap();
+    verifier
+        .reduce(&mut tv.bound(&param), &backend, &statements)
+        .unwrap();
     assert_eq!(tp.bytes(32), tv.bytes(32));
 }
 #[test]

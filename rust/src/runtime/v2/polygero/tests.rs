@@ -203,10 +203,11 @@ fn exercise<
         let vp = PolygeroParam::try_new(nw, config, d).unwrap();
         assert_eq!(vp.oracle_range(), k..k + config.n);
         let joint = JointPolygeroParam::new((Participant::new(p, d).unwrap(), ())).unwrap();
-        let ts = Transcript::new(b"polygero/test");
+        let mut ts = Transcript::new(b"polygero/test");
         let before = ts.fork_for_test();
         let (prover, com) =
-            JointPolygeroProver::commit(&joint, (witness.clone(), ()), ts, &mut rng).unwrap();
+            JointPolygeroProver::commit(&mut ts.bound(&joint), (witness.clone(), ()), &mut rng)
+                .unwrap();
         let mut a = Vec::new();
         let mut b = vec![f.zero(); 3];
         for (w, value) in witness.iter().enumerate() {
@@ -224,12 +225,21 @@ fn exercise<
             // A well-formed but unsatisfied statement is rejected by the verifier.
             let mut false_targets = b.clone();
             f.add(&mut false_targets[2], &f.one());
-            let (false_proof, _) = reference::snapshot(&prover)
-                .prove(&joint, &(linear(&a, &false_targets, statement), ()))
+            let (copy, mut copy_ts) = reference::snapshot(&prover, &ts);
+            let false_proof = copy
+                .prove(
+                    &mut copy_ts.bound(&joint),
+                    &(linear(&a, &false_targets, statement), ()),
+                )
                 .unwrap();
-            let verifier = JointPolygeroVerifier::new(joint.clone(), &com, before.fork_for_test());
+            let mut tv = before.fork_for_test();
+            let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&joint), &com);
             let error = verifier
-                .reduce(&false_proof, &(linear(&a, &false_targets, statement), ()))
+                .reduce(
+                    &mut tv.bound(&joint),
+                    &false_proof,
+                    &(linear(&a, &false_targets, statement), ()),
+                )
                 .err()
                 .unwrap();
             assert_eq!(error.0, "Polygero global arithmetic sum failed");
@@ -237,8 +247,12 @@ fn exercise<
         // Invalid indices cannot produce a completed proving session.
         for (c, w) in [(b.len(), 0), (0, nw), (usize::MAX, 0), (0, usize::MAX)] {
             let invalid = [PolygeroLinearTerm { c, w, k: f.one() }];
-            let error = reference::snapshot(&prover)
-                .prove(&joint, &(linear(&invalid, &b, statement), ()))
+            let (copy, mut copy_ts) = reference::snapshot(&prover, &ts);
+            let error = copy
+                .prove(
+                    &mut copy_ts.bound(&joint),
+                    &(linear(&invalid, &b, statement), ()),
+                )
                 .err()
                 .unwrap();
             assert_eq!(error.0, "linear constraint index out of bounds");
@@ -247,11 +261,14 @@ fn exercise<
             inner: d,
             calls: std::cell::RefCell::default(),
         };
-        let reference = reference::snapshot(&prover);
+        let (reference, reference_ts) = reference::snapshot(&prover, &ts);
         let counted_param =
             JointPolygeroParam::new((Participant::new(vp.clone(), &counted).unwrap(), ())).unwrap();
-        let (proof, ts) = prover
-            .prove(&counted_param, &(linear(&a, &b, statement), ()))
+        let proof = prover
+            .prove(
+                &mut ts.bound(&counted_param),
+                &(linear(&a, &b, statement), ()),
+            )
             .unwrap();
         // Public V/z_R evaluations and the two response plans are built once,
         // independently of the number of rows.
@@ -266,19 +283,25 @@ fn exercise<
         );
         // Construction binds the root once. A different root or session cannot
         // authenticate an otherwise valid proof.
-        let wrong_session = JointPolygeroVerifier::new(
-            joint.clone(),
-            &com,
-            Transcript::new(b"polygero/other-session"),
-        );
+        let mut other_ts = Transcript::new(b"polygero/other-session");
+        let wrong_session = JointPolygeroVerifier::receive(&mut other_ts.bound(&joint), &com);
         assert!(wrong_session
-            .reduce(&proof, &(linear(&a, &b, statement), ()))
+            .reduce(
+                &mut other_ts.bound(&joint),
+                &proof,
+                &(linear(&a, &b, statement), ())
+            )
             .is_err());
         let mut other = com.clone();
         other.root.data[0] ^= 1;
-        let wrong_root = JointPolygeroVerifier::new(joint.clone(), &other, before.fork_for_test());
+        let mut tv = before.fork_for_test();
+        let wrong_root = JointPolygeroVerifier::receive(&mut tv.bound(&joint), &other);
         assert!(wrong_root
-            .reduce(&proof, &(linear(&a, &b, statement), ()))
+            .reduce(
+                &mut tv.bound(&joint),
+                &proof,
+                &(linear(&a, &b, statement), ())
+            )
             .is_err());
 
         if nw != 0 {
@@ -302,12 +325,13 @@ fn exercise<
             let verifier_param =
                 JointPolygeroParam::new((Participant::new(verifier_param, d).unwrap(), ()))
                     .unwrap();
-            let v = JointPolygeroVerifier::new(
-                verifier_param,
-                commitment,
-                Transcript::new(b"polygero/test"),
-            );
-            v.reduce(candidate, &(linear(constraints, targets, *hash), ()))
+            let mut t = Transcript::new(b"polygero/test");
+            let v = JointPolygeroVerifier::receive(&mut t.bound(&verifier_param), commitment);
+            v.reduce(
+                &mut t.bound(&verifier_param),
+                candidate,
+                &(linear(constraints, targets, *hash), ()),
+            )
         };
         verify(&proof, &b, &a, &com, &statement).unwrap();
 
@@ -323,8 +347,12 @@ fn exercise<
             });
         }
         verify(&proof, &b, &reordered, &com, &statement).unwrap();
-        let (reordered_proof, mut reordered_ts) = reference::snapshot(&reference)
-            .prove(&joint, &(linear(&reordered, &b, statement), ()))
+        let (copy, mut reordered_ts) = reference::snapshot(&reference, &reference_ts);
+        let reordered_proof = copy
+            .prove(
+                &mut reordered_ts.bound(&joint),
+                &(linear(&reordered, &b, statement), ()),
+            )
             .unwrap();
         assert_eq!(reordered_proof, proof);
         assert_eq!(reordered_ts.bytes(32), ts.fork_for_test().bytes(32));
@@ -439,13 +467,10 @@ fn exercise<
             bad[bytes.len() - 1] ^= 1;
             let result = joint.read(&mut bad.as_slice());
             if let Ok(decoded_bad) = result {
-                let v = JointPolygeroVerifier::new(
-                    joint.clone(),
-                    &com,
-                    Transcript::new(b"polygero/test"),
-                );
+                let mut t = Transcript::new(b"polygero/test");
+                let v = JointPolygeroVerifier::receive(&mut t.bound(&joint), &com);
                 assert!(v
-                    .verify(decoded_bad, &(linear(&a, &b, statement), ()))
+                    .verify(t, &joint, decoded_bad, &(linear(&a, &b, statement), ()))
                     .is_err());
             }
             if !f.is_binary() {
@@ -658,19 +683,23 @@ fn binary_profile_fits_exact_original_point_table() {
     assert_eq!(param.oracle_range().end, 256);
     let joint =
         JointPolygeroParam::new((Participant::new(param.clone(), &domain).unwrap(), ())).unwrap();
-    let ts = Transcript::new(b"polygero/tight-table");
+    let mut ts = Transcript::new(b"polygero/tight-table");
     let before = ts.fork_for_test();
     let (prover, commitment) =
-        JointPolygeroProver::commit(&joint, (witness.clone(), ()), ts, &mut rng).unwrap();
+        JointPolygeroProver::commit(&mut ts.bound(&joint), (witness.clone(), ()), &mut rng)
+            .unwrap();
     let constraints = [PolygeroLinearTerm {
         c: 0,
         w: 2,
         k: f.one(),
     }];
     let b = [f.neg(&witness[2])];
-    let reference = reference::snapshot(&prover);
-    let (proof, _) = prover
-        .prove(&joint, &(linear(&constraints, &b, statement), ()))
+    let (reference, _) = reference::snapshot(&prover, &ts);
+    let proof = prover
+        .prove(
+            &mut ts.bound(&joint),
+            &(linear(&constraints, &b, statement), ()),
+        )
         .unwrap();
     reference::check(
         &joint,
@@ -683,10 +712,14 @@ fn binary_profile_fits_exact_original_point_table() {
         &domain,
         &f,
     );
-    let verifier =
-        JointPolygeroVerifier::new(joint, &commitment, Transcript::new(b"polygero/tight-table"));
+    let mut tv = Transcript::new(b"polygero/tight-table");
+    let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&joint), &commitment);
     verifier
-        .reduce(&proof, &(linear(&constraints, &b, statement), ()))
+        .reduce(
+            &mut tv.bound(&joint),
+            &proof,
+            &(linear(&constraints, &b, statement), ()),
+        )
         .unwrap();
 }
 
@@ -730,20 +763,24 @@ fn standalone_statement_owns_its_source_digest() {
     let altered = LinearStatement::new(statement.terms().to_vec(), vec![f.zero()], &f);
     assert_ne!(statement.digest(), altered.digest());
     let seed = b"static-linear-source";
+    let mut tp = Transcript::new(seed);
     let (prover, root) = JointPolygeroProver::commit(
-        &param,
+        &mut tp.bound(&param),
         (vec![f.one()], ()),
-        Transcript::new(seed),
         &mut DeterministicRng::new(42),
     )
     .unwrap();
-    let (proof, _) = prover.prove(&param, &(statement.clone(), ())).unwrap();
-    JointPolygeroVerifier::new(param.clone(), &root, Transcript::new(seed))
-        .reduce(&proof, &(statement, ()))
+    let proof = prover
+        .prove(&mut tp.bound(&param), &(statement.clone(), ()))
         .unwrap();
-    assert!(
-        JointPolygeroVerifier::new(param, &root, Transcript::new(seed))
-            .reduce(&proof, &(altered, ()))
-            .is_err()
-    );
+    let verify = |s| {
+        let mut tv = Transcript::new(seed);
+        JointPolygeroVerifier::receive(&mut tv.bound(&param), &root).reduce(
+            &mut tv.bound(&param),
+            &proof,
+            &(s, ()),
+        )
+    };
+    verify(statement).unwrap();
+    assert!(verify(altered).is_err());
 }

@@ -9,7 +9,7 @@ use crate::runtime::{
             witness_selection::{FingerprintResponse, FINGERPRINTS},
             Digest,
         },
-        transcript::{Transcript, TranscriptRef},
+        transcript::{Bound, SessionStamp},
     },
 };
 
@@ -75,16 +75,19 @@ impl<
 
 /// The backend handle is private: completing this protocol always appends its
 /// affine equations, so callers cannot forget to authenticate the fingerprints.
+/// It records the session it committed on and completes only on that session.
 pub struct Prover<S, C, R> {
     backend: JointPolygeroProver<S>,
+    session: SessionStamp,
     context: Digest,
     coefficients: C,
     responses: R,
 }
+/// Commit, draw the fingerprint coefficients and send the responses, all on
+/// `t`'s session, before any frontend challenge.
 pub fn commit<L: ProverFields>(
-    param: &Param<L>,
+    t: &mut Bound<'_, Param<L>>,
     mut witnesses: Witnesses<L>,
-    t: Transcript,
     rng: &mut impl PrivateRandom,
 ) -> Result<
     (
@@ -97,19 +100,21 @@ pub fn commit<L: ProverFields>(
 where
     Witnesses<L>: Clone,
 {
+    let param = t.part();
     param.fields.validate_witnesses(&witnesses)?;
     param.fields.append_masks(&mut witnesses, rng);
     // Retain the original cells only through this early exchange. The backend
     // consumes its copy while encoding; no raw witness is retained by Prover.
-    let (mut backend, root) =
-        JointPolygeroProver::commit(&param.backend, witnesses.clone(), t, rng)
+    let (backend, root) =
+        JointPolygeroProver::commit(&mut t.project(|p| &p.backend), witnesses.clone(), rng)
             .map_err(|e| e.to_string())?;
-    let coefficients = param.challenges(&root, &mut backend.transcript());
+    let coefficients = param.challenges(&root, &mut t.transcript());
     let responses = param.fields.responses(&witnesses, &coefficients);
-    param.absorb_responses(&responses, &mut backend.transcript());
+    param.absorb_responses(&responses, &mut t.transcript());
     Ok((
         Prover {
             backend,
+            session: t.session(),
             context: param.context(),
             coefficients,
             responses: responses.clone(),
@@ -119,17 +124,18 @@ where
     ))
 }
 impl<S, C, R> Prover<S, C, R> {
-    pub fn transcript(&mut self) -> TranscriptRef<'_> {
-        self.backend.transcript()
-    }
     pub fn prove<L: Fields<Coefficients = C, Responses = R>>(
         self,
-        param: &Param<L>,
+        t: &mut Bound<'_, Param<L>>,
         statements: Statements<L>,
-    ) -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>
+    ) -> Result<JointPolygeroProof<Bodies<L>>, String>
     where
         L::Backend: BackendParticipants<States = S>,
     {
+        let param = t.part();
+        if self.session != t.session() {
+            return Err("witness selection session mismatch".into());
+        }
         if self.context != param.context() {
             return Err("witness selection parameter mismatch".into());
         }
@@ -138,7 +144,7 @@ impl<S, C, R> Prover<S, C, R> {
                 .fields
                 .authenticate(statements, self.coefficients, &self.responses)?;
         self.backend
-            .prove(&param.backend, &statements)
+            .prove(&mut t.project(|p| &p.backend), &statements)
             .map_err(|e| e.to_string())
     }
 }
