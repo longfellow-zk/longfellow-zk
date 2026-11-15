@@ -84,6 +84,13 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         // The transcript already holds the statement and the sumcheck and
         // packing messages these rows derive from.
         let (a, b) = t.part().append_equations::<W>(statement, &rows)?;
-        Ok((packing, LinearStatement { a, b }))
+        Ok((
+            packing,
+            LinearStatement {
+                a,
+                b,
+                session: t.session(),
+            },
+        ))
     }
 }

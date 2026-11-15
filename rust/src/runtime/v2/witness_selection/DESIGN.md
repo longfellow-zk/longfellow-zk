@@ -117,20 +117,22 @@ role-trace test and `check_mdoc_round_shapes` (transcript I9); test
 
 **I5. Completion always appends the fingerprint equations.** The joint
 Polygero prover and verifier handles are private fields of the witness
-selection states. The only way to reach `JointPolygeroProver::prove` or
-`JointPolygeroVerifier::reduce` is `Prover::prove` or
-`Verifier::authenticate`, and both append the rows before calling the
-backend. The Polygero batching weights they forward are drawn by
-`Param::weights` (through `JointProver::weights` and
-`JointVerifier::weights`), which sizes each field's weights for
-`e_i + FINGERPRINTS` equations, so the weights cover the fingerprint rows
-too. The weights carry the frontend statements they were drawn for, and
-`prove` and `authenticate` append the rows to those statements
-(`Batched::try_map_statements`), taking no other system.
-*Enforced by:* private fields and move-only states (type); Polygero rejects
-batching weights that do not fit the augmented statements
-(`Participants::validate_challenges`, runtime, both roles); `Authenticated` is
-constructible only by `Verifier::authenticate` (type); test
+selection states, with the coefficients and responses of the commitment. The
+only way to reach `JointPolygeroProver::prove` or
+`JointPolygeroVerifier::reduce` is the crate-private `Prover::finish` or
+`Verifier::finish`, which the zk layer's `JointProver::finish` and
+`JointVerifier::finish` call with the frontend equations of every field. Both
+first reject equations derived on another session (each statement's stamp,
+compared by address), then append each field's fingerprint rows after its
+frontend equations (`Fields::authenticate`), and only then hand the
+augmented system to the backend, which draws the batching weights for its
+`e_i + FINGERPRINTS` equations per field and uses them in the same call
+(Polygero I3). No caller can skip the rows or batch a system without them.
+*Enforced by:* private fields and move-only states, and the completion that
+appends the rows is the only path to the backend (type); the stamp check
+(runtime, both roles; test
+`finish_rejects_equations_derived_on_another_session`); `Authenticated` is
+constructible only by `Verifier::finish` (type); test
 `joint_roundtrip_and_each_forged_response_are_checked_by_backend`.
 
 **I6. One equation form, shared by both roles.** For field `i` with frontend
@@ -152,7 +154,7 @@ coefficient 1.
 lemma `WitnessSelection.maskTranslation` (Lean).
 
 **I8. A state finishes once, on its own transcript.** `Prover` and
-`Verifier` are not `Clone`; `prove` and `authenticate` consume them, with
+`Verifier` are not `Clone`; their `finish` consumes them, with
 their coefficients and responses. Each state records the session stamp when
 `commit` or `receive` creates it and checks it on the completion call, so it
 cannot be completed on another transcript (transcript I2). The joint Polygero
@@ -186,15 +188,16 @@ Completion runs after every frontend message:
 
 | Step | Sender | Message or draw | Values |
 |---|---|---|---|
-| 4 | caller | Polygero batching weights (*input*), `Param::weights` | per field: `e_i + 2` weights, then `s + 1` samples per batched row |
-| 5 | both roles | append the fingerprint rows (I6); no message | |
+| 4 | both roles | check the equations' session stamps, then append the fingerprint rows (I5, I6); no message | |
+| 5 | joint Polygero | batching weights, drawn and used inside `prove`/`reduce` | per field: `e_i + 2` weights, then `s + 1` samples per batched row |
 | 6 | prover | `PolygeroResponse` (96), one per field, sent by joint Polygero | Elements(`F_i`, k+s), Elements(`F_i`, 2k) |
 
 Witness selection sends and draws nothing in steps 4 to 6 itself; it appends
-the rows to the statements the weights carry and hands both to joint
-Polygero, which accepts them (stamp check, transcript I8) and begins by
-sending `PolygeroResponse`. Appending the rows writes nothing to the
-transcript, so the stamp stays valid.
+the rows to the frontend equations and hands the augmented system to joint
+Polygero, which draws its batching weights at the boundary after the last
+frontend message and begins by sending `PolygeroResponse`. Appending the rows
+writes nothing to the transcript, so the draw position is the one the
+frontends leave.
 
 The prover's responses are `t_ij = m_ij + <a_ij, w_i>` (`ProverFields::responses`,
 one `blas::dot` of length `n_i` per response). Its cost is `2 n_i`
@@ -205,7 +208,7 @@ Verifier checks:
 | When | Check | Where |
 |---|---|---|
 | Proof parse | exactly 2 canonical elements of `F_i` per field | `FingerprintResponse::read` |
-| After the frontends | each frontend term has `w < n_i` and `c < e_i` | `Fields::authenticate` |
+| After the frontends | each field's equations carry this session's stamp; each frontend term has `w < n_i` and `c < e_i` | `Fields::authenticate` |
 | After the frontends | the augmented system holds for the committed rows | `JointPolygeroVerifier::reduce` |
 
 The early responses are not checked arithmetically. They fix the targets;
@@ -287,23 +290,20 @@ pub trait Fields: Sealed + Clone {
     fn backend(&self) -> Self::Backend;
     fn coefficients(&self, r: &mut Reading<'_>) -> Self::Coefficients;                 // I3
     fn send_responses(&self, responses: &Self::Responses, t: &mut TranscriptRef<'_>);  // I4
+    // called only by Prover::finish and Verifier::finish
     fn authenticate(&self, statements: Statements<Self>, coefficients: Self::Coefficients,
-                    responses: &Self::Responses) -> Result<Statements<Self>, String>;  // I1, I6
+                    responses: &Self::Responses, session: &SessionStamp)
+        -> Result<Statements<Self>, String>;                                         // I1, I5, I6
 }
 pub type Witnesses<L>  = <<L as Fields>::Backend as Participants>::Witnesses;
 pub type Statements<L> = <<L as Fields>::Backend as Participants>::Statements;
 pub type Bodies<L>     = <<L as Fields>::Backend as Participants>::Bodies;
-pub type Batched<L>    = polygero::Batched<<L as Fields>::Backend>;   // weights and statements
 
 /// Statement part: the field list and the joint Polygero parameter.
 pub struct Param<L: Fields> { fields: L, backend: JointPolygeroParam<L::Backend> }
 impl<L: Fields> Param<L> {
     pub(crate) fn new(fields: L) -> Result<Self, String>;  // only zk's JointParam::new builds one
     pub fn config(&self) -> PolygeroConfig;
-    /// Batching weights for the augmented system: e_i + FINGERPRINTS per field,
-    /// carrying the frontend statements `s`. The caller draws them after the
-    /// last frontend message.
-    pub fn weights(t: &mut Bound<'_, Self>, s: Statements<L>) -> Challenge<Batched<L>>;
 }
 
 // prover role
@@ -314,8 +314,9 @@ pub fn commit<L: ProverFields>(
     t: &mut Bound<'_, Param<L>>, witnesses: Witnesses<L>, rng: &mut impl PrivateRandom,
 ) -> Result<(Prover<..>, PolygeroCommitment, L::Responses), String>;  // sends Commitment, draws, sends responses
 impl<S, C, R> Prover<S, C, R> {
-    pub fn prove<L: Fields<Coefficients = C, Responses = R>>(
-        self, t: &mut Bound<'_, Param<L>>, batch: Challenge<Batched<L>>,
+    // JointProver::finish only: stamps, fingerprint rows, then the backend's prove
+    pub(crate) fn finish<L: Fields<Coefficients = C, Responses = R>>(
+        self, t: &mut Bound<'_, Param<L>>, statements: Statements<L>,
     ) -> Result<JointPolygeroProof<Bodies<L>>, String>;            // I5, I8
 }
 
@@ -325,11 +326,12 @@ pub struct Verifier<L: Fields> { backend: JointPolygeroVerifier<L::Backend>, ses
 impl<L: Fields> Verifier<L> {
     pub fn receive(t: &mut Bound<'_, Param<L>>, root: &PolygeroCommitment,
                    responses: L::Responses) -> Self;                 // same schedule as commit (I3, I4)
-    pub fn authenticate(self, t: &mut Bound<'_, Param<L>>, batch: Challenge<Batched<L>>,
-                        proof: &JointPolygeroProof<Bodies<L>>)
+    // JointVerifier::finish only: stamps, fingerprint rows, then the backend's reduce
+    pub(crate) fn finish(self, t: &mut Bound<'_, Param<L>>, statements: Statements<L>,
+                         proof: &JointPolygeroProof<Bodies<L>>)
         -> Result<Authenticated, String>;                                // I5, I8
 }
-pub struct Authenticated { .. }      // only from authenticate; not a VerifiedProof
+pub struct Authenticated { .. }      // only from finish; not a VerifiedProof
 ```
 
 How the API carries the invariants:
@@ -354,7 +356,8 @@ How the API carries the invariants:
 | A frontend term names an equation it did not create | I1: `authenticate` rejects `c >= b.len()` |
 | Fingerprinting only the private inputs, not pads, packing masks or R | Statement: `n_i` is every frontend cell (Lean `FingerprintRows.rows_realized`) |
 | Completing Polygero without the fingerprint rows | I5: the backend handle is private |
-| Batching weights sized for the frontend equations only | I5: `Param::weights` adds `FINGERPRINTS` per field; Polygero checks the count |
+| Batching weights sized for the frontend equations only | I5: the rows are appended before the backend draws its weights, for the augmented counts |
+| Equations derived on another session reaching the opening | I5: `authenticate` compares each statement's session stamp with the state's |
 | Drawing coefficients before the commitment is fixed | I3: the draws follow the `Commitment` message in `commit`/`receive` |
 | Drawing a frontend challenge before the responses are sent | I4: the transcript is held by `commit`/`receive` until every response is sent; transcript I8 |
 | Choosing a response after a frontend challenge | I4: responses are in the node closed by the first frontend draw |

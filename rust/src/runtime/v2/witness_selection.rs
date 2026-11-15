@@ -4,8 +4,10 @@
 //! Each field appends two fresh private masks to its original witness, commits,
 //! and samples two independent full coefficient vectors. All fields sample in
 //! one reading phase; all responses are bound before the caller runs sumcheck.
-//! The opaque role states retain the backend handles and automatically attach
-//! the fingerprint equations when authenticating the later frontend statements.
+//! The opaque role states retain the backend handles and the commitment's
+//! coefficients and responses; completing the opening (`finish`) attaches the
+//! fingerprint equations to the later frontend statements before the
+//! backend draws its batching weights.
 //! The early responses fix targets; only the final backend check authenticates
 //! them. Complete-proof sealing remains the enclosing protocol's responsibility.
 use crate::{
@@ -15,7 +17,7 @@ use crate::{
         v2::{
             polygero::{Participant, PolygeroLinearTerm},
             proto::witness_selection::{FingerprintResponse, FINGERPRINTS},
-            transcript::{Reading, TranscriptRef},
+            transcript::{Reading, SessionStamp, TranscriptRef},
         },
     },
 };
@@ -23,7 +25,7 @@ mod fields;
 mod transcript;
 
 pub(in crate::runtime::v2) use fields::witness_count;
-pub use fields::{Batched, Bodies, Field, Fields, Param, Statements, Witnesses};
+pub use fields::{Bodies, Field, Fields, Param, Statements, Witnesses};
 
 impl<
         'a,
@@ -54,9 +56,14 @@ impl<
         mut statements: Statements<Self>,
         coefficients: Self::Coefficients,
         responses: &Self::Responses,
+        session: &SessionStamp,
     ) -> Result<Statements<Self>, String> {
         let f = self.0.f;
         let n = self.0.cells;
+        // A pointer comparison: the equations' stamp is the session's own.
+        if statements.0.session != *session {
+            return Err("frontend equations derived on another session".into());
+        }
         if statements
             .0
             .a
@@ -94,7 +101,7 @@ impl<
         Ok((
             statements.0,
             self.1
-                .authenticate(statements.1, coefficients.1, &responses.1)?,
+                .authenticate(statements.1, coefficients.1, &responses.1, session)?,
         ))
     }
 }

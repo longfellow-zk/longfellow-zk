@@ -70,10 +70,9 @@ where
         let top_host = joint::top_weights(&mut th)?;
         let (host, statement_host) =
             zk::prove(&mut th, state_host, top_host, &leaves, &c.host_ctx)?;
-        // The batching weights follow the host frontend's last message.
-        let statements = (statement_host, (split.statement, ()));
-        let batch = joint.weights(&param, statements);
-        let (polygero, transcript) = joint.prove(&param, batch)?;
+        // The opening follows the host frontend's last message.
+        let equations = (statement_host, (split.statement, ()));
+        let (polygero, transcript) = joint.finish(&param, equations)?;
         Ok((
             ComposedProof {
                 commitment,

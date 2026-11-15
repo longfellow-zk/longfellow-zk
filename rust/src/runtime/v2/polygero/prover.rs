@@ -12,7 +12,7 @@ use crate::runtime::{
     random::PrivateRandom,
     v2::{
         proto::polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroGeometry},
-        transcript::{Bound, Challenge, SessionStamp},
+        transcript::{Bound, SessionStamp},
     },
 };
 /// One field's encoded rows and the geometry they were encoded for. Opening
@@ -56,29 +56,25 @@ impl<S> JointPolygeroProver<S> {
             com,
         ))
     }
-    /// Open the commitment on the session that received it, with the
-    /// batching weights `batch` drawn since the last message
-    /// (`JointPolygeroParam::weights_for`, transcript I8), for the
-    /// statements it carries.
+    /// Open the commitment on the session that received it, for
+    /// `statements`, the equations of every field. It draws the batching
+    /// weights at the current boundary, which must follow the last message
+    /// any statement depends on, and consumes them (transcript I8).
     pub fn prove<L: Participants<States = S>>(
         self,
         t: &mut Bound<'_, JointPolygeroParam<L>>,
-        batch: Challenge<Batched<L>>,
+        statements: L::Statements,
     ) -> Result<JointPolygeroProof<L::Bodies>, PolygeroError> {
         ensure(self.session == t.session(), "joint prover session mismatch")?;
         let p = t.part();
         // The rows must have been encoded for this parameter's geometry.
         p.participants.validate_states(&self.states)?;
-        let Batched {
-            statements: s,
-            weights: c,
-        } = t.accept(batch).map_err(|e| PolygeroError(e.to_string()))?;
-        p.participants.validate_statements(&s)?;
-        p.participants.validate_challenges(&s, &c)?;
-        let mut bodies = p.participants.respond(&self.states, &s, &c);
+        p.participants.validate_statements(&statements)?;
+        let weights = p.weights_for(&statements, &mut t.transcript());
+        let mut bodies = p.participants.respond(&self.states, &statements, &weights);
         // The statements and challenge polynomials are no longer needed
         // while collecting openings.
-        drop((s, c));
+        drop((statements, weights));
         let indices = p.queries(&bodies, &mut t.transcript());
         p.participants.gather(&self.states, &mut bodies, &indices);
         Ok(JointPolygeroProof {

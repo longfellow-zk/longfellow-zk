@@ -1,14 +1,12 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Prover ownership of the selected joint commitment and its final equations.
-use super::joint::{
-    Batched, Bodies, Coefficients, Fields, JointParam, Responses, Statements, Witnesses,
-};
+use super::joint::{Bodies, Coefficients, Fields, JointParam, Responses, Statements, Witnesses};
 use crate::runtime::{
     random::PrivateRandom,
     v2::{
         polygero::Participants,
         proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-        transcript::{Bound, Challenge, Transcript},
+        transcript::{Bound, Transcript},
         witness_selection,
     },
 };
@@ -63,21 +61,18 @@ impl<S, C, R> JointProver<S, C, R> {
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P> {
         self.transcript.bound(part)
     }
-    /// Draw the Polygero batching weights of `statements` after the last
-    /// frontend message of every participant (transcript I8). The weights
-    /// take the statements with them: `prove` accepts them only if no
-    /// message was sent since, and opens the statements they carry.
-    pub fn weights<L: Fields>(
-        &mut self,
-        param: &JointParam<L>,
-        statements: Statements<L>,
-    ) -> Challenge<Batched<L>> {
-        witness_selection::Param::weights(&mut self.transcript.bound(&param.selection), statements)
-    }
-    pub fn prove<L: Fields>(
+    /// Complete the opening with `equations`, each field's frontend
+    /// equations, derived on this session, in participant order (for mdoc,
+    /// the host's, then the split participant's). Call it right after the
+    /// last frontend message of every participant. It consumes the session:
+    /// it rejects equations derived on another session, attaches each field's
+    /// fingerprint equations, draws the Polygero batching weights at the
+    /// current boundary (transcript I8), sends each field's response, draws
+    /// the columns and returns the opening with the transcript.
+    pub fn finish<L: Fields>(
         mut self,
         param: &JointParam<L>,
-        batch: Challenge<Batched<L>>,
+        equations: Statements<L>,
     ) -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>
     where
         L::Selection: witness_selection::Fields<Coefficients = C, Responses = R>,
@@ -85,7 +80,7 @@ impl<S, C, R> JointProver<S, C, R> {
     {
         let proof = self
             .selection
-            .prove(&mut self.transcript.bound(&param.selection), batch)?;
+            .finish(&mut self.transcript.bound(&param.selection), equations)?;
         Ok((proof, self.transcript))
     }
 }

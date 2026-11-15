@@ -112,6 +112,12 @@ impl SessionStamp {
     pub(super) fn fresh() -> Self {
         Self(std::sync::Arc::new(()))
     }
+    /// The identity of no session, for the static systems of tests and
+    /// tools: no session's check accepts it.
+    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    pub(crate) fn detached() -> Self {
+        Self::fresh()
+    }
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl PartialEq for SessionStamp {

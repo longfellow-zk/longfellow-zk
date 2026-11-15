@@ -29,7 +29,7 @@ use crate::{
                 polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig},
                 Digest,
             },
-            transcript::{Bound, Transcript, TranscriptRef, Unverified, VerifiedProof},
+            transcript::{Transcript, TranscriptRef},
         },
     },
 };
@@ -226,18 +226,15 @@ fn exercise<
             f.add(&mut false_targets[2], &f.one());
             let (copy, mut copy_ts) = reference::snapshot(&prover, &ts);
             let false_proof = copy
-                .prove_drawing(
-                    &mut copy_ts.bound(&joint),
-                    &(linear(&a, &false_targets), ()),
-                )
+                .prove(&mut copy_ts.bound(&joint), (linear(&a, &false_targets), ()))
                 .unwrap();
             let mut tv = before.fork_for_test();
             let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&joint), &com);
             let error = verifier
-                .reduce_drawing(
+                .reduce(
                     &mut tv.bound(&joint),
+                    (linear(&a, &false_targets), ()),
                     &false_proof,
-                    &(linear(&a, &false_targets), ()),
                 )
                 .err()
                 .unwrap();
@@ -248,7 +245,7 @@ fn exercise<
             let invalid = [PolygeroLinearTerm { c, w, k: f.one() }];
             let (copy, mut copy_ts) = reference::snapshot(&prover, &ts);
             let error = copy
-                .prove_drawing(&mut copy_ts.bound(&joint), &(linear(&invalid, &b), ()))
+                .prove(&mut copy_ts.bound(&joint), (linear(&invalid, &b), ()))
                 .err()
                 .unwrap();
             assert_eq!(error.0, "linear constraint index out of bounds");
@@ -261,7 +258,7 @@ fn exercise<
         let counted_param =
             JointPolygeroParam::new((Participant::new(vp.clone(), &counted).unwrap(), ())).unwrap();
         let proof = prover
-            .prove_drawing(&mut ts.bound(&counted_param), &(linear(&a, &b), ()))
+            .prove(&mut ts.bound(&counted_param), (linear(&a, &b), ()))
             .unwrap();
         // Public V/z_R evaluations and the two response plans are built once,
         // independently of the number of rows.
@@ -279,14 +276,14 @@ fn exercise<
         let mut other_ts = Transcript::for_test(b"polygero/other-session");
         let wrong_session = JointPolygeroVerifier::receive(&mut other_ts.bound(&joint), &com);
         assert!(wrong_session
-            .reduce_drawing(&mut other_ts.bound(&joint), &proof, &(linear(&a, &b), ()))
+            .reduce(&mut other_ts.bound(&joint), (linear(&a, &b), ()), &proof)
             .is_err());
         let mut other = com.clone();
         other.root.data[0] ^= 1;
         let mut tv = before.fork_for_test();
         let wrong_root = JointPolygeroVerifier::receive(&mut tv.bound(&joint), &other);
         assert!(wrong_root
-            .reduce_drawing(&mut tv.bound(&joint), &proof, &(linear(&a, &b), ()))
+            .reduce(&mut tv.bound(&joint), (linear(&a, &b), ()), &proof)
             .is_err());
 
         if nw != 0 {
@@ -310,10 +307,10 @@ fn exercise<
                     .unwrap();
             let mut t = Transcript::for_test(b"polygero/test");
             let v = JointPolygeroVerifier::receive(&mut t.bound(&verifier_param), commitment);
-            v.reduce_drawing(
+            v.reduce(
                 &mut t.bound(&verifier_param),
+                (linear(constraints, targets), ()),
                 candidate,
-                &(linear(constraints, targets), ()),
             )
         };
         verify(&proof, &b, &a, &com).unwrap();
@@ -331,9 +328,9 @@ fn exercise<
         verify(&proof, &b, &reordered, &com).unwrap();
         let (copy, mut reordered_ts) = reference::snapshot(&reference, &reference_ts);
         let reordered_proof = copy
-            .prove_drawing(
+            .prove(
                 &mut reordered_ts.bound(&joint),
-                &(linear(&reordered, &b), ()),
+                (linear(&reordered, &b), ()),
             )
             .unwrap();
         assert_eq!(reordered_proof, proof);
@@ -444,7 +441,7 @@ fn exercise<
                 let mut t = Transcript::for_test(b"polygero/test");
                 let v = JointPolygeroVerifier::receive(&mut t.bound(&joint), &com);
                 assert!(v
-                    .verify_drawing(t, &joint, decoded_bad, &(linear(&a, &b), ()))
+                    .verify(t, &joint, (linear(&a, &b), ()), decoded_bad)
                     .is_err());
             }
             if !f.is_binary() {
@@ -673,7 +670,7 @@ fn binary_profile_fits_exact_original_point_table() {
     let b = [f.neg(&witness[2])];
     let (reference, _) = reference::snapshot(&prover, &ts);
     let proof = prover
-        .prove_drawing(&mut ts.bound(&joint), &(linear(&constraints, &b), ()))
+        .prove(&mut ts.bound(&joint), (linear(&constraints, &b), ()))
         .unwrap();
     reference::check(
         &joint,
@@ -688,10 +685,10 @@ fn binary_profile_fits_exact_original_point_table() {
     let mut tv = Transcript::for_test(b"polygero/tight-table");
     let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&joint), &commitment);
     verifier
-        .reduce_drawing(
+        .reduce(
             &mut tv.bound(&joint),
+            (linear(&constraints, &b), ()),
             &proof,
-            &(linear(&constraints, &b), ()),
         )
         .unwrap();
 }
@@ -699,10 +696,7 @@ fn binary_profile_fits_exact_original_point_table() {
 mod masks;
 
 fn linear<E: Clone>(a: &[PolygeroLinearTerm<E>], b: &[E]) -> LinearStatement<E> {
-    LinearStatement {
-        a: a.to_vec(),
-        b: b.to_vec(),
-    }
+    LinearStatement::new(a.to_vec(), b.to_vec())
 }
 
 mod reference;
@@ -744,65 +738,24 @@ fn static_statement_is_checked_against_the_opening() {
     )
     .unwrap();
     let proof = prover
-        .prove_drawing(&mut tp.bound(&param), &(statement.clone(), ()))
+        .prove(&mut tp.bound(&param), (statement.clone(), ()))
         .unwrap();
     let verify = |s| {
         let mut tv = Transcript::for_test(seed);
-        JointPolygeroVerifier::receive(&mut tv.bound(&param), &root).reduce_drawing(
+        JointPolygeroVerifier::receive(&mut tv.bound(&param), &root).reduce(
             &mut tv.bound(&param),
+            (s, ()),
             &proof,
-            &(s, ()),
         )
     };
     verify(statement).unwrap();
     assert!(verify(altered).is_err());
 }
 
-/// Callers that hold their complete statements draw the batching weights
-/// right before the response phase; these run that sequence on a copy of
-/// `s`, which the weights carry.
-impl<S> JointPolygeroProver<S> {
-    pub(crate) fn prove_drawing<L: Participants<States = S>>(
-        self,
-        t: &mut Bound<'_, JointPolygeroParam<L>>,
-        s: &L::Statements,
-    ) -> Result<JointPolygeroProof<L::Bodies>, PolygeroError>
-    where
-        L::Statements: Clone,
-    {
-        let batch = JointPolygeroParam::weights(t, s.clone());
-        self.prove(t, batch)
-    }
-}
-impl<L: Participants> JointPolygeroVerifier<L>
-where L::Statements: Clone
-{
-    pub(crate) fn verify_drawing(
-        self,
-        mut transcript: Transcript,
-        param: &JointPolygeroParam<L>,
-        proof: Unverified<'_, JointPolygeroProof<L::Bodies>>,
-        s: &L::Statements,
-    ) -> Result<VerifiedProof, PolygeroError> {
-        let batch = JointPolygeroParam::weights(&mut transcript.bound(param), s.clone());
-        self.verify(transcript, param, batch, proof)
-    }
-    pub(crate) fn reduce_drawing(
-        self,
-        t: &mut Bound<'_, JointPolygeroParam<L>>,
-        proof: &JointPolygeroProof<L::Bodies>,
-        s: &L::Statements,
-    ) -> Result<(), PolygeroError> {
-        let batch = JointPolygeroParam::weights(t, s.clone());
-        self.reduce(t, batch, proof)
-    }
-}
-impl<L: Participants> JointPolygeroParam<L>
-where L::Statements: Clone
-{
-    /// The batching weights of `s`, drawn on `t` and accepted at once.
+impl<L: Participants> JointPolygeroParam<L> {
+    /// The batching weights of `s`, drawn on `t` as `prove` and `reduce`
+    /// draw them.
     pub(crate) fn challenges(&self, s: &L::Statements, t: &mut TranscriptRef<'_>) -> L::Challenges {
-        let batch = self.weights_for(s.clone(), &self.equations(s), t);
-        t.accept(batch).unwrap().weights
+        self.weights_for(s, t)
     }
 }

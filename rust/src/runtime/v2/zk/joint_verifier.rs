@@ -1,9 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Verifier ownership of early selection and final joint authentication.
-use super::joint::{Batched, Bodies, Fields, JointParam, Responses, Statements};
+use super::joint::{Bodies, Fields, JointParam, Responses, Statements};
 use crate::runtime::v2::{
     proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-    transcript::{Bound, Challenge, Transcript},
+    transcript::{Bound, Transcript},
     witness_selection,
 };
 
@@ -54,44 +54,69 @@ impl<L: Fields> JointVerifier<L> {
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P> {
         self.transcript.bound(part)
     }
-    /// Draw the Polygero batching weights of `statements` after the last
-    /// frontend message of every participant (transcript I8). The weights
-    /// take the statements with them: `authenticate` accepts them only if no
-    /// message was sent since, and checks the opening against the statements
-    /// they carry, so no other system can be substituted.
+    /// Check the opening `proof` against `equations`, each field's frontend
+    /// equations, derived on this session, in participant order (for mdoc,
+    /// the host's, then the split participant's). Call it right after the
+    /// last frontend message of every participant. It consumes the session:
+    /// it rejects equations derived on another session, attaches each field's
+    /// fingerprint equations, draws the Polygero batching weights at the
+    /// current boundary (transcript I8), absorbs each field's response, draws
+    /// the columns and checks the opening. The caller still checks the
+    /// complete proof's seal on the returned transcript.
+    ///
+    /// It takes every field's equations, in their types; a list without the
+    /// split participant's does not compile:
+    ///
+    /// ```compile_fail,E0308
+    /// use longfellow_zk::runtime::{
+    ///     algebra::{
+    ///         gf2_128::{Gf2_128, Gf2_128Field},
+    ///         p256::P256Field,
+    ///         range_interpolation::{BinaryInterpolatorFactory, ScalarInterpolatorFactory},
+    ///     },
+    ///     v2::{
+    ///         polygero::LinearStatement,
+    ///         proto::polygero::JointPolygeroProof,
+    ///         zk::{
+    ///             joint::{Bodies, SelectedField},
+    ///             JointVerifier,
+    ///         },
+    ///     },
+    /// };
+    /// type Host<'a> = SelectedField<'a, 2, Gf2_128Field, BinaryInterpolatorFactory<'a, 2, Gf2_128Field>>;
+    /// type Split<'a> = SelectedField<'a, 4, P256Field, ScalarInterpolatorFactory<'a, 4, P256Field>>;
+    /// type Mdoc<'a> = (Host<'a>, (Split<'a>, ()));
+    /// fn host_only<'a>(
+    ///     v: JointVerifier<Mdoc<'a>>,
+    ///     host: LinearStatement<Gf2_128>,
+    ///     proof: &JointPolygeroProof<Bodies<Mdoc<'a>>>,
+    /// ) {
+    ///     let _ = v.finish((host, ()), proof);
+    /// }
+    /// ```
+    ///
+    /// and neither does a call without them:
     ///
     /// ```compile_fail,E0061
     /// use longfellow_zk::runtime::v2::{
     ///     proto::polygero::JointPolygeroProof,
     ///     zk::{
-    ///         joint::{Bodies, Fields, Statements},
+    ///         joint::{Bodies, Fields},
     ///         JointVerifier,
     ///     },
     /// };
-    /// fn substitute<L: Fields>(
-    ///     mut v: JointVerifier<L>,
-    ///     drawn: Statements<L>,
-    ///     other: Statements<L>,
-    ///     proof: &JointPolygeroProof<Bodies<L>>,
-    /// ) {
-    ///     let batch = v.weights(drawn);
-    ///     let _ = v.authenticate(batch, proof, other);
+    /// fn without<L: Fields>(v: JointVerifier<L>, proof: &JointPolygeroProof<Bodies<L>>) {
+    ///     let _ = v.finish(proof);
     /// }
     /// ```
-    pub fn weights(&mut self, statements: Statements<L>) -> Challenge<Batched<L>> {
-        witness_selection::Param::weights(
-            &mut self.transcript.bound(&self.param.selection),
-            statements,
-        )
-    }
-    pub fn authenticate(
+    pub fn finish(
         mut self,
-        batch: Challenge<Batched<L>>,
+        equations: Statements<L>,
         proof: &JointPolygeroProof<Bodies<L>>,
     ) -> Result<Authenticated, String> {
-        let selection = self.selection.authenticate(
+        let selection = self.selection.finish(
             &mut self.transcript.bound(&self.param.selection),
-            batch,
+            equations,
             proof,
         )?;
         Ok(Authenticated {

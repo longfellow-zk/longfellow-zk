@@ -268,10 +268,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         let top = top_weights(&mut t)?;
         let (circuit, linear) = prove(&mut t, committed.state, top, &VirtualInputs::none(), ctx)?;
         let param = JointParam::new((self.participant.participant(ctx)?, ()))?;
-        // The batching weights follow the frontend's last message.
-        let statements = (linear, ());
-        let batch = committed.joint.weights(&param, statements);
-        let (com_proof, transcript) = committed.joint.prove(&param, batch)?;
+        // The opening follows the frontend's last message.
+        let (com_proof, transcript) = committed.joint.finish(&param, (linear, ()))?;
         Ok((
             ZkProof {
                 com: committed.commitment,

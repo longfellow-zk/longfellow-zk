@@ -79,11 +79,11 @@ pub(super) fn check_recommitted_wrong_witness<
     forged.session = ts.bound(joint).session();
     let statements = (linear(a, b), ());
     let proof = forged
-        .prove_drawing(&mut ts.bound(joint), &statements)
+        .prove(&mut ts.bound(joint), statements.clone())
         .unwrap();
     let verifier = JointPolygeroVerifier::receive(&mut verifier_ts.bound(joint), &commitment);
     let error = verifier
-        .reduce_drawing(&mut verifier_ts.bound(joint), &proof, &statements)
+        .reduce(&mut verifier_ts.bound(joint), statements.clone(), &proof)
         .err()
         .unwrap();
     assert_eq!(error.0, "Polygero global arithmetic sum failed");
@@ -286,7 +286,7 @@ pub(super) fn check<
         let mut tv = original.fork_for_test();
         let verifier = JointPolygeroVerifier::receive(&mut tv.bound(joint), &commitment);
         let error = verifier
-            .reduce_drawing(&mut tv.bound(joint), &forged, &statements)
+            .reduce(&mut tv.bound(joint), statements.clone(), &forged)
             .err()
             .unwrap();
         assert_eq!(error.0, expected);
@@ -327,7 +327,7 @@ pub(super) fn check<
         let mut tv = original.fork_for_test();
         let verifier = JointPolygeroVerifier::receive(&mut tv.bound(joint), &commitment);
         let error = verifier
-            .reduce_drawing(&mut tv.bound(joint), &forged, &statements)
+            .reduce(&mut tv.bound(joint), statements.clone(), &forged)
             .expect_err("forged Polygero response accepted");
         assert_eq!(error.0, expected);
     }

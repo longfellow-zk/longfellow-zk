@@ -59,33 +59,11 @@ impl<
         constraints::validate(self.0.param.geom.nw, s.0.b.len(), &s.0.a)?;
         self.1.validate_statements(&s.1)
     }
-    fn equations(&self, s: &Self::Statements, out: &mut Vec<usize>) {
-        out.push(s.0.b.len());
-        self.1.equations(&s.1, out);
-    }
-    fn challenges(&self, counts: &[usize], t: &mut Reading<'_>) -> Self::Challenges {
-        // A missing count draws nothing for the field; the shape check
-        // rejects the result.
-        let (&n, rest) = counts.split_first().unwrap_or((&0, &[]));
+    fn challenges(&self, s: &Self::Statements, t: &mut Reading<'_>) -> Self::Challenges {
         (
-            transcript::challenges(t, &self.0.param, n, self.0.f),
-            self.1.challenges(rest, t),
+            transcript::challenges(t, &self.0.param, s.0.b.len(), self.0.f),
+            self.1.challenges(&s.1, t),
         )
-    }
-    fn validate_challenges(
-        &self,
-        s: &Self::Statements,
-        c: &Self::Challenges,
-    ) -> Result<(), PolygeroError> {
-        let param = &self.0.param;
-        let samples = param.geom.s + 1;
-        ensure(
-            c.0.alpha.len() == s.0.b.len()
-                && c.0.batching_samples.len() == param.batched_rows().len()
-                && c.0.batching_samples.iter().all(|b| b.len() == samples),
-            "batching weights do not fit the statement",
-        )?;
-        self.1.validate_challenges(&s.1, &c.1)
     }
     fn send_responses(&self, b: &Self::Bodies, t: &mut TranscriptRef<'_>) {
         transcript::send_response(t, &b.0, self.0.f);

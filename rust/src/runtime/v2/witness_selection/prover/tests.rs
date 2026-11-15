@@ -17,7 +17,7 @@ use crate::{
                 witness_selection::{FingerprintResponse, FINGERPRINTS},
                 Digest,
             },
-            transcript::Transcript,
+            transcript::{SessionStamp, Transcript},
         },
     },
 };
@@ -118,18 +118,13 @@ fn generic_sampling_and_three_fields_need_no_packing_capability() {
     let (prover, root, responses) = commit(&mut tp.bound(&param), witnesses, &mut rng).unwrap();
     let mut tv = Transcript::for_test(b"three-fields");
     let verifier = Verifier::receive(&mut tv.bound(&param), &root, responses);
+    let prover_equations = (statement(&tp), (statement(&tp), (statement(&tp), ())));
     let proof = prover
-        .prove_drawing(
-            &mut tp.bound(&param),
-            (statement(), (statement(), (statement(), ()))),
-        )
+        .finish(&mut tp.bound(&param), prover_equations)
         .unwrap();
+    let verifier_equations = (statement(&tv), (statement(&tv), (statement(&tv), ())));
     verifier
-        .authenticate_drawing(
-            &mut tv.bound(&param),
-            &proof,
-            (statement(), (statement(), (statement(), ()))),
-        )
+        .finish(&mut tv.bound(&param), verifier_equations, &proof)
         .unwrap();
     assert_eq!(tp.u128(), tv.u128());
 }
@@ -145,7 +140,7 @@ fn frontend_cannot_address_fingerprint_masks_and_bad_lengths_do_not_consume_mask
     assert_eq!(rng.bytes(32), DeterministicRng::new(1).bytes(32));
     let mut t = Transcript::for_test(b"shape");
     let a = param.challenges(&mut t.borrow());
-    let mut s = statement();
+    let mut s = statement(&t);
     s.b.push(f.zero());
     s.a.push(PolygeroLinearTerm {
         c: 0,
@@ -158,13 +153,26 @@ fn frontend_cannot_address_fingerprint_masks_and_bad_lengths_do_not_consume_mask
         },
         (),
     );
-    assert!(param.fields.authenticate((s, ()), a, &response).is_err());
+    assert_eq!(
+        param
+            .fields
+            .authenticate((s, ()), a, &response, &stamp(&t))
+            .err()
+            .unwrap(),
+        "frontend constraint outside original witness layout"
+    );
     assert!(witness_count(usize::MAX).is_err());
 }
-fn statement<E>() -> LinearStatement<E> {
+/// The identity of `t`'s session.
+fn stamp(t: &Transcript) -> SessionStamp {
+    t.session_for_test()
+}
+/// An empty frontend system, derived on `t`'s session.
+fn statement<E>(t: &Transcript) -> LinearStatement<E> {
     LinearStatement {
         a: vec![],
         b: vec![],
+        session: stamp(t),
     }
 }
 fn residuals<const W: usize, F: RuntimeField<W>>(
@@ -193,12 +201,18 @@ fn both_characteristics_cover_every_cell_and_have_dedicated_masks() {
         (rng.elt_field_slice(13, &p), ()),
     );
     fields.append_masks(&mut witnesses, &mut rng);
-    let a = param.challenges(&mut Transcript::for_test(b"cell-coverage").borrow());
+    let mut t = Transcript::for_test(b"cell-coverage");
+    let a = param.challenges(&mut t.borrow());
     assert_ne!(a.0[0], a.0[1]);
     assert_ne!(a.1 .0[0], a.1 .0[1]);
     let responses = fields.responses(&witnesses, &a);
     let s = fields
-        .authenticate((statement(), (statement(), ())), a, &responses)
+        .authenticate(
+            (statement(&t), (statement(&t), ())),
+            a,
+            &responses,
+            &stamp(&t),
+        )
         .unwrap();
     fn check<const W: usize, F: RuntimeField<W>>(
         s: &LinearStatement<F::E>,
@@ -275,14 +289,12 @@ fn joint_roundtrip_and_each_forged_response_are_checked_by_backend() {
             responses,
             ..prover
         };
+        let prover_equations = (statement(&tp), (statement(&tp), ()));
         let proof = prover
-            .prove_drawing(&mut tp.bound(&param), (statement(), (statement(), ())))
+            .finish(&mut tp.bound(&param), prover_equations)
             .unwrap();
-        let result = verifier.authenticate_drawing(
-            &mut tv.bound(&param),
-            &proof,
-            (statement(), (statement(), ())),
-        );
+        let verifier_equations = (statement(&tv), (statement(&tv), ()));
+        let result = verifier.finish(&mut tv.bound(&param), verifier_equations, &proof);
         assert_eq!(result.is_ok(), forged == 0);
         if forged == 0 {
             assert_eq!(tp.u128(), tv.u128());
@@ -368,52 +380,28 @@ fn prover_and_verifier_states_complete_only_on_their_own_session() {
     let mut stale = Transcript::for_test(b"selection/session");
     let (stale_prover, _, _) = commit_on(&mut stale);
     let mut stale_fork = stale.fork_for_test();
+    let stale_equations = (statement(&stale_fork), ());
     assert_eq!(
         stale_prover
-            .prove_drawing(&mut stale_fork.bound(&param), (statement(), ()))
+            .finish(&mut stale_fork.bound(&param), stale_equations)
             .unwrap_err(),
         "witness selection session mismatch"
     );
     let mut tp = Transcript::for_test(b"selection/session");
     let (prover, root, responses) = commit_on(&mut tp);
+    let prover_equations = (statement(&tp), ());
     let proof = prover
-        .prove_drawing(&mut tp.bound(&param), (statement(), ()))
+        .finish(&mut tp.bound(&param), prover_equations)
         .unwrap();
     let mut tv = Transcript::for_test(b"selection/session");
     let verifier = Verifier::receive(&mut tv.bound(&param), &root, responses);
     let mut tv_fork = tv.fork_for_test();
+    let verifier_equations = (statement(&tv_fork), ());
     assert_eq!(
         verifier
-            .authenticate_drawing(&mut tv_fork.bound(&param), &proof, (statement(), ()))
+            .finish(&mut tv_fork.bound(&param), verifier_equations, &proof)
             .err()
             .unwrap(),
         "witness selection session mismatch"
     );
-}
-
-/// Draw the batching weights right before the response phase, as a caller
-/// that holds its complete statements does.
-impl<S, C, R> Prover<S, C, R> {
-    pub(crate) fn prove_drawing<L: Fields<Coefficients = C, Responses = R>>(
-        self,
-        t: &mut Bound<'_, Param<L>>,
-        statements: Statements<L>,
-    ) -> Result<JointPolygeroProof<Bodies<L>>, String>
-    where
-        L::Backend: BackendParticipants<States = S>,
-    {
-        let batch = Param::weights(t, statements);
-        self.prove(t, batch)
-    }
-}
-impl<L: Fields> Verifier<L> {
-    pub(crate) fn authenticate_drawing(
-        self,
-        t: &mut Bound<'_, Param<L>>,
-        proof: &JointPolygeroProof<Bodies<L>>,
-        statements: Statements<L>,
-    ) -> Result<Authenticated, String> {
-        let batch = Param::weights(t, statements);
-        self.authenticate(t, batch, proof)
-    }
 }

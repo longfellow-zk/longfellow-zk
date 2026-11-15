@@ -60,7 +60,7 @@ fn field<
         })
         .collect();
     let b = vec![f.neg(&blas::dot1(&w, f))];
-    (p, w, LinearStatement { a, b })
+    (p, w, LinearStatement::new(a, b))
 }
 fn roundtrip<L: Participants + Clone>(p: JointPolygeroParam<L>, w: L::Witnesses, s: L::Statements)
 where L::Statements: Clone {
@@ -69,7 +69,7 @@ where L::Statements: Clone {
     let (prover, root) =
         JointPolygeroProver::commit(&mut tp.bound(&p), w, &mut DeterministicRng::new(7)).unwrap();
     assert_eq!(tp.round_count_for_test(), 0);
-    let proof = prover.prove_drawing(&mut tp.bound(&p), &s).unwrap();
+    let proof = prover.prove(&mut tp.bound(&p), s.clone()).unwrap();
     // All participants share one batching round and one opening round.
     assert_eq!(tp.round_count_for_test(), 2);
     let bytes = p.write(&proof, tp.fork_for_test()).unwrap().into_bytes();
@@ -83,14 +83,14 @@ where L::Statements: Clone {
     let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&p), &root);
     assert_eq!(tv.round_count_for_test(), 0);
     verifier
-        .reduce_drawing(&mut tv.bound(&p), &decoded, &s)
+        .reduce(&mut tv.bound(&p), s.clone(), &decoded)
         .unwrap();
     assert_eq!(tv.round_count_for_test(), 2);
     assert_eq!(tp.u128(), tv.u128());
     let decoded = p.read(&mut bytes.as_slice()).unwrap();
     let mut tf = Transcript::for_test(b"joint/test");
     let full = JointPolygeroVerifier::receive(&mut tf.bound(&p), &root);
-    full.verify_drawing(tf, &p, decoded, &s).unwrap();
+    full.verify(tf, &p, s.clone(), decoded).unwrap();
     // Only a cut of whole frontier digests passes the length check.
     for len in 0..bytes.len() {
         assert!(
@@ -146,11 +146,11 @@ fn joint_authenticates_every_field_response_column_and_opening() {
         &mut DeterministicRng::new(9),
     )
     .unwrap();
-    let proof = prover.prove_drawing(&mut t.bound(&param), &s).unwrap();
-    let verify = |candidate: &JointPolygeroProof<_>, statements: &_| {
+    let proof = prover.prove(&mut t.bound(&param), s.clone()).unwrap();
+    let verify = |candidate: &JointPolygeroProof<_>, statements: &(_, (_, ()))| {
         let mut tv = Transcript::for_test(b"joint/tamper");
         let v = JointPolygeroVerifier::receive(&mut tv.bound(&param), &root);
-        v.reduce_drawing(&mut tv.bound(&param), candidate, statements)
+        v.reduce(&mut tv.bound(&param), statements.clone(), candidate)
     };
     verify(&proof, &s).unwrap();
     for part in 0..2 {
@@ -220,13 +220,13 @@ fn joint_authenticates_every_field_response_column_and_opening() {
     let mut wrong = Transcript::for_test(b"wrong-session");
     let v = JointPolygeroVerifier::receive(&mut wrong.bound(&param), &root);
     assert!(v
-        .reduce_drawing(&mut wrong.bound(&param), &proof, &s)
+        .reduce(&mut wrong.bound(&param), s.clone(), &proof)
         .is_err());
     let mut other = root.clone();
     other.root.data[0] ^= 1;
     let mut tv = Transcript::for_test(b"joint/tamper");
     let v = JointPolygeroVerifier::receive(&mut tv.bound(&param), &other);
-    assert!(v.reduce_drawing(&mut tv.bound(&param), &proof, &s).is_err());
+    assert!(v.reduce(&mut tv.bound(&param), s.clone(), &proof).is_err());
 }
 #[test]
 fn invalid_lists_witnesses_and_statements_do_not_sample() {
@@ -249,9 +249,7 @@ fn invalid_lists_witnesses_and_statements_do_not_sample() {
         JointPolygeroProver::commit(&mut valid.bound(&param), (w, ()), &mut rng).unwrap();
     let mut bad = s;
     bad.a[0].w = usize::MAX;
-    assert!(prover
-        .prove_drawing(&mut valid.bound(&param), &(bad, ()))
-        .is_err());
+    assert!(prover.prove(&mut valid.bound(&param), (bad, ())).is_err());
 }
 
 #[test]
@@ -282,12 +280,12 @@ fn forged_linear_witness_is_rejected_even_with_a_genuine_opening() {
     param.receive(&root, &mut forged.borrow());
     prover.adopt_session_for_test(&forged.bound(&param));
     let proof = prover
-        .prove_drawing(&mut forged.bound(&param), &(s.clone(), ()))
+        .prove(&mut forged.bound(&param), (s.clone(), ()))
         .unwrap();
     let mut tv = Transcript::for_test(b"virtual");
     let v = JointPolygeroVerifier::receive(&mut tv.bound(&param), &root);
     let error = v
-        .reduce_drawing(&mut tv.bound(&param), &proof, &(s, ()))
+        .reduce(&mut tv.bound(&param), (s, ()), &proof)
         .err()
         .unwrap();
     assert_eq!(error.0, "Polygero global arithmetic sum failed");
@@ -309,9 +307,7 @@ fn tuple_codec_rejects_noncanonical_field_bytes_and_bad_lengths() {
         &mut DeterministicRng::new(2),
     )
     .unwrap();
-    let proof = prover
-        .prove_drawing(&mut t.bound(&param), &(sa, (sb, ())))
-        .unwrap();
+    let proof = prover.prove(&mut t.bound(&param), (sa, (sb, ()))).unwrap();
     let bytes = param.write(&proof, t.fork_for_test()).unwrap().into_bytes();
     // The body is the binary response, then the prime response, with no
     // magic.
@@ -391,7 +387,7 @@ fn batching_follows_the_absorbed_messages_and_precedes_the_responses() {
     let mut changed_ts = tp.fork_for_test();
     let changed_challenges = param.challenges(&changed, &mut changed_ts.borrow());
     assert_eq!(first.alpha, changed_challenges.0.alpha);
-    let proof = prover.prove_drawing(&mut tp.bound(&param), &s).unwrap();
+    let proof = prover.prove(&mut tp.bound(&param), s.clone()).unwrap();
     let _indices = param.queries(&proof.bodies, &mut manual.borrow());
     assert_eq!(manual.bytes(32), tp.bytes(32));
 }
@@ -424,9 +420,9 @@ fn participant_order_and_late_errors_are_bound_before_sampling() {
     )
     .unwrap();
     assert!(prover
-        .prove_drawing(
+        .prove(
             &mut reversed.bound(&reverse),
-            &(sb.clone(), (sa.clone(), ()))
+            (sb.clone(), (sa.clone(), ()))
         )
         .is_err());
     let mut late = Transcript::for_test(b"joint/late-error");
@@ -435,7 +431,7 @@ fn participant_order_and_late_errors_are_bound_before_sampling() {
     let mut invalid = sb;
     invalid.a[0].c = invalid.b.len();
     assert!(late_prover
-        .prove_drawing(&mut late.bound(&forward), &(sa, (invalid, ())))
+        .prove(&mut late.bound(&forward), (sa, (invalid, ())))
         .is_err());
 }
 
@@ -461,77 +457,26 @@ fn prover_and_verifier_states_complete_only_on_their_own_session() {
     let (stale_prover, _) = commit(&mut stale);
     let mut stale_fork = stale.fork_for_test();
     let prover_error = stale_prover
-        .prove_drawing(&mut stale_fork.bound(&param), &statements)
+        .prove(&mut stale_fork.bound(&param), statements.clone())
         .expect_err("prover state completed on another session");
     assert_eq!(prover_error.0, "joint prover session mismatch");
 
     let mut tp = Transcript::for_test(b"joint/session");
     let (prover, root) = commit(&mut tp);
     let proof = prover
-        .prove_drawing(&mut tp.bound(&param), &statements)
+        .prove(&mut tp.bound(&param), statements.clone())
         .unwrap();
     let mut tv = Transcript::for_test(b"joint/session");
     let wrong = JointPolygeroVerifier::receive(&mut tv.bound(&param), &root);
     let mut tv_fork = tv.fork_for_test();
     let verifier_error = wrong
-        .reduce_drawing(&mut tv_fork.bound(&param), &proof, &statements)
+        .reduce(&mut tv_fork.bound(&param), statements.clone(), &proof)
         .expect_err("verifier state completed on another session");
     assert_eq!(verifier_error.0, "joint verifier session mismatch");
     let mut honest = Transcript::for_test(b"joint/session");
     JointPolygeroVerifier::receive(&mut honest.bound(&param), &root)
-        .reduce_drawing(&mut honest.bound(&param), &proof, &statements)
+        .reduce(&mut honest.bound(&param), statements, &proof)
         .unwrap();
-}
-
-/// The batching weights are a `Challenge` input (transcript I8) that carries
-/// the statements it batches: prove and reduce accept it only where it was
-/// drawn, and only if its weights fit its statements' equation counts.
-#[test]
-fn batching_weights_are_accepted_only_at_their_boundary_and_shape() {
-    let f = P256Field::new();
-    let d = ScalarInterpolatorFactory::new(&f, 128);
-    let (a, w, statement) = field(&f, &d, 5, config());
-    let param = JointPolygeroParam::new((a, ())).unwrap();
-    let statements = (statement, ());
-    let commit = |t: &mut Transcript| {
-        JointPolygeroProver::commit(
-            &mut t.bound(&param),
-            (w.clone(), ()),
-            &mut DeterministicRng::new(3),
-        )
-        .unwrap()
-    };
-    // A message after the draw makes the weights stale, in both roles.
-    let mut late = Transcript::for_test(b"joint/weights");
-    let (stale_prover, root) = commit(&mut late);
-    let mut verifier_ts = late.fork_for_test();
-    let stale = JointPolygeroParam::weights(&mut late.bound(&param), statements.clone());
-    late.send_for_test(b"late");
-    assert!(stale_prover.prove(&mut late.bound(&param), stale).is_err());
-    let mut tp = Transcript::for_test(b"joint/weights");
-    let (honest_prover, _) = commit(&mut tp);
-    let proof = honest_prover
-        .prove_drawing(&mut tp.bound(&param), &statements)
-        .unwrap();
-    let verifier = JointPolygeroVerifier::receive(&mut verifier_ts.bound(&param), &root);
-    let stale_verifier =
-        JointPolygeroParam::weights(&mut verifier_ts.bound(&param), statements.clone());
-    verifier_ts.send_for_test(b"late");
-    assert!(verifier
-        .reduce(&mut verifier_ts.bound(&param), stale_verifier, &proof)
-        .is_err());
-    // Weights drawn for another equation count do not fit the statement they
-    // carry (only witness selection draws for counts other than its own).
-    let mut short = Transcript::for_test(b"joint/weights");
-    let (short_prover, _) = commit(&mut short);
-    let mut fewer = statements.clone();
-    fewer.0.b.pop();
-    fewer.0.a.retain(|term| term.c < fewer.0.b.len());
-    let misfit = param.weights_for(statements, &param.equations(&fewer), &mut short.borrow());
-    let error = short_prover
-        .prove(&mut short.bound(&param), misfit)
-        .expect_err("weights for another statement shape");
-    assert_eq!(error.0, "batching weights do not fit the statement");
 }
 
 /// Rows encoded for one parameter do not open under another parameter of the
@@ -561,7 +506,7 @@ fn rows_open_only_under_the_geometry_they_were_encoded_for() {
     )
     .unwrap();
     let error = prover
-        .prove_drawing(&mut t.bound(&other), &(statement, ()))
+        .prove(&mut t.bound(&other), (statement, ()))
         .expect_err("rows encoded for another geometry");
     assert_eq!(error.0, "joint prover parameter mismatch");
 }

@@ -3,14 +3,12 @@ use super::*;
 use crate::runtime::{
     random::PrivateRandom,
     v2::{
-        polygero::{
-            Batched as BackendBatched, JointPolygeroProver, Participants as BackendParticipants,
-        },
+        polygero::{JointPolygeroProver, Participants as BackendParticipants},
         proto::{
             polygero::{JointPolygeroProof, PolygeroCommitment},
             witness_selection::{FingerprintResponse, FINGERPRINTS},
         },
-        transcript::{Bound, Challenge, SessionStamp},
+        transcript::{Bound, SessionStamp},
     },
 };
 
@@ -123,13 +121,16 @@ where
     ))
 }
 impl<S, C, R> Prover<S, C, R> {
-    /// Attach the fingerprint equations to the statements `batch` carries
-    /// and open the commitment, with `batch` drawn by `Param::weights` since
-    /// the last message.
-    pub fn prove<L: Fields<Coefficients = C, Responses = R>>(
+    /// Complete the opening on the session that committed, for `statements`,
+    /// the frontend equations of every field, derived on this session. It
+    /// attaches each field's fingerprint equations after its frontend
+    /// equations, from the coefficients and responses of the commitment;
+    /// the backend then draws its batching weights at the current boundary
+    /// and opens. Only the joint ZK prover calls it (`JointProver::finish`).
+    pub(crate) fn finish<L: Fields<Coefficients = C, Responses = R>>(
         self,
         t: &mut Bound<'_, Param<L>>,
-        batch: Challenge<Batched<L>>,
+        statements: Statements<L>,
     ) -> Result<JointPolygeroProof<Bodies<L>>, String>
     where
         L::Backend: BackendParticipants<States = S>,
@@ -138,12 +139,14 @@ impl<S, C, R> Prover<S, C, R> {
         if self.session != t.session() {
             return Err("witness selection session mismatch".into());
         }
-        let (coefficients, responses) = (self.coefficients, &self.responses);
-        let batch = BackendBatched::try_map_statements(batch, |s| {
-            param.fields.authenticate(s, coefficients, responses)
-        })?;
+        let augmented = param.fields.authenticate(
+            statements,
+            self.coefficients,
+            &self.responses,
+            &self.session,
+        )?;
         self.backend
-            .prove(&mut t.project(|p| &p.backend), batch)
+            .prove(&mut t.project(|p| &p.backend), augmented)
             .map_err(|e| e.to_string())
     }
 }

@@ -648,18 +648,12 @@ fn authenticate<const W: usize, X: PackingExtension, D: EvaluationDomain<W, X::A
         data: tp.bytes(32).try_into().unwrap(),
     };
     assert_eq!(statement.data, tv.bytes(32).as_slice());
-    let statements = (
-        LinearStatement {
-            a: terms,
-            b: constants,
-        },
-        (),
-    );
+    let statements = (LinearStatement::new(terms, constants), ());
     let backend = prover
-        .prove_drawing(&mut tp.bound(&param), &statements)
+        .prove(&mut tp.bound(&param), statements.clone())
         .unwrap();
     verifier
-        .reduce_drawing(&mut tv.bound(&param), &backend, &statements)
+        .reduce(&mut tv.bound(&param), statements, &backend)
         .unwrap();
     assert_eq!(tp.bytes(32), tv.bytes(32));
 }

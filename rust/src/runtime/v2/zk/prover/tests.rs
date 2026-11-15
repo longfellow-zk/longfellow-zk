@@ -248,7 +248,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     )
     .unwrap();
     let joint = JointParam::new((prover.participant.participant(&context).unwrap(), ())).unwrap();
-    let (com_proof, mut numerical) = reference.joint.prove_drawing(&joint, (native, ())).unwrap();
+    let (com_proof, mut numerical) = reference.joint.finish(&joint, (native, ())).unwrap();
     let rows = reduce(
         &mut independent_verifier.bound(&verifier_backend.parameters),
         &verifier_source.claim,
@@ -275,17 +275,16 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
             .unwrap()
             .into_bytes()
     );
+    let equations = (
+        LinearStatement {
+            a: verifier_a,
+            b: verifier_b,
+            session: independent_verifier.bound(&()).session(),
+        },
+        (),
+    );
     let mut independent = independent_verifier
-        .authenticate_drawing(
-            &actual.com_proof,
-            (
-                LinearStatement {
-                    a: verifier_a,
-                    b: verifier_b,
-                },
-                (),
-            ),
-        )
+        .finish(equations, &actual.com_proof)
         .unwrap()
         .into_transcript();
     let state = actual_ts.bytes(32);

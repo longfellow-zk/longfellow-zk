@@ -9,11 +9,10 @@ use crate::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
             polygero::{
-                self, JointPolygeroParam, Participant, Participants as BackendParticipants,
-                PolygeroParam,
+                JointPolygeroParam, Participant, Participants as BackendParticipants, PolygeroParam,
             },
             proto::{polygero::PolygeroConfig, witness_selection::FINGERPRINTS},
-            transcript::{Bound, Challenge, Reading, TranscriptRef},
+            transcript::{Reading, SessionStamp, TranscriptRef},
         },
     },
 };
@@ -21,9 +20,6 @@ use crate::{
 pub type Witnesses<L> = <<L as Fields>::Backend as BackendParticipants>::Witnesses;
 pub type Statements<L> = <<L as Fields>::Backend as BackendParticipants>::Statements;
 pub type Bodies<L> = <<L as Fields>::Backend as BackendParticipants>::Bodies;
-/// The batching weights of a field list's backend, with the statements they
-/// batch (`Param::weights`).
-pub type Batched<L> = polygero::Batched<<L as Fields>::Backend>;
 
 /// The first `cells` positions belong to the frontend. The trailing two masks
 /// are owned by this protocol and never become field-valued circuit inputs.
@@ -101,11 +97,18 @@ pub trait Fields: sealed::Sealed + Clone {
     fn backend(&self) -> Self::Backend;
     fn coefficients(&self, r: &mut Reading<'_>) -> Self::Coefficients;
     fn send_responses(&self, responses: &Self::Responses, t: &mut TranscriptRef<'_>);
+    /// Each field's frontend equations followed by its `FINGERPRINTS`
+    /// fingerprint equations, built from the coefficients and responses of
+    /// the commitment. It rejects equations derived on a session other than
+    /// `session` or reaching outside the frontend's cells. Only the
+    /// completion of the opening (`Prover::finish`, `Verifier::finish`) calls
+    /// it.
     fn authenticate(
         &self,
         statements: Statements<Self>,
         coefficients: Self::Coefficients,
         responses: &Self::Responses,
+        session: &SessionStamp,
     ) -> Result<Statements<Self>, String>;
 }
 impl Fields for () {
@@ -115,7 +118,7 @@ impl Fields for () {
     fn backend(&self) {}
     fn coefficients(&self, _: &mut Reading<'_>) {}
     fn send_responses(&self, _: &(), _: &mut TranscriptRef<'_>) {}
-    fn authenticate(&self, _: (), _: (), _: &()) -> Result<(), String> {
+    fn authenticate(&self, _: (), _: (), _: &(), _: &SessionStamp) -> Result<(), String> {
         Ok(())
     }
 }
@@ -135,18 +138,5 @@ impl<L: Fields> Param<L> {
     }
     pub fn config(&self) -> PolygeroConfig {
         self.backend.config()
-    }
-    /// Draw the batching weights of the frontend statements `s` once each
-    /// field's fingerprint equations are attached: `s` and `FINGERPRINTS`
-    /// more equations per field (transcript I8). The weights carry `s`. The
-    /// caller draws them after the last frontend message and hands them to
-    /// `prove` or `authenticate`, which attach the fingerprint equations.
-    pub fn weights(t: &mut Bound<'_, Self>, s: Statements<L>) -> Challenge<Batched<L>> {
-        let mut counts = t.part().backend.equations(&s);
-        for count in &mut counts {
-            *count += FINGERPRINTS;
-        }
-        let param = t.part();
-        param.backend.weights_for(s, &counts, &mut t.transcript())
     }
 }

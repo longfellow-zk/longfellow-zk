@@ -5,8 +5,6 @@ use sha2::Sha256;
 use super::{ensure, PolygeroError, PolygeroLinearTerm, PolygeroParam};
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::random::PrivateRandom;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-use crate::runtime::v2::transcript::Challenge;
 #[cfg(any(test, feature = "testonly", feature = "tooling"))]
 use crate::runtime::v2::{
     proto::polygero::{checked_body, JointPolygeroProof},
@@ -18,7 +16,7 @@ use crate::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
             proto::polygero::PolygeroConfig,
-            transcript::{Reading, TranscriptRef},
+            transcript::{Reading, SessionStamp, TranscriptRef},
         },
     },
 };
@@ -76,33 +74,46 @@ impl<
         Ok(Self { param, f, domain })
     }
 }
-/// An immutable affine statement `A*w+b=0`. Frontends derive theirs from
-/// messages and challenges already absorbed, which fixes the statement before
-/// the batching challenges; the statement itself is never absorbed
-/// (transcript I3). Tests and tools may build a static system with
-/// [`Self::new`], which the transcript does not bind.
+/// An immutable affine statement `A*w+b=0`: one field's equations. A
+/// frontend derives them from messages and challenges already absorbed,
+/// which fixes them before the batching weights; they are never absorbed
+/// (transcript I3). They carry the stamp of the session that derived them,
+/// and the joint opening of a complete proof (`zk::JointProver::finish`,
+/// `zk::JointVerifier::finish`) accepts only equations derived on its own
+/// session. Only frontends inside the crate build them:
 ///
-/// ```compile_fail
-/// use longfellow_zk::runtime::v2::polygero::LinearStatement;
-/// let statement: LinearStatement<u64> = LinearStatement {
-///     a: vec![], b: vec![],
-/// };
+/// ```compile_fail,E0451
+/// use longfellow_zk::runtime::v2::{polygero::LinearStatement, transcript::SessionStamp};
+/// fn forge(session: SessionStamp) -> LinearStatement<u64> {
+///     LinearStatement { a: vec![], b: vec![], session }
+/// }
 /// ```
+///
+/// Tests and tools may build a static system with [`Self::new`], which the
+/// transcript does not bind.
 #[derive(Clone)]
 #[must_use = "The derived statement must be authenticated by the commitment backend."]
 pub struct LinearStatement<E> {
     pub(crate) a: Vec<PolygeroLinearTerm<E>>,
     pub(crate) b: Vec<E>,
+    /// The session the equations were derived on.
+    pub(crate) session: SessionStamp,
 }
 impl<E> LinearStatement<E> {
     /// A static system `A*w+b=0`, for tests and tools only. The transcript
     /// does not bind it: nothing absorbs a statement, so a static system is
     /// sound only if the caller fixes it in the transcript statement (for
-    /// example in the context) before the commitment. Frontend-derived systems
-    /// are constructed internally.
+    /// example in the context) before the commitment. It belongs to no
+    /// session, so a complete proof's joint opening rejects it; the bare
+    /// joint prover and verifier accept it. Frontend-derived systems are
+    /// constructed internally.
     #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     pub fn new(a: Vec<PolygeroLinearTerm<E>>, b: Vec<E>) -> Self {
-        Self { a, b }
+        Self {
+            a,
+            b,
+            session: SessionStamp::detached(),
+        }
     }
 }
 /// Independent constraint-batching scalars and evaluation-basis polynomial samples.
@@ -113,51 +124,6 @@ pub struct FieldChallenges<E> {
     /// Uniform evaluations of B_i on the first s+1 nodes of the oracle.
     /// Entry i belongs to W_i; the final row fstar has no batching polynomial.
     pub(super) batching_samples: Vec<Vec<E>>,
-}
-/// Every field's batching weights, in participant order (per field, one
-/// weight per affine equation, then s+1 samples per batched row), together
-/// with the statements they batch. The caller draws it after the last
-/// message any statement depends on, as a `Challenge` input (transcript I8),
-/// handing over the statements; the joint prover and verifier accept it
-/// before the first `PolygeroResponse` and read the statements from it, so
-/// no other system can replace the one the weights were drawn for. Only
-/// `JointPolygeroParam::weights_for` builds one (and, for tests and tools,
-/// `JointPolygeroParam::weights`).
-///
-/// ```compile_fail,E0061
-/// use longfellow_zk::runtime::v2::{
-///     polygero::{Batched, JointPolygeroParam, JointPolygeroProver, Participants},
-///     transcript::{Bound, Challenge},
-/// };
-/// fn substitute<L: Participants>(
-///     prover: JointPolygeroProver<L::States>,
-///     t: &mut Bound<'_, JointPolygeroParam<L>>,
-///     batch: Challenge<Batched<L>>,
-///     other: &L::Statements,
-/// ) {
-///     let _ = prover.prove(t, batch, other);
-/// }
-/// ```
-pub struct Batched<L: Participants> {
-    pub(super) statements: L::Statements,
-    pub(super) weights: L::Challenges,
-}
-impl<L: Participants> Batched<L> {
-    /// The same weights over `f(statements)`, for witness selection, which
-    /// attaches its fingerprint equations: they are fixed before the draw,
-    /// and the weights were drawn for their count.
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    pub(crate) fn try_map_statements<E>(
-        batch: Challenge<Self>,
-        f: impl FnOnce(L::Statements) -> Result<L::Statements, E>,
-    ) -> Result<Challenge<Self>, E> {
-        batch.try_map(|b| {
-            Ok(Self {
-                statements: f(b.statements)?,
-                weights: b.weights,
-            })
-        })
-    }
 }
 mod sealed {
     pub trait Sealed {}
@@ -182,16 +148,9 @@ pub trait Participants: sealed::Sealed {
     /// return the participant count.
     fn describe(&self, config: &mut Option<PolygeroConfig>) -> Result<usize, PolygeroError>;
     fn validate_statements(&self, s: &Self::Statements) -> Result<(), PolygeroError>;
-    /// The equation count of each statement, in participant order.
-    fn equations(&self, s: &Self::Statements, out: &mut Vec<usize>);
-    /// Draw every field's challenges for `counts[i]` equations in field i.
-    fn challenges(&self, counts: &[usize], t: &mut Reading<'_>) -> Self::Challenges;
-    /// Check that challenges fit the statements and the fields' geometry.
-    fn validate_challenges(
-        &self,
-        s: &Self::Statements,
-        c: &Self::Challenges,
-    ) -> Result<(), PolygeroError>;
+    /// Draw every field's challenges for the equations of `s`: one weight
+    /// per equation, then s+1 samples per batched row.
+    fn challenges(&self, s: &Self::Statements, t: &mut Reading<'_>) -> Self::Challenges;
     fn send_responses(&self, b: &Self::Bodies, t: &mut TranscriptRef<'_>);
     fn validate_bodies(&self, b: &Self::Bodies) -> Result<(), PolygeroError>;
     // The bare body codec of `JointPolygeroParam::{write, read}`, for tests
@@ -245,11 +204,7 @@ impl Participants for () {
     fn validate_statements(&self, _: &()) -> Result<(), PolygeroError> {
         Ok(())
     }
-    fn equations(&self, _: &(), _: &mut Vec<usize>) {}
-    fn challenges(&self, _: &[usize], _: &mut Reading<'_>) {}
-    fn validate_challenges(&self, _: &(), _: &()) -> Result<(), PolygeroError> {
-        Ok(())
-    }
+    fn challenges(&self, _: &(), _: &mut Reading<'_>) {}
     fn send_responses(&self, _: &(), _: &mut TranscriptRef<'_>) {}
     fn validate_bodies(&self, _: &()) -> Result<(), PolygeroError> {
         Ok(())

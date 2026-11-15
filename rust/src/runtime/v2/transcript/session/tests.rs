@@ -32,6 +32,10 @@ impl Transcript {
     pub(crate) fn round_count_for_test(&self) -> u64 {
         self.trace.boundaries()
     }
+    /// This session's identity, for test systems derived on it.
+    pub(crate) fn session_for_test(&self) -> SessionStamp {
+        self.session()
+    }
     /// Send a test message.
     pub(crate) fn send_for_test(&mut self, bytes: &[u8]) {
         self.borrow().send(&TestMessage(bytes));

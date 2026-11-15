@@ -292,15 +292,16 @@ layers.
 | 6 | P-256 adapter | `P256AdapterQuotients` (65) | Bits(10), Bits(10) | host top weights (input) |
 | 7 | binary sumcheck, per layer | as in row 4 | over GF2_128 | as in row 4, without eta |
 | 8 | binary dual packing | `PackingU` (80) | Elements(GF2_128, 128) | 128 independent GF2_128 elements |
-| 9 | binary dual packing | `PackingA` (81) | Elements(GF2_128, 1) | Polygero batching weights (input, drawn by the composition driver): per field, one weight per equation, then s+1 = 13 samples per batched row |
+| 9 | binary dual packing | `PackingA` (81) | Elements(GF2_128, 1) | Polygero batching weights (drawn and used by the joint opening): per field, one weight per equation, then s+1 = 13 samples per batched row |
 | 10 | Polygero | `PolygeroResponse` (96) x 2 | per field Elements(F, k+s = 361), Elements(F, 2k = 698) | t = 84 distinct columns out of n = 2443 |
 | 11 | encoder | `Seal` (112) | Bytes: every proof byte before the seal | the seal block |
 
 The prime participant has packing degree one, so it sends no packing
 messages and has no packing boundaries (transcript I7). Every sub-protocol
 here that draws begins by sending; the challenges it needs first (both top
-weights, eta, the conversion pair, the batching weights) are `Challenge`
-inputs (transcript I8). Boundaries: the sumcheck rounds of both frontends,
+weights, eta, the conversion pair) are `Challenge` inputs (transcript I8),
+and the joint opening draws the batching weights itself, right where it
+takes both fields' statements. Boundaries: the sumcheck rounds of both frontends,
 plus 2 per layer, plus 7 others; the seal is not counted. For A = 1 to 4
 the hash circuit has 263, 267, 272 and 275 rounds and the signature circuit
 125, so the counts are 457, 461, 466 and 469.

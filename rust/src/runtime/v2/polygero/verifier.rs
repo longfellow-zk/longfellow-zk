@@ -19,7 +19,7 @@ use crate::runtime::{
             polygero::{validate_opening, FieldProof, JointPolygeroProof, PolygeroCommitment},
             Digest,
         },
-        transcript::{Bound, Challenge, SessionStamp},
+        transcript::{Bound, SessionStamp},
     },
 };
 /// Verifier state between the commitment and the opening. It records the
@@ -44,30 +44,31 @@ impl<L: Participants> JointPolygeroVerifier<L> {
     }
     /// Complete standalone verification of a bare body (`JointPolygeroParam::read`)
     /// on the session that received the commitment, including the mandatory
-    /// final seal, with the batching weights `batch` drawn since the last
-    /// message, for the statements it carries. For tests and tools only:
-    /// complete proofs run `reduce` inside their own composition and check
-    /// their own seal.
+    /// final seal, against `statements`. For tests and tools only: complete
+    /// proofs run `reduce` inside their own composition and check their own
+    /// seal.
     #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     pub fn verify(
         self,
         mut transcript: Transcript,
         param: &JointPolygeroParam<L>,
-        batch: Challenge<Batched<L>>,
+        statements: L::Statements,
         proof: Unverified<'_, JointPolygeroProof<L::Bodies>>,
     ) -> Result<VerifiedProof, PolygeroError> {
-        self.reduce(&mut transcript.bound(param), batch, &proof)?;
+        self.reduce(&mut transcript.bound(param), statements, &proof)?;
         proof
             .checked(transcript)
             .map_err(|e| PolygeroError(e.into()))
     }
-    /// Check the opening on the session that received the commitment. This
-    /// is not complete verification: the caller still checks the seal.
-    /// `batch` carries the statements the opening is checked against.
+    /// Check the opening on the session that received the commitment against
+    /// `statements`, the equations of every field. It draws the batching
+    /// weights at the current boundary, which must follow the last message
+    /// any statement depends on, and consumes them (transcript I8). This is
+    /// not complete verification: the caller still checks the seal.
     pub(crate) fn reduce(
         self,
         t: &mut Bound<'_, JointPolygeroParam<L>>,
-        batch: Challenge<Batched<L>>,
+        statements: L::Statements,
         proof: &JointPolygeroProof<L::Bodies>,
     ) -> Result<(), PolygeroError> {
         ensure(
@@ -77,12 +78,8 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         let p = t.part();
         p.participants.validate_bodies(&proof.bodies)?;
         validate_opening(&proof.opening, p.config.t, p.config.n)?;
-        let Batched {
-            statements: s,
-            weights: c,
-        } = t.accept(batch).map_err(|e| PolygeroError(e.to_string()))?;
-        p.participants.validate_statements(&s)?;
-        p.participants.validate_challenges(&s, &c)?;
+        p.participants.validate_statements(&statements)?;
+        let weights = p.weights_for(&statements, &mut t.transcript());
         let indices = p.queries(&proof.bodies, &mut t.transcript());
         let leaves: Vec<_> = indices
             .iter()
@@ -108,7 +105,8 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         .map_err(|e| PolygeroError(e.to_string()))?;
         // The one opening authenticates every field's column values. Each field
         // still needs its own low-degree and affine-equation checks.
-        p.participants.check(&proof.bodies, &s, &c, &indices)?;
+        p.participants
+            .check(&proof.bodies, &statements, &weights, &indices)?;
         Ok(())
     }
 }

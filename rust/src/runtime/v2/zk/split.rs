@@ -32,7 +32,7 @@ use crate::{
         v2::{
             polygero::{LinearStatement, PolygeroLinearTerm},
             sumcheck::{circuit_geometry, symbolic::Constraints},
-            transcript::{Bound, Challenge},
+            transcript::{Bound, Challenge, SessionStamp},
         },
     },
 };
@@ -110,14 +110,15 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         }
         Ok(split)
     }
-    /// This field's statement: the layer rows, then the native row
-    /// `eta*<w_N, v_N> - R + mu - eta*t = 0`.
+    /// This field's statement on `session`: the layer rows, then the native
+    /// row `eta*<w_N, v_N> - R + mu - eta*t = 0`.
     /// It consumes the claim: its layer rows become the statement's rows.
     fn split_statement(
         &self,
         claim: SplitClaim<F::E>,
         eta: &F::E,
         mu: &F::E,
+        session: SessionStamp,
         f: &F,
     ) -> Result<LinearStatement<F::E>, String> {
         let split = self.check_claim(&claim, eta, f)?;
@@ -141,7 +142,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             k: f.mone(),
         });
         b.push(f.subf(mu, &f.mulf(eta, &claim.target)));
-        Ok(LinearStatement { a, b })
+        Ok(LinearStatement { a, b, session })
     }
     /// Foreign claim `<eta*w_F, v_F> + R_bits = mu (mod p)` for the adapter.
     fn foreign_claim(
@@ -253,7 +254,7 @@ impl<E> PendingSplit<E> {
         let mu = p.split_message(&self, &scale, f)?;
         transcript::send_mu(&mut t.transcript(), &mu, f);
         let foreign = p.foreign_claim(&self.claim, &scale, &mu, f)?;
-        let statement = p.split_statement(self.claim, &scale, &mu, f)?;
+        let statement = p.split_statement(self.claim, &scale, &mu, t.session(), f)?;
         Ok((mu, SplitOutput { statement, foreign }))
     }
 }
@@ -275,7 +276,7 @@ impl<E> SplitClaim<E> {
         let p = t.part().participant;
         transcript::send_mu(&mut t.transcript(), mu, f);
         let foreign = p.foreign_claim(&self, &scale, mu, f)?;
-        let statement = p.split_statement(self, &scale, mu, f)?;
+        let statement = p.split_statement(self, &scale, mu, t.session(), f)?;
         Ok(SplitOutput { statement, foreign })
     }
 }

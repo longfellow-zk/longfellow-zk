@@ -141,22 +141,6 @@ impl<T> Challenge<T> {
             Err(StaleChallenge)
         }
     }
-    /// The same draw, still stamped with its boundary, with its value
-    /// replaced by `f(value)`: for a component that derives its consumer's
-    /// input from the drawn value and values fixed before the draw. Witness
-    /// selection attaches its fingerprint equations to the batched system
-    /// this way.
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    pub(crate) fn try_map<U, E>(
-        self,
-        f: impl FnOnce(T) -> Result<U, E>,
-    ) -> Result<Challenge<U>, E> {
-        Ok(Challenge {
-            value: f(self.value)?,
-            at: self.at,
-            session: self.session,
-        })
-    }
 }
 
 /// A challenge was drawn on another session or at another boundary, or a

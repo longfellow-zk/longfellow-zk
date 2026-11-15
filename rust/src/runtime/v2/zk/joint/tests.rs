@@ -11,12 +11,10 @@ use crate::{
         },
         random::DeterministicRng,
         v2::{
-            polygero::Participants,
-            proto::{dual_packing::PackingProof, polygero::JointPolygeroProof, zk::CircuitProof},
+            proto::{dual_packing::PackingProof, zk::CircuitProof},
             sumcheck::eval_circuit,
-            transcript::Transcript,
-            witness_selection,
-            zk::{self, Authenticated, JointProver, JointVerifier, VirtualInputs},
+            transcript::{SessionStamp, Transcript},
+            zk::{self, VirtualInputs},
         },
     },
 };
@@ -80,48 +78,130 @@ fn selected_joint_wrapper_supports_three_typed_fields() {
         ),
     ))
     .unwrap();
-    let statements = || {
-        (
-            LinearStatement {
-                a: vec![],
-                b: vec![],
-            },
-            (
-                LinearStatement {
-                    a: vec![],
-                    b: vec![],
-                },
-                (
-                    LinearStatement {
-                        a: vec![],
-                        b: vec![],
-                    },
-                    (),
-                ),
-            ),
-        )
+    // Empty frontend systems, derived on the session `session` names.
+    let statements = |session: SessionStamp| {
+        let empty = || LinearStatement {
+            a: vec![],
+            b: vec![],
+            session: session.clone(),
+        };
+        let prime = LinearStatement {
+            a: vec![],
+            b: vec![],
+            session: session.clone(),
+        };
+        (empty(), (prime, (empty(), ())))
     };
     let tp = Transcript::for_test(b"zk-v2/selected-three-fields");
-    let (prover, root, responses) = param
+    let (mut prover, root, responses) = param
         .commit(
             (vec![f.one(), f.zero()], (vec![p.one()], (vec![], ()))),
             tp,
             &mut DeterministicRng::new(91),
         )
         .unwrap();
-    let (proof, mut tp) = prover.prove_drawing(&param, statements()).unwrap();
+    let equations = statements(prover.bound(&()).session());
+    let (proof, mut tp) = prover.finish(&param, equations).unwrap();
     let verify = |responses| {
         let tv = Transcript::for_test(b"zk-v2/selected-three-fields");
-        param
-            .clone()
-            .receive(&root, responses, tv)
-            .authenticate_drawing(&proof, statements())
+        let mut verifier = param.clone().receive(&root, responses, tv);
+        let verifier_equations = statements(verifier.bound(&()).session());
+        verifier.finish(verifier_equations, &proof)
     };
     let mut tv = verify(responses.clone()).unwrap().into_transcript();
     assert_eq!(tp.bytes(32), tv.bytes(32));
     let mut altered = responses;
     f.add(&mut altered.1 .1 .0.values[1], &f.one());
     assert!(verify(altered).is_err());
+}
+/// `finish` accepts only equations derived on its own session: neither a
+/// system derived on another session with the same history (a fork) nor a
+/// static system (`LinearStatement::new`), in either role.
+#[test]
+fn finish_rejects_equations_derived_on_another_session() {
+    use crate::runtime::v2::{
+        polygero::LinearStatement,
+        proto::polygero::PolygeroConfig,
+        zk::joint::{JointParam, SelectedField},
+    };
+    let f = Gf2_128Field::new();
+    let d = BinaryInterpolatorFactory::full_field(&f);
+    let config = PolygeroConfig {
+        k: 8,
+        s: 2,
+        n: 64,
+        t: 2,
+    };
+    let param = JointParam::new((SelectedField::new(2, config, &d).unwrap(), ())).unwrap();
+    let derived = |session| {
+        (
+            LinearStatement {
+                a: vec![],
+                b: vec![],
+                session,
+            },
+            (),
+        )
+    };
+    let commit = || {
+        param
+            .commit(
+                (vec![f.one(), f.zero()], ()),
+                Transcript::for_test(b"zk-v2/stamp"),
+                &mut DeterministicRng::new(5),
+            )
+            .unwrap()
+    };
+    const ERROR: &str = "frontend equations derived on another session";
+    let (mut forked_prover, _, _) = commit();
+    let prover_fork = forked_prover
+        .transcript()
+        .fork_for_test()
+        .session_for_test();
+    assert_eq!(
+        forked_prover
+            .finish(&param, derived(prover_fork))
+            .err()
+            .unwrap(),
+        ERROR
+    );
+    let (static_prover, _, _) = commit();
+    let prover_fixed = (LinearStatement::new(vec![], vec![]), ());
+    assert_eq!(
+        static_prover.finish(&param, prover_fixed).err().unwrap(),
+        ERROR
+    );
+
+    let (mut prover, root, responses) = commit();
+    let prover_equations = derived(prover.bound(&()).session());
+    let (proof, _) = prover.finish(&param, prover_equations).unwrap();
+    let receive = || {
+        param.clone().receive(
+            &root,
+            responses.clone(),
+            Transcript::for_test(b"zk-v2/stamp"),
+        )
+    };
+    let mut forked_verifier = receive();
+    let verifier_fork = forked_verifier
+        .transcript()
+        .fork_for_test()
+        .session_for_test();
+    assert_eq!(
+        forked_verifier
+            .finish(derived(verifier_fork), &proof)
+            .err()
+            .unwrap(),
+        ERROR
+    );
+    let verifier_fixed = (LinearStatement::new(vec![], vec![]), ());
+    assert_eq!(
+        receive().finish(verifier_fixed, &proof).err().unwrap(),
+        ERROR
+    );
+    let mut verifier = receive();
+    let verifier_equations = derived(verifier.bound(&()).session());
+    verifier.finish(verifier_equations, &proof).unwrap();
 }
 fn circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
     f: &F,
@@ -215,7 +295,7 @@ fn binary_circuits_authenticate_one_shared_input() {
             &ctx,
         )
         .unwrap();
-        let (opening, _) = joint.prove_drawing(&param, (statement, ())).unwrap();
+        let (opening, _) = joint.finish(&param, (statement, ())).unwrap();
         let verify = |candidate: &CircuitProof<2, Gf2_128Field>, public: bool| {
             let t = Transcript::for_test(b"fragmented-pcs-test");
             let mut v = param.clone().receive(&root, responses.clone(), t);
@@ -225,7 +305,7 @@ fn binary_circuits_authenticate_one_shared_input() {
                 &VirtualInputs::none(),
                 &ctx,
             )?;
-            v.authenticate_drawing(&opening, (statement, ()))
+            v.finish((statement, ()), &opening)
                 .map(|_| ())
                 .map_err(|e| e.to_string())
         };
@@ -297,7 +377,7 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     )
     .unwrap();
     assert!(matches!(proof.packing, PackingProof::Direct));
-    let (opening, mut tp) = joint.prove_drawing(&param, (statement, ())).unwrap();
+    let (opening, mut tp) = joint.finish(&param, (statement, ())).unwrap();
     let t = Transcript::for_test(b"prime-fragmented-pcs-test");
     let mut v = param.receive(&root, responses, t);
     let statement = reduce(
@@ -308,7 +388,7 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     )
     .unwrap();
     let mut tv = v
-        .authenticate_drawing(&opening, (statement, ()))
+        .finish((statement, ()), &opening)
         .unwrap()
         .into_transcript();
     assert_eq!(tp.bytes(32), tv.bytes(32));
@@ -452,7 +532,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
         &ctx,
     )
     .unwrap();
-    let (opening, _) = joint.prove_drawing(&param, (statement, ())).unwrap();
+    let (opening, _) = joint.finish(&param, (statement, ())).unwrap();
     let verify = |definition: &VirtualInputs<_>| {
         let t = Transcript::for_test(b"virtual-inputs-test");
         let mut v = param.clone().receive(&root, responses.clone(), t);
@@ -462,7 +542,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
             definition,
             &ctx,
         )?;
-        v.authenticate_drawing(&opening, (statement, ()))
+        v.finish((statement, ()), &opening)
             .map(|_| ())
             .map_err(|e| e.to_string())
     };
@@ -499,33 +579,6 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     .is_err());
     // The primary circuit cannot read the virtual suffix.
     assert!(CircuitParticipant::new(&[&fragment, &main], 1, config, &ctx).is_err());
-}
-
-/// Draw the batching weights right after the last frontend message, as the
-/// drivers do.
-impl<S, C, R> JointProver<S, C, R> {
-    pub(crate) fn prove_drawing<L: Fields>(
-        mut self,
-        param: &JointParam<L>,
-        statements: Statements<L>,
-    ) -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>
-    where
-        L::Selection: witness_selection::Fields<Coefficients = C, Responses = R>,
-        <L::Selection as witness_selection::Fields>::Backend: Participants<States = S>,
-    {
-        let batch = self.weights(param, statements);
-        self.prove(param, batch)
-    }
-}
-impl<L: Fields> JointVerifier<L> {
-    pub(crate) fn authenticate_drawing(
-        mut self,
-        proof: &JointPolygeroProof<Bodies<L>>,
-        statements: Statements<L>,
-    ) -> Result<Authenticated, String> {
-        let batch = self.weights(statements);
-        self.authenticate(batch, proof)
-    }
 }
 
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {

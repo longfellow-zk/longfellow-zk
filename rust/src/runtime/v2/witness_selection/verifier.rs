@@ -1,9 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::runtime::v2::{
-    polygero::{Batched as BackendBatched, JointPolygeroVerifier},
+    polygero::JointPolygeroVerifier,
     proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-    transcript::{Bound, Challenge, SessionStamp},
+    transcript::{Bound, SessionStamp},
 };
 
 /// Evidence that the fingerprint and frontend equations were authenticated.
@@ -40,26 +40,32 @@ impl<L: Fields> Verifier<L> {
             responses,
         }
     }
+    /// Check the opening on the session that received the commitment
+    /// against `statements`, the frontend equations of every field, derived
+    /// on this session, each followed by its fingerprint equations, which
+    /// this attaches from the coefficients and responses of the commitment;
+    /// the backend then draws its batching weights at the current boundary.
     /// Intermediate authentication only; the enclosing complete verifier must
-    /// additionally check its mandatory final transcript seal. `batch` is
-    /// drawn by `Param::weights` since the last message and carries the
-    /// frontend statements, to which this attaches the fingerprint equations.
-    pub fn authenticate(
+    /// additionally check its mandatory final transcript seal. Only the joint
+    /// ZK verifier calls it (`JointVerifier::finish`).
+    pub(crate) fn finish(
         self,
         t: &mut Bound<'_, Param<L>>,
-        batch: Challenge<Batched<L>>,
+        statements: Statements<L>,
         proof: &JointPolygeroProof<Bodies<L>>,
     ) -> Result<Authenticated, String> {
         let param = t.part();
         if self.session != t.session() {
             return Err("witness selection session mismatch".into());
         }
-        let (coefficients, responses) = (self.coefficients, &self.responses);
-        let batch = BackendBatched::try_map_statements(batch, |s| {
-            param.fields.authenticate(s, coefficients, responses)
-        })?;
+        let augmented = param.fields.authenticate(
+            statements,
+            self.coefficients,
+            &self.responses,
+            &self.session,
+        )?;
         self.backend
-            .reduce(&mut t.project(|p| &p.backend), batch, proof)
+            .reduce(&mut t.project(|p| &p.backend), augmented, proof)
             .map_err(|e| e.to_string())?;
         Ok(Authenticated { _private: () })
     }

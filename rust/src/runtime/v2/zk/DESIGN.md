@@ -93,24 +93,27 @@ writes, which comes from the same participant (`Opened::geometry`).
 *Enforced by:* function signatures (type); `FrontendPart::new` (runtime,
 before `Opened::new`).
 
-**I4. Every leading challenge is an input.** The sumcheck top weights, eta,
-the row weights of pure-foreign storage and the Polygero batching weights are
-`Challenge<T>` values (transcript I8). The caller draws each from the boundary
-closed by the previous message; the consumer accepts it. The Polygero
-batching weights are drawn after the last frontend message of every
-participant (`PackingA`, or the last `SumcheckClaims` when every participant
-has degree one) by `JointProver::weights` and `JointVerifier::weights`,
-which take the statements by value and carry them with the weights
-(`Batched<L>`), and passed to `JointProver::prove` and
-`JointVerifier::authenticate`, which take no statements of their own, so no
-other system can replace the one the weights batch, and which check that the
-weights fit it. Eta has type `Eta<E>`, whose only constructor is its
-`nonzero(F)` draw (`split::transcript::eta`), so a zero eta cannot be
-represented.
+**I4. Every leading challenge another component consumes is an input; the
+batching weights are not.** The sumcheck top weights, eta and the row weights
+of pure-foreign storage are `Challenge<T>` values (transcript I8). The caller
+draws each from the boundary closed by the previous message; the consumer
+accepts it. The Polygero batching weights are drawn and consumed by the
+opening itself: `JointProver::finish` and `JointVerifier::finish` take each
+field's frontend equations (`Statements<L>`, typed per field, in participant
+order) after the last frontend message of every participant (`PackingA`, or
+the last `SumcheckClaims` when every participant has degree one), consume
+the session, reject equations derived on another session (the stamp each
+`LinearStatement` carries), attach the fingerprint equations and run joint
+Polygero, which draws the weights at that boundary and uses them in the same
+call. No caller holds the weights, so none can pair them with another system.
+Eta has type `Eta<E>`, whose only constructor is its `nonzero(F)` draw
+(`split::transcript::eta`), so a zero eta cannot be represented.
 *Enforced by:* `Bound::accept` (runtime, both roles); `Challenge` is
-move-only, `prove` and `authenticate` have no statement parameter, and `Eta`
-has no public constructor (type; `compile_fail` doctest on
-`JointVerifier::weights`).
+move-only, `Eta` has no public constructor, `LinearStatement` has no public
+constructor outside tests and tools, and `finish` takes every field's
+equations in their types (type; `compile_fail` doctests on
+`LinearStatement` and `JointVerifier::finish`); the stamp check (runtime;
+test `finish_rejects_equations_derived_on_another_session`).
 
 **I5. One constraint form, compiled by shared code.** Every row is
 `sum_w A[c,w]*w + b[c] = 0`. Coefficients, constants, explicit zeros and
@@ -136,10 +139,10 @@ public transcript accessor (type); Lean `ZkJoint`, `FingerprintRows`.
 
 **I7. A frontend output is not an acceptance decision.** `LinearStatement`
 and `ModularClaim` are `#[must_use]` claims. Acceptance requires
-`JointVerifier::authenticate`, which returns `Authenticated`; only
+`JointVerifier::finish`, which returns `Authenticated`; only
 `Authenticated::into_transcript` gives back the transcript the seal needs
 (transcript I10).
-*Enforced by:* `Authenticated` is obtainable only from `authenticate`, and
+*Enforced by:* `Authenticated` is obtainable only from `finish`, and
 the verifier's transcript leaves the handle only through it (type).
 
 **I8. Virtual inputs are substituted, never committed and never absorbed.**
@@ -226,7 +229,7 @@ listed for position only.
 | Split, mixed | draw | eta (*input*), after the last stage's alpha and input assertions | nonzero(F) |
 | | prover | `SplitOpening` | Elements(F, 1): mu |
 | Batching, pure | draw | rho (*input*), after the last stage's alpha and input assertions | elements(F, L+1) |
-| Authenticate | draw | Polygero batching weights (*input*), after the last frontend message | joint Polygero |
+| Authenticate | draw | Polygero batching weights, drawn and used inside `finish`, after the last frontend message | joint Polygero |
 | | prover, draw | `PolygeroResponse` per field, then t column indices | joint Polygero |
 
 `d = 1` packing has no messages and no boundary: it yields one direct row.
@@ -236,8 +239,9 @@ draws nothing. With `d > 1` its packing still sends `PackingU`, draws the
 packing challenges and sends `PackingA`. With `d = 1` the frontend sends
 nothing, and the next draw (eta or rho for a split participant) reads
 further from the boundary closed by the previous message. Every frontend of
-every participant finishes before the caller draws the Polygero batching
-weights. In mdoc the order is: commit, prime frontend, eta, `SplitOpening`,
+every participant finishes before the caller calls `finish`, which draws the
+Polygero batching weights. In mdoc the order is: commit, prime frontend, eta,
+`SplitOpening`,
 the adapter's conversion pair and `P256AdapterQuotients`, the host frontend
 over the hash circuit and the adapter fragment, `PackingU`, `PackingA`, then
 joint Polygero. For pure foreign storage, rho is drawn at the frontend's
@@ -287,7 +291,7 @@ Both roles run the same arithmetic after the frontend's messages.
 | Constraint shape: layer count, input weight count `committed_end + virtual` | `compile_packed`, `split_claim`, `batch` |
 | Packing rows: count 1 or 2, word, mask and pad ranges | `PackingCommitment::append_equations` |
 | Eta stamp and freshness | `Bound::accept` |
-| All rows and claims hold | joint Polygero (`authenticate`) and the foreign adapter |
+| All rows and claims hold | joint Polygero (`JointVerifier::finish`) and the foreign adapter |
 
 ## Formats
 
@@ -400,9 +404,8 @@ impl<L: Fields> JointParam<L> {
 }
 impl<S, C, R> JointProver<S, C, R> {
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P>;
-    pub fn weights<L: Fields>(&mut self, param: &JointParam<L>, statements: Statements<L>)
-        -> Challenge<Batched<L>>;                        // I4: carries the statements
-    pub fn prove<L: Fields>(self, param: &JointParam<L>, batch: Challenge<Batched<L>>)
+    // I4: each field's equations, derived on this session; draws the batching weights
+    pub fn finish<L: Fields>(self, param: &JointParam<L>, equations: Statements<L>)
         -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>;
 }
 pub fn prove(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: CircuitState<W, F>,
@@ -425,8 +428,8 @@ impl<L: Fields> JointParam<L> {
 }
 impl<L: Fields> JointVerifier<L> {
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P>;
-    pub fn weights(&mut self, statements: Statements<L>) -> Challenge<Batched<L>>;  // I4
-    pub fn authenticate(self, batch: Challenge<Batched<L>>, proof: &JointPolygeroProof<Bodies<L>>)
+    // I4: each field's equations, derived on this session; draws the batching weights
+    pub fn finish(self, equations: Statements<L>, proof: &JointPolygeroProof<Bodies<L>>)
         -> Result<Authenticated, String>;                // I7
 }
 impl Authenticated { pub fn into_transcript(self) -> Transcript; }
@@ -507,8 +510,10 @@ How the API carries the invariants:
 | Proving one circuit list and committing the layout of another | I3: the layout and circuits come from one `FrontendPart` in the statement |
 | Drawing a frontend challenge before the witness is selected | I6: the frontend's `Bound` exists only after commit or receive |
 | Drawing eta before the frontend's last message, or reusing it | I4: stamp check and move-only `Challenge` |
-| Drawing the Polygero batching weights before some participant's last frontend message | I4: `authenticate` and `prove` accept them only if no message was sent since |
-| Authenticating a system other than the one the batching weights were drawn for | I4: the weights carry their statements; `authenticate` and `prove` take no others |
+| Drawing the Polygero batching weights before some participant's last frontend message | I4: `finish` draws them, and it takes every field's equations, which exist only after that field's frontend |
+| Authenticating a system other than the one the batching weights were drawn for | I4: the weights are drawn inside `finish` for the equations it takes; no caller holds them |
+| Opening with equations derived on another session, or a static system | I4: `finish` compares each statement's session stamp with its own |
+| Omitting a field's equations | I4: `finish` takes the typed per-field tuple; a shorter one does not compile |
 | A zero eta, which would drop the foreign part of the input equation | I4: `Eta` comes only from `nonzero(F)` |
 | Native row and modular claim built from different `eta` or `mu` | I9: one call returns both |
 | Sending `mu` without absorbing it, or absorbing a different value | I9: `open` and `receive` send `SplitOpening` themselves |

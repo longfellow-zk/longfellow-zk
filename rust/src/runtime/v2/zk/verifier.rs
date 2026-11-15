@@ -210,10 +210,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
                 )
             })
             .map_err(ZkVerificationError::InvalidSumcheck)?;
-        let statements = (linear, ());
-        let batch = verifier.weights(statements);
         verifier
-            .authenticate(batch, &proof.com_proof)
+            .finish((linear, ()), &proof.com_proof)
             .map(|authenticated| authenticated.into_transcript())
             .map_err(ZkVerificationError::PolygeroVerification)
     }

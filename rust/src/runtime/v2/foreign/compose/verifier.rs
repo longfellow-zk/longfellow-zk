@@ -48,11 +48,8 @@ where
         let mut th = joint.bound(&this.host);
         let top_host = joint::top_weights(&mut th)?;
         let statement_host = zk::reduce(&mut th, &proof.host, top_host, &leaves, &c.host_ctx)?;
-        // The batching weights follow the host frontend's last message.
-        let statements = (statement_host, (split.statement, ()));
-        let batch = joint.weights(statements);
-        Ok(joint
-            .authenticate(batch, &proof.polygero)?
-            .into_transcript())
+        // The opening follows the host frontend's last message.
+        let equations = (statement_host, (split.statement, ()));
+        Ok(joint.finish(equations, &proof.polygero)?.into_transcript())
     }
 }

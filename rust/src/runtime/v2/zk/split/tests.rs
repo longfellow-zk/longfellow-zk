@@ -175,7 +175,9 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
         }
         rows.iter().all(|x| f.is_zero(x))
     };
-    let statement = part.split_statement(checked, &eta, &mu, &f).unwrap();
+    let statement = part
+        .split_statement(checked, &eta, &mu, tv.session_for_test(), &f)
+        .unwrap();
     // The layer rows, unbatched, then the split row.
     assert_eq!(statement.b.len(), c.raw.layers.len() + 1);
     assert!(holds(&statement, &witness));
@@ -199,7 +201,9 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
         &f.mulf(&eta, &f.mulf(&claim.claim.weights[0], &source)),
         &mask,
     );
-    let statement = part.split_statement(claim, &eta, &mu, &f).unwrap();
+    let statement = part
+        .split_statement(claim, &eta, &mu, t.session_for_test(), &f)
+        .unwrap();
     assert!(!holds(&statement, &witness));
 }
 

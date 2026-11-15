@@ -17,9 +17,9 @@ product-tree fragment that the host sumcheck proves next to the host
 circuit. The driver owns every hand-off between these sub-protocols: it
 draws each input challenge (transcript I8) right after the message that
 closes the previous sub-protocol. Witness selection opens the composition
-with the joint commitment. The joint Polygero opening consumes the affine
-statements, batched with weights the driver draws after the last frontend
-message. For mdoc, the host is the hash circuit, the split circuit is the
+with the joint commitment. The joint Polygero opening takes the affine
+statements after the last frontend message and batches them with weights it
+draws and uses itself. For mdoc, the host is the hash circuit, the split circuit is the
 signature circuit with mixed storage, and the application wraps the composed
 body in `MDA7` and the seal (transcript I10, I11).
 
@@ -88,16 +88,18 @@ The host sumcheck proves those assertions.
 Code comments and the rest of this document cite these as "foreign I1" and
 so on.
 
-**I1. The driver owns every cross-protocol hand-off.** Five challenges cross
+**I1. The driver owns every cross-protocol hand-off.** Four challenges cross
 a sub-protocol boundary inside the composition: the prime top weights, the
 split's challenge (eta for mixed storage, the row weights for pure-foreign
-storage), the conversion pair, the host top weights and the Polygero
-batching weights. The driver draws each one as a `Challenge<T>`, right after
-the message that closes the previous sub-protocol, and hands it to the next.
-No sub-protocol draws its own leading challenge; each takes it as an input
-and `accept`s it (transcript I8).
-*Enforced by:* the sumcheck, split, adapter and joint-opening entry points
-take `Challenge<T>` parameters (type); the stamp check in `accept` rejects a
+storage), the conversion pair and the host top weights. The driver draws
+each one as a `Challenge<T>`, right after the message that closes the
+previous sub-protocol, and hands it to the next. No sub-protocol draws its
+own leading challenge; each takes it as an input and `accept`s it
+(transcript I8). The Polygero batching weights cross no boundary: the joint
+opening (`JointProver::finish`, `JointVerifier::finish`) takes both fields'
+statements, draws them and uses them in the same call.
+*Enforced by:* the sumcheck, split and adapter entry points take
+`Challenge<T>` parameters (type); the stamp check in `accept` rejects a
 challenge drawn at the wrong boundary in both roles (runtime); the
 role-trace test of I2.
 
@@ -106,8 +108,9 @@ role-trace test of I2.
 `ComposedStatement::reduce_and_authenticate` (`compose/verifier.rs`) make the
 same draw calls in the same order: `joint::top_weights` for the prime
 frontend, `split::transcript::eta`, `AdapterMode::draw_conversion`,
-`joint::top_weights` for the host, then `JointProver::weights` or
-`JointVerifier::weights`. Each draw call only draws; the sub-protocols send.
+`joint::top_weights` for the host, then `JointProver::finish` or
+`JointVerifier::finish` on both fields' statements. Each draw call only
+draws; the sub-protocols send.
 The driver always supplies the split mask R, so it composes mixed storage
 only. Pure-foreign storage is specified (the zk layer implements its row
 batching, and Lean models it as `RowBatching`, `PureHandoff` and
@@ -226,7 +229,7 @@ draws that follow its messages; *input* draws are made by the driver (I1).
 | 3 | prime frontend over `C_S` | per layer: `SumcheckRound` x logw, `SumcheckCross`, `SumcheckClaims` | the sumcheck's own draws; after the last `SumcheckClaims` also eta = `nonzero(P256)` (*input*) | sumcheck; driver | sumcheck; split |
 | 4 | split | `SplitOpening`: Elements(P256, 1) mu | conversion pair = `nonzero(P256)` x 2 (*input*) | driver | adapter |
 | 5 | adapter | `P256AdapterQuotients`: Bits(Q) m_0, Bits(Q) m_1 | host top weights (*input*) | driver | host sumcheck |
-| 6 | host frontend over `[C_H, fragment]`, then binary dual packing | sumcheck messages, `PackingU`, `PackingA` | sumcheck and packing draws; after `PackingA` the Polygero batching weights (*input*) | host; driver | host; joint opening |
+| 6 | host frontend over `[C_H, fragment]`, then binary dual packing | sumcheck messages, `PackingU`, `PackingA` | sumcheck and packing draws; after `PackingA` the Polygero batching weights | host; joint opening | host; joint opening |
 | 7 | joint opening | `PolygeroResponse` x 2 | t column indices | joint | Polygero |
 
 Then the terminal fields (Polygero rows, Merkle nonces, frontier count and
@@ -249,7 +252,7 @@ runs it (I2).
 | 2 | witness selection | `FingerprintResponse`: Elements(GF2_128, 2) | prime top weights (*input*) | driver | prime sumcheck |
 | 3 | prime frontend over `C_S` | per layer: `SumcheckRound` x logw, `SumcheckCross`, `SumcheckClaims` | the sumcheck's own draws; after the last `SumcheckClaims` the row weights = `elements(P256, L+1)` (*input*), then the conversion pair = `nonzero(P256)` x 2 (*input*) | sumcheck; driver | sumcheck; split; adapter |
 | 4 | adapter | `P256AdapterQuotients`: Bits(Q) m_0, Bits(Q) m_1 | host top weights (*input*) | driver | host sumcheck |
-| 5 | host frontend over `[C_H, fragment]`, then binary dual packing | sumcheck messages, `PackingU`, `PackingA` | sumcheck and packing draws; after `PackingA` the Polygero batching weights (*input*) | host; driver | host; joint opening |
+| 5 | host frontend over `[C_H, fragment]`, then binary dual packing | sumcheck messages, `PackingU`, `PackingA` | sumcheck and packing draws; after `PackingA` the Polygero batching weights | host; joint opening | host; joint opening |
 | 6 | joint opening | `PolygeroResponse` | t column indices | joint | Polygero |
 
 The split sends nothing: the row weights and the conversion pair read

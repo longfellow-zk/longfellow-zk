@@ -25,6 +25,10 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         // The source messages are already absorbed; sparse rows are derived
         // locally rather than accepted as proof data.
         let (a, b) = t.part().append_equations::<W>(statement, &rows)?;
-        Ok(LinearStatement { a, b })
+        Ok(LinearStatement {
+            a,
+            b,
+            session: t.session(),
+        })
     }
 }
