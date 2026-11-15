@@ -1,4 +1,4 @@
-import LfzkV2.Current.LegacyFormat
+import LfzkV2.Current.Format
 import LfzkV2.Current.Protocol.Execution
 import LfzkV2.Current.Soundness.Setup
 import LfzkV2.Current.Protocol.Sampling
