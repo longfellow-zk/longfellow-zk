@@ -430,7 +430,7 @@ hide its response.
 `Collision`, `ChainedFiatShamir`, `APITest`);
 `formal/sumcheck-v2/SumcheckV2/WitnessSelection.lean`;
 `formal/polygero/FiatShamir/WitnessSelection.lean`; and in
-`formal/lfzk-v2/LfzkV2/Current`: `FingerprintRows`, `FingerprintPrefix` (the
+`formal/lfzk-v2/LfzkV2/Current`: `FingerprintRows`, `TaggedFormat` (the
 first-node bytes), `Selection`, `SelectionReplay`, `SelectionPath`,
 `ApplicationCharging`, `CertifiedProfile`.
 

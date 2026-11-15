@@ -542,7 +542,7 @@ protocols' bounds apply to the bytes the verifier actually reads.
 
 | Check | Purpose | Lean |
 |---|---|---|
-| Canonical parsing (I6), length check (I3) | The encoding is injective and the parser is its left inverse, so the view and every oracle query are functions of the proof value; no proof has a second accepted encoding | `ProofBodyReplay.body_bytes_injective`; `ProofOutput.read_canonical` (a successful parse accounts for every byte, the seal included) |
+| Canonical parsing (I6), length check (I3) | The encoding is injective and the parser is its left inverse, so the view and every oracle query are functions of the proof value; no proof has a second accepted encoding | `TaggedGrammar.toPoint_injective` (the deployed canonical points, from the node grammar); `ProofOutput.read_canonical` (a successful parse accounts for every byte, the seal included) |
 | Geometry from `Bound` (I2) | The verifier checks the proof of the absorbed instance, which the soundness statement quantifies over | transcript header codec (transcript I1, I3) |
 | Interactive fields absorbed in send order (I4, I5) | Each challenge depends on every message before it; the component bounds then apply, and the boundary count enters only as `r/2^256` | `ProofBodyCodec` (body grammar), the transcript message codec |
 | Seal over all bytes (I1) | Binds the terminal fields and the magic. An accepted seal at an unqueried final point contributes the `2^-256` guessing term; otherwise the seal forces the final oracle query. The seal is query accounting: it does not make an invalid body valid, which the other checks rule out | `TranscriptV2.final_seal_guess_ratio_le` (unqueried point); `TranscriptV2.Chain.required_fresh_queries` (forced queries); the seal's two queries count in `Q` |

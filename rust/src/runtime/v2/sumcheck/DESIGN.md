@@ -445,9 +445,10 @@ fixed before `alpha`. The next stage's weights share the answer that holds
 `alpha`. The witness and both claims are fixed before that answer, and the
 next stage's claim error is affine in `alpha` and the new weights jointly, so
 a false pair or a false assertion survives on at most one affine hyperplane
-of that answer. Lean covers an answer that carries a combine coordinate and
-weight coordinates with the same affine test it uses for the input weights at
-the last combine (`FrontendReplay.layer_final_entry_at_combine`), and
+of that answer. Lean tests an answer that carries a combine coordinate and the
+next weight coordinates as one affine cancellation, reporting the combine
+failure only when every check after it in that answer passes
+(`FrontendReplay.combineTest`, `FrontendReplay.layer_combine_cover`), and
 charges any one answer at most `2/(|F|-1)`
 (`FrontendReplay.QueryTest.bad_card_mul_le`). `Chained.failure_bound` is
 the ordinary-round result: for rounds sampled over all of `F` it lifts

@@ -68,7 +68,10 @@ the same object that wrote those messages.
 *Enforced by:* `PackingLayout::new` and `Split::new` are the only
 constructors (private fields); `witness_selection::witness_count`; the
 statement is encoded from the participant object the frontend reads
-(transcript I2); Lean `CellLayout.selected`.
+(transcript I2). Lean `CellLayout.selected` covers only the last step: witness
+selection appends its two masks after every frontend cell
+(`Fin cells ⊕ Fin 2 ≃ Fin (cells+2)`); the rest of the layout is checked in
+Rust.
 
 **I2. The frontend absorbs only its own prover messages.** Circuit IDs, layer
 widths, input counts, the commitment layout, the storage runs, the mask group
