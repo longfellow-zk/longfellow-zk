@@ -18,7 +18,7 @@ use crate::compile::{
         algsimp::AlgebraicRewriter,
         arena::CompilerArena,
         cse::Cse,
-        ir::{position_in_input_array, promote_sum_to_precious, AssertionItem, ExprNode, RewriteT},
+        ir::{promote_sum_to_precious, AssertionItem, ExprNode, RewriteT},
     },
     logic::{AssertionScope, Logic, LogicIO},
 };
@@ -188,10 +188,6 @@ where NEXT: RewriteT<'a, F>
         );
         self.arena.record_input(position_in_input_array);
         self.next.input(position_in_input_array)
-    }
-
-    fn position_in_input_array(&self, x: &Self::Wire) -> usize {
-        position_in_input_array(x).expect("position_in_input_array: not an input")
     }
 }
 

@@ -16,11 +16,6 @@ use std::{fmt, hash::Hash};
 
 use crate::compile::{algebra::CompileField, compiler::node::Node};
 
-#[derive(Debug)]
-pub enum IrError {
-    NotAnInput,
-}
-
 pub type ExprNode<'a, F> = &'a Node<'a, Expr<'a, F>>;
 pub type RawAssertions<'a, F> = &'a [ExprNode<'a, F>];
 
@@ -208,14 +203,6 @@ fn extract_assertions<'a, F: CompileField>(
     (assertions, current)
 }
 
-pub fn position_in_input_array<F: CompileField>(x: &ExprNode<'_, F>) -> Result<usize, IrError> {
-    let (_, xx) = extract_assertions(x);
-    match &xx.v {
-        Expr::Input(n) => Ok(*n),
-        _ => Err(IrError::NotAnInput),
-    }
-}
-
 // Type of IR rewriters.
 pub trait RewriteT<'a, F: CompileField> {
     fn ok(&self) -> RawAssertions<'a, F>;
@@ -311,16 +298,6 @@ impl<F: CompileField> fmt::Debug for Expr<'_, F> {
         }
     }
 }
-
-impl fmt::Display for IrError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            IrError::NotAnInput => write!(f, "Unknown input node type in IR"),
-        }
-    }
-}
-
-impl std::error::Error for IrError {}
 
 // =============================================================================
 // HashedExpr Optimization

@@ -104,26 +104,6 @@ impl CircuitDebugSymbols {
     }
 }
 
-/// Status of an assertion evaluation during circuit simulation.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CompiledAssertionStatus {
-    /// The assertion passed (output wire evaluated to zero).
-    Passed,
-    /// The assertion failed with an error message (output wire evaluated to non-zero).
-    Failed(String),
-}
-
-/// Detailed evaluation result for a specific output wire assertion.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EvaluatedCompiledAssertion {
-    /// Evaluated wire reference.
-    pub wire: WireRef,
-    /// Formatted scope path for the assertion.
-    pub path: String,
-    /// Evaluation status (Passed or Failed).
-    pub status: CompiledAssertionStatus,
-}
-
 /// Aggregate result of evaluating a compiled circuit, detailing overall pass/fail status and
 /// per-assertion evaluation.
 #[derive(Clone)]
@@ -147,30 +127,6 @@ impl<'a, E: std::fmt::Debug> CompiledEvalAssertions<'a, E> {
         !self.is_ok()
     }
 
-    /// Unwraps the evaluation result, panicking if it is an `Err`.
-    pub fn unwrap(&self) {
-        self.result.as_ref().unwrap();
-        self.assert_all_passed();
-    }
-
-    /// Expects the evaluation result to be `Ok`, panicking with `msg` if it is an `Err`.
-    pub fn expect(self, msg: &str) {
-        if let Err(e) = &self.result {
-            panic!("{msg}: {e:?}");
-        }
-        self.assert_all_passed();
-    }
-
-    /// Returns a list of formatted paths for all evaluated assertions.
-    pub fn all_paths(&self) -> Vec<String> {
-        self.tracker.all_paths(&self.fates)
-    }
-
-    /// Returns a list of formatted paths for assertions that passed.
-    pub fn passed_paths(&self) -> Vec<String> {
-        self.tracker.passed_paths(&self.fates)
-    }
-
     /// Returns a list of formatted paths for assertions that failed.
     pub fn failed_paths(&self) -> Vec<String> {
         self.tracker.failed_paths(&self.fates)
@@ -179,12 +135,6 @@ impl<'a, E: std::fmt::Debug> CompiledEvalAssertions<'a, E> {
     /// Asserts that all evaluations passed, panicking with details if any failed.
     pub fn assert_all_passed(&self) {
         self.tracker.assert_all_passed(&self.fates);
-    }
-
-    /// Asserts that all evaluations under a specific path prefix passed.
-    pub fn assert_all_passed_at(&self, expected_path: &str) {
-        self.tracker
-            .assert_all_passed_at(expected_path, &self.fates);
     }
 
     /// Asserts that at least one assertion failed at exactly `expected_path`.

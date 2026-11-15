@@ -129,10 +129,6 @@ impl<T> crate::core::algebra::AlgebraicField for FpField<T> {
 }
 
 impl<T> CompileField for FpField<T> {
-    fn characteristic(&self) -> BigUint {
-        self.modulo.clone()
-    }
-
     fn pseudo_basis(&self, i: usize) -> Self::E {
         self.basis[i].clone()
     }

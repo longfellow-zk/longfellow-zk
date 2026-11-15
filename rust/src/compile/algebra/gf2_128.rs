@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use num_bigint::BigUint;
-
 use crate::{
     compile::algebra::{CompileBinaryField, CompileField},
     core::algebra::{
@@ -251,10 +249,6 @@ impl crate::core::algebra::AlgebraicField for Gf2_128Field {
 }
 
 impl CompileField for Gf2_128Field {
-    fn characteristic(&self) -> BigUint {
-        BigUint::from(2u64)
-    }
-
     fn pseudo_basis(&self, i: usize) -> Self::E {
         assert!(i < 128, "i < dimension");
         Gf2_128(1u128 << i)

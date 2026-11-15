@@ -12,20 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use num_bigint::BigUint;
-
 use crate::core::algebra::{AlgebraicField, Comparable, HasLookupPoints, SerializableField};
 
 /// Trait for fields used at circuit compile-time. Inherits from
 /// [`crate::core::algebra::AlgebraicField`] to define its associated
 /// [`crate::core::algebra::BareField::E`] type and algebraic operations.
 pub trait CompileField: AlgebraicField + SerializableField + Comparable + HasLookupPoints {
-    /// The field characteristic: the smallest positive integer `p` such that
-    /// `p` times the multiplicative identity `1` equals `0`.
-    /// For prime fields Fp, this is the prime modulus `P`.
-    /// For binary extension fields GF(2^m), this is `2`.
-    fn characteristic(&self) -> BigUint;
-
     /// Returns the i-th basis vector allowing binary combinations with
     /// coefficients {0,1} to represent any field element.
     fn pseudo_basis(&self, i: usize) -> Self::E;
@@ -36,18 +28,6 @@ pub trait CompileField: AlgebraicField + SerializableField + Comparable + HasLoo
     /// Returns the i-th basis vector of the field without checking
     /// dimension boundaries.
     fn pseudo_basis_unsafe(&self, i: usize) -> Self::E;
-
-    fn fma(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
-        let mut prod = a.clone();
-        self.mul(&mut prod, b);
-        self.add(e1, &prod);
-    }
-
-    fn fnms(&self, e1: &mut Self::E, a: &Self::E, b: &Self::E) {
-        let mut prod = a.clone();
-        self.mul(&mut prod, b);
-        self.sub(e1, &prod);
-    }
 
     fn pseudo_dimension_of_multiplicative_group(&self) -> usize;
 }

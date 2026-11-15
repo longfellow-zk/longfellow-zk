@@ -63,14 +63,6 @@ pub trait Logic {
         self.assert_all(name, &indexed)
     }
     fn with_assertions(&self, assertions: Self::Assertions, x: &Self::Wire) -> Self::Wire;
-    fn mone(&self) -> Self::Wire {
-        self.neg(&self.one())
-    }
-
-    fn negmul(&self, x: &Self::Wire, y: &Self::Wire) -> Self::Wire {
-        self.neg(&self.mul(x, y))
-    }
-
     fn assert_eq(&self, name: &str, x: &Self::Wire, y: &Self::Wire) -> Self::Assertions {
         self.assert0(name, &self.sub(x, y))
     }
@@ -110,7 +102,6 @@ pub type Eltw<L> = <L as Logic>::Wire;
 
 pub trait LogicIO: Logic {
     fn input(&self, position_in_input_array: usize) -> Self::Wire;
-    fn position_in_input_array(&self, x: &Self::Wire) -> usize;
 
     fn next(&self, pos: &mut usize) -> Self::Wire {
         let wire = self.input(*pos);

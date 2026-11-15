@@ -140,15 +140,6 @@ impl<'a, F: CompileField> CompilerArena<'a, F> {
     pub fn alloc_slice<T: Copy>(&'a self, slice: &[T]) -> &'a [T] {
         self.bump.alloc_slice_copy(slice)
     }
-
-    pub fn alloc_str(&'a self, s: &str) -> &'a str {
-        self.bump.alloc_str(s)
-    }
-
-    /// `Copy` guarantees the value owns nothing the bump arena would leak.
-    pub fn alloc<T: Copy>(&'a self, val: T) -> &'a T {
-        self.bump.alloc(val)
-    }
 }
 
 /// Recursively walks the expression/assertion tree from input arena ('a) to target arena ('b).

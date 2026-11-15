@@ -272,10 +272,6 @@ impl<F: CompileField> LogicIO for EvalLogic<'_, F> {
     fn input(&self, _position_in_input_array: usize) -> Self::Wire {
         panic!("input is not supported in EvalLogic");
     }
-
-    fn position_in_input_array(&self, _x: &Self::Wire) -> usize {
-        panic!("position_in_input_array is not supported in EvalLogic");
-    }
 }
 
 impl<F: CompileField> std::fmt::Debug for EvalLogic<'_, F> {
