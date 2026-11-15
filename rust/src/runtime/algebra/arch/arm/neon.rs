@@ -31,14 +31,16 @@ use core::arch::asm;
 // Enable NEON through the compiler flags, not a local .fpu directive: inline
 // assembly must leave the surrounding assembler state unchanged.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[repr(transparent)]
-pub struct Gf2_128(pub u128);
+pub struct Gf2_128(pub(crate) u128);
 
 // Karatsuba coefficients: t0 + X^64 * (t1 ^ t0 ^ t2) + X^128 * t2.
 // Reduction accepts arbitrary coefficients, including bit 127 of each.
+/// A sum of products before reduction. Equality compares this backend's
+/// representation, which need not be reduced: reduce before comparing values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Gf2_128Accum(pub [Gf2_128; 3]);
+pub struct Gf2_128Accum(pub(crate) [Gf2_128; 3]);
 
 impl Gf2_128 {
     #[inline(always)]
@@ -64,6 +66,12 @@ impl Gf2_128 {
     #[inline(always)]
     pub fn is_zero(&self) -> bool {
         self.0 == 0
+    }
+}
+
+impl std::fmt::Debug for Gf2_128 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Gf2_128({:#034x})", self.to_u128())
     }
 }
 

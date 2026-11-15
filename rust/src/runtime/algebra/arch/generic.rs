@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[repr(transparent)]
-pub struct Gf2_128(pub u128);
+pub struct Gf2_128(pub(crate) u128);
 
+/// A sum of products before reduction. Equality compares this backend's
+/// representation, which need not be reduced: reduce before comparing values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Gf2_128Accum(pub Gf2_128);
+pub struct Gf2_128Accum(pub(crate) Gf2_128);
 
 impl Gf2_128 {
     #[inline(always)]
@@ -43,6 +45,12 @@ impl Gf2_128 {
     #[inline(always)]
     pub fn is_zero(&self) -> bool {
         self.0 == 0
+    }
+}
+
+impl std::fmt::Debug for Gf2_128 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Gf2_128({:#034x})", self.to_u128())
     }
 }
 

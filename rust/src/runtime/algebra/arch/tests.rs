@@ -38,6 +38,26 @@ pub(super) fn next(state: &mut u128) -> u128 {
     *state
 }
 
+/// Every backend gives both types the same public shape: the same traits,
+/// the same `u128` conversions and the same `Debug` output.
+#[test]
+fn gf2_128_types_have_one_shape_on_every_backend() {
+    use std::{fmt::Debug, hash::Hash};
+    fn element<T: Clone + Copy + Debug + Default + PartialEq + Eq + Hash>() {}
+    fn accumulator<T: Clone + Copy + Debug + Default + PartialEq + Eq>() {}
+    element::<Gf2_128>();
+    accumulator::<Gf2_128Accum>();
+    const X: Gf2_128 = Gf2_128::from_u128(0x0123_4567_89ab_cdef_fedc_ba98_7654_3210);
+    const BITS: u128 = X.to_u128();
+    assert_eq!(BITS, 0x0123_4567_89ab_cdef_fedc_ba98_7654_3210);
+    assert_eq!(
+        format!("{X:?}"),
+        "Gf2_128(0x0123456789abcdeffedcba9876543210)"
+    );
+    assert!(Gf2_128::default().is_zero() && X.xor(&X).is_zero());
+    assert_eq!(Gf2_128Accum::default(), Gf2_128Accum::default());
+}
+
 #[test]
 fn gf2_128_basis_products() {
     for i in 0..128 {

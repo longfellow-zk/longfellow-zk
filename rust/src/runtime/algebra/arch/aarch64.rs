@@ -221,30 +221,23 @@ pub(crate) fn zero_but_you_dont_know_it() -> Limb {
 
 #[derive(Clone, Copy)]
 #[repr(transparent)]
-pub struct Gf2_128(pub poly64x2_t);
+pub struct Gf2_128(pub(crate) poly64x2_t);
 
-#[derive(Clone, Copy, Debug)]
-pub struct Gf2_128Accum(pub [Gf2_128; 3]);
+/// A sum of products before reduction. Equality compares this backend's
+/// representation, which need not be reduced: reduce before comparing values.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Gf2_128Accum(pub(crate) [Gf2_128; 3]);
 
 impl Gf2_128 {
-    #[inline(always)]
-    pub const fn from_u64s(low: u64, high: u64) -> Self {
-        unsafe { Self(std::mem::transmute::<[u64; 2], poly64x2_t>([low, high])) }
-    }
-
     #[inline(always)]
     pub const fn from_u128(v: u128) -> Self {
         unsafe { Self(std::mem::transmute::<u128, poly64x2_t>(v)) }
     }
 
     #[inline(always)]
-    pub fn to_u128(&self) -> u128 {
-        unsafe {
-            let u = vreinterpretq_u64_p64(self.0);
-            let low = vgetq_lane_u64(u, 0) as u128;
-            let high = vgetq_lane_u64(u, 1) as u128;
-            low | (high << 64)
-        }
+    pub const fn to_u128(&self) -> u128 {
+        // Lane 0 holds the low 64 bits: the backend is little-endian only.
+        unsafe { std::mem::transmute::<poly64x2_t, u128>(self.0) }
     }
 
     #[inline(always)]

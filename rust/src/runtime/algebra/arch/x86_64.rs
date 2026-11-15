@@ -23,10 +23,12 @@ use crate::runtime::algebra::limb::Limb;
 
 #[derive(Clone, Copy)]
 #[repr(transparent)]
-pub struct Gf2_128(pub __m128i);
+pub struct Gf2_128(pub(crate) __m128i);
 
-#[derive(Clone, Copy, Debug)]
-pub struct Gf2_128Accum(pub [Gf2_128; 3]);
+/// A sum of products before reduction. Equality compares this backend's
+/// representation, which need not be reduced: reduce before comparing values.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Gf2_128Accum(pub(crate) [Gf2_128; 3]);
 
 impl Gf2_128 {
     #[inline(always)]
