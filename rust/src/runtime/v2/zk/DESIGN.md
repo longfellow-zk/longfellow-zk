@@ -440,7 +440,6 @@ impl<E> SplitClaim<E> {
                  f: &F) -> Result<ModularClaim<E>, String>;  // pure foreign only (I11)
 }
 pub struct Eta<E>(..);                                    // nonzero; no public constructor
-impl<E> Eta<E> { pub fn value(&self) -> &E; }
 pub fn eta(t: &mut Bound<'_, P>, f: &F) -> Challenge<Eta<F::E>>;          // nonzero(F)
 pub struct RowWeights<E>(..);
 pub fn row_weights(t: &mut Bound<'_, P>, count: usize, f: &F) -> Challenge<RowWeights<F::E>>;

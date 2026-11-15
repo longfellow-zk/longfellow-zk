@@ -346,7 +346,6 @@ pub(super) struct Schedule { pub geometry: SumcheckProofGeometry, .. }  // stage
 pub struct TopWeights<E>(..);        // private field; only top_weights builds it
 impl<E> TopWeights<E> {
     pub fn outputs(&self) -> &[E];          // top-stage output weights, or the input weights if L = 0
-    pub fn assertions(&self) -> &[Vec<E>];  // each top-stage fragment's assertion coefficients
 }
 pub(crate) fn top_weights<const W: usize, F>(
     circuits: &[impl CircuitSource<F>],

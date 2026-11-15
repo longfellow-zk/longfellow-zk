@@ -328,10 +328,6 @@ impl<L: Participants> JointPolygeroParam<L> {
 }
 pub struct BatchWeights<C>(/* crate-private */);
 pub struct LinearStatement<E> { /* a: Vec<PolygeroLinearTerm<E>>, b: Vec<E> */ }
-impl<E> LinearStatement<E> {
-    pub fn terms(&self) -> &[PolygeroLinearTerm<E>];
-    pub fn targets(&self) -> &[E];
-}
 pub struct PolygeroLinearTerm<E> { pub c: usize, pub w: usize, pub k: E }
 
 pub struct JointPolygeroProver<S> { /* session stamp, states, column oracle; not Clone */ }
