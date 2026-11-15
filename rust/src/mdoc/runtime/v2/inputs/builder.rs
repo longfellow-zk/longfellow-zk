@@ -21,7 +21,7 @@ pub(super) struct AssignmentBuilder<
     F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicField,
 > {
     field: &'a F,
-    buffer: Vec<F::E>,
+    pub(super) buffer: Vec<F::E>,
 }
 
 impl<'a, F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicField>
@@ -32,14 +32,6 @@ impl<'a, F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicFie
             field,
             buffer: Vec::new(),
         }
-    }
-
-    #[cfg(any(test, feature = "prover"))]
-    pub(super) fn len(&self) -> usize {
-        self.buffer.len()
-    }
-    pub(super) fn into_inner(self) -> Vec<F::E> {
-        self.buffer
     }
 
     #[inline(always)]
@@ -131,7 +123,7 @@ cfg_prover! {
 /// Binary assignment input methods accept bits and bit strings, never field elements.
 #[derive(Default)]
 pub(super) struct BinaryAssignmentBuilder {
-    buffer: Vec<bool>,
+    pub(super) buffer: Vec<bool>,
 }
 impl BinaryAssignmentBuilder {
     pub(super) fn new() -> Self {
@@ -147,12 +139,5 @@ impl BinaryAssignmentBuilder {
     }
     pub(super) fn push_v8(&mut self, byte: u8) {
         self.push_bits_len(u64::from(byte), 8);
-    }
-    #[cfg(any(test, feature = "prover"))]
-    pub(super) fn len(&self) -> usize {
-        self.buffer.len()
-    }
-    pub(super) fn into_inner(self) -> Vec<bool> {
-        self.buffer
     }
 }

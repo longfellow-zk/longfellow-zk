@@ -57,11 +57,15 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
 
     // 1. Values shared with the signature circuit, in its order: issuer
     // digest, device x, device y (256 bits each).
-    at(builder.len(), &layout::hash::ISSUER_DIGEST, "issuer digest")?;
+    at(
+        builder.buffer.len(),
+        &layout::hash::ISSUER_DIGEST,
+        "issuer digest",
+    )?;
     builder.push_nat256(&parsed.issuer_sig_digest);
-    at(builder.len(), &layout::hash::DEVICE_X, "device x")?;
+    at(builder.buffer.len(), &layout::hash::DEVICE_X, "device x")?;
     builder.push_nat256(&parsed.device_pk.0);
-    at(builder.len(), &layout::hash::DEVICE_Y, "device y")?;
+    at(builder.buffer.len(), &layout::hash::DEVICE_Y, "device y")?;
     builder.push_nat256(&parsed.device_pk.1);
 
     // 2. preimage (MSO preimage - bytes as bits) + preimage.len
@@ -92,18 +96,22 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     let nblocks = mso_sha_in.nblocks;
     let preimage_arr: [u8; K_MSO_PREIMAGE_LEN] = signed_bytes.as_slice().try_into().unwrap();
 
-    at(builder.len(), &layout::hash::MSO_PREIMAGE, "MSO preimage")?;
+    at(
+        builder.buffer.len(),
+        &layout::hash::MSO_PREIMAGE,
+        "MSO preimage",
+    )?;
     for &b in &preimage_arr {
         builder.push_v8(b);
     }
-    at(builder.len(), &layout::hash::MSO_LEN, "MSO length")?;
+    at(builder.buffer.len(), &layout::hash::MSO_LEN, "MSO length")?;
     builder.push_bits_len(parsed.cbor_mso.len() as u64, K_HASH_INDEX_BITS);
 
     // 3. nblocks (bytes as bits)
-    at(builder.len(), &layout::hash::NBLOCKS, "block count")?;
+    at(builder.buffer.len(), &layout::hash::NBLOCKS, "block count")?;
     builder.push_v8(nblocks as u8);
     let end = layout::hash::NBLOCKS.end;
-    at(builder.len(), &(end..end), "end of block count")?;
+    at(builder.buffer.len(), &(end..end), "end of block count")?;
 
     // 4. doc_type / valid_from / valid_until / dev_key_info / value_digests offsets
     let preimage_base_offset = K_MSO_OFFSET;
@@ -138,7 +146,7 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     // 6. sha_witnesses (MSO preimage hashing)
     builder.push_sha256msg_derived(&mso_sha_derived);
 
-    Ok(builder.into_inner())
+    Ok(builder.buffer)
 }
 
 fn push_witness_attrs(
@@ -231,15 +239,18 @@ where
     };
 
     // 1. issuer_sig_digest
-    at(builder.len(), &layout::sig::ISSUER_DIGEST)?;
+    at(builder.buffer.len(), &layout::sig::ISSUER_DIGEST)?;
     builder.push_nat_256_bits(&parsed.issuer_sig_digest);
 
     // 2. device_pk
-    at(builder.len(), &layout::sig::DEVICE_X)?;
+    at(builder.buffer.len(), &layout::sig::DEVICE_X)?;
     builder.push_nat_256_bits(&parsed.device_pk.0);
-    at(builder.len(), &layout::sig::DEVICE_Y)?;
+    at(builder.buffer.len(), &layout::sig::DEVICE_Y)?;
     builder.push_nat_256_bits(&parsed.device_pk.1);
-    at(builder.len(), &(layout::SHARED_BITS..layout::SHARED_BITS))?;
+    at(
+        builder.buffer.len(),
+        &(layout::SHARED_BITS..layout::SHARED_BITS),
+    )?;
 
     // 3. issuer_sig_given
     builder.push_ecdsa_signature(&issuer_sig_given);
@@ -253,5 +264,5 @@ where
     // 6. device_sig_derived
     builder.push_ecdsa_derived(&device_sig_derived);
 
-    Ok(builder.into_inner())
+    Ok(builder.buffer)
 }

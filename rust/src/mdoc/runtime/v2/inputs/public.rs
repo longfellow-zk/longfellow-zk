@@ -113,7 +113,7 @@ fn push_input_hash(
     }
     builder.push_bits_len(namespace.len() as u64, K_ATTR_INDEX_BITS);
 
-    builder.into_inner()
+    builder.buffer
 }
 
 fn push_input_sig<N: Nat<4>>(
@@ -127,5 +127,5 @@ fn push_input_sig<N: Nat<4>>(
 
     builder.push_nat_256_bits(device_sig_e);
 
-    builder.into_inner()
+    builder.buffer
 }
