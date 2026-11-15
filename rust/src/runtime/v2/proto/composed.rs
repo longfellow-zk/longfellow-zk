@@ -20,7 +20,6 @@ use crate::{
             sumcheck::SumcheckProof,
             witness_selection::{FingerprintResponse, FINGERPRINTS},
             zk::{CircuitGeometry, CircuitProof},
-            Digest,
         },
     },
 };
@@ -81,6 +80,34 @@ impl ComposedGeometry {
     }
 }
 
+/// A composed proof body. Only an application's complete reader, which
+/// checks the length and the seal, parses one (proto I2):
+///
+/// ```compile_fail,E0624
+/// use longfellow_zk::runtime::{
+///     algebra::gf2_128::Gf2_128Field,
+///     v2::proto::{
+///         composed::{AdapterMessage, ComposedGeometry, ComposedProof},
+///         polygero::PolygeroConfig,
+///         sumcheck::SumcheckProofGeometry,
+///         zk::CircuitGeometry,
+///     },
+/// };
+/// struct Empty;
+/// impl AdapterMessage for Empty {
+///     const BYTES: usize = 0;
+///     fn write(&self, _: &mut Vec<u8>) {}
+///     fn read(_: &mut &[u8]) -> Result<Self, String> {
+///         Ok(Self)
+///     }
+/// }
+/// let c = || CircuitGeometry::new(SumcheckProofGeometry::new(vec![]).unwrap(), 1, 0).unwrap();
+/// let config = PolygeroConfig { k: 2, s: 0, n: 4, t: 1 };
+/// let g = ComposedGeometry::new(c(), c(), config).unwrap();
+/// let f = Gf2_128Field::new();
+/// type Body = ComposedProof<2, Gf2_128Field, 2, Gf2_128Field, Empty>;
+/// let _ = Body::read(&[], &g, &f, &f);
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComposedProof<
     const WH: usize,
@@ -174,11 +201,15 @@ impl<
     }
     /// Read exactly the whole body `b`, whose length the complete reader has
     /// checked against `fixed_len` (proto I3): the frontier is its rest.
-    pub fn read(body: &[u8], g: &ComposedGeometry, h: &H, s: &S) -> Result<Self, String> {
+    /// Crate-private: only an application's complete reader, which checks the
+    /// length and the seal, calls it (proto I2).
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    #[cfg_attr(not(feature = "mdoc"), allow(dead_code))]
+    pub(crate) fn read(body: &[u8], g: &ComposedGeometry, h: &H, s: &S) -> Result<Self, String> {
         let mut rest = body;
         let b = &mut rest;
         let commitment = PolygeroCommitment {
-            root: Digest {
+            root: super::Digest {
                 data: super::util::read_bytes_32(b).map_err(|e| e.to_string())?,
             },
         };

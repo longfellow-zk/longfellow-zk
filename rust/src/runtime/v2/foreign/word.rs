@@ -65,8 +65,9 @@ impl<const N: usize> MaskedWord<N> {
     fn write(&self, out: &mut Vec<u8>) {
         out.extend_from_slice(&self.0.to_le_bytes()[..Self::BYTES]);
     }
-    /// Reject truncated input and any nonzero padding bit.
-    pub fn read(bytes: &mut &[u8]) -> Result<Self, String> {
+    /// Reject truncated input and any nonzero padding bit. A component
+    /// reader, called only through the composed body's reader (proto I2).
+    pub(crate) fn read(bytes: &mut &[u8]) -> Result<Self, String> {
         let () = Word::<N>::WIDTH_OK;
         let (head, tail) = bytes
             .split_at_checked(Self::BYTES)

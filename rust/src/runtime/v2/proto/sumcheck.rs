@@ -15,6 +15,7 @@
 //! Longfellow v2 sumcheck proof types and wire encoding.
 
 //! Single-hand messages, codec, and committed-pad positions.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 use super::read_field;
 use crate::{
     core::algebra::{ElementOf, SerializableField},
@@ -58,6 +59,16 @@ pub struct LayerProof<const W: usize, F: SerializableField> {
     /// linear-coefficient contraction at u, removed when combining the claims.
     pub claims: [ElementOf<F>; 2],
 }
+/// A sumcheck proof. Only the complete proof readers parse one (proto I2):
+///
+/// ```compile_fail,E0624
+/// use longfellow_zk::runtime::{
+///     algebra::p256::P256Field,
+///     v2::proto::sumcheck::{SumcheckProof, SumcheckProofGeometry},
+/// };
+/// let g = SumcheckProofGeometry::new(vec![]).unwrap();
+/// let _ = SumcheckProof::<4, P256Field>::read(&mut &[][..], &g, &P256Field::new());
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SumcheckProof<const W: usize, F: SerializableField> {
     pub layers: Vec<LayerProof<W, F>>,
@@ -163,7 +174,9 @@ impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
         }
         Ok(())
     }
-    pub fn read(
+    /// A component reader, called only by the complete readers (proto I2).
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub(crate) fn read(
         bytes: &mut &[u8],
         geometry: &SumcheckProofGeometry,
         f: &F,

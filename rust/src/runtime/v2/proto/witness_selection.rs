@@ -14,7 +14,12 @@ impl<E> FingerprintResponse<E> {
             super::util::write_elt_field(out, value, f);
         }
     }
-    pub fn read<F: SerializableField<E = E>>(input: &mut &[u8], f: &F) -> std::io::Result<Self> {
+    /// A component reader, called only by the complete readers (proto I2).
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub(crate) fn read<F: SerializableField<E = E>>(
+        input: &mut &[u8],
+        f: &F,
+    ) -> std::io::Result<Self> {
         Ok(Self {
             values: [super::read_field(input, f)?, super::read_field(input, f)?],
         })

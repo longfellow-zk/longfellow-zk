@@ -104,6 +104,19 @@ pub struct ZkProof<const W: usize, F: SerializableField> {
     pub com_proof: JointPolygeroProof<(FieldProof<ElementOf<F>>, ())>,
 }
 /// A circuit reduction, authenticated later by its participant's shared opening.
+/// Only the complete proof readers parse one (proto I2):
+///
+/// ```compile_fail,E0624
+/// use longfellow_zk::runtime::{
+///     algebra::gf2_128::Gf2_128Field,
+///     v2::proto::{
+///         sumcheck::SumcheckProofGeometry,
+///         zk::{CircuitGeometry, CircuitProof},
+///     },
+/// };
+/// let g = CircuitGeometry::new(SumcheckProofGeometry::new(vec![]).unwrap(), 1, 0).unwrap();
+/// let _ = CircuitProof::<2, Gf2_128Field>::read(&mut &[][..], &g, &Gf2_128Field::new());
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CircuitProof<const W: usize, F: SerializableField> {
     pub sumcheck_proof: SumcheckProof<W, F>,
@@ -145,7 +158,9 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
         self.write_to_buf(&mut out, g, f)?;
         Ok(out)
     }
-    pub fn read(b: &mut &[u8], g: &CircuitGeometry, f: &F) -> std::io::Result<Self> {
+    /// A component reader, called only by the complete readers (proto I2).
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    pub(crate) fn read(b: &mut &[u8], g: &CircuitGeometry, f: &F) -> std::io::Result<Self> {
         use std::io::{Error, ErrorKind};
         let sumcheck_proof = SumcheckProof::read(b, &g.sumcheck, f)?;
         let packing = if g.packing_degree == 1 {

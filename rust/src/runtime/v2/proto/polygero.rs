@@ -20,7 +20,9 @@
 //! All responses and opened rows use canonical full-width field elements.
 use std::io::{Error, ErrorKind, Result};
 
-use super::{read_field, Digest, MerkleProof, NONCE_LEN};
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+use super::read_field;
+use super::{Digest, MerkleProof, NONCE_LEN};
 use crate::core::algebra::SerializableField;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::runtime::v2::transcript::SEAL_BYTES;
@@ -202,6 +204,7 @@ impl<E> FieldProof<E> {
     }
     /// Read the response; the rows follow later (`read_rows`). The caller
     /// has checked the total length.
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn read_response<F: SerializableField<E = E>>(
         bytes: &mut &[u8],
         g: &PolygeroGeometry,
@@ -215,6 +218,7 @@ impl<E> FieldProof<E> {
             rows: Vec::new(),
         })
     }
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn read_rows<F: SerializableField<E = E>>(
         &mut self,
         bytes: &mut &[u8],
@@ -226,6 +230,7 @@ impl<E> FieldProof<E> {
     }
 }
 /// `n` canonical elements; the length is checked before allocating.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 fn read_values<F: SerializableField>(bytes: &mut &[u8], n: usize, f: &F) -> Result<Vec<F::E>> {
     let size = n
         .checked_mul(f.serialized_size_bytes())
@@ -314,6 +319,7 @@ impl<B> JointPolygeroProof<B> {
     }
     /// Read the counterpart of `write_to_buf` from the rest of a body whose
     /// total length the caller checked; nothing may follow the frontier.
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn read<E: From<Error>>(
         bytes: &mut &[u8],
         t: usize,
