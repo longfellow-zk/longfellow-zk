@@ -4,8 +4,9 @@
 //! Since p exceeds the group order M = 2^128 - 1 of GF(2^128)^*, exponent sums
 //! wrap modulo M and a false claim can survive a single rescaling with
 //! probability about 2^-117. Two independent full-field conversion challenges
-//! give two trees. Each tree checks `g^(S - C) = X^k`, where `g^(-p) = X` and
-//! the honest quotient `k = (S - C) / p` is below `2^Q`.
+//! give two trees. Each tree checks `g^(S - C) * X^k = 1`, that is
+//! `g^(S - C) = X^(-k)`, where `g^(-p) = X` and the honest quotient
+//! `k = (S - C) / p` is below `2^Q`.
 use super::{
     integer::{self, Int256},
     Leaf, TreeInstance, TreeShape,
