@@ -45,12 +45,6 @@ theorem nextWeights_correct {ι : Type} [Fintype ι]
 def BadCombineEvent (A B a b alpha : F) : Prop :=
   (a ≠ A ∨ b ≠ B) ∧ a + alpha * b = A + alpha * B
 
-theorem combine_reduction (A B a b alpha : F) (hwrong : a ≠ A ∨ b ≠ B) :
-    a + alpha * b ≠ A + alpha * B ∨ BadCombineEvent A B a b alpha := by
-  by_cases h : a + alpha * b = A + alpha * B
-  · exact Or.inr ⟨hwrong, h⟩
-  · exact Or.inl h
-
 /-- Final claims are fixed before `alpha`: at most one value repairs a wrong pair. -/
 theorem bad_combine_roots [Fintype F] [DecidableEq F] (A B a b : F) :
     (Finset.univ.filter fun alpha => BadCombineEvent A B a b alpha).card ≤ 1 := by

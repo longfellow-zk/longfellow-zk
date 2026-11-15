@@ -23,11 +23,6 @@ noncomputable def digit (e : Basis I K F) (x : F) (k : I) : F :=
   algebraMap K F (e.repr x k)
 
 omit [Fintype I] in
-theorem digit_add (e : Basis I K F) (x y : F) (k : I) :
-    digit e (x + y) k = digit e x k + digit e y k := by
-  simp [digit]
-
-omit [Fintype I] in
 theorem digit_sum (e : Basis I K F) (x : J → F) (k : I) :
     digit e (∑ j, x j) k = ∑ j, digit e (x j) k := by
   simp [digit, map_sum, Finsupp.finsetSum_apply]

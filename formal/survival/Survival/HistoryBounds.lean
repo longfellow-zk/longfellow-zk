@@ -58,28 +58,6 @@ theorem audit_law_le [Fintype P] [DecidableEq P]
   cases hb : ((audit safe marked step state tree).run H).1.1 <;>
     simp [Hybrid.reward, indicator, hb]
 
-/-- Stateful finite-oracle integration. The cost is charged on the stopped
-trace; its weights can retain the original, unstopped commitment cut. -/
-theorem failure_le [Fintype P] [DecidableEq P]
-    (safe : S × P → A → Prop) (marked : P → Bool) (step : S → P → A → S)
-    (rate opaqueFraction correction : ℚ) (hr : 0 ≤ rate) (hr1 : rate ≤ 1) (hl : 0 ≤ opaqueFraction) (hl1 : opaqueFraction ≤ 1)
-    (opaque_safe : ∀ state point, marked point = true → ∀ answer, safe (state,point) answer)
-    (hazard : ∀ state point, marked point = false → density (fun answer => ¬safe (state,point) answer) ≤ rate)
-    {fuel : ℕ} (state : S) (tree : Tree P A Out fuel) (budget : rate*fuel ≤ 1)
-    (fresh : FreshOracle.FreshFrom (fun _ => False) tree)
-    (failed hash : (P → A) → Prop) (cost : (P → A) → ℚ)
-    (nonnegative : ∀ H, 0 ≤ cost H)
-    (cover : ∀ H, failed H → ¬hash H →
-      ((audit safe marked step state tree).run H).1.1 = true ∨ 1 ≤ cost H)
-    (cost_mean : (∑ H, cost H) / Fintype.card (P → A) ≤
-      opaqueFraction*rate*((∑ H : P → A, (((audit safe marked step state tree).run H).1.2 : ℚ)) /
-        Fintype.card (P → A)))
-    (hash_mean : density hash ≤ correction) :
-    density failed ≤ Hybrid.envelope rate opaqueFraction fuel + correction := by
-  have law := audit_law_le safe marked step rate opaqueFraction hr hr1 hl hl1 opaque_safe hazard state tree budget fresh
-  exact (FiniteCover.failure_le failed hash _ _ cost (opaqueFraction*rate) _ nonnegative cover cost_mean law).trans
-    (add_le_add le_rfl hash_mean)
-
 end Survival.History
 
 namespace Survival.QueryBudget
@@ -105,4 +83,3 @@ theorem history_law_le_support {S : Type} [Fintype P] [DecidableEq P] [Fintype A
   simpa only [cap_historyAudit_run] using capped
 
 end Survival.QueryBudget
-

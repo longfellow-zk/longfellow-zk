@@ -28,9 +28,6 @@ theorem trace_bit (x : F) : traceF (ZMod 2) x = 0 ∨ traceF (ZMod 2) x = 1 := b
   · exact Or.inl (map_zero (algebraMap (ZMod 2) F))
   · exact Or.inr (map_one (algebraMap (ZMod 2) F))
 
-theorem trace_sq (x : F) : traceF (ZMod 2) (x ^ 2) = traceF (ZMod 2) x := by
-  simpa only [frobenius_binary] using trace_frobenius (K := ZMod 2) x
-
 theorem trace_zero_iff_exists_binary (x : F) :
     traceF (ZMod 2) x = 0 ↔ ∃ t : F, t * (t + 1) = x := by
   have h (t : F) : frobenius (ZMod 2) F t - t = t * (t + 1) := by

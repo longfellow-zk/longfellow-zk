@@ -112,22 +112,6 @@ theorem slots_le (safe : S × P → D × C → Prop) (marked : P → Bool) (step
   simpa only [mul_comm] using mul_le_mul_of_nonneg_right
     (Nat.cast_le.mpr (marked_card_le safe marked step state tree H)) positive
 
-theorem mean_le (original : Composition.LocalCharges P D C Parent Response)
-    (safe : S × P → D × C → Prop) (marked : P → Bool) (step : S → P → D × C → S)
-    (allowance : ℚ) (positive : 0 ≤ allowance)
-    (budget : ∀ p, (restrict original marked).budget p ≤ if marked p then allowance else 0)
-    {fuel : ℕ} (state : S) (tree : Tree P (D × C) Out fuel) :
-    (∑ H, (restrict original marked).charge (History.audit safe marked step state tree) H) /
-        Fintype.card (P → D × C) ≤
-      allowance * ((∑ H : P → D × C, (((History.audit safe marked step state tree).run H).1.2 : ℚ)) /
-        Fintype.card (P → D × C)) := by
-  have average := (restrict original marked).charge_mean
-    (History.audit safe marked step state tree) (fun p => if marked p then allowance else 0) budget
-  have total := average.trans (sum_le_sum (fun H _ => slots_le safe marked step allowance positive state tree H))
-  have divided := div_le_div_of_nonneg_right total
-    (show (0 : ℚ) ≤ Fintype.card (P → D × C) by positivity)
-  simpa only [← mul_sum, mul_div_assoc] using divided
-
 /-- Backend and hash charges use disjoint opaque slots. Combining their
 means before counting slots prevents charging the opaque allowance twice. -/
 theorem combined_mean_le (original : Composition.LocalCharges P D C Parent Response)

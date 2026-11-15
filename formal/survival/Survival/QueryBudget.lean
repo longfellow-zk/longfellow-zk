@@ -41,20 +41,6 @@ theorem cap_fresh {fuel budget : ℕ} (tree : Tree P A Out fuel) (bounded : AtMo
       | zero => exact False.elim bounded
       | succ budget => exact ⟨fresh.1, fun a => ih a (bounded a) (fresh.2 a)⟩
 
-theorem cap_audit_run (safe : P → A → Prop) (marked : P → Bool)
-    {fuel budget : ℕ} (tree : Tree P A Out fuel) (bounded : AtMost budget tree) (H : P → A) :
-    (Hybrid.audit safe marked (cap budget tree bounded)).run H = (Hybrid.audit safe marked tree).run H := by
-  induction tree generalizing budget with
-  | done _ => cases budget <;> rfl
-  | query point next ih =>
-      cases budget with
-      | zero => exact False.elim bounded
-      | succ budget =>
-          simp only [cap, Hybrid.audit, Merkle.RandomOracle.Tree.run_query]
-          by_cases hs : safe point (H point)
-          · simp only [hs, if_true, Merkle.RandomOracle.Tree.run_map, ih]
-          · simp only [hs, if_false, Merkle.RandomOracle.Tree.run_done]
-
 theorem cap_historyAudit_run {S : Type} (safe : S × P → A → Prop) (marked : P → Bool)
     (step : S → P → A → S) {fuel budget : ℕ} (state : S)
     (tree : Tree P A Out fuel) (bounded : AtMost budget tree) (H : P → A) :

@@ -143,14 +143,6 @@ theorem order_preserved [DecidableEq P] (safe : S × P → A → Prop) (marked :
     firstOfTwo (audit safe marked step state tree) H parent child = firstOfTwo tree H parent child :=
   order_of_trace _ _ H (audit_trace safe marked step state tree H survived) parent child
 
-theorem cut_preserved [DecidableEq P] {Key : Type} [DecidableEq Key]
-    (safe : S × P → A → Prop) (marked : P → Bool) (step : S → P → A → S)
-    {fuel : ℕ} (state : S) (tree : Tree P A Out fuel) (H : P → A)
-    (survived : ((audit safe marked step state tree).run H).1.1 = false)
-    (label : P → Key) (key : Key) :
-    beforeLabel label key (audit safe marked step state tree) H = beforeLabel label key tree H := by
-  rw [beforeLabel_eq_takeWhile, beforeLabel_eq_takeWhile, audit_trace safe marked step state tree H survived]
-
 theorem safe_at_prefix (safe : S × P → A → Prop) (marked : P → Bool) (step : S → P → A → S)
     {fuel : ℕ} (state : S) (tree : Tree P A Out fuel) (H : P → A)
     (survived : ((audit safe marked step state tree).run H).1.1 = false)
