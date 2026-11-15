@@ -73,9 +73,8 @@ fn v1_registry_matches_original_records_exactly() {
 }
 #[test]
 fn v2_conversion_preserves_k_dimension_and_s_degree() {
-    let (hash, sig) = v2_spec().configs();
-    assert_eq!((hash.k, hash.n, hash.s, hash.t), (512, 3584, 18, 87));
-    assert_eq!((sig.k, sig.n, sig.s, sig.t), (416, 2912, 15, 86));
+    let c = v2_spec().config();
+    assert_eq!((c.k, c.n, c.s, c.t), (512, 3584, 18, 87));
 }
 #[test]
 fn each_entry_point_rejects_unsupported_circuit_versions() {
@@ -129,17 +128,11 @@ pub(in super::super) fn v2_spec() -> v2::ZkSpecStruct {
         combined_hash: [0; 32],
         num_attributes: 1,
         version: NEXT_VERSION,
-        polygero_hash: v2::PolygeroParameters {
+        polygero: v2::PolygeroParameters {
             k: 512,
             n: 3584,
             s: 18,
             t: 87,
-        },
-        polygero_sig: v2::PolygeroParameters {
-            k: 416,
-            n: 2912,
-            s: 15,
-            t: 86,
         },
     }
 }

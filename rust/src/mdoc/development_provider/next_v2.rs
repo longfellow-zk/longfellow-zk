@@ -99,8 +99,7 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
         combined_hash: archive.combined_id,
         num_attributes,
         version: NEXT_VERSION,
-        polygero_hash: parameters,
-        polygero_sig: parameters,
+        polygero: parameters,
     })
 }
 

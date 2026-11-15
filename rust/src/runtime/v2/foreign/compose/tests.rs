@@ -112,7 +112,7 @@ fn composition_round_trip_rejects_tampering() {
         &host,
         &split,
         storage,
-        (CONFIG, CONFIG),
+        CONFIG,
         (&host_domain, &split_domain),
     )
     .unwrap();

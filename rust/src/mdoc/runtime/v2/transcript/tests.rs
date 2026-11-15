@@ -22,8 +22,7 @@ fn spec(hash: [u8; 32]) -> ZkSpecStruct {
         combined_hash: hash,
         num_attributes: 3,
         version: 7,
-        polygero_hash: p,
-        polygero_sig: p,
+        polygero: p,
     }
 }
 

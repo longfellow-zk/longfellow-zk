@@ -92,13 +92,7 @@ fn circuit_identifier_enforcement_is_unconditional() {
         combined_hash: archive.combined_id,
         num_attributes: 1,
         version: NEXT_VERSION,
-        polygero_hash: super::super::zk_spec::PolygeroParameters {
-            k: 349,
-            n: 2443,
-            s: 12,
-            t: 84,
-        },
-        polygero_sig: super::super::zk_spec::PolygeroParameters {
+        polygero: super::super::zk_spec::PolygeroParameters {
             k: 349,
             n: 2443,
             s: 12,
@@ -117,13 +111,7 @@ fn for_spec_binds_archive_and_entry_identifiers() {
         combined_hash,
         num_attributes: 1,
         version: NEXT_VERSION,
-        polygero_hash: super::super::zk_spec::PolygeroParameters {
-            k: 349,
-            n: 2443,
-            s: 12,
-            t: 84,
-        },
-        polygero_sig: super::super::zk_spec::PolygeroParameters {
+        polygero: super::super::zk_spec::PolygeroParameters {
             k: 349,
             n: 2443,
             s: 12,

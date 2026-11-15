@@ -84,11 +84,12 @@ where
     /// `storage` covers the split circuit's values `[private inputs | pads]`.
     /// Its foreign values must be private inputs of the host circuit. The
     /// split mask R and the mode's pads follow the host circuit's inputs.
+    /// `joint` is the one Polygero profile both fields commit under.
     pub fn new(
         host_circuit: &'a Circuit<Host>,
         split_circuit: &'a Circuit<F>,
         storage: StorageMap,
-        config: (PolygeroConfig, PolygeroConfig),
+        joint: PolygeroConfig,
         domains: (&'a DH, &'a DS),
     ) -> Result<Self, String> {
         let (npublic, ninput) = (host_circuit.raw.npublic_input, host_circuit.raw.ninput);
@@ -109,14 +110,14 @@ where
         let host = CircuitParticipant::new(
             &[host_circuit, mode.fragment()],
             mode.virtual_inputs(),
-            config.0,
+            joint,
             &host_ctx,
         )?;
         let split = CircuitParticipant::with_storage(
             split_circuit,
             storage,
             Some(mask),
-            config.1,
+            joint,
             &split_ctx,
         )?;
         Ok(Self {

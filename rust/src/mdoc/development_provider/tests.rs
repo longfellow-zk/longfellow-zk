@@ -69,17 +69,11 @@ fn next_cache_preserves_the_complete_spec() {
         combined_hash: archive.combined_id,
         version: NEXT_VERSION,
         num_attributes: 3,
-        polygero_hash: PolygeroParameters {
+        polygero: PolygeroParameters {
             k: 512,
             n: 3584,
             s: 19,
             t: 90,
-        },
-        polygero_sig: PolygeroParameters {
-            k: 416,
-            n: 2912,
-            s: 16,
-            t: 89,
         },
     };
     let compressed = zstd::encode_all(archive.to_bytes().as_slice(), 1).unwrap();
@@ -102,6 +96,16 @@ fn next_cache_preserves_the_complete_spec() {
     let mut legacy = spec.combined_hash.to_vec();
     legacy.extend_from_slice(provided.compressed());
     assert!(read_next(legacy.as_slice()).is_err());
+    // A version-1 bundle, which stored a profile per field, is not read.
+    let mut v1 = b"MDOCNEXT1".to_vec();
+    v1.extend_from_slice(&spec.combined_hash);
+    let p = spec.polygero;
+    for value in [spec.version, spec.num_attributes, p.k, p.n, p.s, p.t] {
+        v1.extend_from_slice(&(value as u64).to_le_bytes());
+    }
+    v1.extend_from_slice(&bytes[57..89]);
+    v1.extend_from_slice(provided.compressed());
+    assert!(read_next(v1.as_slice()).is_err());
 }
 
 #[test]
@@ -123,8 +127,7 @@ fn next_cache_rejects_invalid_parameter_dimensions_without_retuning() {
         combined_hash: archive.combined_id,
         version: NEXT_VERSION,
         num_attributes: 1,
-        polygero_hash: parameters,
-        polygero_sig: parameters,
+        polygero: parameters,
     };
     let compressed = zstd::encode_all(archive.to_bytes().as_slice(), 1).unwrap();
     let provided = v2::provider::from_compressed(spec, compressed).unwrap();

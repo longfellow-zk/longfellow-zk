@@ -31,7 +31,8 @@ use crate::{
     runtime::v2::proto::polygero::PolygeroGeometry,
 };
 
-const MAGIC: &[u8; 9] = b"MDOCNEXT1";
+/// Version 2 stores the one joint profile; version 1 stored a profile per field.
+const MAGIC: &[u8; 9] = b"MDOCNEXT2";
 
 /// Save a trusted NEXT bundle for reuse by development tools and benchmarks.
 pub fn write_next(mut writer: impl Write, circuit: &ProvidedCircuit) -> Result<(), String> {
@@ -41,20 +42,8 @@ pub fn write_next(mut writer: impl Write, circuit: &ProvidedCircuit) -> Result<(
     writer
         .write_all(&spec.combined_hash)
         .map_err(|error| error.to_string())?;
-    let h = spec.polygero_hash;
-    let s = spec.polygero_sig;
-    for value in [
-        spec.version,
-        spec.num_attributes,
-        h.k,
-        h.n,
-        h.s,
-        h.t,
-        s.k,
-        s.n,
-        s.s,
-        s.t,
-    ] {
+    let p = spec.polygero;
+    for value in [spec.version, spec.num_attributes, p.k, p.n, p.s, p.t] {
         writer
             .write_all(&(value as u64).to_le_bytes())
             .map_err(|error| error.to_string())?;
@@ -77,7 +66,7 @@ pub fn read_next(mut reader: impl Read) -> Result<ProvidedCircuit, String> {
     reader
         .read_exact(&mut combined_hash)
         .map_err(|error| error.to_string())?;
-    let mut values = [0usize; 10];
+    let mut values = [0usize; 6];
     for value in &mut values {
         let mut bytes = [0; 8];
         reader
@@ -85,23 +74,12 @@ pub fn read_next(mut reader: impl Read) -> Result<ProvidedCircuit, String> {
             .map_err(|error| error.to_string())?;
         *value = usize::try_from(u64::from_le_bytes(bytes)).map_err(|error| error.to_string())?;
     }
-    let [version, num_attributes, hk, hn, hs, ht, sk, sn, ss, st] = values;
+    let [version, num_attributes, k, n, s, t] = values;
     let spec = ZkSpecStruct {
         combined_hash,
         num_attributes,
         version,
-        polygero_hash: PolygeroParameters {
-            k: hk,
-            n: hn,
-            s: hs,
-            t: ht,
-        },
-        polygero_sig: PolygeroParameters {
-            k: sk,
-            n: sn,
-            s: ss,
-            t: st,
-        },
+        polygero: PolygeroParameters { k, n, s, t },
     };
     validate(&spec)?;
     let compressed = read_compressed(reader)?;
@@ -113,9 +91,6 @@ fn validate(spec: &ZkSpecStruct) -> Result<(), String> {
     if spec.version != NEXT_VERSION || !(1..=4).contains(&spec.num_attributes) {
         return Err("Cache does not describe a supported NEXT circuit".into());
     }
-    let (hash, signature) = spec.configs();
-    for config in [hash, signature] {
-        PolygeroGeometry::new(0, config).map_err(|e| e.to_string())?;
-    }
+    PolygeroGeometry::new(0, spec.config()).map_err(|e| e.to_string())?;
     Ok(())
 }

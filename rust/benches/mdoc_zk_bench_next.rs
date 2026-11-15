@@ -216,9 +216,7 @@ fn report_profiles(circuits: &[u8], spec: &runtime::ZkSpecStruct) -> runtime::Md
     }
     report("Hash", &hash);
     report("Signature", &signature);
-    let (hash_config, signature_config) = spec.configs();
-    eprintln!("  Selected hash profile: {hash_config:?}");
-    eprintln!("  Selected signature profile: {signature_config:?}");
+    eprintln!("  Selected joint profile: {:?}", spec.config());
     runtime::proof_geometry(spec, &signature, &hash).unwrap()
 }
 

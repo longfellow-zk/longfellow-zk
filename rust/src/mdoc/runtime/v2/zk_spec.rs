@@ -56,8 +56,8 @@ pub struct ZkSpecStruct {
     pub combined_hash: [u8; 32],
     pub num_attributes: usize,
     pub version: usize,
-    pub polygero_hash: PolygeroParameters,
-    pub polygero_sig: PolygeroParameters,
+    /// The one Polygero profile of both fields, which the joint commitment shares.
+    pub polygero: PolygeroParameters,
 }
 impl ZkSpecStruct {
     /// Whether this runtime can execute the circuit version, independently of publication.
@@ -66,8 +66,8 @@ impl ZkSpecStruct {
         is_supported_version(self.version)
     }
     #[must_use]
-    pub const fn configs(&self) -> (PolygeroConfig, PolygeroConfig) {
-        (self.polygero_hash.config(), self.polygero_sig.config())
+    pub const fn config(&self) -> PolygeroConfig {
+        self.polygero.config()
     }
     #[must_use]
     pub fn combined_hash_hex(&self) -> String {

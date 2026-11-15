@@ -43,6 +43,9 @@ pub enum CircuitRequest {
 }
 
 /// The system remains explicit; each variant has its own spec and proof API.
+// A materialized circuit is a single, long-lived handle, so the size gap
+// between the v1 and v2 bundles costs nothing worth a box.
+#[allow(clippy::large_enum_variant)]
 pub enum ProvidedCircuit {
     #[cfg(feature = "v1")]
     V1(v1::provider::ProvidedCircuit),
