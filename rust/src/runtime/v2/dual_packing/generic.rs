@@ -235,7 +235,7 @@ pub(super) fn reconstruct_validated<X: PackingExtension>(
         return Err("packing challenge shape".into());
     }
     let PackingProof::TraceZero { u, a } = proof else {
-        unreachable!()
+        return Err("packing response shape".into());
     };
     let f = p.field();
     let gamma = delta.iter().map(|d| p.frobenius(d)).collect::<Vec<_>>();

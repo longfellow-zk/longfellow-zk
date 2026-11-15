@@ -371,6 +371,15 @@ fn roundtrip<X: PackingExtension>(
         )
         .is_err());
     }
+    if p.degree() > 1 {
+        // Reconstruction rejects a direct response itself, without relying
+        // on the shape check its callers run first.
+        let delta: Vec<_> = (0..p.degree()).map(|_| sample()).collect();
+        assert_eq!(
+            reconstruct_validated(p, &claim, &PackingProof::Direct, &delta).unwrap_err(),
+            "packing response shape"
+        );
+    }
 }
 #[test]
 fn odd_characteristic_nonnative_basis_and_characteristic_dividing_degree() {
