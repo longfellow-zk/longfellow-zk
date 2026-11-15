@@ -140,12 +140,16 @@ with an accepted `Challenge<Conversion>` (type); `P256Plan::TREES = 2` fixes
 the fragment's `TreeShape` (constant); `Adapter.two_bad_probability_le` (Lean).
 
 **I5. Quotients are words, published only masked.** The honest quotient
-`k_t` is a `Word<Q>` and never leaves the adapter. The proof carries
+`k_t` is a `Word<Q>`. `Word` is crate-private and exists only in prover
+builds, and the quotients are held only in the crate-private
+`P256Encoded`, so code outside the crate never sees one; inside the crate,
+`P256Mode::prove` masks them before sending. The proof carries
 `MaskedWord<Q> = k_t xor o_t`, where `o_t` is an `Otp<Q>` committed in the
 binary witness. Each pad is sampled fresh for the proof and masks exactly
 one quotient: two words masked with one pad would publish their XOR. The
 claim's bit count is at most `2^Q`, so every honest quotient fits.
-*Enforced by:* `Word` has no encoder and `Otp` is built only by the
+*Enforced by:* `Word`, `P256Encoded` and `MaskedWord::mask` are
+crate-private, and `Word` has no encoder (type); `Otp` is built only by the
 prover's `Otp::sample`, which `ComposedStatement::prove` calls through
 `sample_pads` for each proof; `Otp` is neither `Copy` nor `Clone`, its
 `Debug` omits the value, and `MaskedWord::mask` and `AdapterMode::prove`
@@ -510,13 +514,17 @@ pub struct P256Mode<const Q: usize> { .. }              // AdapterMode<P256Field
                                                         // mode ID P256_MODE_ID in adapter/transcript.rs
 
 // runtime::v2::foreign::word (I5)
-pub struct Word<const N: usize>(u64);                   // adapter-internal, no encoder
+pub(crate) struct Word<const N: usize>(u64);            // prover builds only; no encoder
 pub struct Otp<const N: usize>(u64);                    // built only by Otp::sample; not Copy or Clone
+impl<const N: usize> Otp<N> {
+    pub fn sample(rng: &mut impl PrivateRandom) -> Self;  // prover builds only
+    pub fn bits(&self) -> impl Iterator<Item = bool> + '_;
+}
 impl<const N: usize> Debug for Otp<N> { .. }            // prints "Otp { .. }", never the value
 pub struct MaskedWord<const N: usize>(u64);             // the only word in a proof
 impl<const N: usize> MaskedWord<N> {
     pub const BYTES: usize = N.div_ceil(8);
-    pub fn mask(k: Word<N>, o: Otp<N>) -> Self;          // consumes the pad: one pad, one word
+    pub(crate) fn mask(k: Word<N>, o: Otp<N>) -> Self;   // prover; consumes the pad: one pad, one word
     pub fn bit(self, j: usize) -> bool;                  // feeds Encoder::bits
     pub fn encoded(&self) -> Vec<u8>;
     pub(crate) fn read(bytes: &mut &[u8]) -> Result<Self, String>;  // rejects nonzero padding
@@ -549,7 +557,7 @@ frontend's `Bound`.
 | Encoding with caller-chosen conversion challenges, such as one repeated | I4: `P256Plan::encode` is crate-private; `P256Mode` passes only the drawn `Conversion` |
 | One tree instead of two | I4: `P256Plan::TREES` and `[_; 2]` arrays fix the shape |
 | A quotient wider than its word, or a claim too wide for `Q` | I5: `Word::new`, `P256Plan::new`, mdoc's const assertion |
-| Publishing an unmasked quotient | I5: `Word` has no encoder or `Message` impl |
+| Publishing an unmasked quotient | I5: `Word` is crate-private and has no encoder or `Message` impl |
 | Masking two quotients with one pad, or printing a pad | I5: `MaskedWord::mask` consumes its `Otp`, which is not `Copy` or `Clone`; its `Debug` omits the value |
 | Two encodings of one masked word | I5, I9: `MaskedWord::read` rejects padding bits; the Bits payload is the wire bytes |
 | The host circuit reading R, a pad or a leaf | I6: reserved bits start at its `ninput`; sumcheck prefix reads |
@@ -561,7 +569,7 @@ frontend's `Bound`.
 | A foreign sumcheck pad in mixed storage | `Split::new` rejects it: mixed storage keeps every pad native |
 | A mask without native values, or native values without a mask | `Split::new`: a mask is required exactly when some values are native |
 | Tree sizes that overflow | `TreeShape::virtual_inputs` uses `checked_mul`; `fragment` bounds the width by `u32::MAX` |
-| Prover-only data in a verifier build | `Otp::sample`, `sample_pads`, `write_pads` and quotient accumulation are `cfg(prover)` |
+| Prover-only data in a verifier build | `Word`, `Otp::sample`, `MaskedWord::mask`, `sample_pads`, `write_pads`, `prove` and quotient accumulation are `cfg(prover)` |
 
 ## Soundness and zero knowledge
 

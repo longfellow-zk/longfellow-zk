@@ -1,15 +1,16 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Fixed-width words for adapter quotients and their one-time pads.
 //!
-//! `Word<N>` is an unsigned N-bit integer that exists only inside the adapter.
-//! `Otp<N>` is a uniform pad committed with the binary witness. The proof
-//! carries only `MaskedWord<N>`: an element of GF(2)^N, neither an integer nor
-//! a field element, whose canonical encoding is defined once here.
-use crate::runtime::{
-    random::PrivateRandom,
-    v2::proto::composed::{sealed, AdapterMessage},
-};
+//! `Word<N>` is an unsigned N-bit integer, crate-private and present only in
+//! prover builds. `Otp<N>` is a uniform pad committed with the binary
+//! witness. The proof carries only `MaskedWord<N>`: an element of GF(2)^N,
+//! neither an integer nor a field element, whose canonical encoding is
+//! defined once here.
+#[cfg(any(test, feature = "prover"))]
+use crate::runtime::random::PrivateRandom;
+use crate::runtime::v2::proto::composed::{sealed, AdapterMessage};
 
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 const fn mask(n: usize) -> u64 {
     if n == 64 {
         u64::MAX
@@ -18,33 +19,40 @@ const fn mask(n: usize) -> u64 {
     }
 }
 
-/// An unsigned integer below `2^N`.
+/// An unsigned integer below `2^N`: an honest adapter quotient. It is
+/// crate-private, so code outside the crate can neither build nor read one:
+///
+/// ```compile_fail,E0603
+/// use longfellow_zk::runtime::v2::foreign::word::Word;
+/// ```
+#[cfg(any(test, feature = "prover"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Word<const N: usize>(u64);
+pub(crate) struct Word<const N: usize>(u64);
+#[cfg(any(test, feature = "prover"))]
 impl<const N: usize> Word<N> {
-    const WIDTH_OK: () = assert!(N >= 1 && N <= 64, "word width must be 1..=64");
-    pub fn new(value: u64) -> Result<Self, String> {
-        let () = Self::WIDTH_OK;
+    pub(crate) fn new(value: u64) -> Result<Self, String> {
+        let () = MaskedWord::<N>::WIDTH_OK;
         if value & !mask(N) != 0 {
             return Err(format!("value exceeds a {N}-bit word"));
         }
         Ok(Self(value))
     }
-    pub fn value(self) -> u64 {
+    #[cfg(test)]
+    pub(crate) fn value(self) -> u64 {
         self.0
     }
 }
 
 /// A committed uniform pad for one `Word<N>`. Only the prover constructs it,
-/// fresh for each proof. It is neither `Copy` nor `Clone`, and
-/// `MaskedWord::mask` consumes it, so one pad masks exactly one word: two
-/// words masked with one pad would publish their XOR. Its `Debug` output
-/// omits the value.
+/// fresh for each proof (`Otp::sample` exists only in prover builds). It is
+/// neither `Copy` nor `Clone`, and `MaskedWord::mask` consumes it, so one pad
+/// masks exactly one word: two words masked with one pad would publish their
+/// XOR. Its `Debug` output omits the value.
 ///
 /// ```compile_fail,E0382
-/// use longfellow_zk::runtime::v2::foreign::word::{MaskedWord, Otp, Word};
-/// fn reuse(a: Word<8>, b: Word<8>, o: Otp<8>) -> [MaskedWord<8>; 2] {
-///     [MaskedWord::mask(a, o), MaskedWord::mask(b, o)]
+/// use longfellow_zk::runtime::v2::foreign::word::Otp;
+/// fn reuse(o: Otp<8>) -> [Otp<8>; 2] {
+///     [o, o]
 /// }
 /// ```
 ///
@@ -65,8 +73,9 @@ impl<const N: usize> std::fmt::Debug for Otp<N> {
     }
 }
 impl<const N: usize> Otp<N> {
+    #[cfg(any(test, feature = "prover"))]
     pub fn sample(rng: &mut impl PrivateRandom) -> Self {
-        let () = Word::<N>::WIDTH_OK;
+        let () = MaskedWord::<N>::WIDTH_OK;
         // Exactly ceil(N/8) fresh bytes; the unused high bits are discarded.
         let mut buf = [0u8; 8];
         buf[..N.div_ceil(8)].copy_from_slice(&rng.bytes(N.div_ceil(8)));
@@ -82,10 +91,15 @@ impl<const N: usize> Otp<N> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MaskedWord<const N: usize>(u64);
 impl<const N: usize> MaskedWord<N> {
+    const WIDTH_OK: () = assert!(N >= 1 && N <= 64, "word width must be 1..=64");
     /// Encoded length: N bits, least significant first, zero-padded to bytes.
-    pub const BYTES: usize = N.div_ceil(8);
+    pub const BYTES: usize = {
+        let () = Self::WIDTH_OK;
+        N.div_ceil(8)
+    };
     /// Mask `k` with the pad `o`, which this consumes.
-    pub fn mask(k: Word<N>, o: Otp<N>) -> Self {
+    #[cfg(any(test, feature = "prover"))]
+    pub(crate) fn mask(k: Word<N>, o: Otp<N>) -> Self {
         Self(k.0 ^ o.0)
     }
     pub fn bit(self, j: usize) -> bool {
@@ -99,7 +113,7 @@ impl<const N: usize> MaskedWord<N> {
     /// reader, called only through the composed body's reader (proto I2).
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn read(bytes: &mut &[u8]) -> Result<Self, String> {
-        let () = Word::<N>::WIDTH_OK;
+        let () = Self::WIDTH_OK;
         let (head, tail) = bytes
             .split_at_checked(Self::BYTES)
             .ok_or("truncated masked word")?;
