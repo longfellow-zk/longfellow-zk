@@ -35,7 +35,7 @@ impl<F: RegisteredField> ProverMessage for OpeningMessage<'_, F> {}
 /// after the split frontend: it reads further from the frontend's last answer
 /// (its last combine, after alpha and the input assertions; transcript I7),
 /// with no message or boundary of its own, and the split accepts it.
-pub fn eta<const W: usize, F: RuntimeField<W> + SupportsSampling, P: ?Sized>(
+pub(crate) fn eta<const W: usize, F: RuntimeField<W> + SupportsSampling, P: ?Sized>(
     t: &mut Bound<'_, P>,
     f: &F,
 ) -> Challenge<Eta<F::E>> {
