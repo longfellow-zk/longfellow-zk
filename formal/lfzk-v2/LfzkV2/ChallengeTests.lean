@@ -35,9 +35,6 @@ theorem card_bad_le [Fintype F] [DecidableEq F] (test : ChallengeTest F) (hvalid
   | round data => exact bad_round_roots data.truth data.message data.claim hvalid
   | combine data => exact bad_combine_roots data.trueA data.trueB data.claimA data.claimB
 
-theorem budget_le_two (test : ChallengeTest F) : test.budget ≤ 2 := by
-  cases test <;> simp [budget]
-
 end ChallengeTest
 
 abbrev Tests (F : Type) [Field F] := List (ChallengeTest F × F)

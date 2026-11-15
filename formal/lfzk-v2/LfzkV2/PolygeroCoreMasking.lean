@@ -81,12 +81,6 @@ theorem input_code (D : ReedSolomon.Domain F r w n) (hk : r+w ≤ n)
       (shortCode D hk e).encode padding values (codePosition j) :=
   inputPolynomial_eval D hk e padding values (codePosition j)
 
-theorem input_random (D : ReedSolomon.Domain F r w n) (hk : r+w ≤ n)
-    (e : Fin p ↪ Fin w) (padding : Fin r → F) (values : Fin p → F) (i : Fin r) :
-    input D hk e padding values (randomPosition i) = padding i := by
-  exact (inputPolynomial_eval D hk e padding values (randomPosition i)).trans
-    ((shortCode D hk e).encode_random padding values i)
-
 theorem input_witness (D : ReedSolomon.Domain F r w n) (hk : r+w ≤ n)
     (e : Fin p ↪ Fin w) (padding : Fin r → F) (values : Fin p → F) (i : Fin p) :
     input D hk e padding values (witnessPosition (e i)) = values i := by

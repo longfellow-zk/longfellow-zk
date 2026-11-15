@@ -48,25 +48,4 @@ end LfzkV2.OutputReplay
 namespace LfzkV2.AssertionReplay
 open SumcheckV2 Finset
 open scoped Classical
-variable {F : Type} [Field F]
-
-def prefixBeta {n : ℕ} (i : Fin n) (pref : Fin i.val → F) (j : Fin n) : F :=
-  if h : j.val < i.val then pref ⟨j.val,h⟩ else 0
-
-def dataAt {n : ℕ} (incoming claim : F) (values : Fin n → F)
-    (i : Fin n) (pref : Fin i.val → F) : ChallengeTest F :=
-  .linear (assertionOffset incoming claim (prefixBeta i pref) values i) (values i)
-
-theorem dataAt_eq {n : ℕ} (incoming claim : F) (beta values : Fin n → F) (i : Fin n) :
-    dataAt incoming claim values i (SumcheckV1.extract_prefix beta i) =
-      .linear (assertionOffset incoming claim beta values i) (values i) := by
-  unfold dataAt
-  congr 1
-  unfold assertionOffset
-  congr 1
-  apply sum_congr rfl
-  intro j hj
-  rw [prefixBeta, dif_pos (show j.val < i.val from (mem_filter.mp hj).2)]
-  rfl
-
 end LfzkV2.AssertionReplay

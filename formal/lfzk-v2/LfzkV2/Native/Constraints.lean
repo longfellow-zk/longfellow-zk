@@ -57,30 +57,6 @@ def buildFrom (claim : PadExpression Pad F) :
 def buildConstraints (ts : List (LayerTranscript Pad Slot F)) : Option (Constraints Pad Slot F) :=
   buildFrom zeroClaim ts
 
-/-- The shifts do not change the layout or either operand of any product check. -/
-theorem buildFrom_products (claim : PadExpression Pad F)
-    (ts : List (LayerTranscript Pad Slot F)) (cs : Constraints Pad Slot F)
-    (hbuild : buildFrom claim ts = some cs) :
-    cs.layers.map (fun c => (c.padA, c.padB, c.productSlot)) =
-      ts.map (fun t => (t.messages.padA, t.messages.padB, t.messages.productSlot)) := by
-  induction ts generalizing claim cs with
-  | nil =>
-      simp only [buildFrom, Option.some.injEq] at hbuild
-      subst cs
-      rfl
-  | cons t ts ih =>
-      cases hround : (subtractConstant claim t.constant).rounds
-          t.messages.rounds t.messages.challenges with
-      | none => simp [buildFrom, hround] at hbuild
-      | some terminal =>
-          cases hrest : buildFrom t.nextClaim ts with
-          | none => simp [buildFrom, hround, hrest] at hbuild
-          | some rest =>
-              simp only [buildFrom, hround, hrest, Option.some.injEq] at hbuild
-              subst cs
-              simp only [List.map_cons, LfzkV2.LayerTranscript.constraint]
-              rw [ih t.nextClaim rest hrest]
-
 def ClearAccepts (pads : Pad → F) (claim : F) : List (LayerTranscript Pad Slot F) → F → Prop
   | [], inputSum => claim = inputSum
   | t :: ts, inputSum =>

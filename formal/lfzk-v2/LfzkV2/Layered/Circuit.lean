@@ -76,15 +76,5 @@ def rounds : {out input : ℕ} → Circuit F out input → ℕ
   | _, _, .entry _ _ rest => rest.rounds
   | _, _, .layer (mid := mid) _ _ rest => mid + rest.rounds
 
-def entryBlocks : {out input : ℕ} → Circuit F out input → ℕ
-  | _, _, .input => 0
-  | _, _, .entry n _ rest => min 1 n + rest.entryBlocks
-  | _, _, .layer _ _ rest => rest.entryBlocks
-
-def ordinaryBudget : {out input : ℕ} → Circuit F out input → ℕ
-  | _, _, .input => 0
-  | _, _, .entry n _ rest => min 1 n + rest.ordinaryBudget
-  | _, _, .layer (mid := mid) n _ rest => min 1 n + 2*mid + 1 + rest.ordinaryBudget
-
 end Circuit
 end LfzkV2.Layered

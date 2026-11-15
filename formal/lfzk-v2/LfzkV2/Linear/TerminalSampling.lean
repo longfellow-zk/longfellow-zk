@@ -36,14 +36,6 @@ theorem candidates_card_le [Fintype Candidate] (data : Candidate → LinearTermi
   exact card_biUnion_le.trans ((sum_le_sum fun candidate _ =>
     (data candidate).bad_nonzero_roots).trans_eq (by simp [mul_comm]))
 
-theorem candidate_probability_le [Fintype Candidate] (data : Candidate → LinearTerminal.Data F) :
-    ((univ.filter fun scale : Nonzero F => ∃ candidate, (data candidate).Bad scale.val).card : ℚ) /
-        Fintype.card (Nonzero F) ≤
-      2 * Fintype.card Candidate / (Fintype.card F - 1 : ℕ) := by
-  rw [nonzero_card]
-  apply div_le_div_of_nonneg_right _ (Nat.cast_nonneg _)
-  exact_mod_cast candidates_card_le data
-
 structure Sampler (F C : Type) [Field F] [Fintype F] [DecidableEq F] [Fintype C] where
   decode : C → Nonzero F
   fiber : ℕ

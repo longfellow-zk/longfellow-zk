@@ -40,20 +40,10 @@ def layerRoleEquiv : {out input : ℕ} → (circuit : Layered.Circuit F out inpu
 def layerSlot {out input : ℕ} (circuit : Layered.Circuit F out input) (role : LayerRole circuit) : ℕ :=
   (layerRoleEquiv circuit role).val
 
-theorem layerSlot_entry {out next input n : ℕ}
-    (e : Entry (SumcheckV2.Cube out) (SumcheckV2.Cube next) n) (rest : Layered.Circuit F next input)
-    (i : Fin (vectorSlots n)) :
-    layerSlot (.entry n e rest) (.inl i) = i.val := rfl
-
 theorem layerSlot_after_entry {out next input n : ℕ}
     (e : Entry (SumcheckV2.Cube out) (SumcheckV2.Cube next) n) (rest : Layered.Circuit F next input)
     (role : LayerRole rest) :
     layerSlot (.entry n e rest) (.inr role) = vectorSlots n + layerSlot rest role := rfl
-
-theorem layerSlot_assertions {out mid input a : ℕ}
-    (body : Native.CircuitLayer (Cube out) (Cube mid) (Fin a) F) (rest : Layered.Circuit F mid input)
-    (i : Fin (vectorSlots a)) :
-    layerSlot (.layer a body rest) (.inl i) = i.val := rfl
 
 theorem layerSlot_round {out mid input a : ℕ}
     (body : Native.CircuitLayer (Cube out) (Cube mid) (Fin a) F) (rest : Layered.Circuit F mid input)
@@ -147,18 +137,5 @@ def layerMessage : {out input : ℕ} → (circuit : Layered.Circuit F out input)
       | .inr (.inr (.inl _)) => .cross payload.1.cross
       | .inr (.inr (.inr (.inl _))) => .claims payload.1.claimA payload.1.claimB
       | .inr (.inr (.inr (.inr role))) => layerMessage rest payload.2 role
-
-def message {out input : ℕ} (circuit : Layered.Circuit F out input) (payload : Payload circuit) :
-    Role circuit → Message F :=
-  layerMessage circuit payload
-
-def messageStream {out input : ℕ} (circuit : Layered.Circuit F out input) (payload : Payload circuit) :
-    ℕ → Message F :=
-  fun i => if h : i < slots circuit then message circuit payload ((roleEquiv circuit).symm ⟨i,h⟩) else .empty
-
-theorem messageStream_at_role {out input : ℕ} (circuit : Layered.Circuit F out input)
-    (payload : Payload circuit) (role : Role circuit) :
-    messageStream circuit payload (roleEquiv circuit role).val = message circuit payload role := by
-  simp [messageStream, (roleEquiv circuit role).isLt]
 
 end LfzkV2.Layered.Replay

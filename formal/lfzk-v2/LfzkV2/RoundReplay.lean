@@ -62,12 +62,6 @@ theorem round_bad_iff {n : ℕ} (q w : Cube n → F) (messages : Fin n → Round
   rw [← roundTests_bad, roundTests_eq]
   simp [Tests.Bad]
 
-theorem bad_card_le [Fintype F] [DecidableEq F] {n : ℕ} (q w : Cube n → F)
-    (messages : Fin n → RoundPoly F) (claim : F) (i : Fin n) (pref : Fin i.val → F) :
-    (Finset.univ.filter fun z =>
-      (ChallengeTest.round (dataAt q w messages claim i pref)).Bad z).card ≤ 2 := by
-  exact bad_round_roots _ _ _ (dataAt_valid q w messages claim i pref)
-
 /-- Later proof messages cannot change the test at the current hash point. -/
 theorem dataAt_eq_of_message_prefix {n : ℕ} (q w : Cube n → F)
     (first second : Fin n → RoundPoly F) (claim : F) (i : Fin n)

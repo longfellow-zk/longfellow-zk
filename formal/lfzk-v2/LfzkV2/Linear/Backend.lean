@@ -36,20 +36,6 @@ theorem satisfies_iff {nw q : ℕ} (linear : List (LinearRow Slot F))
   · intro hrows
     exact ⟨fun i => hrows _ (List.get_mem _ _), fun i => Fin.elim0 i⟩
 
-/-- A backend statement built from renamed affine rows enforces those rows. -/
-theorem satisfies_rows {E : Type} [Fintype E] {nw nq q : ℕ}
-    (linear : List (LinearRow Slot F)) (primary : Slot → Fin nw × Fin q)
-    (eqns : E ≃ Fin linear.length) (core : CoreMessages F nw nq q)
-    (h : (LfzkV2.Backend.statement (fun e =>
-      LfzkV2.Backend.remap (linear.get (eqns e)) (LfzkV2.Backend.linearAddress primary))).Satisfies core) :
-    RowsHold linear (LfzkV2.Backend.read core ∘ LfzkV2.Backend.linearAddress primary) := by
-  obtain ⟨hrows, _⟩ := (LfzkV2.Backend.statement_satisfies_iff _ _).mp h
-  intro row hrow
-  obtain ⟨i, hi⟩ := List.mem_iff_get.mp hrow
-  have hr := hrows (eqns.symm i)
-  simp only [Equiv.apply_symm_apply, LfzkV2.Backend.eval_remap] at hr
-  rwa [hi] at hr
-
 /-- Candidate recovery supplies the affine rows. This implication is also
 valid before specializing the shared backend to zero quadratic rows. -/
 theorem decoded_rows [Fintype F] [DecidableEq F]

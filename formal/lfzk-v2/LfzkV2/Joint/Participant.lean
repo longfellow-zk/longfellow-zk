@@ -32,7 +32,6 @@ namespace Participant
 variable {k s n t : ℕ} (P : Participant k s n t)
 
 abbrev Statement := P.backend.layer.Statement
-abbrev Witness := P.backend.layer.Witness
 abbrev Oracle := P.backend.layer.Oracle
 abbrev Coin := P.backend.layer.Coin
 abbrev Response := P.backend.layer.Payload

@@ -26,12 +26,6 @@ structure Geometry (F : Type) [Field F] (r w p n : ℕ) where
 
 namespace Geometry
 
-def runtime (D : ReedSolomon.Domain F r w n) (hk : r+w ≤ n) (hshape : r < w) :
-    Geometry F r w (PolygeroCoreMasking.productWidth r w) n :=
-  ⟨D, hk, PolygeroCoreMasking.productEmbedding hshape,
-    (PolygeroCoreMasking.productWidth_bounds hshape).2.1,
-    (PolygeroCoreMasking.productWidth_bounds hshape).2.2⟩
-
 noncomputable abbrev code (G : Geometry F r w p n) :=
   ReedSolomon.multiplicativeCode G.domain G.k_le_n
 

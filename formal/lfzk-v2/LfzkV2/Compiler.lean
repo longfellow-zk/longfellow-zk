@@ -37,19 +37,6 @@ def ProductsHold (cs : Constraints Pad Slot F) (coordinate : Pad → Slot)
   ∀ c ∈ cs.layers,
     witness c.productSlot = witness (coordinate c.padA) * witness (coordinate c.padB)
 
-/-- The product checks can be fixed from the layout before any messages or challenges.
-The builder preserves their order and both pad operands. -/
-theorem productsHold_iff (ts : List (LayerTranscript Pad Slot F))
-    (cs : Constraints Pad Slot F) (hbuild : buildConstraints ts = some cs)
-    (coordinate : Pad → Slot) (witness : Slot → F) :
-    ProductsHold cs coordinate witness ↔
-      ∀ t ∈ ts,
-        witness t.productSlot = witness (coordinate t.padA) * witness (coordinate t.padB) := by
-  have hkeys := buildFrom_products zeroClaim ts cs hbuild
-  have h := congrArg (fun keys : List (Pad × Pad × Slot) =>
-    ∀ key ∈ keys, witness key.2.2 = witness (coordinate key.1) * witness (coordinate key.2.1)) hkeys
-  simpa only [ProductsHold, List.forall_mem_map] using iff_of_eq h
-
 def compileInput {nPublic nPrivate : ℕ} (claim : PadExpression Pad F)
     (coordinate : Pad → Slot) (privateCoordinate : Fin nPrivate → Slot)
     (publicWeights publicInputs : Fin nPublic → F) (privateWeights : Fin nPrivate → F) :
@@ -82,14 +69,6 @@ def compile {nPublic nPrivate : ℕ} (cs : Constraints Pad Slot F)
 
 def RowsHold (rows : List (LinearRow Slot F)) (witness : Slot → F) : Prop :=
   ∀ row ∈ rows, row.eval witness = 0
-
-/-- Each layer contributes one row, followed by one input row even for a zero-layer proof. -/
-theorem compile_length {nPublic nPrivate : ℕ} (cs : Constraints Pad Slot F)
-    (coordinate : Pad → Slot) (privateCoordinate : Fin nPrivate → Slot)
-    (publicWeights publicInputs : Fin nPublic → F) (privateWeights : Fin nPrivate → F) :
-    (compile cs coordinate privateCoordinate publicWeights publicInputs privateWeights).length =
-      cs.layers.length + 1 := by
-  simp [compile]
 
 /-- With the committed products checked, compiled rows are exactly the symbolic equations. -/
 theorem compile_correct {nPublic nPrivate : ℕ} (cs : Constraints Pad Slot F)

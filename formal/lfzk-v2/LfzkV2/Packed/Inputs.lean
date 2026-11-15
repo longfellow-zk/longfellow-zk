@@ -88,41 +88,6 @@ noncomputable def inputs {input nPublic nPrivate : ℕ}
     (values : Slot → F) : Cube input → F :=
   circuitInputs inputIndex publicInputs id (unpack S.basis S.word packedIndex values)
 
-/-- Actual backend satisfaction can reach the native frontend only by making
-the source equality true, or by hitting the counted packing escape. -/
-theorem frontend_or_bad {Pad : Type} [DecidableEq F]
-    {out input nPublic nPrivate : ℕ} (circuit : Native.Circuit F out input)
-    (m : circuit.Messages Pad Slot) (point : Fin out → F)
-    (cs : Constraints Pad Slot F)
-    (hbuild : Native.buildConstraints (circuit.proof m (monomialWeights point)) = some cs)
-    (inputIndex : (Fin nPublic ⊕ Fin nPrivate) ↪ Cube input)
-    (packedIndex : Fin nPrivate ↪ J × I) (publicInputs : Fin nPublic → F)
-    (coordinate : Pad → Slot) (values : Slot → F) (U delta : I → F) (A : F)
-    (hlayers : ∀ c ∈ cs.layers, c.Holds (values ∘ coordinate))
-    (hpacking : ((S.withSource packedIndex cs.inputClaim coordinate
-      (fun i => circuit.inputWeights m (monomialWeights point) (inputIndex (.inl i))) publicInputs
-      (fun i => circuit.inputWeights m (monomialWeights point) (inputIndex (.inr i)))).realize values).nativeLinearVerify
-        U delta A) :
-    Native.ClearAccepts (values ∘ coordinate) 0 (circuit.proof m (monomialWeights point))
-      (dot (circuit.inputWeights m (monomialWeights point))
-        (S.inputs inputIndex packedIndex publicInputs values)) ∨
-      (S.withSource packedIndex cs.inputClaim coordinate
-        (fun i => circuit.inputWeights m (monomialWeights point) (inputIndex (.inl i))) publicInputs
-        (fun i => circuit.inputWeights m (monomialWeights point) (inputIndex (.inr i)))).Bad values U delta := by
-  let T := S.withSource packedIndex cs.inputClaim coordinate
-    (fun i => circuit.inputWeights m (monomialWeights point) (inputIndex (.inl i))) publicInputs
-    (fun i => circuit.inputWeights m (monomialWeights point) (inputIndex (.inr i)))
-  rcases T.target_or_bad values U delta A hpacking with htrue | hbad
-  · apply Or.inl
-    apply (Native.buildConstraints_correct _ _ _).mp
-    refine ⟨cs, hbuild, hlayers, ?_⟩
-    have hsource := (S.source_claim_iff packedIndex cs.inputClaim coordinate
-      (fun i => circuit.inputWeights m (monomialWeights point) (inputIndex (.inl i))) publicInputs
-      (fun i => circuit.inputWeights m (monomialWeights point) (inputIndex (.inr i))) values).mp htrue
-    rw [inputs, input_sum]
-    simpa only [Function.comp_id] using hsource
-  · exact Or.inr hbad
-
 /-- Packed private inputs beside the public prefix, with each per-proof
 virtual input at its own address. Virtual values are affine views of the
 decoded committed inputs; they are never committed themselves. -/

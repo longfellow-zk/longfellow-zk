@@ -84,11 +84,6 @@ def Kind.budget : Kind → ℕ
 abbrev Kind.Sample (F : Type) (kind : Kind) := Fin kind.dimension → F
 
 omit [Field F] in
-theorem Kind.sample_card [Fintype F] (kind : Kind) :
-    Fintype.card (kind.Sample F) = Fintype.card F ^ kind.dimension := by
-  simp [Sample]
-
-omit [Field F] in
 theorem scalar_bad_card [Fintype F] (event : F → Prop) :
     (univ.filter fun sample : Fin 1 → F => event (sample 0)).card ≤
       (univ.filter event).card := by

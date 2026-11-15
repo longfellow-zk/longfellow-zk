@@ -41,10 +41,6 @@ def value (w : W → F) : Term O W F → F
   | .linear _ l k => k*w l
   | .constant _ k => k
 
-theorem value_map (output : O → O') (wire : W → W') (w : W' → F) (term : Term O W F) :
-    (term.map output wire).value w = term.value (w ∘ wire) := by
-  cases term <;> rfl
-
 noncomputable def evaluated (w : W → F) (g : O) (term : Term O W F) : F :=
   if term.output = g then term.value w else 0
 
@@ -57,14 +53,6 @@ noncomputable def right (a : O → F) (m : W → F) (i : W) : Term O W F → F
   | .quadratic g l r k => if r = i then a g*k*m l else 0
   | .linear _ _ _ => 0
   | .constant _ _ => 0
-
-def constantPart (a : O → F) : Term O W F → F
-  | .constant g k => a g*k
-  | _ => 0
-
-def linearPart (a : O → F) (m : W → F) : Term O W F → F
-  | .linear g l k => a g*k*m l
-  | _ => 0
 
 end Term
 
@@ -98,34 +86,5 @@ theorem evaluate_flatten (fragments : List (QuadFragment O W F)) (w : W → F) (
     ((flatten fragments).map (Term.evaluated w g)).sum =
       (fragments.map fun fragment => (fragment.globalTerms.map (Term.evaluated w g)).sum).sum :=
   contraction_flatten fragments _
-
-theorem bind_right_flatten (fragments : List (QuadFragment O W F)) (a : O → F) (w : W → F) (l : W) :
-    ((flatten fragments).map (Term.left a w l)).sum =
-      (fragments.map fun fragment => (fragment.globalTerms.map (Term.left a w l)).sum).sum :=
-  contraction_flatten fragments _
-
-theorem bind_left_flatten (fragments : List (QuadFragment O W F)) (a : O → F) (m : W → F) (r : W) :
-    ((flatten fragments).map (Term.right a m r)).sum =
-      (fragments.map fun fragment => (fragment.globalTerms.map (Term.right a m r)).sum).sum :=
-  contraction_flatten fragments _
-
-theorem constants_flatten (fragments : List (QuadFragment O W F)) (a : O → F) :
-    ((flatten fragments).map (Term.constantPart a)).sum =
-      (fragments.map fun fragment => (fragment.globalTerms.map (Term.constantPart a)).sum).sum :=
-  contraction_flatten fragments _
-
-theorem linear_correction_flatten (fragments : List (QuadFragment O W F)) (a : O → F) (m : W → F) :
-    ((flatten fragments).map (Term.linearPart a m)).sum =
-      (fragments.map fun fragment => (fragment.globalTerms.map (Term.linearPart a m)).sum).sum :=
-  contraction_flatten fragments _
-
-/-- A single global monomial array is reused by every fragment. The affine
-transition is performed once after their sparse right coefficients add. -/
-theorem transition_flatten (fragments : List (QuadFragment O W F)) (a : O → F)
-    (m : W → F) (alpha : F) (r : W) :
-    m r + alpha*((flatten fragments).map (Term.right a m r)).sum =
-      m r + alpha*(fragments.map fun fragment =>
-        (fragment.globalTerms.map (Term.right a m r)).sum).sum := by
-  rw [bind_left_flatten]
 
 end LfzkV2.Layered

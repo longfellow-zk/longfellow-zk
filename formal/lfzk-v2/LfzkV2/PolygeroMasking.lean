@@ -102,48 +102,6 @@ theorem translate_openings (C : MultiplicativeCode F r w n) (M : C.MaskingBasis)
     (adjustment C M Q Λ delta).zRCoefficient.2.2.1 j.1 j.2]
   exact ⟨add_zero _, add_zero _⟩
 
-abbrev MaskOpenings (F : Type) {n r : ℕ} (Q : QuerySet n r) :=
-  ↥Q.coordinates → F × F
-
-def openMasks {C : MultiplicativeCode F r w n} {Λ : (Fin w → F) →ₗ[F] F}
-    (Q : QuerySet n r) (masks : Tape C Λ) : MaskOpenings F Q :=
-  fun j => (masks.vCoefficient.1 (codePosition j.1),
-    masks.zRCoefficient.1 (codePosition j.1))
-
-theorem openMasks_translate (C : MultiplicativeCode F r w n) (M : C.MaskingBasis)
-    (Q : QuerySet n r) (Λ : (Fin w → F) →ₗ[F] F)
-    (delta : linearResponseKernel C Q.coordinates Λ) (masks : Tape C Λ) :
-    openMasks Q (translate C M Q Λ delta masks) = openMasks Q masks := by
-  funext j
-  exact Prod.ext (translate_openings C M Q Λ delta masks j).1
-    (translate_openings C M Q Λ delta masks j).2
-
-/-- The difference may depend on all opened mask values. Preserving those
-values makes the adaptive change of variables injective as well. -/
-theorem adaptive_translate_injective (C : MultiplicativeCode F r w n) (M : C.MaskingBasis)
-    (Q : QuerySet n r) (Λ : (Fin w → F) →ₗ[F] F)
-    (delta : MaskOpenings F Q → linearResponseKernel C Q.coordinates Λ) :
-    Function.Injective (fun masks => translate C M Q Λ (delta (openMasks Q masks)) masks) := by
-  intro first second heq
-  have hopen : openMasks Q first = openMasks Q second := by
-    simpa only [openMasks_translate] using congrArg (openMasks Q) heq
-  apply (translate C M Q Λ (delta (openMasks Q first))).injective
-  simpa only [hopen] using heq
-
-noncomputable def adaptiveTranslate [Fintype F] [DecidableEq F]
-    (C : MultiplicativeCode F r w n) (M : C.MaskingBasis)
-    (Q : QuerySet n r) (Λ : (Fin w → F) →ₗ[F] F)
-    (delta : MaskOpenings F Q → linearResponseKernel C Q.coordinates Λ) : Tape C Λ ≃ Tape C Λ :=
-  Equiv.ofBijective (fun masks => translate C M Q Λ (delta (openMasks Q masks)) masks)
-    (adaptive_translate_injective C M Q Λ delta).bijective_of_finite
-
-theorem openMasks_adaptiveTranslate [Fintype F] [DecidableEq F]
-    (C : MultiplicativeCode F r w n) (M : C.MaskingBasis)
-    (Q : QuerySet n r) (Λ : (Fin w → F) →ₗ[F] F)
-    (delta : MaskOpenings F Q → linearResponseKernel C Q.coordinates Λ) (masks : Tape C Λ) :
-    openMasks Q (adaptiveTranslate C M Q Λ delta masks) = openMasks Q masks :=
-  openMasks_translate C M Q Λ _ masks
-
 /-- Public witness values with the target in one logical coordinate. -/
 def publicValues (layout : ConstraintLayout F q w) (pivot : Fin q) (target : F) : Fin w → F :=
   fun i => if i = layout.logical pivot then target else 0

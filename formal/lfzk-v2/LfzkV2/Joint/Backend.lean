@@ -25,7 +25,6 @@ variable {k s n t : ℕ} (G : Family k s n t)
 
 abbrev Index := Fin G.count
 abbrev Statement := (i : G.Index) → (G.participant i).Statement
-abbrev Witness := (i : G.Index) → (G.participant i).Witness
 abbrev Oracle := (i : G.Index) → (G.participant i).Oracle
 abbrev Coin := (i : G.Index) → (G.participant i).Coin
 abbrev Response := (i : G.Index) → (G.participant i).Response
@@ -70,39 +69,6 @@ theorem compiler_verify (ht : 0 < t) (σ : G.Statement) (W : G.Oracle)
   simp only [compiler, decide_eq_true_eq, Verify]
   exact forall_congr' (fun i => (G.participant i).compiler_verify ht _ _ _ _ _)
 
-/-- One explained opening transfers every field check to the same extracted
-column tuple. There is one commitment-extraction event, not one per field. -/
-theorem verify_of_accepts (ht : 0 < t) {Salt D Enc : Type} [Inhabited D]
-    (scheme : Scheme Salt G.Leaf D Enc) (σ : G.Statement) (root : D)
-    (coin : G.Coin) (response : G.Response) (Q : QuerySet n t)
-    (claim : OpeningClaim n Salt G.Leaf D) (W : G.Oracle)
-    (hagree : ∀ j ∈ claim.I, G.columnsEquiv W j = claim.a j)
-    (haccept : (G.compiler ht).Accepts scheme σ root coin response Q claim) :
-    G.Verify σ W coin response Q :=
-  (G.compiler_verify ht σ W coin response Q).mp
-    ((G.compiler ht).verify_of_accepts scheme σ root coin response Q claim W hagree haccept)
-
-noncomputable def extractedOracle {Salt D Enc : Type}
-    [DecidableEq D] [Inhabited D] [Inhabited Salt] [Inhabited G.Leaf]
-    {codec : Codec Salt G.Leaf D Enc} (dec : RoleDecoders codec)
-    (root : D) (trace : List (Enc × D)) : G.Oracle :=
-  G.columnsEquiv.symm (((extract dec n root trace).map Extracted.message).getD default)
-
-theorem verify_of_extraction (ht : 0 < t) {Salt D Enc : Type}
-    [DecidableEq D] [Inhabited D] [Inhabited Salt] [Inhabited G.Leaf]
-    {codec : Codec Salt G.Leaf D Enc} (dec : RoleDecoders codec)
-    (scheme : Scheme Salt G.Leaf D Enc) (σ : G.Statement) (root : D)
-    (trace : List (Enc × D)) (coin : G.Coin) (response : G.Response) (Q : QuerySet n t)
-    (claim : OpeningClaim n Salt G.Leaf D) (e : Extracted n Salt G.Leaf D)
-    (hext : extract dec n root trace = some e)
-    (hagree : ∀ j ∈ claim.I, e.message j = claim.a j)
-    (haccept : (G.compiler ht).Accepts scheme σ root coin response Q claim) :
-    G.Verify σ (G.extractedOracle dec root trace) coin response Q := by
-  apply G.verify_of_accepts ht scheme σ root coin response Q claim _ _ haccept
-  intro j hj
-  simpa only [extractedOracle, Equiv.apply_symm_apply, hext, Option.map_some, Option.getD_some]
-    using hagree j hj
-
 /-- The fixed family is formed before any backend response or query. Each
 field retains its own candidate list even though authentication is shared. -/
 noncomputable def Candidates (W : G.Oracle) (cutoff : G.Index → ℕ) :=
@@ -111,14 +77,6 @@ noncomputable def Candidates (W : G.Oracle) (cutoff : G.Index → ℕ) :=
 noncomputable instance candidatesFintype (W : G.Oracle) (cutoff : G.Index → ℕ) :
     Fintype (G.Candidates W cutoff) := inferInstanceAs (Fintype ((i : G.Index) →
       ↥(Counting.committedCandidates (G.participant i).backend (W i) (cutoff i))))
-
-theorem candidates_card (W : G.Oracle) (cutoff : G.Index → ℕ) :
-    Fintype.card (G.Candidates W cutoff) = ∏ i,
-      (Counting.committedCandidates (G.participant i).backend (W i) (cutoff i)).card := by
-  rw [← Nat.card_eq_fintype_card]
-  unfold Candidates
-  rw [Nat.card_pi]
-  simp only [Nat.card_eq_fintype_card, Fintype.card_coe]
 
 end Family
 end LfzkV2.Joint
