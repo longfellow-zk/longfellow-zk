@@ -241,8 +241,10 @@ that these nodes are [`Grammar`](LfzkV2/Current/Grammar.lean) nodes over the
 deployed tag and field registries: each message's bytes are the grammar
 encoding of values that determine it, so the grammar's injectivity applies to
 the deployed bytes; node 0 has the setup's statement bytes before its
-messages. Its body is the canonical MDA7 body, including the terminal
-authentication frontier, its u64 count first. The body is the
+messages. `TaggedGrammar.toPoint_injective` derives the injectivity of the
+deployed canonical points from the grammar. The format's body is the canonical
+MDA7 body, including the terminal authentication frontier, its u64 count
+first. The body is the
 composed proof in physical order: shared root, both fingerprint responses,
 the prime reduction, `mu`, the two masked quotients, the binary reduction and
 packing, then the joint opening.

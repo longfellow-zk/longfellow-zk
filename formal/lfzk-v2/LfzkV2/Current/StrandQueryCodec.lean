@@ -37,7 +37,7 @@ private theorem readBlock_canonical (block : QueryCodec.Block) (input : Bytes) (
   next _ => contradiction
 
 /-- Canonical packet values determine the root payload and every later
-one-parent payload. Round counters and feedback framing add no wire bytes. -/
+one-parent payload. Links are the parents' digests; they add no payload bytes. -/
 def encode : (blocks : List QueryCodec.Block) → QueryCodec.Value bodyCodec blocks →
     Bytes × List (Digest × Bytes)
   | [], body => ((final wire bodyCodec).encode body,[])
@@ -98,6 +98,42 @@ theorem encode_decode (blocks : List QueryCodec.Block) (input : Bytes × List (D
           have laterEq := ih (next,rest) later parsed
           simp only [encode,laterEq]
           exact Prod.ext canonical.symm rfl
+
+/-- The node payloads determine the packet values when each node's payload
+determines its packet value, without the parser: this is how a node grammar
+(`TaggedGrammar`) yields the injectivity of canonical points. -/
+theorem encode_injective (blocks : List QueryCodec.Block)
+    (nodes : ∀ block ∈ blocks, Function.Injective fun value : block.Data =>
+      block.codec.encode value ++ wire.terminator block.domain)
+    (sealed : Function.Injective (wire.sealed bodyCodec).encode) :
+    Function.Injective (encode wire bodyCodec blocks) := by
+  induction blocks with
+  | nil =>
+      intro first second same
+      exact sealed (congrArg Prod.fst same)
+  | cons block tail ih =>
+      intro first second same
+      rcases first with ⟨first,firstNext⟩
+      rcases second with ⟨second,secondNext⟩
+      have head := nodes block List.mem_cons_self (congrArg Prod.fst same)
+      subst head
+      have rest := congrArg Prod.snd same
+      cases firstNext with
+      | inl stop =>
+          cases secondNext with
+          | inl other => cases stop; cases other; rfl
+          | inr next => simp only [encode] at rest; cases rest
+      | inr firstLater =>
+          rcases firstLater with ⟨firstLink,firstNext⟩
+          cases secondNext with
+          | inl other => simp only [encode] at rest; cases rest
+          | inr secondLater =>
+              rcases secondLater with ⟨secondLink,secondNext⟩
+              simp only [encode,List.cons.injEq,Prod.mk.injEq] at rest
+              obtain ⟨⟨rfl,hfirst⟩,hrest⟩ := rest
+              have later := ih (fun block mem => nodes block (List.mem_cons_of_mem _ mem))
+                (Prod.ext hfirst hrest)
+              rw [later]
 
 def toHistory (blocks : List QueryCodec.Block) (value : QueryCodec.Value bodyCodec blocks) :
     TranscriptV2.Strand.History :=

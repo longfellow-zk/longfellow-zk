@@ -1,4 +1,5 @@
 import LfzkV2.Current.TaggedGrammar
+import LfzkV2.Current.MdocRuntime
 
 /-! The deployed registry parses the Rust golden node payloads at the v2 tip
 (`runtime::v2` golden tests): the 1-attribute mdoc statement node and every
@@ -816,6 +817,10 @@ example : parses (standalone1.take 64) .round = false := by decide +kernel
 example : parses (standalone1 ++ [0]) .round = false := by decide +kernel
 example : parses standalone1 .seal = false := by decide +kernel
 
+-- The deployed mdoc representations meet the quotient schema.
+example {B : Type} (scalars : MdocRuntime.Scalars B) : AdviceGrammar (MdocRuntime.representations scalars) :=
+  mdocAdvice _ _ _ _
+
 /--
 info: 'LfzkV2.Current.TaggedGrammar.later_node' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
@@ -839,5 +844,11 @@ info: 'LfzkV2.Current.TaggedGrammar.mdocAdvice' depends on axioms: [propext, Cla
 -/
 #guard_msgs in
 #print axioms TaggedGrammar.mdocAdvice
+
+/--
+info: 'LfzkV2.Current.TaggedGrammar.toPoint_injective' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms TaggedGrammar.toPoint_injective
 
 end LfzkV2.Current.Tests.TaggedGrammar

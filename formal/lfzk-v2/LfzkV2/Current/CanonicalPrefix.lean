@@ -50,56 +50,9 @@ theorem bytes_length (value : BoundedBytes maxLength) :
     (bytes.encode value).length = 9+value.bytes.length := by
   rw [bytes_encode,frame_length]
 
-/-- UTF-8 is used only for the literal ASCII domain strings below. -/
+/-- UTF-8 is used only for literal ASCII domain strings. -/
 def utf8 (text : String) : Bytes := text.toUTF8.data.toList.map fun value =>
   ⟨value.toNat,UInt8.toNat_lt _⟩
-
-def sessionDomain : Bytes := utf8 "longfellow/transcript/v2/strands/v1"
-def roundDomain : Bytes := utf8 "longfellow/transcript/v2/round"
-def feedbackDomain : Bytes := utf8 "longfellow/transcript/v2/boundary-output"
-def finalDomain : Bytes := utf8 "longfellow/transcript/v2/final"
-
-def label (domain : Domain) : Byte := ⟨domain.tag.val,domain.tag.isLt.trans (by decide)⟩
-
-def roundFooter (domain : Domain) (counter : Fin (2^64)) : Bytes :=
-  frame roundDomain ++ frame [label domain] ++ frame (encodeLE 8 counter.val)
-
-def finalFooter (counter : Fin (2^64)) : Bytes :=
-  frame finalDomain ++ frame (encodeLE 8 counter.val)
-
-/-- Digest framing is write_bytes, not a scalar-field operation. -/
-def framedDigest : PrefixCodec Digest :=
-  ProofBodyCodec.digest.prefixed ([0] ++ encodeLE 8 32)
-
-theorem framedDigest_encode (value : Digest) : framedDigest.encode value = frame (List.ofFn value) := by
-  simp only [framedDigest,PrefixCodec.prefixed,PrefixCodec.equiv,PrefixCodec.pair,
-    PrefixCodec.marker,Equiv.coe_fn_symm_mk,ProofBodyCodec.digest,PrefixCodec.bytes_encode,
-    frame,List.length_ofFn,List.append_assoc]
-
-theorem framedDigest_length (value : Digest) : (framedDigest.encode value).length = 41 := by
-  rw [framedDigest_encode,frame_length,List.length_ofFn]
-
-def feedback : PrefixCodec Digest := framedDigest.prefixed (frame feedbackDomain)
-
-theorem feedback_encode (value : Digest) : feedback.encode value =
-    frame feedbackDomain ++ frame (List.ofFn value) := by
-  simp only [feedback,PrefixCodec.prefixed,PrefixCodec.equiv,PrefixCodec.pair,
-    PrefixCodec.marker,Equiv.coe_fn_symm_mk,framedDigest_encode]
-
-theorem feedback_nonempty (value : Digest) : feedback.encode value ≠ [] := by
-  rw [feedback_encode]
-  intro h
-  cases h
-
-/-- Session initialization precedes all bind-only and round operations. -/
-def session : PrefixCodec (BoundedBytes maxLength) := bytes.prefixed (frame sessionDomain)
-
-theorem session_length (value : BoundedBytes maxLength) :
-    (session.encode value).length = (frame sessionDomain).length+9+value.bytes.length := by
-  change ((frame sessionDomain) ++ bytes.encode value).length = _
-  rw [List.length_append,bytes_length]
-  omega
-
 
 section Payload
 variable {A : Type}
@@ -155,48 +108,6 @@ theorem _root_.LfzkV2.Current.WholeCodec.encode_injective (codec : WholeCodec A)
   have decoded := congrArg codec.decode same
   rw [codec.inverse,codec.inverse] at decoded
   exact Option.some.inj decoded
-
-/-- Frame the actual canonical payload bytes. The u64 bound is explicit;
-the parser rejects any unused bytes inside the framed payload. -/
-def framed (codec : PrefixCodec A) :
-    PrefixCodec {value // (codec.encode value).length ≤ maxLength} where
-  encode value := bytes.encode ⟨codec.encode value.val,value.property⟩
-  decode input := do
-    let (payload,suffix) ← bytes.decode input
-    match h : readWhole codec payload.bytes with
-    | none => none
-    | some value => some (⟨value,by
-        rw [← readWhole_canonical codec payload.bytes value h]
-        exact payload.bound⟩,suffix)
-  inverse value suffix := by
-    simp only [bytes.inverse,Option.bind_eq_bind,Option.bind_some]
-    split
-    · rename_i hn
-      have hi := readWhole_encode codec value.val
-      rw [hn] at hi
-      contradiction
-    · rename_i decoded hd
-      have he : decoded = value.val := Option.some.inj (hd.symm.trans (readWhole_encode codec value.val))
-      subst decoded
-      rfl
-  canonical input value suffix h := by
-    simp only [Option.bind_eq_bind,Option.bind_eq_some_iff] at h
-    obtain ⟨⟨payload,rest⟩,hp,h⟩ := h
-    split at h
-    · contradiction
-    · rename_i decoded hd
-      cases Option.some.inj h
-      have he := readWhole_canonical codec payload.bytes decoded hd
-      have hb : (codec.encode decoded).length ≤ maxLength := by rw [← he]; exact payload.bound
-      have hs : payload = (⟨codec.encode decoded,hb⟩ : BoundedBytes maxLength) := BoundedBytes.ext he
-      calc
-        input = bytes.encode payload ++ rest := bytes.canonical input payload rest hp
-        _ = bytes.encode ⟨codec.encode decoded,hb⟩ ++ rest := by rw [hs]
-        _ = _ := rfl
-
-theorem framed_encode (codec : PrefixCodec A)
-    (value : {value // (codec.encode value).length ≤ maxLength}) :
-    (framed codec).encode value = frame (codec.encode value.val) := bytes_encode _
 
 end Payload
 

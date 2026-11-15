@@ -565,4 +565,46 @@ theorem nodes_injective :
     Function.Injective fun nodes : List (Node fields registry) => nodes.flatMap (node fields registry).encode :=
   flatMap_injective _ (node_nonempty fields registry)
 
+/-- One node's messages and terminator are determined by its bytes, also
+when it has no message: a node with a message is `nodes_injective` for one
+node, and a message never starts with a terminator. -/
+theorem encodeMessages_injective {first second : List (Message fields registry)} {firstEnd secondEnd : End}
+    (same : encodeMessages fields registry first firstEnd = encodeMessages fields registry second secondEnd) :
+    first = second ∧ firstEnd = secondEnd := by
+  have noMessage (value : Message fields registry) (rest : List (Message fields registry)) (terminal last : End)
+      (equal : terminator.encode terminal =
+        encodeMessages fields registry (value::rest) last) : False := by
+    have decoded := congrArg terminator.decode (equal.trans (by
+      simp only [encodeMessages,List.flatMap_cons,List.append_assoc] :
+        encodeMessages fields registry (value::rest) last =
+          (message fields registry).encode value ++ (rest.flatMap (message fields registry).encode ++
+            terminator.encode last)))
+    rw [← List.append_nil (terminator.encode terminal),terminator.inverse,terminator_message] at decoded
+    cases decoded
+  cases first with
+  | nil =>
+      cases second with
+      | nil =>
+          have decoded := congrArg terminator.decode
+            (show terminator.encode firstEnd ++ [] = terminator.encode secondEnd ++ [] by
+              simpa only [encodeMessages,List.flatMap_nil,List.nil_append,List.append_nil] using same)
+          rw [terminator.inverse,terminator.inverse] at decoded
+          exact ⟨rfl,(Prod.mk.inj (Option.some.inj decoded)).1⟩
+      | cons value rest =>
+          exact (noMessage value rest firstEnd secondEnd (by
+            simpa only [encodeMessages,List.flatMap_nil,List.nil_append] using same)).elim
+  | cons value rest =>
+      cases second with
+      | nil =>
+          exact (noMessage value rest secondEnd firstEnd (by
+            simpa only [encodeMessages,List.flatMap_nil,List.nil_append] using same.symm)).elim
+      | cons other later =>
+          have nodes := nodes_injective fields registry
+            (a₁ := [⟨value::rest,List.cons_ne_nil _ _,firstEnd⟩])
+            (a₂ := [⟨other::later,List.cons_ne_nil _ _,secondEnd⟩]) (by
+              simp only [List.flatMap_cons,List.flatMap_nil,List.append_nil]
+              exact same)
+          have node := List.head_eq_of_cons_eq nodes
+          exact ⟨congrArg Node.messages node,congrArg Node.terminal node⟩
+
 end LfzkV2.Current.Grammar

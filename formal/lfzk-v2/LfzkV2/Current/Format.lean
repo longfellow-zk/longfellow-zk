@@ -4,6 +4,7 @@ import LfzkV2.Current.PublicRequest
 import LfzkV2.Current.BodyEncoding
 import LfzkV2.Current.BackendBody
 import LfzkV2.Current.BodyScalars
+import LfzkV2.Current.ByteOracleTransport
 
 /-! A transcript format: everything the soundness, extraction and
 zero-knowledge development needs to know about the bytes that a proof's

@@ -18,6 +18,8 @@ apply to the deployed bytes.
   `ROUND` (`later_node`), the seal node is the `Seal` message and `SEAL`
   (`seal_node`), and node 0 is the setup's statement prefix, then grammar
   messages and `ROUND` (`first_node`).
+- `toPoint_injective`: the deployed canonical points are injective, derived
+  from the grammar's injectivity rather than from the packet parsers.
 
 The masked quotients are the one message whose codec a format takes as a
 parameter (`Representations.adviceWrites`); `AdviceGrammar` states that it is
@@ -650,5 +652,92 @@ def mdocAdvice {fields : Fields} (binary : FieldCodec (fields .binary)) (prime :
       (Grammar.value table .bits).encode (bitsOf (advice 0)) ++
         ((Grammar.value table .bits).encode (bitsOf (advice 1)) ++ [])
     rw [MdocAdvice.writes_encode,bitsOf_encode,bitsOf_encode,List.append_nil]
+
+/-! ## Deployed points
+
+The injectivity of the deployed canonical points, from the grammar: a node's
+payload determines its messages and terminator
+(`Grammar.encodeMessages_injective`, which is `Grammar.nodes_injective` for
+one node with a message), and the messages determine the packet value
+(`Writes.injective`). The generic `Format.toPoint_injective` proves the same
+by parsing with the packet codecs. -/
+
+section Points
+variable {g : Geometry} {fields : Fields} {Advice : Type}
+variable (repr : ProofBodyCodec.Representations fields Advice) (shape : WireBlocks.Shape g fields)
+
+include shape in
+/-- A later node's payload determines its packet value. -/
+theorem later_injective (advice : AdviceGrammar repr) (i : Fin g.roles.length) (domain : Domain) :
+    Function.Injective fun value : TaggedFormat.Data (fields := fields) (Advice := Advice) i =>
+      (TaggedFormat.codec repr i).encode value ++ TaggedFormat.wire.terminator domain := by
+  intro first second same
+  have bytes : (TaggedFormat.codec repr i).encode first ++ TaggedFormat.wire.terminator domain =
+      (TaggedFormat.codec repr i).encode second ++ TaggedFormat.wire.terminator domain := same
+  rw [later_node repr shape advice,later_node repr shape advice] at bytes
+  exact (codecWrites repr shape advice i).injective (Grammar.encodeMessages_injective table registry bytes).1
+
+/-- Node 0's payload determines the key: the session through its `Bytes`
+value after the setup's statement head, the rest through the grammar
+messages after the setup constants. -/
+theorem first_injective {Prime : Type} (setup : TaggedFormat.Setup) (prime : FieldCodec Prime)
+    (primeWidth : prime.width = 32) (publicCount primeCount : ℕ) (publicFits : publicCount < 2^64)
+    (primeFits : primeCount < 2^64) (domain : Domain) :
+    Function.Injective fun key : TaggedFormat.Key publicCount primeCount Prime =>
+      (TaggedFormat.first setup prime publicCount primeCount).encode key ++ TaggedFormat.wire.terminator domain := by
+  intro first second same
+  have bytes : (TaggedFormat.first setup prime publicCount primeCount).encode first ++
+        TaggedFormat.wire.terminator domain =
+      (TaggedFormat.first setup prime publicCount primeCount).encode second ++
+        TaggedFormat.wire.terminator domain := same
+  rw [first_node prime primeWidth publicCount primeCount publicFits primeFits,
+    first_node prime primeWidth publicCount primeCount publicFits primeFits] at bytes
+  simp only [List.append_assoc] at bytes
+  have decoded := congrArg bytesValue.decode (List.append_cancel_left bytes)
+  rw [bytesValue.inverse,bytesValue.inverse] at decoded
+  obtain ⟨session,rest⟩ := Prod.mk.inj (Option.some.inj decoded)
+  obtain ⟨bits,primes,root⟩ := keyMessages_injective prime primeWidth publicCount primeCount publicFits
+    primeFits first second (Grammar.encodeMessages_injective table registry (List.append_cancel_left rest)).1
+  cases first
+  cases second
+  cases session
+  cases bits
+  cases primes
+  cases root
+  rfl
+
+/-- The seal node's payload determines the body. -/
+theorem sealed_injective {Body : Type} (body : WholeCodec Body) :
+    Function.Injective (TaggedFormat.wire.sealed body).encode := by
+  intro first second same
+  have bytes := (seal_node ⟨body.encode first.val,first.property⟩).symm.trans
+    (((TaggedFormat.wire.sealed_encode body first).symm.trans same).trans
+      ((TaggedFormat.wire.sealed_encode body second).trans (seal_node ⟨body.encode second.val,second.property⟩)))
+  have message := List.head_eq_of_cons_eq (Grammar.encodeMessages_injective table registry bytes).1
+  have payload := bytesOf_injective (congrArg Prod.fst (eq_of_heq (Sigma.mk.inj message).2))
+  exact Subtype.ext (body.encode_injective (congrArg BoundedBytes.bytes payload))
+
+variable (setup : TaggedFormat.Setup) (publicCount : ℕ)
+
+/-- The deployed canonical points are injective, from the node grammar. -/
+theorem toPoint_injective [Fintype (fields .prime)] [Inhabited Advice] (advice : AdviceGrammar repr)
+    (publicFits : publicCount < 2^64) (primeFits : shape.primePublic < 2^64) :
+    Function.Injective (TaggedFormat.format repr shape setup publicCount).toPoint := by
+  intro first second same
+  have histories := congrArg (StrandRuntime.history (TaggedFormat.format repr shape setup publicCount).wire
+    (TaggedFormat.format repr shape setup publicCount).body) same
+  rw [Format.toPoint_history,Format.toPoint_history] at histories
+  have spines := congrArg TranscriptV2.Strand.History.spine histories
+  simp only [Format.schema,StrandQueryCodec.schema,StrandQueryCodec.toHistory,
+    TranscriptV2.Strand.History.spine_ofSpine,Prod.eta] at spines
+  refine StrandQueryCodec.encode_injective _ _ _ ?_ (sealed_injective _) spines
+  intro block mem
+  simp only [Format.blocks,Format.packets,List.map_cons,List.mem_cons,List.mem_map] at mem
+  rcases mem with rfl | ⟨packet,mem,rfl⟩
+  · exact first_injective setup repr.prime repr.primeWidth publicCount shape.primePublic publicFits primeFits _
+  · obtain ⟨i,rfl⟩ := List.mem_ofFn.mp (List.mem_of_mem_tail mem)
+    exact later_injective repr shape advice i _
+
+end Points
 
 end LfzkV2.Current.TaggedGrammar

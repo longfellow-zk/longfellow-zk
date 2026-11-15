@@ -59,7 +59,6 @@ import LfzkV2.Current.Tests.MdocAdvice
 import LfzkV2.Current.Tests.ConcreteSetup
 import LfzkV2.Current.Tests.MdocIdentifiers
 import LfzkV2.Current.Tests.MdocDefaults
-import LfzkV2.Current.Tests.QueryCodec
 import LfzkV2.Current.Tests.Format
 import LfzkV2.Current.Tests.TaggedFormat
 import LfzkV2.Current.Tests.Grammar
