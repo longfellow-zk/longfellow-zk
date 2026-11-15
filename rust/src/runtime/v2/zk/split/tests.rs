@@ -199,34 +199,57 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
     let part = CircuitParticipant::with_storage(&c, storage, None, CONFIG, &ctx).unwrap();
     assert!(!part.commits());
     let private = vec![f.u64_to_element(5), f.zero()];
-    let (state, witness) = part
+    let (_, witness) = part
         .prepare_split(private, None, &mut DeterministicRng::new(7))
         .unwrap();
     assert!(witness.is_empty());
-    let mut tp = Transcript::for_test(b"pure");
-    let mut tv = tp.fork_for_test();
-    let (proof, pending) = prove_split(
-        &mut tp.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
-        state,
-        &ctx,
-    )
-    .unwrap();
-    let claim = reduce_split(
-        &mut tv.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
-        &proof,
-        &ctx,
-    )
-    .unwrap();
-    assert_eq!(pending.claim.claim.weights, claim.claim.weights);
-    assert_eq!(pending.claim.claim.target, claim.claim.target);
-    // The whole claim is foreign, over every value, with its public target.
-    let modular = part.pure_claim(&claim).unwrap();
+    let public = [f.one()];
+    let frontend = FrontendPart::new(&part, &[&c], &public).unwrap();
+    // `late` sends a message between the draw of the row weights and their use.
+    let run = |late: bool| {
+        let (state, _) = part
+            .prepare_split(
+                vec![f.u64_to_element(5), f.zero()],
+                None,
+                &mut DeterministicRng::new(7),
+            )
+            .unwrap();
+        let mut tp = Transcript::for_test(b"pure");
+        let mut tv = tp.fork_for_test();
+        let mut prover = tp.bound(&frontend);
+        let (proof, pending) = prove_split(&mut prover, state, &ctx).unwrap();
+        let mut verifier = tv.bound(&frontend);
+        let claim = reduce_split(&mut verifier, &proof, &ctx).unwrap();
+        assert_eq!(pending.claim.claim.weights, claim.claim.weights);
+        assert_eq!(pending.claim.claim.target, claim.claim.target);
+        // No mask: the mixed split's message and native row do not apply.
+        let eta = f.one();
+        assert!(part.split_message(&pending, &eta, &f).is_err());
+        assert!(part.foreign_claim(&claim, &eta, &eta, &f).is_err());
+        let rho = transcript::row_weights(&mut prover, pending.claim.row_weight_count(), &f);
+        if late {
+            prover.transcript().send(&TestMessage(b"late"));
+        }
+        let witness_values = pending.values.clone();
+        let batched = pending.claim.batch(&mut prover, rho, &f);
+        let verifier_rho = transcript::row_weights(&mut verifier, claim.row_weight_count(), &f);
+        let checked = claim.batch(&mut verifier, verifier_rho, &f).unwrap();
+        (batched, checked, witness_values)
+    };
+    let (batched, checked, honest) = run(false);
+    let modular = batched.unwrap();
+    // The whole claim is foreign, over every value, with its public target,
+    // and the honest values satisfy it.
     assert_eq!(modular.terms.len(), values);
-    assert_eq!(modular.target, claim.claim.target);
-    // No mask: the mixed split's message and native row do not apply.
-    let eta = f.one();
-    assert!(part.split_message(&pending, &eta, &f).is_err());
-    assert!(part.foreign_claim(&claim, &eta, &eta, &f).is_err());
+    assert_eq!(modular.terms, checked.terms);
+    assert_eq!(modular.target, checked.target);
+    let mut sum = f.zero();
+    for ((_, w), v) in modular.terms.iter().zip(&honest) {
+        f.add(&mut sum, &f.mulf(w, v));
+    }
+    assert_eq!(sum, modular.target);
+    // The row weights are accepted only where they were drawn.
+    assert!(run(true).0.is_err());
 }
 
 #[test]

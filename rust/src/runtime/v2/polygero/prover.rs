@@ -12,7 +12,7 @@ use crate::runtime::{
     random::PrivateRandom,
     v2::{
         proto::polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment},
-        transcript::{Bound, SessionStamp},
+        transcript::{Bound, Challenge, SessionStamp},
     },
 };
 /// Prover state between the commitment and the opening. It records the
@@ -48,10 +48,13 @@ impl<S> JointPolygeroProver<S> {
             com,
         ))
     }
-    /// Open the commitment on the session that received it.
+    /// Open the commitment on the session that received it, with the
+    /// batching weights `batch` drawn for `s` since the last message
+    /// (`JointPolygeroParam::weights`, transcript I8).
     pub fn prove<L: Participants<States = S>>(
         self,
         t: &mut Bound<'_, JointPolygeroParam<L>>,
+        batch: Challenge<BatchWeights<L::Challenges>>,
         s: &L::Statements,
     ) -> Result<JointPolygeroProof<L::Bodies>, PolygeroError> {
         ensure(self.session == t.session(), "joint prover session mismatch")?;
@@ -59,7 +62,8 @@ impl<S> JointPolygeroProver<S> {
         // The rows must have been encoded for this parameter's geometry.
         p.participants.validate_states(&self.states)?;
         p.participants.validate_statements(s)?;
-        let c = p.challenges(s, &mut t.transcript());
+        let BatchWeights(c) = t.accept(batch).map_err(|e| PolygeroError(e.to_string()))?;
+        p.participants.validate_challenges(s, &c)?;
         let mut bodies = p.participants.respond(&self.states, s, &c);
         // Challenge polynomials are no longer needed while collecting openings.
         drop(c);

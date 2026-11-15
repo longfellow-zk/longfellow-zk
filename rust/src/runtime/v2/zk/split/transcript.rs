@@ -1,6 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Transcript steps of the mixed split: the nonzero `eta` and the message
-//! `mu`. The split's derived weights are never absorbed.
+//! Transcript steps of the split: the mixed split's nonzero `eta` and message
+//! `mu`, and the pure-foreign row weights. The split's derived weights are
+//! never absorbed.
 use crate::{
     core::algebra::SerializableField,
     runtime::{
@@ -20,6 +21,11 @@ impl<E> Eta<E> {
         &self.0
     }
 }
+
+/// The pure-foreign row weights rho_0..rho_L: one per layer row, then one
+/// for the input equation. Only `row_weights` builds them, and only the pure
+/// branch, `SplitClaim::batch`, accepts them.
+pub struct RowWeights<E>(pub(super) Vec<E>);
 
 /// `SplitOpening` (64): Elements(F, 1), the split message mu (F is P-256 in
 /// mdoc).
@@ -51,6 +57,19 @@ pub fn eta<const W: usize, F: RuntimeField<W> + SupportsSampling, P: ?Sized>(
             }
         })
     })
+}
+
+/// `count` pure-foreign row weights (`SplitClaim::row_weight_count`), drawn
+/// by the driver right after the split frontend: they read further from the frontend's last answer
+/// (its last combine, after alpha and the input assertions; transcript I7),
+/// with no message or boundary of their own, and `SplitClaim::batch`
+/// accepts them.
+pub fn row_weights<F: SupportsSampling, P: ?Sized>(
+    t: &mut Bound<'_, P>,
+    count: usize,
+    f: &F,
+) -> Challenge<RowWeights<F::E>> {
+    t.challenge(|r| RowWeights(r.elt_field_slice(count, f)))
 }
 
 /// Send the split message before any adapter challenge. The split's derived

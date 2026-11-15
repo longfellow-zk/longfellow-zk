@@ -113,13 +113,13 @@ fn generic_sampling_and_three_fields_need_no_packing_capability() {
     let mut tv = Transcript::for_test(b"three-fields");
     let verifier = Verifier::receive(&mut tv.bound(&param), &root, responses);
     let proof = prover
-        .prove(
+        .prove_drawing(
             &mut tp.bound(&param),
             (statement(), (statement(), (statement(), ()))),
         )
         .unwrap();
     verifier
-        .authenticate(
+        .authenticate_drawing(
             &mut tv.bound(&param),
             &proof,
             (statement(), (statement(), (statement(), ()))),
@@ -270,9 +270,9 @@ fn joint_roundtrip_and_each_forged_response_are_checked_by_backend() {
             ..prover
         };
         let proof = prover
-            .prove(&mut tp.bound(&param), (statement(), (statement(), ())))
+            .prove_drawing(&mut tp.bound(&param), (statement(), (statement(), ())))
             .unwrap();
-        let result = verifier.authenticate(
+        let result = verifier.authenticate_drawing(
             &mut tv.bound(&param),
             &proof,
             (statement(), (statement(), ())),
@@ -364,23 +364,50 @@ fn prover_and_verifier_states_complete_only_on_their_own_session() {
     let mut stale_fork = stale.fork_for_test();
     assert_eq!(
         stale_prover
-            .prove(&mut stale_fork.bound(&param), (statement(), ()))
+            .prove_drawing(&mut stale_fork.bound(&param), (statement(), ()))
             .unwrap_err(),
         "witness selection session mismatch"
     );
     let mut tp = Transcript::for_test(b"selection/session");
     let (prover, root, responses) = commit_on(&mut tp);
     let proof = prover
-        .prove(&mut tp.bound(&param), (statement(), ()))
+        .prove_drawing(&mut tp.bound(&param), (statement(), ()))
         .unwrap();
     let mut tv = Transcript::for_test(b"selection/session");
     let verifier = Verifier::receive(&mut tv.bound(&param), &root, responses);
     let mut tv_fork = tv.fork_for_test();
     assert_eq!(
         verifier
-            .authenticate(&mut tv_fork.bound(&param), &proof, (statement(), ()))
+            .authenticate_drawing(&mut tv_fork.bound(&param), &proof, (statement(), ()))
             .err()
             .unwrap(),
         "witness selection session mismatch"
     );
+}
+
+/// Draw the batching weights right before the response phase, as a caller
+/// that holds its complete statements does.
+impl<S, C, R> Prover<S, C, R> {
+    pub(crate) fn prove_drawing<L: Fields<Coefficients = C, Responses = R>>(
+        self,
+        t: &mut Bound<'_, Param<L>>,
+        statements: Statements<L>,
+    ) -> Result<JointPolygeroProof<Bodies<L>>, String>
+    where
+        L::Backend: BackendParticipants<States = S>,
+    {
+        let batch = Param::weights(t, &statements);
+        self.prove(t, batch, statements)
+    }
+}
+impl<L: Fields> Verifier<L> {
+    pub(crate) fn authenticate_drawing(
+        self,
+        t: &mut Bound<'_, Param<L>>,
+        proof: &JointPolygeroProof<Bodies<L>>,
+        statements: Statements<L>,
+    ) -> Result<Authenticated, String> {
+        let batch = Param::weights(t, &statements);
+        self.authenticate(t, batch, proof, statements)
+    }
 }

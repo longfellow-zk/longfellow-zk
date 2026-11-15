@@ -11,10 +11,12 @@ use crate::{
         },
         random::DeterministicRng,
         v2::{
-            proto::{dual_packing::PackingProof, zk::CircuitProof},
+            polygero::Participants,
+            proto::{dual_packing::PackingProof, polygero::JointPolygeroProof, zk::CircuitProof},
             sumcheck::eval_circuit,
             transcript::Transcript,
-            zk::{self, VirtualInputs},
+            witness_selection,
+            zk::{self, Authenticated, JointProver, JointVerifier, VirtualInputs},
         },
     },
 };
@@ -112,13 +114,13 @@ fn selected_joint_wrapper_supports_three_typed_fields() {
             &mut DeterministicRng::new(91),
         )
         .unwrap();
-    let (proof, mut tp) = prover.prove(&param, statements()).unwrap();
+    let (proof, mut tp) = prover.prove_drawing(&param, statements()).unwrap();
     let verify = |responses| {
         let tv = Transcript::for_test(b"zk-v2/selected-three-fields");
         param
             .clone()
             .receive(&root, responses, tv)
-            .authenticate(&proof, statements())
+            .authenticate_drawing(&proof, statements())
     };
     let mut tv = verify(responses.clone()).unwrap().into_transcript();
     assert_eq!(tp.bytes(32), tv.bytes(32));
@@ -218,7 +220,7 @@ fn binary_circuits_authenticate_one_shared_input() {
             &ctx,
         )
         .unwrap();
-        let (opening, _) = joint.prove(&param, (statement, ())).unwrap();
+        let (opening, _) = joint.prove_drawing(&param, (statement, ())).unwrap();
         let verify = |candidate: &CircuitProof<2, Gf2_128Field>, public: bool| {
             let t = Transcript::for_test(b"fragmented-pcs-test");
             let mut v = param.clone().receive(&root, responses.clone(), t);
@@ -228,7 +230,7 @@ fn binary_circuits_authenticate_one_shared_input() {
                 &VirtualInputs::none(),
                 &ctx,
             )?;
-            v.authenticate(&opening, (statement, ()))
+            v.authenticate_drawing(&opening, (statement, ()))
                 .map(|_| ())
                 .map_err(|e| e.to_string())
         };
@@ -303,7 +305,7 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     )
     .unwrap();
     assert!(matches!(proof.packing, PackingProof::Direct));
-    let (opening, mut tp) = joint.prove(&param, (statement, ())).unwrap();
+    let (opening, mut tp) = joint.prove_drawing(&param, (statement, ())).unwrap();
     let t = Transcript::for_test(b"prime-fragmented-pcs-test");
     let mut v = param.receive(&root, responses, t);
     let statement = reduce(
@@ -314,7 +316,7 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     )
     .unwrap();
     let mut tv = v
-        .authenticate(&opening, (statement, ()))
+        .authenticate_drawing(&opening, (statement, ()))
         .unwrap()
         .into_transcript();
     assert_eq!(tp.bytes(32), tv.bytes(32));
@@ -458,7 +460,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
         &ctx,
     )
     .unwrap();
-    let (opening, _) = joint.prove(&param, (statement, ())).unwrap();
+    let (opening, _) = joint.prove_drawing(&param, (statement, ())).unwrap();
     let verify = |definition: &VirtualInputs<_>| {
         let t = Transcript::for_test(b"virtual-inputs-test");
         let mut v = param.clone().receive(&root, responses.clone(), t);
@@ -468,7 +470,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
             definition,
             &ctx,
         )?;
-        v.authenticate(&opening, (statement, ()))
+        v.authenticate_drawing(&opening, (statement, ()))
             .map(|_| ())
             .map_err(|e| e.to_string())
     };
@@ -505,4 +507,31 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     .is_err());
     // The primary circuit cannot read the virtual suffix.
     assert!(CircuitParticipant::new(&[&fragment, &main], 1, config, &ctx).is_err());
+}
+
+/// Draw the batching weights right after the last frontend message, as the
+/// drivers do.
+impl<S, C, R> JointProver<S, C, R> {
+    pub(crate) fn prove_drawing<L: Fields>(
+        mut self,
+        param: &JointParam<L>,
+        statements: Statements<L>,
+    ) -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>
+    where
+        L::Selection: witness_selection::Fields<Coefficients = C, Responses = R>,
+        <L::Selection as witness_selection::Fields>::Backend: Participants<States = S>,
+    {
+        let batch = self.weights(param, &statements);
+        self.prove(param, batch, statements)
+    }
+}
+impl<L: Fields> JointVerifier<L> {
+    pub(crate) fn authenticate_drawing(
+        mut self,
+        proof: &JointPolygeroProof<Bodies<L>>,
+        statements: Statements<L>,
+    ) -> Result<Authenticated, String> {
+        let batch = self.weights(&statements);
+        self.authenticate(batch, proof, statements)
+    }
 }

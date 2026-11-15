@@ -23,7 +23,7 @@ mod fields;
 mod transcript;
 
 pub(in crate::runtime::v2) use fields::witness_count;
-pub use fields::{Bodies, Field, Fields, Param, Statements, Witnesses};
+pub use fields::{Bodies, Field, Fields, Param, Statements, Weights, Witnesses};
 
 impl<
         'a,

@@ -60,7 +60,10 @@ fn run<
             JointPolygeroProver::commit(&mut ts.bound(&param), (witness, ()), &mut rng).unwrap();
         let commit = commit_start.elapsed();
         let prove_start = Instant::now();
-        let proof = prover.prove(&mut ts.bound(&param), &statements).unwrap();
+        let batch = JointPolygeroParam::weights(&mut ts.bound(&param), &statements);
+        let proof = prover
+            .prove(&mut ts.bound(&param), batch, &statements)
+            .unwrap();
         let prove = prove_start.elapsed();
         let bytes = param.write(&proof, ts).unwrap().into_bytes();
         (com, bytes, commit, prove)
@@ -69,8 +72,9 @@ fn run<
     let decoded_proof = param.read(&mut bytes.as_slice()).unwrap();
     let mut tv = Transcript::for_test(b"polygero/kernel/bench");
     let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&param), &com);
+    let batch = JointPolygeroParam::weights(&mut tv.bound(&param), &statements);
     verifier
-        .verify(tv, &param, decoded_proof, &statements)
+        .verify(tv, &param, batch, decoded_proof, &statements)
         .unwrap();
     let verify = verify_start.elapsed();
     eprintln!("{name}: config={config:?}, witnesses={nw}, preprocessing(two parties)={:.3} ms, commit={:.3} ms, prove={:.3} ms, decode+verify={:.3} ms, proof={} bytes",preprocessing.as_secs_f64()*1000.0,commit.as_secs_f64()*1000.0,prove.as_secs_f64()*1000.0,verify.as_secs_f64()*1000.0,bytes.len());

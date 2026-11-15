@@ -170,13 +170,19 @@ fn roundtrip_profiles<
             JointPolygeroProver::commit(&mut ts.bound(&param), (witness.clone(), ()), &mut rng)
                 .unwrap();
         let statements = (LinearStatement::new(vec![], vec![]), ());
-        let proof = prover.prove(&mut ts.bound(&param), &statements).unwrap();
+        let batch = JointPolygeroParam::weights(&mut ts.bound(&param), &statements);
+        let proof = prover
+            .prove(&mut ts.bound(&param), batch, &statements)
+            .unwrap();
         let bytes = param.write(&proof, ts).unwrap().into_bytes();
         let mut remaining = bytes.as_slice();
         let decoded = param.read(&mut remaining).unwrap();
         assert!(remaining.is_empty());
         let mut tv = Transcript::for_test(b"polygero/admitted");
         let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&param), &com);
-        verifier.verify(tv, &param, decoded, &statements).unwrap();
+        let batch = JointPolygeroParam::weights(&mut tv.bound(&param), &statements);
+        verifier
+            .verify(tv, &param, batch, decoded, &statements)
+            .unwrap();
     }
 }

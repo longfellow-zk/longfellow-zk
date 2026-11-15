@@ -147,7 +147,7 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
         )
         .unwrap();
         let proof = prover
-            .prove(&mut prover_ts.bound(&joint), &(linear(&[], &[]), ()))
+            .prove_drawing(&mut prover_ts.bound(&joint), &(linear(&[], &[]), ()))
             .unwrap();
         assert!(
             proof.bodies.0.rows[2 * geometry.t..(2 + geometry.data_rows()) * geometry.t]
@@ -164,7 +164,7 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
         let mut tv = Transcript::for_test(b"polygero/ordinary-only");
         let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&joint), &commitment);
         verifier
-            .reduce(&mut tv.bound(&joint), &decoded, &(linear(&[], &[]), ()))
+            .reduce_drawing(&mut tv.bound(&joint), &decoded, &(linear(&[], &[]), ()))
             .unwrap();
     }
 }

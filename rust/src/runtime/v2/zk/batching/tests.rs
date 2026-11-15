@@ -61,9 +61,16 @@ fn batching_uses_widths_instead_of_cached_logw() {
         let mut tv = tp.fork_for_test();
         let (proof, constraints) =
             sumcheck::top_and_prove(&[&circuit], inputs, &pads, &mut tp.borrow(), &f).unwrap();
-        let claim = batch(&circuit, &public, constraints, &mut tp.borrow(), &f).unwrap();
+        // The row weights follow the frontend's last answer in both roles.
+        let draw = |rows: Rows<_>, t: &mut Transcript| {
+            let rho = t
+                .borrow()
+                .draw(|r| r.elt_field_slice(rows.0 .1.len() + 1, &f));
+            batch(rows, &rho, &f).unwrap()
+        };
+        let claim = draw(rows(&circuit, &public, constraints, &f).unwrap(), &mut tp);
         let derived = sumcheck::top_and_derive(&[&circuit], &proof, &mut tv.borrow(), &f).unwrap();
-        let checked = batch(&circuit, &public, derived, &mut tv.borrow(), &f).unwrap();
+        let checked = draw(rows(&circuit, &public, derived, &f).unwrap(), &mut tv);
         assert_eq!(claim.weights, checked.weights);
         assert_eq!(claim.target, checked.target);
         assert_eq!(blas::dot(&claim.weights, &values, &f), claim.target);

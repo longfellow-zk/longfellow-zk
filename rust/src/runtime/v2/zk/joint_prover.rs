@@ -1,12 +1,14 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Prover ownership of the selected joint commitment and its final equations.
-use super::joint::{Bodies, Coefficients, Fields, JointParam, Responses, Statements, Witnesses};
+use super::joint::{
+    Bodies, Coefficients, Fields, JointParam, Responses, Statements, Weights, Witnesses,
+};
 use crate::runtime::{
     random::PrivateRandom,
     v2::{
         polygero::Participants,
         proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-        transcript::{Bound, Transcript, TranscriptRef},
+        transcript::{Bound, Challenge, Transcript, TranscriptRef},
         witness_selection,
     },
 };
@@ -59,18 +61,31 @@ impl<S, C, R> JointProver<S, C, R> {
     pub fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P> {
         self.transcript.bound(part)
     }
+    /// Draw the Polygero batching weights of `statements` after the last
+    /// frontend message of every participant (transcript I8). `prove`
+    /// accepts them only if no message was sent since.
+    pub fn weights<L: Fields>(
+        &mut self,
+        param: &JointParam<L>,
+        statements: &Statements<L>,
+    ) -> Challenge<Weights<L>> {
+        witness_selection::Param::weights(&mut self.transcript.bound(&param.selection), statements)
+    }
     pub fn prove<L: Fields>(
         mut self,
         param: &JointParam<L>,
+        batch: Challenge<Weights<L>>,
         statements: Statements<L>,
     ) -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>
     where
         L::Selection: witness_selection::Fields<Coefficients = C, Responses = R>,
         <L::Selection as witness_selection::Fields>::Backend: Participants<States = S>,
     {
-        let proof = self
-            .selection
-            .prove(&mut self.transcript.bound(&param.selection), statements)?;
+        let proof = self.selection.prove(
+            &mut self.transcript.bound(&param.selection),
+            batch,
+            statements,
+        )?;
         Ok((proof, self.transcript))
     }
 }

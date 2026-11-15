@@ -17,7 +17,7 @@ use crate::runtime::{
             polygero::{validate_opening, FieldProof, JointPolygeroProof, PolygeroCommitment},
             Digest,
         },
-        transcript::{Bound, SessionStamp, Transcript, Unverified, VerifiedProof},
+        transcript::{Bound, Challenge, SessionStamp, Transcript, Unverified, VerifiedProof},
     },
 };
 /// Verifier state between the commitment and the opening. It records the
@@ -41,15 +41,17 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         }
     }
     /// Complete standalone verification on the session that received the
-    /// commitment, including the mandatory final seal.
+    /// commitment, including the mandatory final seal, with the batching
+    /// weights `batch` drawn for `s` since the last message.
     pub fn verify(
         self,
         mut transcript: Transcript,
         param: &JointPolygeroParam<L>,
+        batch: Challenge<BatchWeights<L::Challenges>>,
         proof: Unverified<'_, JointPolygeroProof<L::Bodies>>,
         s: &L::Statements,
     ) -> Result<VerifiedProof, PolygeroError> {
-        self.reduce(&mut transcript.bound(param), &proof, s)?;
+        self.reduce(&mut transcript.bound(param), batch, &proof, s)?;
         proof
             .checked(transcript)
             .map_err(|e| PolygeroError(e.into()))
@@ -59,6 +61,7 @@ impl<L: Participants> JointPolygeroVerifier<L> {
     pub(crate) fn reduce(
         self,
         t: &mut Bound<'_, JointPolygeroParam<L>>,
+        batch: Challenge<BatchWeights<L::Challenges>>,
         proof: &JointPolygeroProof<L::Bodies>,
         s: &L::Statements,
     ) -> Result<(), PolygeroError> {
@@ -70,7 +73,8 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         p.participants.validate_statements(s)?;
         p.participants.validate_bodies(&proof.bodies)?;
         validate_opening(&proof.opening, p.config.t, p.config.n)?;
-        let c = p.challenges(s, &mut t.transcript());
+        let BatchWeights(c) = t.accept(batch).map_err(|e| PolygeroError(e.to_string()))?;
+        p.participants.validate_challenges(s, &c)?;
         let indices = p.queries(&proof.bodies, &mut t.transcript());
         let leaves: Vec<_> = indices
             .iter()

@@ -113,6 +113,13 @@ pub struct FieldChallenges<E> {
     /// Entry i belongs to W_i; the final row fstar has no batching polynomial.
     pub(super) batching_samples: Vec<Vec<E>>,
 }
+/// Every field's batching weights, in participant order: per field, one
+/// weight per affine equation, then s+1 samples per batched row. The caller
+/// draws them after the last message any statement depends on, as a
+/// `Challenge` input (transcript I8), and the joint prover and verifier
+/// accept them before the first `PolygeroResponse`. Only
+/// `JointPolygeroParam::batch_weights` builds them.
+pub struct BatchWeights<C>(pub(super) C);
 mod sealed {
     pub trait Sealed {}
     impl Sealed for () {}
@@ -134,7 +141,16 @@ pub trait Participants: sealed::Sealed {
     /// return the participant count.
     fn describe(&self, config: &mut Option<PolygeroConfig>) -> Result<usize, PolygeroError>;
     fn validate_statements(&self, s: &Self::Statements) -> Result<(), PolygeroError>;
-    fn challenges(&self, s: &Self::Statements, t: &mut Reading<'_>) -> Self::Challenges;
+    /// The equation count of each statement, in participant order.
+    fn equations(&self, s: &Self::Statements, out: &mut Vec<usize>);
+    /// Draw every field's challenges for `counts[i]` equations in field i.
+    fn challenges(&self, counts: &[usize], t: &mut Reading<'_>) -> Self::Challenges;
+    /// Check that challenges fit the statements and the fields' geometry.
+    fn validate_challenges(
+        &self,
+        s: &Self::Statements,
+        c: &Self::Challenges,
+    ) -> Result<(), PolygeroError>;
     fn send_responses(&self, b: &Self::Bodies, t: &mut TranscriptRef<'_>);
     fn validate_bodies(&self, b: &Self::Bodies) -> Result<(), PolygeroError>;
     /// Bytes of every field's response and rows; None if they overflow.
@@ -180,7 +196,11 @@ impl Participants for () {
     fn validate_statements(&self, _: &()) -> Result<(), PolygeroError> {
         Ok(())
     }
-    fn challenges(&self, _: &(), _: &mut Reading<'_>) {}
+    fn equations(&self, _: &(), _: &mut Vec<usize>) {}
+    fn challenges(&self, _: &[usize], _: &mut Reading<'_>) {}
+    fn validate_challenges(&self, _: &(), _: &()) -> Result<(), PolygeroError> {
+        Ok(())
+    }
     fn send_responses(&self, _: &(), _: &mut TranscriptRef<'_>) {}
     fn validate_bodies(&self, _: &()) -> Result<(), PolygeroError> {
         Ok(())

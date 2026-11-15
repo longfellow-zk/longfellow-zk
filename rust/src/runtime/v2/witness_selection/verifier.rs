@@ -3,7 +3,7 @@ use super::*;
 use crate::runtime::v2::{
     polygero::JointPolygeroVerifier,
     proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-    transcript::{Bound, SessionStamp},
+    transcript::{Bound, Challenge, SessionStamp},
 };
 
 /// Evidence that the fingerprint and frontend equations were authenticated.
@@ -41,10 +41,12 @@ impl<L: Fields> Verifier<L> {
         }
     }
     /// Intermediate authentication only; the enclosing complete verifier must
-    /// additionally check its mandatory final transcript seal.
+    /// additionally check its mandatory final transcript seal. `batch` is
+    /// drawn by `Param::weights` for `statements` since the last message.
     pub fn authenticate(
         self,
         t: &mut Bound<'_, Param<L>>,
+        batch: Challenge<Weights<L>>,
         proof: &JointPolygeroProof<Bodies<L>>,
         statements: Statements<L>,
     ) -> Result<Authenticated, String> {
@@ -57,7 +59,7 @@ impl<L: Fields> Verifier<L> {
                 .fields
                 .authenticate(statements, self.coefficients, &self.responses)?;
         self.backend
-            .reduce(&mut t.project(|p| &p.backend), proof, &statements)
+            .reduce(&mut t.project(|p| &p.backend), batch, proof, &statements)
             .map_err(|e| e.to_string())?;
         Ok(Authenticated { _private: () })
     }

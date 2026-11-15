@@ -9,10 +9,11 @@ use crate::{
         algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
         v2::{
             polygero::{
-                JointPolygeroParam, Participant, Participants as BackendParticipants, PolygeroParam,
+                BatchWeights, JointPolygeroParam, Participant, Participants as BackendParticipants,
+                PolygeroParam,
             },
             proto::{polygero::PolygeroConfig, witness_selection::FINGERPRINTS},
-            transcript::{Reading, TranscriptRef},
+            transcript::{Bound, Challenge, Reading, TranscriptRef},
         },
     },
 };
@@ -20,6 +21,8 @@ use crate::{
 pub type Witnesses<L> = <<L as Fields>::Backend as BackendParticipants>::Witnesses;
 pub type Statements<L> = <<L as Fields>::Backend as BackendParticipants>::Statements;
 pub type Bodies<L> = <<L as Fields>::Backend as BackendParticipants>::Bodies;
+/// The batching weights of a field list's backend (`Param::weights`).
+pub type Weights<L> = BatchWeights<<<L as Fields>::Backend as BackendParticipants>::Challenges>;
 
 /// The first `cells` positions belong to the frontend. The trailing two masks
 /// are owned by this protocol and never become field-valued circuit inputs.
@@ -126,5 +129,18 @@ impl<L: Fields> Param<L> {
     }
     pub fn config(&self) -> PolygeroConfig {
         self.backend.config()
+    }
+    /// Draw the batching weights of the frontend statements `s` once each
+    /// field's fingerprint equations are attached: `s` and `FINGERPRINTS`
+    /// more equations per field (transcript I8). The caller draws them after
+    /// the last frontend message and hands them to `prove` or
+    /// `authenticate`.
+    pub fn weights(t: &mut Bound<'_, Self>, s: &Statements<L>) -> Challenge<Weights<L>> {
+        let mut counts = t.part().backend.equations(s);
+        for count in &mut counts {
+            *count += FINGERPRINTS;
+        }
+        let param = t.part();
+        param.backend.weights_for(&counts, &mut t.transcript())
     }
 }

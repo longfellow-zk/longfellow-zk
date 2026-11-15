@@ -1,9 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Verifier ownership of early selection and final joint authentication.
-use super::joint::{Bodies, Fields, JointParam, Responses, Statements};
+use super::joint::{Bodies, Fields, JointParam, Responses, Statements, Weights};
 use crate::runtime::v2::{
     proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-    transcript::{Bound, Transcript, TranscriptRef},
+    transcript::{Bound, Challenge, Transcript, TranscriptRef},
     witness_selection,
 };
 
@@ -52,13 +52,24 @@ impl<L: Fields> JointVerifier<L> {
     pub fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P> {
         self.transcript.bound(part)
     }
+    /// Draw the Polygero batching weights of `statements` after the last
+    /// frontend message of every participant (transcript I8).
+    /// `authenticate` accepts them only if no message was sent since.
+    pub fn weights(&mut self, statements: &Statements<L>) -> Challenge<Weights<L>> {
+        witness_selection::Param::weights(
+            &mut self.transcript.bound(&self.param.selection),
+            statements,
+        )
+    }
     pub fn authenticate(
         mut self,
+        batch: Challenge<Weights<L>>,
         proof: &JointPolygeroProof<Bodies<L>>,
         statements: Statements<L>,
     ) -> Result<Authenticated, String> {
         let selection = self.selection.authenticate(
             &mut self.transcript.bound(&self.param.selection),
+            batch,
             proof,
             statements,
         )?;

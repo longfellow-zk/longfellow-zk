@@ -38,14 +38,14 @@ use crate::{
 };
 
 pub mod transcript;
-use transcript::Eta;
+use transcript::{Eta, RowWeights};
 
 /// A split participant's frontend claim over `[private inputs | pads]`.
 pub struct SplitClaim<E> {
-    /// Mixed storage: the layer rows on this field's native cells, unbatched.
-    /// Pure foreign storage: empty, since `claim` already batches them.
+    /// The layer rows, unbatched: on this field's native cells with mixed
+    /// storage, on its values with pure foreign storage.
     rows: (Vec<PolygeroLinearTerm<E>>, Vec<E>),
-    /// Mixed storage: the input equation. Pure foreign storage: every row.
+    /// The input equation `<w, v> = t` over the values.
     pub claim: LinearClaim<E>,
 }
 
@@ -67,12 +67,10 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         let (p, circuit, public) = (part.participant, part.circuits[0], &part.public[..]);
         let split = p.split()?;
         if split.mask.is_none() {
-            let claim =
-                super::batching::batch(circuit, public, constraints, &mut t.transcript(), f)?;
-            return Ok(SplitClaim {
-                rows: (Vec::new(), Vec::new()),
-                claim,
-            });
+            // Pure foreign storage: `batch` combines these rows with the
+            // row weights the caller draws next.
+            let (rows, claim) = super::batching::rows(circuit, public, constraints, f)?;
+            return Ok(SplitClaim { rows, claim });
         }
         let private = p.inputs.committed();
         let pads = p.geometry.sc_geom.pad_layout(private);
@@ -171,17 +169,18 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             target: mu.clone(),
         })
     }
-    /// The whole claim of a pure-foreign participant, whose target is public.
-    pub fn pure_claim(&self, claim: &SplitClaim<F::E>) -> Result<ModularClaim<F::E>, String> {
+    /// The whole claim of a pure-foreign participant, whose target is public:
+    /// the batched claim `claim` over its foreign values.
+    fn pure_claim(&self, claim: LinearClaim<F::E>) -> Result<ModularClaim<F::E>, String> {
         let split = self.split()?;
-        if split.mask.is_some() || claim.claim.weights.len() != split.map.entries().len() {
+        if split.mask.is_some() || claim.weights.len() != split.map.entries().len() {
             return Err("pure claim needs pure foreign storage covering the claim".into());
         }
         let terms = split
             .map
             .entries()
             .iter()
-            .zip(&claim.claim.weights)
+            .zip(&claim.weights)
             .map(|(s, w)| match s {
                 Storage::Foreign(g) => Ok((*g, w.clone())),
                 Storage::Native(_) => Err("pure claim reads a native value".to_string()),
@@ -189,8 +188,36 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             .collect::<Result<_, _>>()?;
         Ok(ModularClaim {
             terms,
-            target: claim.claim.target.clone(),
+            target: claim.target,
         })
+    }
+}
+impl<E> SplitClaim<E> {
+    /// The number of pure-foreign row weights: one per layer row, one for the
+    /// input equation.
+    pub fn row_weight_count(&self) -> usize {
+        self.rows.1.len() + 1
+    }
+    /// Pure foreign storage only: accept the row weights `rho`, drawn by
+    /// `transcript::row_weights` since the frontend's last message, and
+    /// batch every row and the input equation into one foreign claim with a
+    /// public target. Mixed storage takes `eta` instead (`open`, `receive`).
+    pub fn batch<const W: usize, F>(
+        self,
+        t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+        rho: Challenge<RowWeights<E>>,
+        f: &F,
+    ) -> Result<ModularClaim<E>, String>
+    where
+        F: ZkField<W> + PackingField + BareField<E = E>,
+    {
+        let RowWeights(weights) = t.accept(rho).map_err(|e| e.to_string())?;
+        let p = t.part().participant;
+        if p.split()?.mask.is_some() {
+            return Err("row weights batch only pure foreign storage".into());
+        }
+        let claim = super::batching::batch((self.rows, self.claim), &weights, f)?;
+        p.pure_claim(claim)
     }
 }
 

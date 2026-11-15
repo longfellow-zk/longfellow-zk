@@ -101,15 +101,16 @@ Late authentication cannot take a replacement transcript:
 ```compile_fail,E0061
 use longfellow_zk::runtime::v2::{
     proto::polygero::JointPolygeroProof,
-    transcript::Transcript,
+    transcript::{Challenge, Transcript},
     zk::{
-        joint::{Bodies, Fields, Statements},
+        joint::{Bodies, Fields, Statements, Weights},
         JointVerifier,
     },
 };
-fn bad<L: Fields>(v: JointVerifier<L>, proof: &JointPolygeroProof<Bodies<L>>,
-                  statements: Statements<L>, mut other: Transcript) {
-    v.authenticate(proof, statements, &mut other);
+fn bad<L: Fields>(v: JointVerifier<L>, batch: Challenge<Weights<L>>,
+                  proof: &JointPolygeroProof<Bodies<L>>, statements: Statements<L>,
+                  mut other: Transcript) {
+    v.authenticate(batch, proof, statements, &mut other);
 }
 ```
 

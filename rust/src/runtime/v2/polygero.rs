@@ -17,9 +17,11 @@
 //! Participants are recursive `(Participant, Tail)` tuples ending in `()`.
 //! Each field has its own encoded rows, masks and H/Z
 //! responses. All participants share k/s/n/t and one salted column Merkle tree.
-//! No statement is absorbed: the batching challenges follow the last message
-//! every statement is derived from, and every H/Z response is absorbed
-//! before a single ordered set of column queries is drawn.
+//! No statement is absorbed: the batching weights (`BatchWeights`) follow the
+//! last message every statement is derived from, drawn by the caller as a
+//! `Challenge` input (transcript I8) that `prove` and `verify` accept, and
+//! every H/Z response is absorbed before a single ordered set of column
+//! queries is drawn.
 //! A one-field invocation uses `(participant, ())` through the same API.
 //!
 //! `prover` and `verifier` own their field equations; `prover_commitment` encodes masked
@@ -60,7 +62,9 @@ pub use param::PolygeroParam;
 
 cfg_prover! { mod prover_commitment; }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub use joint::{FieldChallenges, JointPolygeroParam, LinearStatement, Participant, Participants};
+pub use joint::{
+    BatchWeights, FieldChallenges, JointPolygeroParam, LinearStatement, Participant, Participants,
+};
 cfg_prover! {mod prover; pub use prover::JointPolygeroProver;}
 cfg_verifier! {mod verifier; pub use verifier::JointPolygeroVerifier;}
 

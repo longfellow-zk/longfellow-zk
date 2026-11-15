@@ -19,13 +19,14 @@
 //! geometry and every field's source (transcript I1, I3). The caller then
 //! runs sumcheck to derive A and b on this same transcript. The batching
 //! weights alpha and challenge polynomials B_i are drawn after the last
-//! message every statement depends on, with nothing absorbed of their own:
+//! message every statement depends on, by the caller (`weights_for`), and
+//! the prover and verifier accept them; nothing is absorbed of their own:
 //! the statements are derived from absorbed messages and challenges, so
 //! their digests are not absorbed again. Each field
 //! then sends its `PolygeroResponse` (H, Z) before the columns are chosen.
 //! Column order is exactly the order returned by `choose`.
 use super::{
-    joint::{FieldChallenges, JointPolygeroParam},
+    joint::{BatchWeights, FieldChallenges, JointPolygeroParam},
     PolygeroParam,
 };
 use crate::{
@@ -38,7 +39,9 @@ use crate::{
                 polygero::{FieldProof, PolygeroCommitment},
                 tags::Tag,
             },
-            transcript::{Encoder, Message, ProverMessage, Reading, TranscriptRef},
+            transcript::{
+                Bound, Challenge, Encoder, Message, ProverMessage, Reading, TranscriptRef,
+            },
         },
     },
 };
@@ -103,10 +106,32 @@ impl<L: Participants> JointPolygeroParam<L> {
     pub(super) fn receive(&self, root: &PolygeroCommitment, t: &mut TranscriptRef<'_>) {
         t.send(&CommitmentMessage(root));
     }
-    pub(super) fn challenges(&self, s: &L::Statements, t: &mut TranscriptRef<'_>) -> L::Challenges {
+    /// Draw every field's batching weights for `counts[i]` equations in
+    /// field i (transcript I8). The caller draws them after the last message
+    /// any statement depends on; the joint prover and verifier accept them.
+    pub(crate) fn weights_for(
+        &self,
+        counts: &[usize],
+        t: &mut TranscriptRef<'_>,
+    ) -> Challenge<BatchWeights<L::Challenges>> {
         // Every participant's statement is fixed before any field's batching
         // challenges: they all follow the last frontend message.
-        t.draw(|r| self.participants.challenges(s, r))
+        t.challenge(|r| BatchWeights(self.participants.challenges(counts, r)))
+    }
+    /// The equation count of each statement of `s`, in participant order.
+    pub(crate) fn equations(&self, s: &L::Statements) -> Vec<usize> {
+        let mut counts = Vec::new();
+        self.participants.equations(s, &mut counts);
+        counts
+    }
+    /// The batching weights of the complete statements `s`, for a caller that
+    /// holds them (`weights_for`).
+    pub fn weights(
+        t: &mut Bound<'_, Self>,
+        s: &L::Statements,
+    ) -> Challenge<BatchWeights<L::Challenges>> {
+        let param = t.part();
+        param.weights_for(&param.equations(s), &mut t.transcript())
     }
     pub(super) fn queries(&self, b: &L::Bodies, t: &mut TranscriptRef<'_>) -> Vec<usize> {
         // Fix all H/Z responses before drawing the single shared query set.

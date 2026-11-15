@@ -8,7 +8,7 @@ use crate::runtime::{
             polygero::{JointPolygeroProof, PolygeroCommitment},
             witness_selection::{FingerprintResponse, FINGERPRINTS},
         },
-        transcript::{Bound, SessionStamp},
+        transcript::{Bound, Challenge, SessionStamp},
     },
 };
 
@@ -121,9 +121,13 @@ where
     ))
 }
 impl<S, C, R> Prover<S, C, R> {
+    /// Attach the fingerprint equations to `statements` and open the
+    /// commitment, with `batch` drawn by `Param::weights` for `statements`
+    /// since the last message.
     pub fn prove<L: Fields<Coefficients = C, Responses = R>>(
         self,
         t: &mut Bound<'_, Param<L>>,
+        batch: Challenge<Weights<L>>,
         statements: Statements<L>,
     ) -> Result<JointPolygeroProof<Bodies<L>>, String>
     where
@@ -138,7 +142,7 @@ impl<S, C, R> Prover<S, C, R> {
                 .fields
                 .authenticate(statements, self.coefficients, &self.responses)?;
         self.backend
-            .prove(&mut t.project(|p| &p.backend), &statements)
+            .prove(&mut t.project(|p| &p.backend), batch, &statements)
             .map_err(|e| e.to_string())
     }
 }

@@ -45,8 +45,11 @@ where
         let mut th = joint.bound(&this.host);
         let top_host = joint::top_weights(&mut th)?;
         let statement_host = zk::reduce(&mut th, &proof.host, top_host, &leaves, &c.host_ctx)?;
+        // The batching weights follow the host frontend's last message.
+        let statements = (statement_host, (split.statement, ()));
+        let batch = joint.weights(&statements);
         Ok(joint
-            .authenticate(&proof.polygero, (statement_host, (split.statement, ())))?
+            .authenticate(batch, &proof.polygero, statements)?
             .into_transcript())
     }
 }

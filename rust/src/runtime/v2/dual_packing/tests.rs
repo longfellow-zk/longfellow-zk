@@ -650,9 +650,11 @@ fn authenticate<const W: usize, X: PackingExtension, D: EvaluationDomain<W, X::A
         },
         (),
     );
-    let backend = prover.prove(&mut tp.bound(&param), &statements).unwrap();
+    let backend = prover
+        .prove_drawing(&mut tp.bound(&param), &statements)
+        .unwrap();
     verifier
-        .reduce(&mut tv.bound(&param), &backend, &statements)
+        .reduce_drawing(&mut tv.bound(&param), &backend, &statements)
         .unwrap();
     assert_eq!(tp.bytes(32), tv.bytes(32));
 }
