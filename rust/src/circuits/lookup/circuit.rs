@@ -36,11 +36,6 @@ impl<L: Logic> Table<'_, L> {
         let val = self.polynomial.eval(&self.plucker, encoded);
         self.logic.precious(&val)
     }
-
-    #[must_use]
-    pub fn plucker(&self) -> &[Eltw<L>] {
-        &self.plucker
-    }
 }
 
 impl<'a, F: CompileField, L: Logic<F = F>> Lookup<'a, L> {

@@ -70,11 +70,6 @@ impl<T> FpField<T> {
             _marker: PhantomData,
         }
     }
-
-    #[must_use]
-    pub fn value<'a>(&self, e: &'a Elt<T>) -> &'a BigUint {
-        &e.n
-    }
 }
 
 impl<T> BareField for FpField<T> {

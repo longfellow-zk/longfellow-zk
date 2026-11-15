@@ -44,7 +44,7 @@ fn test_compiled_circuit_debug_symbols() {
 
     assert_eq!(symbols.assertion_count(), 2);
     let paths: Vec<String> = symbols
-        .assertion_symbols()
+        .symbols
         .iter()
         .map(|s| symbols.get_path(s.id).unwrap_or_default())
         .collect();
@@ -117,7 +117,7 @@ fn test_attached_assertion_keeps_its_path() {
     assert_eq!(info.nassertions, 2);
     assert_eq!(symbols.assertion_count(), 2);
     assert!(symbols
-        .assertion_symbols()
+        .symbols
         .iter()
         .any(|symbol| symbols.get_path(symbol.id).as_deref() == Some("slice")));
 

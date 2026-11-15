@@ -77,10 +77,6 @@ impl<L: Logic, const N: usize> Bitvec<L, N> {
         &self.bits[k]
     }
 
-    pub fn bit_mut(&mut self, k: usize) -> &mut Bitw<L> {
-        &mut self.bits[k]
-    }
-
     pub fn iter(&self) -> std::slice::Iter<'_, Bitw<L>> {
         self.bits.iter()
     }

@@ -35,7 +35,7 @@ fn eval_circuit<'a, F: AlgebraicField + SerializableField>(
     symbols: &'a CircuitDebugSymbols,
     inputs: &[ElementOf<F>],
 ) -> CompiledEvalAssertions<'a, EvalError> {
-    let tracker = symbols.tracker();
+    let tracker = &symbols.tracker;
     let evaluation = match evaluate(f, circuit, inputs) {
         Ok(evaluation) => evaluation,
         Err(err) => {

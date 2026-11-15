@@ -41,17 +41,9 @@ impl AssertionMap {
         self.statuses.is_empty()
     }
 
-    pub fn len(&self) -> usize {
-        self.statuses.len()
-    }
-
     /// The assertions in this map, in no particular order.
     pub fn ids(&self) -> impl Iterator<Item = AssertionId> + '_ {
         self.statuses.keys().copied()
-    }
-
-    pub fn get(&self, id: AssertionId) -> Option<&AssertionStatus> {
-        self.statuses.get(&id)
     }
 
     /// The recorded statuses, in no particular order.

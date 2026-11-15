@@ -52,9 +52,9 @@ impl AssertionSymbol {
 #[derive(Debug, Default)]
 pub struct CircuitDebugSymbols {
     /// List of assertion symbols for output wires.
-    symbols: Vec<AssertionSymbol>,
+    pub symbols: Vec<AssertionSymbol>,
     /// Associated assertion scope.
-    tracker: AssertionScope,
+    pub tracker: AssertionScope,
 }
 
 impl CircuitDebugSymbols {
@@ -66,11 +66,6 @@ impl CircuitDebugSymbols {
     /// Returns the number of assertion symbols.
     pub fn assertion_count(&self) -> usize {
         self.symbols.len()
-    }
-
-    /// Returns all assertion symbols recorded for this circuit.
-    pub fn assertion_symbols(&self) -> &[AssertionSymbol] {
-        &self.symbols
     }
 
     /// Returns the tracker path for an assertion identifier, if any.
@@ -97,10 +92,6 @@ impl CircuitDebugSymbols {
         self.symbols
             .iter()
             .find(|symbol| self.get_path(symbol.id).as_deref() == Some(path))
-    }
-
-    pub fn tracker(&self) -> &AssertionScope {
-        &self.tracker
     }
 }
 
