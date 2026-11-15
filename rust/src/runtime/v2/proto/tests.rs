@@ -64,7 +64,7 @@ fn single_hand_geometry_codec_and_malformed_shapes() {
         assert!(SumcheckProof::<4, _>::read(&mut &bytes[..len], &geometry, &f).is_err());
     }
     // A geometry with too many rounds cannot reach the reader (proto I8).
-    let too_deep = vec![crate::runtime::v2::proto::sumcheck::MAX_LOGW + 1];
+    let too_deep = vec![crate::core::proto::MAX_LOGW + 1];
     assert!(SumcheckProofGeometry::new(too_deep).is_err());
     let mut malformed = proof.clone();
     malformed.layers[0].rounds.pop();
@@ -73,11 +73,23 @@ fn single_hand_geometry_codec_and_malformed_shapes() {
 }
 
 #[test]
-fn v2_codec_round_limit_is_inclusive_and_independent_of_host_width() {
-    use crate::runtime::v2::proto::sumcheck::{pad_count, sane_logw, LayerProof, MAX_LOGW};
+fn v2_codec_round_limit_is_the_core_limit() {
+    use crate::{
+        core::proto::{sane_logw, MAX_LOGW},
+        runtime::v2::proto::sumcheck::{pad_count, LayerProof},
+    };
     let f = P256Field::new();
-    for logw in [0, MAX_LOGW - 1, MAX_LOGW] {
-        assert!(sane_logw(logw));
+    // The one limit: at most MAX_LOGW rounds, below the host's usize::BITS.
+    for logw in [0, 31, 32, MAX_LOGW, MAX_LOGW + 1, 63, 64, usize::MAX] {
+        assert_eq!(
+            sane_logw(logw),
+            logw <= MAX_LOGW && logw < usize::BITS as usize
+        );
+    }
+    for logw in [0, MAX_LOGW - 1, MAX_LOGW]
+        .into_iter()
+        .filter(|&l| sane_logw(l))
+    {
         let proof: SumcheckProof<4, _> = SumcheckProof {
             layers: vec![LayerProof {
                 rounds: vec![

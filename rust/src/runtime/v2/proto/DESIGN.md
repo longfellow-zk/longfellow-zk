@@ -35,7 +35,7 @@ draws.
 
 | Geometry type | Holds | Validated on construction | Absorbed in (transcript Statement) |
 |---|---|---|---|
-| `SumcheckProofGeometry` | `logw` of each layer, outputs to inputs | every `logw <= MAX_LOGW = 40`, and the pad count fits `usize` | `Circuit`: the circuit ID, from whose circuit the schedule derives each stage's `logw` |
+| `SumcheckProofGeometry` | `logw` of each layer, outputs to inputs | every `logw` sane (`core::proto::sane_logw`: `logw <= MAX_LOGW = 40` and `logw < usize::BITS`), and the pad count fits `usize` | `Circuit`: the circuit ID, from whose circuit the schedule derives each stage's `logw` |
 | `PolygeroConfig` | `k`, `s`, `n`, `t` | by `PolygeroGeometry::new` | `JointGeometry`: Nats(k, s, n, t) |
 | `PolygeroGeometry` | `nw`, `k`, `s`, `n`, `t` | `0 < t < k`, `t <= n`, `k + s <= n`, `2k <= n`, every size and `nrow * n` at most `2^28` | derived from the two above |
 | `CircuitGeometry` | sumcheck geometry, packing degree `m`, `nw` | `m >= 1` (`CircuitGeometry::new`) | `Circuit`, `CommitmentLayout` |
@@ -376,8 +376,8 @@ impl Tag {
     pub fn admits(self, values: &[(u64, u64)]) -> bool;
 }
 
-// geometry: private fields, validating constructors, accessors (I8)
-pub const MAX_LOGW: usize = 40;
+// geometry: private fields, validating constructors, accessors (I8);
+// round counts are checked with core::proto::sane_logw (MAX_LOGW = 40)
 pub struct SumcheckProofGeometry { logw_layers: Vec<usize> }
 impl SumcheckProofGeometry {
     pub fn new(logw_layers: Vec<usize>) -> std::io::Result<Self>;

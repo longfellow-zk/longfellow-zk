@@ -71,7 +71,7 @@ runtime/v2/proto/dual_packing:
 runtime/v2/proto/field: core/algebra
 runtime/v2/proto/merkle: runtime/v2/proto/util
 runtime/v2/proto/polygero: core/algebra runtime/v2/proto/field runtime/v2/proto/merkle runtime/v2/proto/util runtime/v2/transcript
-runtime/v2/proto/sumcheck: core/algebra runtime/v2/proto/field runtime/v2/proto/util
+runtime/v2/proto/sumcheck: core/algebra core/proto runtime/v2/proto/field runtime/v2/proto/util
 runtime/v2/proto/tags:
 runtime/v2/proto/util: core/algebra
 runtime/v2/proto/witness_selection: core/algebra runtime/v2/proto/field runtime/v2/proto/util

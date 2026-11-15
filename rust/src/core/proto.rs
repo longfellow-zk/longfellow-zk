@@ -22,11 +22,15 @@ pub mod v2;
 
 pub use uleb::*;
 
+/// The most sumcheck rounds in one layer, a proof-format limit shared by v1
+/// and v2.
 pub const MAX_LOGW: usize = 40;
 
+/// Whether a layer's round count is valid: at most `MAX_LOGW`, and below the
+/// host's `usize::BITS` so that `2^logw` wires are addressable.
 #[inline]
 #[must_use]
-pub fn sane_logw(logw: usize) -> bool {
+pub const fn sane_logw(logw: usize) -> bool {
     logw <= MAX_LOGW && logw < (usize::BITS as usize)
 }
 

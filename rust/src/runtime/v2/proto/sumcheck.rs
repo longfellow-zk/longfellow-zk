@@ -18,19 +18,12 @@
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use super::read_field;
 use crate::{
-    core::algebra::{ElementOf, SerializableField},
+    core::{
+        algebra::{ElementOf, SerializableField},
+        proto::sane_logw,
+    },
     runtime::v2::proto::util::write_elt_field,
 };
-
-/// Maximum rounds in one serialized v2 layer. This wire-format limit is
-/// independent of the host's index width and of Fiat–Shamir sampling counts.
-/// The codec stores O(logw) messages; circuit execution checks its own capacity.
-pub const MAX_LOGW: usize = 40;
-
-/// Whether a round count fits the v2 proof format, independently of the host.
-pub const fn sane_logw(logw: usize) -> bool {
-    logw <= MAX_LOGW
-}
 
 /// Two masked coefficients of p(x) = c0 + c1*x + c2*x^2.
 /// The incoming claim determines c2 = claim - c0; only c0 and c1 are transmitted.
@@ -92,8 +85,8 @@ impl<const W: usize, F: SerializableField> Clone for SumcheckProof<W, F> {
     }
 }
 /// The round count of each layer, outputs to inputs. Every value is valid:
-/// each count is at most `MAX_LOGW` and the pad and element counts fit
-/// `usize` (proto I8).
+/// each count is sane (`core::proto::sane_logw`: at most `MAX_LOGW` and below
+/// `usize::BITS`) and the pad and element counts fit `usize` (proto I8).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SumcheckProofGeometry {
     logw_layers: Vec<usize>,
@@ -121,8 +114,8 @@ fn invalid(message: &str) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidData, message)
 }
 impl SumcheckProofGeometry {
-    /// The geometry of layers with these round counts, if every count is at
-    /// most `MAX_LOGW` and the pad count fits `usize`.
+    /// The geometry of layers with these round counts, if every count is
+    /// sane and the pad count fits `usize`.
     pub fn new(logw_layers: Vec<usize>) -> std::io::Result<Self> {
         logw_layers.iter().try_fold(0usize, |total, &logw| {
             if !sane_logw(logw) {

@@ -103,7 +103,8 @@ circuit with zero layers asserts that its input prefix `W[0..ninput_c]`
 vanishes (its outputs are its inputs, so `noutput = ninput`). `Schedule::new`
 rejects an empty list, unequal `npublic_input`, `npublic_input > ninput_c`,
 a last layer whose `nw` differs from `ninput_c`, a zero-width layer, width
-overflow, and `logw_s > MAX_LOGW = 40`. The result carries
+overflow, and a `logw_s` that is not sane (`core::proto::sane_logw`: above
+`MAX_LOGW = 40`, or not below `usize::BITS`). The result carries
 `SumcheckProofGeometry { logw_layers }`. Nothing about fragments is
 transmitted: the rounds, terminal and combine act on the global arrays only.
 
@@ -389,7 +390,7 @@ impl<const W: usize, F> SumcheckProof<W, F> {
     pub fn write_to_buf(&self, bytes: &mut Vec<u8>, geometry: &SumcheckProofGeometry, f: &F)
         -> std::io::Result<()>;
 }
-pub const MAX_LOGW: usize = 40;
+// round counts: core::proto::{MAX_LOGW, sane_logw}, shared with v1
 ```
 
 The zk frontends call these entry points: `joint::top_weights` draws the top
@@ -492,7 +493,3 @@ committed cells they constrain are hidden by Polygero. The joint statement is
    `circuit_geometry` build the `Schedule` from the circuits again.
    Recommendation: build it once with the frontend's statement part
    (`FrontendPart`), so both roles and the proof reader share one value.
-3. **Owner of `MAX_LOGW`.** The 40-round limit is a proof-format limit.
-   Recommendation: `runtime::v2::proto::sumcheck::MAX_LOGW` is the one
-   definition that sumcheck and `monomial::weights` use; the host-width check
-   (`logw < usize::BITS`) belongs to the circuit reader.
