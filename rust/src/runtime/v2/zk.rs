@@ -29,8 +29,26 @@
 //! from the messages. Both use the same constraint compiler and codec layout.
 //! `context` supplies borrowed field/domain references and trusted circuit
 //! metadata. Prover and verifier orchestration remain in separate role modules.
+//!
+//! Every type the role APIs return has one public path here:
+//!
+//! ```
+//! use longfellow_zk::runtime::{
+//!     algebra::p256::P256Field,
+//!     v2::zk::{split::SplitClaim, CircuitState, LinearClaim, SplitState},
+//! };
+//! fn _named(
+//!     _: CircuitState<4, P256Field>,
+//!     _: SplitState<4, P256Field>,
+//!     _: SplitClaim<u64>,
+//!     _: LinearClaim<u64>,
+//! ) {
+//! }
+//! ```
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod batching;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub use batching::LinearClaim;
 pub(crate) mod context;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub mod joint;
@@ -48,7 +66,10 @@ pub use transcript::{write_joint_geometry, ZkProofStatement};
 pub(crate) mod constraint_compiler;
 cfg_prover! { mod joint_prover; pub use joint_prover::JointProver; }
 cfg_verifier! { mod joint_verifier; pub use joint_verifier::{Authenticated, JointVerifier}; }
-cfg_prover! { mod prover; pub use prover::{prove, prove_split, ZkProver, ZkProverCommitment}; }
+cfg_prover! {
+    mod prover;
+    pub use prover::{prove, prove_split, CircuitState, SplitState, ZkProver, ZkProverCommitment};
+}
 cfg_verifier! { mod verifier; pub use verifier::{reduce, reduce_split, ZkVerificationError, ZkVerifier}; }
 
 #[cfg(test)]
