@@ -663,8 +663,8 @@ honest acceptance.
 
 ### What the prover leaves to its host
 
-The zero-knowledge statement covers the proof the prover returns, not what
-a failed run reveals.
+The zero-knowledge statement covers the proof the prover returns. It does
+not cover what a failed run reveals, nor the prover's memory.
 
 - **Error codes and time to failure.** When the prover fails, its error
   code and its time to failure describe the document: whether it is
@@ -675,6 +675,10 @@ a failed run reveals.
   take different times. A wallet must expose neither the code nor the
   timing to the relying party: it reports every failure as one refusal, at
   a time that does not depend on which check failed.
+- **Memory.** The prover does not wipe the witness, the parsed document, the
+  masks, the nonces or the pads after use; freed memory keeps them until it
+  is reused. Memory hygiene (wiping, process isolation, swap and core-dump
+  policy) is the host process's responsibility.
 
 ### Trust boundary
 
