@@ -1091,7 +1091,7 @@ fn run_namespace_mixup(test_circuits: &TestCircuits) {
 }
 
 /// The rows of the error table in `mdoc/runtime/v2/DESIGN.md` that need real
-/// circuits, in both roles where they apply; `v2::inputs::tests` checks the
+/// circuits, in both roles where they apply; `v2::request::tests` checks the
 /// request rows without circuits.
 fn run_next_error_table(test_circuits: &TestCircuits) {
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);

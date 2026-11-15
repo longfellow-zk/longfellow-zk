@@ -17,70 +17,57 @@
 use crate::{
     core::algebra::Nat,
     mdoc::{
-        circuits::cbor::{encode_cbor_string, parse::CborParser},
+        circuits::cbor::{encode_cbor_string, mdoc::compute_transcript_hash},
         proto::{
-            hash::constants::{
-                K_DOC_TYPE_BYTES, K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS, K_TIMESTAMP_LEN,
-            },
+            hash::constants::{K_DOC_TYPE_BYTES, K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS},
             mso_attribute::constants::{K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_VALUE_BYTES},
         },
         v2::{
             attribute::RequestedAttribute,
             inputs::builder::{AssignmentBuilder, BinaryAssignmentBuilder},
+            request::Request,
         },
     },
-    runtime::algebra::p256::{P256Element, P256Field},
+    runtime::algebra::{
+        p256::{P256Element, P256Field},
+        RuntimeNat,
+    },
 };
 
-/// Supported UTC spelling; T/t and Z/z have identical ordering semantics.
-pub(in crate::mdoc::runtime::v2) fn timestamp_digits(value: &[u8]) -> Option<[u8; 14]> {
-    if value.len() != K_TIMESTAMP_LEN
-        || value[4] != b'-'
-        || value[7] != b'-'
-        || !matches!(value[10], b'T' | b't')
-        || value[13] != b':'
-        || value[16] != b':'
-        || !matches!(value[19], b'Z' | b'z')
-        || K_TIMESTAMP_DIGITS
-            .iter()
-            .any(|&i| !value[i].is_ascii_digit())
-    {
-        return None;
+/// The public inputs of both circuits (DESIGN.md I1), derived from a checked
+/// request and nothing else. [`PublicInputs::derive`] is the only constructor.
+pub(in crate::mdoc::runtime::v2) struct PublicInputs {
+    hash: Vec<bool>,
+    signature: Vec<P256Element>,
+}
+
+impl PublicInputs {
+    /// Both roles' public inputs: the hash circuit's from the time, the
+    /// attributes, the document type and the namespace, and the signature
+    /// circuit's from the issuer key and `e2`, the digest of the
+    /// `DeviceAuthentication` bytes for the session transcript and document type.
+    pub(in crate::mdoc::runtime::v2) fn derive(request: &Request<'_>, p256: &P256Field) -> Self {
+        let e2 = RuntimeNat::<4>::from_bytes_be(&compute_transcript_hash(
+            request.transcript(),
+            request.doc_type(),
+        ));
+        Self {
+            hash: push_input_hash(
+                request.attributes(),
+                request.now().as_bytes(),
+                request.doc_type().as_bytes(),
+            ),
+            signature: push_input_sig(p256, request.issuer_pk(), &e2),
+        }
     }
-    Some(K_TIMESTAMP_DIGITS.map(|i| value[i]))
-}
-
-/// Whether the session transcript is exactly one CBOR item. `e2` signs
-/// `DeviceAuthentication`, where the transcript is followed directly by
-/// `tstr(doc_type)`. A single item is self-delimiting, so the preimage
-/// determines the (session transcript, document type) pair; empty, truncated,
-/// concatenated or trailing bytes could shift that boundary. Both roles
-/// reject such a transcript before loading circuits.
-pub(in crate::mdoc::runtime::v2) fn session_transcript_is_one_item(transcript: &[u8]) -> bool {
-    CborParser::new(transcript).parse_exact().is_ok()
-}
-
-/// Reject caller data that would be truncated by the fixed public-input slots.
-/// Both roles check these bounds before allocating witnesses or decoding proofs.
-/// Attribute counts are checked separately against the selected specification.
-pub(in crate::mdoc::runtime::v2) fn public_inputs_fit(
-    attrs: &[RequestedAttribute],
-    now: &[u8],
-    doc_type: &[u8],
-) -> bool {
-    timestamp_digits(now).is_some()
-        && !doc_type.is_empty()
-        && doc_type.len() <= K_DOC_TYPE_BYTES
-        && attrs.first().is_some_and(|attribute| {
-            !attribute.namespace_id.is_empty()
-                && attribute.namespace_id.len() <= K_NAMESPACE_BYTES
-                && std::str::from_utf8(&attribute.namespace_id).is_ok()
-        })
-        && attrs.iter().all(|attribute| {
-            attribute.id.len() <= K_ATTR_ID_BYTES
-                && encode_cbor_string(&attribute.id).len() <= K_ATTR_ID_BYTES
-                && attribute.cbor_value.len() <= K_ATTR_VALUE_BYTES
-        })
+    /// The hash circuit's public inputs.
+    pub(in crate::mdoc::runtime::v2) fn hash(&self) -> &[bool] {
+        &self.hash
+    }
+    /// The signature circuit's public inputs.
+    pub(in crate::mdoc::runtime::v2) fn signature(&self) -> &[P256Element] {
+        &self.signature
+    }
 }
 
 fn push_input_attrs(builder: &mut BinaryAssignmentBuilder, attrs: &[RequestedAttribute]) {
@@ -98,12 +85,13 @@ fn push_input_attrs(builder: &mut BinaryAssignmentBuilder, attrs: &[RequestedAtt
     }
 }
 
-pub(in crate::mdoc::runtime::v2) fn push_input_hash(
+fn push_input_hash(
     attrs: &[RequestedAttribute],
     now_bytes: &[u8],
-    suppress_doc_type_check: bool,
     expected_doc_type: &[u8],
 ) -> Vec<bool> {
+    // v2 always checks the signed document type.
+    const SUPPRESS_DOC_TYPE_CHECK: bool = false;
     let mut builder = BinaryAssignmentBuilder::new();
     for i in K_TIMESTAMP_DIGITS {
         builder.push_v8(*now_bytes.get(i).unwrap_or(&0));
@@ -111,7 +99,7 @@ pub(in crate::mdoc::runtime::v2) fn push_input_hash(
 
     push_input_attrs(&mut builder, attrs);
 
-    builder.push_bit(suppress_doc_type_check);
+    builder.push_bit(SUPPRESS_DOC_TYPE_CHECK);
     for i in 0..K_DOC_TYPE_BYTES {
         builder.push_v8(*expected_doc_type.get(i).unwrap_or(&0));
     }
@@ -128,7 +116,7 @@ pub(in crate::mdoc::runtime::v2) fn push_input_hash(
     builder.into_inner()
 }
 
-pub(in crate::mdoc::runtime::v2) fn push_input_sig<N: Nat<4>>(
+fn push_input_sig<N: Nat<4>>(
     p256: &P256Field,
     issuer_pk: &(P256Element, P256Element),
     device_sig_e: &N,

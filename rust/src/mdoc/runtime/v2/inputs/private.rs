@@ -37,13 +37,14 @@ use crate::{
             attribute::RequestedAttribute,
             error::MdocProverErrorCode,
             inputs::builder::{AssignmentBuilder, BinaryAssignmentBuilder},
+            request::Request,
         },
     },
     runtime::algebra::{p256::P256Element, RuntimeField},
 };
 
 pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
-    req_attrs: &[RequestedAttribute],
+    request: &Request<'_>,
     parsed: &ParsedMdoc<N>,
 ) -> Result<Vec<bool>, MdocProverErrorCode> {
     let mut builder = BinaryAssignmentBuilder::new();
@@ -66,7 +67,10 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     // 2. preimage (MSO preimage - bytes as bits) + preimage.len
     let mso_sha_in = given(&parsed.cbor_mso, &INITIAL, K_MAX_SHA_BLOCKS)
         .map_err(|_| MdocProverErrorCode::TaggedMsoTooBig)?;
-    let requested = req_attrs.first().ok_or(MdocProverErrorCode::InvalidInput)?;
+    let requested = request
+        .attributes()
+        .first()
+        .ok_or(MdocProverErrorCode::InvalidInput)?;
     let namespace = parsed
         .namespaces()
         .map_err(|_| MdocProverErrorCode::MsoDecodingFailure)?
@@ -129,7 +133,7 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     );
 
     // 5. attribute_witnesses
-    push_witness_attrs(req_attrs, &attributes, &mut builder)?;
+    push_witness_attrs(request.attributes(), &attributes, &mut builder)?;
 
     // 6. sha_witnesses (MSO preimage hashing)
     builder.push_sha256msg_derived(&mso_sha_derived);
@@ -187,7 +191,7 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_sig<F, Fn, C>(
     runtime_field: &F,
     q256: &Fn,
     secp256r1: &C,
-    issuer_pk: &(F::E, F::E),
+    request: &Request<'_>,
     parsed: &ParsedMdoc<F::N>,
 ) -> Result<Vec<F::E>, &'static str>
 where
@@ -198,7 +202,7 @@ where
 {
     let (issuer_sig_given, issuer_sig_derived) = try_witness::<4, F, Fn, C>(
         secp256r1,
-        issuer_pk,
+        request.issuer_pk(),
         &parsed.issuer_sig_digest,
         &parsed.issuer_sig_r,
         &parsed.issuer_sig_s,

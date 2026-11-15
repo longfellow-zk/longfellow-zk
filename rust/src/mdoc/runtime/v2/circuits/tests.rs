@@ -24,7 +24,10 @@ use crate::{
             },
         },
     },
-    mdoc::{proto::NEXT_VERSION, v2::circuits::*},
+    mdoc::{
+        proto::NEXT_VERSION,
+        v2::{circuits::*, req_attr, request::Request},
+    },
     runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
 };
 
@@ -64,6 +67,28 @@ fn compressed(archive: &CircuitArchive) -> Vec<u8> {
     zstd::encode_all(archive.to_bytes_lfa2().as_slice(), 1).unwrap()
 }
 
+/// Load an archive for a valid one-attribute request under `spec`.
+fn load_for(
+    spec: &super::ZkSpecStruct,
+    compressed: &[u8],
+    p: &P256Field,
+    f: &Gf2_128Field,
+) -> Result<Instance, String> {
+    let attrs = [req_attr("namespace", "a", [0xf5])];
+    let request = Request::check(
+        spec,
+        "1",
+        "2",
+        b"\x66inputs",
+        &attrs,
+        "2026-10-23T00:00:00Z",
+        "doc",
+        p,
+    )
+    .expect("the test request passes the request check");
+    Instance::load(&request, compressed, p, f)
+}
+
 #[test]
 fn circuit_identifier_enforcement_is_unconditional() {
     let p = P256Field::new();
@@ -99,12 +124,12 @@ fn circuit_identifier_enforcement_is_unconditional() {
             t: 84,
         },
     };
-    assert!(for_spec(&spec, &compressed(&archive), &p, &f).is_err());
+    assert!(load_for(&spec, &compressed(&archive), &p, &f).is_err());
 }
 
 /// the spec pins the archive and each payload matches its entry.
 #[test]
-fn for_spec_binds_archive_and_entry_identifiers() {
+fn instance_load_binds_archive_and_entry_identifiers() {
     let p = P256Field::new();
     let f = Gf2_128Field::new();
     let spec_for = |combined_hash| super::ZkSpecStruct {
@@ -119,7 +144,7 @@ fn for_spec_binds_archive_and_entry_identifiers() {
         },
     };
     let archive = fixture(&p, &f);
-    assert!(for_spec(
+    assert!(load_for(
         &spec_for(archive.combined_id),
         &compressed(&archive),
         &p,
@@ -130,7 +155,7 @@ fn for_spec_binds_archive_and_entry_identifiers() {
     let mut other = archive.combined_id;
     other[0] ^= 1;
     assert!(
-        for_spec(&spec_for(other), &compressed(&archive), &p, &f).is_err(),
+        load_for(&spec_for(other), &compressed(&archive), &p, &f).is_err(),
         "archive accepted under a different spec combined hash"
     );
     // Valid payloads whose directory entry names a different circuit ID.
@@ -144,7 +169,7 @@ fn for_spec_binds_archive_and_entry_identifiers() {
     builder.add_entry("hash", hash.id, CircuitWriter::new(&f).to_bytes(&hash));
     let mismatched = builder.build();
     assert!(
-        for_spec(
+        load_for(
             &spec_for(mismatched.combined_id),
             &compressed(&mismatched),
             &p,

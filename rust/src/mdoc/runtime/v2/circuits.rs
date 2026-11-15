@@ -13,6 +13,8 @@
 // limitations under the License.
 
 //! Longfellow v2 circuit loading with mandatory payload ID verification.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+use crate::mdoc::v2::request::Request;
 use crate::{
     core::proto::v2::{Circuit, CircuitReader},
     mdoc::v2::ZkSpecStruct,
@@ -30,15 +32,33 @@ pub fn decompress_circuits(
     load(compressed, p256, gf2, None)
 }
 
-/// Check archive metadata against the spec and verify both payload identities.
+/// The circuits a checked request's spec names (DESIGN.md I3).
+/// [`Instance::load`] is the only constructor.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(super) fn for_spec(
-    spec: &ZkSpecStruct,
-    compressed: &[u8],
-    p256: &P256Field,
-    gf2: &Gf2_128Field,
-) -> Result<DecodedCircuits, String> {
-    load(compressed, p256, gf2, Some(spec))
+pub(super) struct Instance {
+    signature: Circuit<P256Field>,
+    hash: Circuit<Gf2_128Field>,
+}
+
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+impl Instance {
+    /// Check the archive's metadata against the request's spec and verify
+    /// both payload identities.
+    pub(super) fn load(
+        request: &Request<'_>,
+        compressed: &[u8],
+        p256: &P256Field,
+        gf2: &Gf2_128Field,
+    ) -> Result<Self, String> {
+        let (signature, hash) = load(compressed, p256, gf2, Some(request.spec()))?;
+        Ok(Self { signature, hash })
+    }
+    pub(super) fn signature(&self) -> &Circuit<P256Field> {
+        &self.signature
+    }
+    pub(super) fn hash(&self) -> &Circuit<Gf2_128Field> {
+        &self.hash
+    }
 }
 
 fn load(

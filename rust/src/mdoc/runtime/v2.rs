@@ -28,6 +28,8 @@ mod key;
 mod link;
 mod proto;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
+mod request;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;
 mod zk_spec;
 #[cfg(test)]

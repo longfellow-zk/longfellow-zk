@@ -2,8 +2,11 @@
 use crate::{
     core::algebra::encoding::P256_MODULUS,
     mdoc::{
-        circuits::cbor::mdoc::parse_mdoc, proto::hash::constants::K_MSO_OFFSET,
-        testcases::TEST_DATA, v2::document::*,
+        circuits::cbor::mdoc::parse_mdoc,
+        proto::hash::constants::K_MSO_OFFSET,
+        runtime::tests::specs::v2_spec,
+        testcases::TEST_DATA,
+        v2::{document::*, req_attr},
     },
 };
 
@@ -40,14 +43,20 @@ fn key_mut(map: &mut CborElement, index: i128) -> &mut CborElement {
 #[test]
 fn v2_document_validates_original_device_key_before_integer_conversion() {
     let field = P256Field::new();
-    parse(
-        TEST_DATA.mdoc,
+    let spec = v2_spec();
+    let attrs = [req_attr("org.iso.18013.5.1", "a", [0xf5])];
+    let request = Request::check(
+        &spec,
+        TEST_DATA.pkx,
+        TEST_DATA.pky,
         TEST_DATA.transcript,
-        TEST_DATA.doc_type,
+        &attrs,
         TEST_DATA.now,
+        TEST_DATA.doc_type,
         &field,
     )
     .unwrap();
+    parse(TEST_DATA.mdoc, &request, &field).unwrap();
     let mut noncanonical = P256_MODULUS.to_vec();
     noncanonical.reverse();
     for (index, value) in [

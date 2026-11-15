@@ -8,7 +8,7 @@ use crate::{
             mdoc::{map_entry_unique, parse_mdoc_with_mso_check, MdocParseError, ParsedMdoc},
             parse::{CborElement, CborValue},
         },
-        v2::inputs::timestamp_digits,
+        v2::request::{timestamp_digits, Request},
     },
     runtime::algebra::{
         p256::{P256Element, P256Field},
@@ -28,15 +28,16 @@ impl From<MdocParseError> for Error {
     }
 }
 
+/// Parse the document the checked request presents: its session transcript,
+/// document type and current time.
 pub(super) fn parse(
     bytes: &[u8],
-    transcript: &[u8],
-    doc_type: &str,
-    now: &str,
+    request: &Request<'_>,
     field: &P256Field,
 ) -> Result<ParsedMdoc<RuntimeNat<4>>, Error> {
-    parse_mdoc_with_mso_check(bytes, transcript, doc_type, |mso| {
-        validate_mso(mso, doc_type, now, field)
+    let doc_type = request.doc_type();
+    parse_mdoc_with_mso_check(bytes, request.transcript(), doc_type, |mso| {
+        validate_mso(mso, doc_type, request.now(), field)
     })
 }
 

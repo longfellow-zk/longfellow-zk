@@ -9,11 +9,11 @@ use crate::{
 #[test]
 fn shared_positions_match_signature_inputs() {
     use crate::{
-        core::algebra::SupportsNatConversions,
         mdoc::{
             circuits::cbor::test_utils::parse_test_data,
             proto::layout::SHARED_BITS,
-            v2::{inputs, req_attr},
+            runtime::tests::specs::v2_spec,
+            v2::{inputs, req_attr, request::Request},
         },
         runtime::algebra::{q256::Q256Field, secp256r1::Secp256r1, RuntimeNat},
     };
@@ -21,8 +21,7 @@ fn shared_positions_match_signature_inputs() {
     let q = Q256Field::new();
     let curve = Secp256r1::new(&f);
     let fixture = &TEST_DATA;
-    let (issuer, parsed, now) = parse_test_data::<4, RuntimeNat<4>>(fixture);
-    let issuer_pk = (f.reduce_nat(&issuer.0), f.reduce_nat(&issuer.1));
+    let (_, parsed, now) = parse_test_data::<4, RuntimeNat<4>>(fixture);
     for count in 1..=4 {
         let attrs: Vec<_> = parsed
             .attrs
@@ -31,12 +30,25 @@ fn shared_positions_match_signature_inputs() {
             .take(count)
             .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
             .collect();
-        let public =
-            inputs::push_input_hash(&attrs, now.as_bytes(), false, fixture.doc_type.as_bytes());
-        let private = inputs::push_witness_hash(&attrs, &parsed).unwrap();
+        let mut spec = v2_spec();
+        spec.num_attributes = count;
+        let request = Request::check(
+            &spec,
+            fixture.pkx,
+            fixture.pky,
+            fixture.transcript,
+            &attrs,
+            now,
+            fixture.doc_type,
+            &f,
+        )
+        .unwrap();
+        let derived = inputs::PublicInputs::derive(&request, &f);
+        let public = derived.hash();
+        let private = inputs::push_witness_hash(&request, &parsed).unwrap();
         let width = public.len() + private.len();
         let positions = shared_positions(public.len(), width).unwrap();
-        let mut expected = inputs::push_witness_sig(&f, &q, &curve, &issuer_pk, &parsed).unwrap();
+        let mut expected = inputs::push_witness_sig(&f, &q, &curve, &request, &parsed).unwrap();
         expected.truncate(SHARED_BITS);
         assert!(positions
             .iter()

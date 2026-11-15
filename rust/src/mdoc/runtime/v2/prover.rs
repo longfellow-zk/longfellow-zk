@@ -20,12 +20,9 @@ use crate::{
     mdoc::{
         circuits::cbor::mdoc::{MdocParseError, ParsedMdoc},
         v2::{
-            attribute::{circuit_supports, same_namespace},
-            inputs::{
-                public_inputs_fit, push_input_hash, push_input_sig, push_witness_hash,
-                push_witness_sig, session_transcript_is_one_item,
-            },
-            key::parse_pk_coordinate,
+            circuits::Instance,
+            inputs::{push_witness_hash, push_witness_sig, PublicInputs},
+            request::{Request, RequestError},
             MdocProverErrorCode, RequestedAttribute, ZkSpecStruct,
         },
     },
@@ -114,32 +111,11 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
     doc_type: &str,
     rng: &mut RNG,
 ) -> Result<EncodedProof, MdocProverErrorCode> {
-    if !zk_spec.supports_version() {
-        return Err(MdocProverErrorCode::InvalidZkSpecVersion);
-    }
-    if attrs.len() != zk_spec.num_attributes {
-        return Err(MdocProverErrorCode::InvalidInput);
-    }
-    if !same_namespace(attrs) {
-        return Err(MdocProverErrorCode::InvalidInput);
-    }
-    if !session_transcript_is_one_item(transcript) {
-        return Err(MdocProverErrorCode::InvalidInput);
-    }
-    if !public_inputs_fit(attrs, now.as_bytes(), doc_type.as_bytes()) {
-        return Err(MdocProverErrorCode::InvalidInput);
-    }
-    for a in attrs {
-        if !circuit_supports(&a.cbor_value) {
-            return Err(MdocProverErrorCode::UnsupportedAttribute);
-        }
-    }
-
     let p256 = P256Field::new();
-    let issuer_pk = (
-        parse_pk_coordinate(pkx, &p256).map_err(|_| MdocProverErrorCode::InvalidInput)?,
-        parse_pk_coordinate(pky, &p256).map_err(|_| MdocProverErrorCode::InvalidInput)?,
-    );
+    // Every later step takes the checked request; nothing is loaded and no
+    // randomness is drawn before the check passes.
+    let request = Request::check(zk_spec, pkx, pky, transcript, attrs, now, doc_type, &p256)
+        .map_err(request_error)?;
 
     let p256_2 = Fp2Field::new(&p256);
     let omega = p256_2.omega();
@@ -153,11 +129,11 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
     let gf2 = Gf2_128Field::new();
     let make_interpolator_hash = BinaryInterpolatorFactory::full_field(&gf2);
 
-    let (c_sig, c_hash) = super::circuits::for_spec(zk_spec, circuits_compressed, &p256, &gf2)
+    let instance = Instance::load(&request, circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
 
-    let parsed: ParsedMdoc<RuntimeNat<4>> =
-        super::document::parse(mdoc_bytes, transcript, doc_type, now, &p256).map_err(|err| {
+    let parsed: ParsedMdoc<RuntimeNat<4>> = super::document::parse(mdoc_bytes, &request, &p256)
+        .map_err(|err| {
             match err {
                 super::document::Error::Encoding(MdocParseError::TooBig) => {
                     MdocProverErrorCode::TaggedMsoTooBig
@@ -171,25 +147,24 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
 
     let gen_err = |_| MdocProverErrorCode::GeneralFailure;
     let composition = super::link::composition(
-        zk_spec,
-        &c_sig,
-        &c_hash,
+        request.spec(),
+        instance.signature(),
+        instance.hash(),
         (&make_interpolator_hash, &make_interpolator_sig),
     )
     .map_err(gen_err)?;
-    let witness_hash = push_witness_hash(attrs, &parsed)?;
-    let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &issuer_pk, &parsed)
+    let witness_hash = push_witness_hash(&request, &parsed)?;
+    let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &request, &parsed)
         .map_err(|_| MdocProverErrorCode::WitnessCreationFailure)?;
-    let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());
-    let sig_public = push_input_sig(&p256, &issuer_pk, &parsed.device_sig_digest);
+    let public = PublicInputs::derive(&request, &p256);
 
     // The statement fixes the spec, the circuits, the geometry and every
     // public input before the shared commitment (transcript I1).
     let statement = super::transcript::MdocStatement::new(
-        transcript,
-        zk_spec,
+        request.transcript(),
+        request.spec(),
         composition
-            .statement(&app_public, &sig_public)
+            .statement(public.hash(), public.signature())
             .map_err(gen_err)?,
     );
     let (body, tp) =
@@ -198,4 +173,14 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
     super::proto::MdocProof { body }
         .write(&statement.geometry, &gf2, &p256, tp)
         .map_err(gen_err)
+}
+
+/// The prover's codes for the request rows of the error table: the attribute
+/// count is an ordinary input error, since this enum has no count code.
+fn request_error(error: RequestError) -> MdocProverErrorCode {
+    match error {
+        RequestError::Version => MdocProverErrorCode::InvalidZkSpecVersion,
+        RequestError::AttributeCount | RequestError::Shape => MdocProverErrorCode::InvalidInput,
+        RequestError::UnsupportedAttribute => MdocProverErrorCode::UnsupportedAttribute,
+    }
 }

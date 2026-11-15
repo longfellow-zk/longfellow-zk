@@ -17,17 +17,11 @@
 #![deny(clippy::print_stdout, clippy::print_stderr, clippy::dbg_macro)]
 
 use crate::{
-    core::algebra::Nat,
-    mdoc::{
-        circuits::cbor::mdoc::compute_transcript_hash,
-        v2::{
-            attribute::{circuit_supports, same_namespace},
-            inputs::{
-                public_inputs_fit, push_input_hash, push_input_sig, session_transcript_is_one_item,
-            },
-            key::parse_pk_coordinate,
-            MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
-        },
+    mdoc::v2::{
+        circuits::Instance,
+        inputs::PublicInputs,
+        request::{Request, RequestError},
+        MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
     },
     runtime::{
         algebra::{
@@ -37,7 +31,7 @@ use crate::{
             range_interpolation::{
                 BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
             },
-            RuntimeNat, SupportsFFT,
+            SupportsFFT,
         },
         v2::transcript::{Opened, VerifiedProof},
     },
@@ -55,32 +49,11 @@ pub fn run_mdoc_verifier(
     doc_type: &str,
     proof_bytes: &[u8],
 ) -> Result<VerifiedProof, MdocVerifierErrorCode> {
-    if !zk_spec.supports_version() {
-        return Err(MdocVerifierErrorCode::InvalidZkSpecVersion);
-    }
-    if attrs.len() != zk_spec.num_attributes {
-        return Err(MdocVerifierErrorCode::AttributeNumberMismatch);
-    }
-    if !same_namespace(attrs) {
-        return Err(MdocVerifierErrorCode::InvalidInput);
-    }
-    if !session_transcript_is_one_item(transcript) {
-        return Err(MdocVerifierErrorCode::InvalidInput);
-    }
-    if !public_inputs_fit(attrs, now.as_bytes(), doc_type.as_bytes()) {
-        return Err(MdocVerifierErrorCode::InvalidInput);
-    }
-    for a in attrs {
-        if !circuit_supports(&a.cbor_value) {
-            return Err(MdocVerifierErrorCode::UnsupportedAttribute);
-        }
-    }
-
     let p256 = P256Field::new();
-    let issuer_pk = (
-        parse_pk_coordinate(pkx, &p256).map_err(|_| MdocVerifierErrorCode::InvalidInput)?,
-        parse_pk_coordinate(pky, &p256).map_err(|_| MdocVerifierErrorCode::InvalidInput)?,
-    );
+    // Every later step takes the checked request; nothing is loaded before
+    // the check passes.
+    let request = Request::check(zk_spec, pkx, pky, transcript, attrs, now, doc_type, &p256)
+        .map_err(request_error)?;
     let p256_2 = Fp2Field::new(&p256);
     let omega = p256_2.omega();
     let omega_order = p256_2.omega_order();
@@ -90,26 +63,23 @@ pub fn run_mdoc_verifier(
     let gf2 = Gf2_128Field::new();
     let make_interpolator_hash = BinaryInterpolatorFactory::full_field(&gf2);
 
-    let (c_sig, c_hash) = super::circuits::for_spec(zk_spec, circuits_compressed, &p256, &gf2)
+    let instance = Instance::load(&request, circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocVerifierErrorCode::CircuitParsingFailure)?;
 
     let gen_err = |_| MdocVerifierErrorCode::GeneralFailure;
     let composition = super::link::composition(
-        zk_spec,
-        &c_sig,
-        &c_hash,
+        request.spec(),
+        instance.signature(),
+        instance.hash(),
         (&make_interpolator_hash, &make_interpolator_sig),
     )
     .map_err(gen_err)?;
-    let app_public = push_input_hash(attrs, now.as_bytes(), false, doc_type.as_bytes());
-    let digest = compute_transcript_hash(transcript, doc_type);
-    let e2_val = RuntimeNat::<4>::from_bytes_be(&digest);
-    let sig_public = push_input_sig(&p256, &issuer_pk, &e2_val);
+    let public = PublicInputs::derive(&request, &p256);
     let statement = super::transcript::MdocStatement::new(
-        transcript,
-        zk_spec,
+        request.transcript(),
+        request.spec(),
         composition
-            .statement(&app_public, &sig_public)
+            .statement(public.hash(), public.signature())
             .map_err(gen_err)?,
     );
     let mut session = Opened::new(&statement);
@@ -121,4 +91,14 @@ pub fn run_mdoc_verifier(
     decoded
         .checked(tp)
         .map_err(|_| MdocVerifierErrorCode::GeneralFailure)
+}
+
+/// The verifier's codes for the request rows of the error table.
+fn request_error(error: RequestError) -> MdocVerifierErrorCode {
+    match error {
+        RequestError::Version => MdocVerifierErrorCode::InvalidZkSpecVersion,
+        RequestError::AttributeCount => MdocVerifierErrorCode::AttributeNumberMismatch,
+        RequestError::Shape => MdocVerifierErrorCode::InvalidInput,
+        RequestError::UnsupportedAttribute => MdocVerifierErrorCode::UnsupportedAttribute,
+    }
 }
