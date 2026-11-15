@@ -6,7 +6,10 @@
 //! reads a proof byte. When a test has armed it, `observe` decodes the
 //! statement from the bytes the session hashed and checks it against the
 //! statement object and geometry the verifier reads from that session.
-use std::cell::RefCell;
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet},
+};
 
 use crate::{
     compile::algebra::CompileNat,
@@ -40,8 +43,14 @@ use crate::{
         },
         random::DeterministicRng,
         v2::{
-            proto::tests::statement::{self, Statement as Decoded},
-            transcript::{EncodedProof, Opened, Statement, VerifiedProof},
+            proto::{
+                tags::Tag,
+                tests::{
+                    messages::{check_absorbed, sent},
+                    statement::{self, Statement as Decoded},
+                },
+            },
+            transcript::{EncodedProof, Opened, Statement, Trace, VerifiedProof},
         },
     },
 };
@@ -352,5 +361,45 @@ fn mdoc_identity_fields_are_absorbed() {
             ..spec
         };
         assert_ne!(bytes(transcript, &other), base, "profile {name}");
+    }
+}
+
+/// Alter prover messages of the 1-attribute proof, one byte each where the
+/// proof carries it: the first and the last occurrence of each tag in each
+/// field (payload widths tell the fields apart). Each is absorbed as altered
+/// before the next draw, which changes, and the proof is rejected; see
+/// `proto::tests::messages`.
+#[test]
+fn mdoc_prover_messages_are_absorbed() {
+    let fixture = Fixture::new(1);
+    let proof = fixture.prove();
+    let verified = fixture.verify(proof.as_bytes()).unwrap();
+    let honest = &verified.trace;
+    let messages = sent(honest, 4);
+    let mut ends: BTreeMap<(u64, usize), [usize; 2]> = BTreeMap::new();
+    for (i, m) in messages.iter().enumerate() {
+        ends.entry((m.tag, m.len)).or_insert([i, i])[1] = i;
+    }
+    let tags: BTreeSet<u64> = ends.keys().map(|&(tag, _)| tag).collect();
+    let expected = [
+        Tag::Commitment,
+        Tag::FingerprintResponse,
+        Tag::SumcheckRound,
+        Tag::SumcheckCross,
+        Tag::SumcheckClaims,
+        Tag::SplitOpening,
+        Tag::P256AdapterQuotients,
+        Tag::PackingU,
+        Tag::PackingA,
+        Tag::PolygeroResponse,
+    ];
+    assert_eq!(tags, expected.map(Tag::value).into());
+    let chosen: BTreeSet<usize> = ends.values().flatten().copied().collect();
+    let verify = |altered: &[u8]| {
+        let (result, traces) = Trace::dropped(|| fixture.verify(altered));
+        (result.is_ok(), traces)
+    };
+    for &i in &chosen {
+        check_absorbed(honest, proof.as_bytes(), &messages[i], &verify);
     }
 }

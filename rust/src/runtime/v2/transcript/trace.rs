@@ -27,6 +27,50 @@ pub(crate) struct Trace {
     /// Every finished node's SHA-256 preimage, its header included.
     pub(crate) nodes: Vec<Vec<u8>>,
 }
+thread_local! {
+    /// While a test captures, the traces of the sessions dropped on this
+    /// thread (`Trace::dropped`).
+    static DROPPED: std::cell::RefCell<Option<Vec<Trace>>> = const { std::cell::RefCell::new(None) };
+}
+/// A session's trace is dropped with it: a verifier that rejects a proof
+/// drops its session, and with it the trace of every message it absorbed and
+/// every draw it made before the rejection. While a test captures, keep it.
+impl Drop for Trace {
+    fn drop(&mut self) {
+        if self.events.is_empty() {
+            return;
+        }
+        let _ = DROPPED.try_with(|cell| {
+            if let Ok(mut dropped) = cell.try_borrow_mut() {
+                if let Some(kept) = dropped.as_mut() {
+                    kept.push(std::mem::take(self));
+                }
+            }
+        });
+    }
+}
+impl Trace {
+    /// Run `f` and return its result with the traces of the sessions dropped
+    /// on this thread meanwhile, in drop order.
+    pub(crate) fn dropped<T>(f: impl FnOnce() -> T) -> (T, Vec<Trace>) {
+        DROPPED.set(Some(Vec::new()));
+        let out = f();
+        (out, DROPPED.take().unwrap_or_default())
+    }
+    /// The first PRF block of finished node `i`: the first bytes every
+    /// draw after its boundary reads, `SHA-256(u32 PRF || u64 id || digest
+    /// || u64 0)` with the node's id and the digest of its preimage.
+    pub(crate) fn first_block(&self, i: usize) -> [u8; 32] {
+        use sha2::{Digest, Sha256};
+        let node = &self.nodes[i];
+        let mut input = Vec::with_capacity(52);
+        input.extend(0u32.to_le_bytes());
+        input.extend(&node[4..12]);
+        input.extend(Sha256::digest(node));
+        input.extend(0u64.to_le_bytes());
+        Sha256::digest(&input).into()
+    }
+}
 impl Trace {
     pub(super) fn message(&mut self, m: Recorded) {
         self.events.push(Event::Message(m));

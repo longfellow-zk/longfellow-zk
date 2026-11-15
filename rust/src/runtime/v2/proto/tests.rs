@@ -189,6 +189,7 @@ mod polygero;
 mod readers;
 
 pub(super) mod fixtures;
+pub(crate) mod messages;
 pub(crate) mod statement;
 
 /// Check a complete proof's trace against the registry and its wire bytes:
