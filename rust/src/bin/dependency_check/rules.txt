@@ -18,9 +18,9 @@
 #   proto module has its own line.
 
 mdoc/artifacts:
-mdoc/circuits: mdoc/proto mdoc/testcases circuits/analog_adder circuits/bitvec circuits/boolean circuits/memcmp circuits/routing circuits/sha256 circuits/sha256msg compile/algebra compile/logic core/algebra runtime/algebra
+mdoc/circuits: mdoc/proto mdoc/testcases circuits/analog_adder circuits/bitvec circuits/boolean circuits/memcmp circuits/routing circuits/sha256 circuits/sha256msg compile/algebra compile/logic core/algebra
 mdoc/compile: core/algebra mdoc/circuits mdoc/proto circuits/arithmetic circuits/bitvec circuits/boolean circuits/ecdsa2 compile/algebra compile/compiler compile/logic core/proto
-mdoc/development_provider: mdoc/circuits mdoc/compile mdoc/proto mdoc/runtime core/proto runtime/algebra runtime/v2/polygero runtime/v2/proto/polygero
+mdoc/development_provider: mdoc/compile mdoc/proto mdoc/runtime core/proto runtime/algebra runtime/v2/polygero runtime/v2/proto/polygero
 mdoc/proto:
 bin/prover_only: mdoc/runtime
 mdoc/runtime: mdoc/circuits mdoc/proto circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v1/ligero runtime/v1/proto runtime/v1/subfield runtime/v1/transcript runtime/v1/zk runtime/v2/foreign runtime/v2/transcript runtime/v2/zk runtime/v2/proto/composed runtime/v2/proto/polygero runtime/v2/proto/tags
@@ -29,10 +29,10 @@ bin/verifier_only: mdoc/runtime
 circuits/analog_adder: circuits/bitvec circuits/boolean compile/algebra compile/logic core/algebra
 circuits/analog_decoder: circuits/boolean circuits/lookup compile/logic core/algebra
 circuits/arithmetic: circuits/boolean compile/algebra compile/logic util
-circuits/big_bitvec: circuits/bignum circuits/bitvec compile/algebra compile/logic core/algebra runtime/algebra
+circuits/big_bitvec: circuits/bignum circuits/bitvec compile/algebra compile/logic core/algebra
 circuits/bignum: circuits/boolean compile/algebra compile/logic core/algebra util
 circuits/bitvec: circuits/arithmetic circuits/boolean compile/algebra compile/logic core/algebra runtime/algebra util
-circuits/boolean: compile/algebra compile/logic core/algebra runtime/algebra util
+circuits/boolean: compile/algebra compile/logic core/algebra util
 circuits/ec: compile/algebra compile/logic core/algebra
 circuits/ecdsa2: circuits/arithmetic circuits/big_bitvec circuits/bitvec circuits/boolean circuits/ec circuits/lookup compile/algebra compile/logic core/algebra
 circuits/gf2_128: circuits/bitvec circuits/boolean compile/logic
@@ -64,10 +64,10 @@ runtime/v1/transcript: core/algebra runtime/random
 runtime/v1/zk: core/algebra core/proto runtime/algebra runtime/random runtime/v1/ligero runtime/v1/proto runtime/v1/subfield runtime/v1/sumcheck runtime/v1/transcript
 runtime/v2:
 runtime/v2/dual_packing: core/algebra runtime/algebra runtime/v2/transcript runtime/v2/proto/dual_packing runtime/v2/proto/tags
-runtime/v2/foreign: core/algebra core/proto runtime/algebra runtime/random runtime/v2/transcript runtime/v2/zk util runtime/v2/proto/composed runtime/v2/proto/polygero runtime/v2/proto/tags runtime/v2/proto/zk
+runtime/v2/foreign: core/algebra core/proto runtime/algebra runtime/random runtime/v2/transcript runtime/v2/zk util runtime/v2/proto/composed runtime/v2/proto/polygero runtime/v2/proto/tags
 runtime/v2/merkle: runtime/v2/proto/merkle
 runtime/v2/polygero: core/algebra runtime/algebra runtime/random runtime/v2/merkle runtime/v2/transcript runtime/v2/proto/merkle runtime/v2/proto/polygero runtime/v2/proto/tags
-runtime/v2/proto: core/algebra runtime/algebra runtime/v2/transcript runtime/v2/proto/field runtime/v2/proto/merkle
+runtime/v2/proto: runtime/v2/proto/field runtime/v2/proto/merkle
 runtime/v2/proto/composed: core/algebra runtime/algebra runtime/v2/proto/field runtime/v2/proto/merkle runtime/v2/proto/polygero runtime/v2/proto/sumcheck runtime/v2/proto/util runtime/v2/proto/witness_selection runtime/v2/proto/zk
 runtime/v2/proto/dual_packing:
 runtime/v2/proto/field: core/algebra
@@ -80,8 +80,8 @@ runtime/v2/proto/witness_selection: core/algebra runtime/v2/proto/field runtime/
 runtime/v2/proto/zk: core/algebra runtime/algebra runtime/v2/proto/dual_packing runtime/v2/proto/field runtime/v2/proto/merkle runtime/v2/proto/polygero runtime/v2/proto/sumcheck runtime/v2/proto/util runtime/v2/proto/witness_selection runtime/v2/transcript
 runtime/v2/sumcheck: core/algebra core/proto runtime/algebra runtime/random runtime/v2/transcript util runtime/v2/proto/sumcheck runtime/v2/proto/tags
 runtime/v2/transcript: core/algebra runtime/algebra runtime/v2/proto/tags
-runtime/v2/witness_selection: core/algebra runtime/algebra runtime/random runtime/v2/polygero runtime/v2/transcript runtime/v2/proto/merkle runtime/v2/proto/polygero runtime/v2/proto/tags runtime/v2/proto/witness_selection
-runtime/v2/zk: core/algebra core/proto runtime/algebra runtime/random runtime/v2/dual_packing runtime/v2/polygero runtime/v2/sumcheck runtime/v2/transcript runtime/v2/witness_selection runtime/v2/proto/dual_packing runtime/v2/proto/merkle runtime/v2/proto/polygero runtime/v2/proto/sumcheck runtime/v2/proto/tags runtime/v2/proto/witness_selection runtime/v2/proto/zk
+runtime/v2/witness_selection: core/algebra runtime/algebra runtime/random runtime/v2/polygero runtime/v2/transcript runtime/v2/proto/polygero runtime/v2/proto/tags runtime/v2/proto/witness_selection
+runtime/v2/zk: core/algebra core/proto runtime/algebra runtime/random runtime/v2/dual_packing runtime/v2/polygero runtime/v2/sumcheck runtime/v2/transcript runtime/v2/witness_selection runtime/v2/proto/dual_packing runtime/v2/proto/polygero runtime/v2/proto/sumcheck runtime/v2/proto/tags runtime/v2/proto/witness_selection runtime/v2/proto/zk
 bin/dependency_check:
 bin/zk_tool: mdoc/development_provider mdoc/proto mdoc/runtime runtime/v2/proto/merkle runtime/v2/proto/polygero
 util:
