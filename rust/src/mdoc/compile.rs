@@ -40,15 +40,3 @@ pub fn compile_circuits(num_attrs: usize) -> Result<Vec<u8>, String> {
     builder.add_entry("hash", hash.id, hash_bytes);
     Ok(builder.build().to_bytes())
 }
-
-pub fn compile_all_circuits() -> Vec<Result<Vec<u8>, String>> {
-    std::thread::scope(|scope| {
-        let tasks: Vec<_> = (1..=4)
-            .map(|n| scope.spawn(move || compile_circuits(n)))
-            .collect();
-        tasks
-            .into_iter()
-            .map(|task| task.join().expect("circuit compiler panicked"))
-            .collect()
-    })
-}

@@ -43,14 +43,6 @@ pub struct ParsedAttr {
 }
 
 #[derive(Clone, Debug)]
-pub struct DeviceKeyInfo {
-    pub key_type: i64,
-    pub crv: i64,
-    pub x: Vec<u8>,
-    pub y: Vec<u8>,
-}
-
-#[derive(Clone, Debug)]
 pub struct ParsedMdoc<N> {
     pub issuer_sig_digest: N,
     pub issuer_sig_r: N,

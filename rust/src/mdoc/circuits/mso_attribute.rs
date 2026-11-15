@@ -21,12 +21,6 @@ pub use circuit::{
 
 cfg_testonly! {
     mod allocate;
-    mod concrete;
-    mod evaluate;
 
-    pub use self::{
-        allocate::{allocate_derived, allocate_given},
-        concrete::{derived, ConcreteDerived, ConcreteGiven},
-        evaluate::{evaluate_derived, evaluate_given},
-    };
+    pub use allocate::{allocate_derived, allocate_given};
 }
