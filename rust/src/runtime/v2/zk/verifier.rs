@@ -107,9 +107,12 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
     ) -> Result<Self, ZkVerificationError> {
         let participant = CircuitParticipant::new(&[&circuit], 0, config, ctx)
             .map_err(ZkVerificationError::PolygeroVerification)?;
-        let geometry =
-            ZkProofGeometry::new(participant.geometry(), participant.polygero().config())
-                .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
+        let profile = participant
+            .polygero()
+            .map_err(ZkVerificationError::PolygeroVerification)?
+            .config();
+        let geometry = ZkProofGeometry::new(participant.geometry(), profile)
+            .map_err(|e| ZkVerificationError::PolygeroVerification(e.to_string()))?;
         Ok(Self {
             circuit,
             participant,
@@ -176,7 +179,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
             .map_err(|e| ZkVerificationError::InvalidSumcheck(e.to_string()))?;
         // Reject malformed opening shapes before replaying the circuit transcript.
         // The joint backend also validates them for callers that use it directly.
-        let polygero = self.participant.polygero();
+        let polygero = self.geometry.polygero();
         proof
             .com_proof
             .bodies

@@ -79,6 +79,35 @@ const CONFIG: PolygeroConfig = PolygeroConfig {
     t: 2,
 };
 
+/// A participant that commits nothing has no Polygero backend (zk I11,
+/// audit Z1): it cannot join a joint commitment, and its geometry has no
+/// committed cells, not the two fingerprint masks of an empty field.
+#[test]
+fn pure_foreign_participant_cannot_join_the_joint_backend() {
+    let f = P256Field::new();
+    let domain = ScalarInterpolatorFactory::new(&f, 128);
+    let ctx = ZkContext::new(&domain);
+    let c = small_circuit(&f);
+    let n = value_count(&c).unwrap();
+    let groups: Vec<_> = (0..n)
+        .map(|i| (i, Group::new(i * 256, 256).unwrap()))
+        .collect();
+    let storage = StorageMap::new(n, &groups).unwrap();
+    let part = CircuitParticipant::with_storage(&c, storage, None, CONFIG, &ctx).unwrap();
+    assert!(!part.commits());
+    assert!(part.participant(&ctx).is_err());
+    assert_eq!(part.geometry().nw(), 0);
+    // A mixed participant still joins, with its native cells, R and the
+    // fingerprint masks.
+    let mixed = StorageMap::new(n, &[(0, Group::new(7, 1).unwrap())]).unwrap();
+    let mask = Some(Group::new(20, 256).unwrap());
+    let joined = CircuitParticipant::with_storage(&c, mixed, mask, CONFIG, &ctx).unwrap();
+    assert!(joined.commits());
+    let selected = joined.participant(&ctx).unwrap();
+    assert_eq!(selected.geometry().nw, joined.geometry().nw());
+    assert!(zk::joint::JointParam::new((selected, ())).is_ok());
+}
+
 #[test]
 fn mixed_split_authenticates_native_rows_and_foreign_values() {
     let f = P256Field::new();

@@ -185,7 +185,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
             part: FrontendPart::new(&self.participant, &[&self.circuit], public)?,
             geometry: ZkProofGeometry::new(
                 self.participant.geometry(),
-                self.participant.polygero().config(),
+                self.participant.polygero()?.config(),
             )
             .map_err(|e| e.to_string())?,
         })

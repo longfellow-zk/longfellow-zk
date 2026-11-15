@@ -118,7 +118,9 @@ pub struct CircuitParticipant<const W: usize, F: ZkField<W> + PackingField> {
     pub(super) geometry: CircuitGeometry,
     #[cfg(any(test, feature = "prover"))]
     pub(super) config: PolygeroConfig,
-    param: PolygeroParam,
+    /// The Polygero parameter of the committed cells; `None` for a
+    /// participant that commits nothing (pure foreign storage).
+    param: Option<PolygeroParam>,
     pub(super) backend: PackingCommitment<F>,
     pub(super) id: [u8; 32],
     pub(super) additional_ids: Vec<[u8; 32]>,
@@ -158,7 +160,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             geometry,
             #[cfg(any(test, feature = "prover"))]
             config,
-            param,
+            param: Some(param),
             backend,
             id: circuit.id,
             additional_ids: others.iter().map(|c| c.id).collect(),
@@ -191,19 +193,25 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         let split = super::storage::Split::new(storage, mask, private, values)?;
         // Mixed storage commits its native values in value order (native
         // private inputs, then pads), then R; pure foreign storage commits
-        // nothing.
-        let (committed, pads, mask_cells) = if split.mask.is_some() {
+        // nothing and has no Polygero parameter, masks or rows.
+        let (committed, pads) = if split.mask.is_some() {
             let pads = sc_geom.pad_count();
-            (split.map.native_cells() - pads, pads, 1)
+            (split.map.native_cells() - pads, pads)
         } else {
-            (0, 0, 0)
+            (0, 0)
         };
         let layout = super::packing_commitment::PackingLayout::new(committed, pads, 1)?;
-        let param = prepare_parameter(layout.witness_count + mask_cells, config, ctx.domain)?;
-        let selected = SelectedField::from_parameter(param.clone(), ctx.domain)?;
+        let param = match split.mask {
+            Some(_) => {
+                let cells = prepare_parameter(layout.witness_count + 1, config, ctx.domain)?;
+                SelectedField::from_parameter(cells.clone(), ctx.domain)?;
+                Some(cells)
+            }
+            None => None,
+        };
+        let nw = param.as_ref().map_or(0, |p| p.geometry().nw);
         Ok(Self {
-            geometry: CircuitGeometry::new(sc_geom, 1, selected.geometry().nw)
-                .map_err(|e| e.to_string())?,
+            geometry: CircuitGeometry::new(sc_geom, 1, nw).map_err(|e| e.to_string())?,
             #[cfg(any(test, feature = "prover"))]
             config,
             param,
@@ -250,15 +258,23 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     pub fn geometry(&self) -> CircuitGeometry {
         self.geometry.clone()
     }
-    /// The Polygero geometry of this participant's committed cells.
-    pub(super) fn polygero(&self) -> PolygeroGeometry {
-        self.param.geometry()
+    fn param(&self) -> Result<&PolygeroParam, String> {
+        self.param
+            .as_ref()
+            .ok_or_else(|| "participant commits nothing".into())
     }
+    /// The Polygero geometry of this participant's committed cells; an
+    /// error if it commits nothing.
+    pub(super) fn polygero(&self) -> Result<PolygeroGeometry, String> {
+        Ok(self.param()?.geometry())
+    }
+    /// This participant as a field of the joint commitment. A participant
+    /// that commits nothing (pure foreign storage) has none: the call fails.
     pub fn participant<'a, D: EvaluationDomain<W, F>>(
         &'a self,
         ctx: &ZkContext<'a, W, F, D>,
     ) -> Result<SelectedField<'a, W, F, D>, String> {
-        SelectedField::from_parameter(self.param.clone(), ctx.domain)
+        SelectedField::from_parameter(self.param()?.clone(), ctx.domain)
     }
 }
 
