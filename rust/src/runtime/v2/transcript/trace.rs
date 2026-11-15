@@ -1,14 +1,18 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Test-only schedule trace of a session: its messages, boundaries and
-//! draws in order, and the exact bytes each strand node hashed. Production
+//! draws in order, the values of its index draws, and the exact bytes each
+//! strand node hashed. Production
 //! builds compile none of it.
 use super::message::Recorded;
 
-/// The kind of one stream read.
+/// The kind of one stream read. A nonzero element is its own kind, so a
+/// role that draws a plain element where the other draws a nonzero one
+/// differs even when the value read is not zero.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Draw {
     Bytes,
     Element,
+    Nonzero,
     Indices,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -26,6 +30,8 @@ pub(crate) struct Trace {
     pub(crate) events: Vec<Event>,
     /// Every finished node's SHA-256 preimage, its header included.
     pub(crate) nodes: Vec<Vec<u8>>,
+    /// The values of every index draw, in draw order.
+    pub(crate) indices: Vec<Vec<usize>>,
 }
 thread_local! {
     /// While a test captures, the traces of the sessions dropped on this
@@ -82,6 +88,9 @@ impl Trace {
     pub(super) fn seal(&mut self, node: Vec<u8>) {
         self.events.push(Event::Seal);
         self.nodes.push(node);
+    }
+    pub(super) fn indices(&mut self, drawn: &[usize]) {
+        self.indices.push(drawn.to_vec());
     }
     pub(super) fn draw(&mut self, kind: Draw) {
         if let Some(Event::Draws(k, n)) = self.events.last_mut() {

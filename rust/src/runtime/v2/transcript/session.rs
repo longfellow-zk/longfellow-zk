@@ -297,10 +297,13 @@ impl<'a> Reading<'a> {
         self.trace.draw(super::trace::Draw::Element);
         f.sample(|out| self.reader.read(out))
     }
-    /// nonzero: `elt_field` repeated until the value is not zero.
+    /// nonzero: `elt_field` repeated until the value is not zero. The test
+    /// trace records it as one draw of its own kind.
     pub fn nonzero<F: SupportsSampling>(&mut self, f: &F) -> F::E {
+        #[cfg(test)]
+        self.trace.draw(super::trace::Draw::Nonzero);
         loop {
-            let x = self.elt_field(f);
+            let x = f.sample(|out| self.reader.read(out));
             if !f.is_zero(&x) {
                 break x;
             }
@@ -331,6 +334,8 @@ impl<'a> Reading<'a> {
             a.swap(i, j);
             out[i] = a[i];
         }
+        #[cfg(test)]
+        self.trace.indices(out);
     }
     fn nat(&mut self, n: usize) -> usize {
         assert!(n > 0);

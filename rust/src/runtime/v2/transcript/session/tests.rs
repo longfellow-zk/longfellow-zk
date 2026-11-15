@@ -677,3 +677,32 @@ impl Transcript {
         &self.strand.preimage
     }
 }
+
+/// A nonzero draw is traced as its own kind, so a role that draws a plain
+/// element where the other draws a nonzero one has another trace even when
+/// both read the same nonzero value; index draws record their values
+/// (transcript I9).
+#[test]
+fn nonzero_draws_and_index_values_are_traced() {
+    use super::super::trace::Draw;
+    let f = P256Field::new();
+    let mut plain = Transcript::for_test(b"draw kinds");
+    let mut nonzero = Transcript::for_test(b"draw kinds");
+    let x = plain.borrow().draw(|r| r.elt_field(&f));
+    let y = nonzero.borrow().draw(|r| r.nonzero(&f));
+    assert!(x == y && !f.is_zero(&x));
+    assert_eq!(
+        plain.trace.events.last(),
+        Some(&Event::Draws(Draw::Element, 1))
+    );
+    assert_eq!(
+        nonzero.trace.events.last(),
+        Some(&Event::Draws(Draw::Nonzero, 1))
+    );
+    assert_ne!(plain.trace, nonzero.trace);
+    let (mut out, mut scratch) = ([0; 3], [0; 10]);
+    plain
+        .borrow()
+        .draw(|r| r.choose(&mut out, 10, &mut scratch));
+    assert_eq!(plain.trace.indices, [out.to_vec()]);
+}

@@ -50,7 +50,7 @@ use crate::{
         },
         random::DeterministicRng,
         v2::{
-            proto::polygero::PolygeroConfig,
+            proto::polygero::{FieldProof, PolygeroConfig},
             transcript::{Opened, Transcript},
         },
     },
@@ -211,21 +211,30 @@ fn exercise<
         let read = ZkProof::read(&longer, &session.bound(&vs.geometry), f);
         assert!(read.is_err(), "{extra} extra bytes");
     }
-    // The proof is exactly the length its geometry and frontier determine.
-    let opening = decoded.com_proof.authentication_bytes();
+    // The proof is exactly the length its geometry and the drawn columns
+    // determine (transcript I11). Every field but the Merkle frontier has a
+    // length the geometry fixes; the frontier's follows from the column
+    // indices the transcript drew, counted here independently of either role.
+    let width = f.serialized_size_bytes();
+    let [response, rows] =
+        FieldProof::<()>::wire_lengths(&prover_geometry.polygero(), width).unwrap();
+    let [columns] = &encoded_proof.trace.indices[..] else {
+        panic!("one column draw")
+    };
+    assert_eq!(columns.len(), config.t);
     assert_eq!(
         bytes.len(),
         4 + 32
-            + 2 * f.serialized_size_bytes()
-            + prover_geometry
-                .circuit()
-                .proof_len(f.serialized_size_bytes())
-                .unwrap()
-            + decoded.com_proof.bodies.0.payload_bytes(f)
-            + opening.0
-            + opening.1
+            + 2 * width
+            + prover_geometry.circuit().proof_len(width).unwrap()
+            + response
+            + rows
+            + 32 * config.t
+            + 8
+            + 32 * frontier_len(config.n, columns)
             + 32
     );
+    let opening = decoded.com_proof.authentication_bytes();
     super::super::proto::tests::check_trace_matches_wire(
         &encoded_proof.trace,
         &bytes,
@@ -547,4 +556,21 @@ pub(super) fn read_standalone<
     let proof =
         ZkProof::read(bytes, &t.bound(&statement.geometry), f).map_err(|e| e.to_string())?;
     Ok((*proof).clone())
+}
+
+/// Digests in a Merkle multi-opening of `columns` among the `n` leaves of the
+/// heap tree (leaf `j` at node `n + j`): one per internal node on an opened
+/// path with exactly one child on one.
+fn frontier_len(n: usize, columns: &[usize]) -> usize {
+    let mut on_path = vec![false; 2 * n];
+    for &j in columns {
+        let mut i = n + j;
+        while i > 0 && !on_path[i] {
+            on_path[i] = true;
+            i /= 2;
+        }
+    }
+    (1..n)
+        .filter(|&i| on_path[i] && on_path[2 * i] != on_path[2 * i + 1])
+        .count()
 }

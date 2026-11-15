@@ -143,8 +143,9 @@ derivations, checked by the role-trace test.
 
 **I9. Prover and verifier run one schedule.** The send and draw sequence
 lives in shared code called by both roles. A test records the trace of tags
-and draw kinds in each role and asserts that they are equal, and the boundary
-count is checked against Lean.
+and draw kinds in each role (bytes, elements, nonzero elements and indices,
+each its own kind, with the index values) and asserts that they are equal,
+and the boundary count is checked against Lean.
 *Enforced by:* the role-trace test; `check_mdoc_round_shapes`.
 
 **I10. Every proof ends in the seal.** The last node holds the Seal message
@@ -156,7 +157,8 @@ block is appended to the proof, and complete verification requires it.
 outermost layer (`MDA7` for mdoc). The proof contains no nested magic and no
 setup constants.
 *Enforced by:* a test that the proof length equals the length the geometry and
-the drawn column indices determine.
+the drawn column indices determine, the frontier counted from the indices
+independently of either role (the standalone test in `zk/tests.rs`).
 
 ## Byte grammar
 
