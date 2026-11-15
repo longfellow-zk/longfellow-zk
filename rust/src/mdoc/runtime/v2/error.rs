@@ -14,60 +14,32 @@
 
 //! Longfellow v2 application error.
 
-// Return codes for the run_mdoc_prover method.
+// Return codes for the run_mdoc_prover method. Each value is the C library's
+// code; the codes v2 never returns have no variant.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MdocProverErrorCode {
-    Success = 0,
-    NullInput = 1,
     InvalidInput = 2,
     CircuitParsingFailure = 3,
     HashParsingFailure = 4,
     WitnessCreationFailure = 5,
     GeneralFailure = 6,
-    MemoryAllocationFailure = 7,
     InvalidZkSpecVersion = 8,
-    RootDecodingFailure = 9,
-    DocumentsMissing = 10,
-    Document0Missing = 11,
-    DocTypeMissing = 12,
-    IssuerSignedMissing = 13,
-    IssuerAuthMissing = 14,
-    MsoMissing = 15,
-    NsigMissing = 16,
     NamespacesMissing = 17,
-    DeviceSignedMissing = 18,
-    DeviceAuthMissing = 19,
-    DeviceSignatureMissing = 20,
-    DeviceKeyMissing = 21,
     MsoDecodingFailure = 22,
-    ValidityInfoMissing = 23,
-    DeviceKeyInfoMissing = 24,
-    AttributeDecodeFailure = 25,
-    AttributeEiMissing = 26,
-    AttributeEvMissing = 27,
-    AttributeDidMissing = 28,
-    SignatureFailure = 29,
-    DeviceSignatureFailure = 30,
     AttributeNotFound = 31,
     AttributeTooLong = 32,
     TaggedMsoTooBig = 33,
-    VersionNotSupported = 34,
-    AttributeRandomMissing = 35,
     UnsupportedAttribute = 36,
 }
 
-// Return codes for the run_mdoc_verifier method.
+// Return codes for the run_mdoc_verifier method, likewise the C library's
+// codes without the ones v2 never returns.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MdocVerifierErrorCode {
-    Success = 0,
     CircuitParsingFailure = 1,
-    ProofTooSmall = 2,
     HashParsingFailure = 3,
-    SignatureParsingFailure = 4,
     GeneralFailure = 5,
-    NullInput = 6,
     InvalidInput = 7,
-    ArgumentsTooSmall = 8,
     AttributeNumberMismatch = 9,
     InvalidZkSpecVersion = 10,
     UnsupportedAttribute = 11,
