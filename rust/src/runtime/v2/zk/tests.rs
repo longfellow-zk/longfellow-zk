@@ -415,6 +415,9 @@ fn binary_zk_comparison() {
     for (i, node) in trace.nodes.iter().enumerate() {
         text += &node_vector("standalone", i, node);
     }
+    // The standalone statement opens with ZkStatement, the one tag an mdoc
+    // proof does not use.
+    assert_eq!(trace.messages().next().unwrap().tag, 17);
     export_vectors(&text);
     let all: Vec<u8> = trace.nodes.concat();
     assert_eq!(

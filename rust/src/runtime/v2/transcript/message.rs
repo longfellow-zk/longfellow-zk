@@ -20,13 +20,16 @@
 use super::strand::Strand;
 #[cfg(test)]
 use crate::core::algebra::FieldID;
-use crate::{core::algebra::RegisteredField, runtime::v2::proto::tags::Tag};
+use crate::{
+    core::algebra::RegisteredField,
+    runtime::v2::proto::tags::{Kind, Tag},
+};
 
-/// Value kinds of the byte grammar.
-const BYTES: u64 = 0;
-const NATS: u64 = 1;
-const ELEMENTS: u64 = 2;
-const BITS: u64 = 3;
+/// Value kinds of the byte grammar, from the registry (`proto::tags::Kind`).
+const BYTES: u64 = Kind::Bytes.value();
+const NATS: u64 = Kind::Nats.value();
+const ELEMENTS: u64 = Kind::Elements.value();
+const BITS: u64 = Kind::Bits.value();
 
 /// The registered fields: each FieldID an Elements value may carry, with the
 /// width of its canonical serialization and its name. With this table and
@@ -44,8 +47,8 @@ pub(crate) const REGISTERED_FIELDS: [(FieldID, usize, &str); 2] = [
 const STAGE_BYTES: usize = 512;
 
 /// A transcript message: a tag with a fixed schema, and its values. The
-/// schema of each tag is documented next to it in `proto::tags` and next to
-/// each implementation.
+/// schema of each tag is `Tag::schema` in `proto::tags`, the one table both
+/// the tests and the decoders read; `encode` must write exactly its values.
 pub trait Message {
     const TAG: Tag;
     /// Write the values, in schema order. Each call to the encoder writes

@@ -1354,6 +1354,17 @@ fn check_mdoc_trace(
     // joint geometry and two public input vectors; then the commitment.
     let tags: Vec<u64> = trace.messages().take(11).map(|m| m.tag).collect();
     assert_eq!(tags, [16, 18, 18, 18, 19, 19, 22, 20, 21, 21, 32]);
+    // Every registered tag but the standalone identity occurs in an mdoc
+    // proof, so the trace check above holds every schema but ZkStatement's
+    // to its messages; the standalone proof tests check that one.
+    use crate::runtime::v2::proto::tags::Tag;
+    let seen: std::collections::BTreeSet<u64> = trace.messages().map(|m| m.tag).collect();
+    let registered: std::collections::BTreeSet<u64> = Tag::ALL
+        .into_iter()
+        .filter(|&t| t != Tag::ZkStatement)
+        .map(Tag::value)
+        .collect();
+    assert_eq!(seen, registered);
     let public: Vec<_> = trace
         .messages()
         .skip(8)

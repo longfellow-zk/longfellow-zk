@@ -18,7 +18,10 @@ use crate::{
     core::algebra::AlgebraicField,
     runtime::{
         algebra::p256::P256Field,
-        v2::proto::sumcheck::{RoundPoly, SumcheckProof, SumcheckProofGeometry},
+        v2::proto::{
+            sumcheck::{RoundPoly, SumcheckProof, SumcheckProofGeometry},
+            tags::{Kind, Tag},
+        },
     },
 };
 
@@ -195,37 +198,6 @@ mod readers;
 
 pub(super) mod fixtures;
 
-/// Value kinds of the transcript grammar.
-const B: u64 = 0;
-const N: u64 = 1;
-const E: u64 = 2;
-const BITS: u64 = 3;
-/// The registry's schema of every tag: its value kinds, and the counts the
-/// schema fixes (`None` where the geometry sets the count).
-fn schema(tag: u64) -> &'static [(u64, Option<u64>)] {
-    match tag {
-        16 => &[(B, None), (B, None), (B, Some(32)), (N, Some(2))],
-        17 => &[(B, None), (B, None)],
-        18 => &[(B, Some(32))],
-        19 => &[(N, Some(4)), (B, None), (N, None), (N, None), (N, Some(2))],
-        20 => &[(N, Some(4))],
-        21 => &[(E, None)],
-        22 => &[(B, None), (N, Some(3)), (N, None)],
-        32 => &[(B, Some(32))],
-        33 => &[(E, Some(2))],
-        48 => &[(E, Some(2))],
-        49 => &[(E, Some(1))],
-        50 => &[(E, Some(2))],
-        64 => &[(E, Some(1))],
-        65 => &[(BITS, None), (BITS, None)],
-        80 => &[(E, None)],
-        81 => &[(E, Some(1))],
-        96 => &[(E, None), (E, None)],
-        112 => &[(B, None)],
-        _ => panic!("tag {tag} is not in the registry"),
-    }
-}
-
 /// Check a complete proof's trace against the registry and its wire bytes:
 /// every message has its tag's schema and each tag keeps one exact list of
 /// value counts where the geometry is fixed per field (transcript I6); the
@@ -243,14 +215,9 @@ pub(crate) fn check_trace_matches_wire(
     let mut prover = false;
     let messages: Vec<_> = trace.messages().collect();
     for m in &messages {
-        let expected = schema(m.tag);
-        assert_eq!(m.schema.len(), expected.len(), "tag {} arity", m.tag);
-        for (&(kind, count), &(want, fixed)) in m.schema.iter().zip(expected) {
-            assert_eq!(kind, want, "tag {} kind", m.tag);
-            if let Some(want_count) = fixed {
-                assert_eq!(count, want_count, "tag {} count", m.tag);
-            }
-        }
+        let tag =
+            Tag::from_value(m.tag).unwrap_or_else(|| panic!("tag {} is not registered", m.tag));
+        assert!(tag.admits(&m.schema), "{tag:?} values {:?}", m.schema);
         match m.tag {
             16..=31 => assert!(
                 !prover,
@@ -277,31 +244,6 @@ pub(crate) fn check_trace_matches_wire(
         1,
         "one seal"
     );
-}
-
-/// The registry name of a tag, for decoded vectors.
-fn tag_name(tag: u64) -> &'static str {
-    match tag {
-        16 => "MdocStatement",
-        17 => "ZkStatement",
-        18 => "Circuit",
-        19 => "CommitmentLayout",
-        20 => "JointGeometry",
-        21 => "PublicInputs",
-        22 => "AdapterLayout",
-        32 => "Commitment",
-        33 => "FingerprintResponse",
-        48 => "SumcheckRound",
-        49 => "SumcheckCross",
-        50 => "SumcheckClaims",
-        64 => "SplitOpening",
-        65 => "P256AdapterQuotients",
-        80 => "PackingU",
-        81 => "PackingA",
-        96 => "PolygeroResponse",
-        112 => "Seal",
-        _ => panic!("tag {tag} is not in the registry"),
-    }
 }
 
 /// Decode one strand node's SHA-256 preimage with the transcript grammar and
@@ -344,12 +286,13 @@ pub(crate) fn describe_node(node: &[u8]) -> String {
             writeln!(out, "terminator: u64 {word} = {end}").unwrap();
             break;
         }
-        writeln!(out, "message: u64 tag={word} {}", tag_name(word)).unwrap();
-        for (i, &(want, _)) in schema(word).iter().enumerate() {
+        let tag = Tag::from_value(word).unwrap_or_else(|| panic!("tag {word} is not registered"));
+        writeln!(out, "message: u64 tag={word} {tag:?}").unwrap();
+        for (i, &(want, _)) in tag.schema().iter().enumerate() {
             let k = u64_at(take(8));
-            assert_eq!(k, want, "tag {word} value {i} kind");
-            match k {
-                B => {
+            assert_eq!(k, want.value(), "{tag:?} value {i} kind");
+            match want {
+                Kind::Bytes => {
                     let n = u64_at(take(8)) as usize;
                     writeln!(
                         out,
@@ -358,7 +301,7 @@ pub(crate) fn describe_node(node: &[u8]) -> String {
                     )
                     .unwrap();
                 }
-                N => {
+                Kind::Nats => {
                     let n = u64_at(take(8)) as usize;
                     let xs: Vec<String> = (0..n).map(|_| u64_at(take(8)).to_string()).collect();
                     writeln!(
@@ -368,7 +311,7 @@ pub(crate) fn describe_node(node: &[u8]) -> String {
                     )
                     .unwrap();
                 }
-                E => {
+                Kind::Elements => {
                     let field = u64_at(take(8));
                     let n = u64_at(take(8)) as usize;
                     let &(_, width, name) = crate::runtime::v2::transcript::REGISTERED_FIELDS
@@ -383,7 +326,7 @@ pub(crate) fn describe_node(node: &[u8]) -> String {
                     )
                     .unwrap();
                 }
-                BITS => {
+                Kind::Bits => {
                     let n = u64_at(take(8)) as usize;
                     writeln!(
                         out,
@@ -392,7 +335,6 @@ pub(crate) fn describe_node(node: &[u8]) -> String {
                     )
                     .unwrap();
                 }
-                _ => unreachable!(),
             }
         }
     }
