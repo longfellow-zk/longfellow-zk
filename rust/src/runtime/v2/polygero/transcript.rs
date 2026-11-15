@@ -82,10 +82,10 @@ pub(super) fn challenges<F: SupportsSampling + SerializableField>(
     // Evaluation on any distinct s+1 points is a bijection on degree-at-most-s
     // polynomials, so oracle-prefix samples give the same uniform challenge.
 
-    let alpha = ts.elt_field_slice(nconstraints, f);
+    let alpha = ts.elements(f, nconstraints).collect();
     let batching_samples = param
         .batched_rows()
-        .map(|_| ts.elt_field_slice(param.geom.s + 1, f))
+        .map(|_| ts.elements(f, param.geom.s + 1).collect())
         .collect();
     FieldChallenges {
         alpha,
@@ -139,7 +139,8 @@ impl<L: Participants> JointPolygeroParam<L> {
         self.participants.send_responses(b, t);
         t.draw(|r| {
             let mut indices = vec![0; self.config.t];
-            r.choose(&mut indices, self.config.n, self.config.t);
+            let mut scratch = vec![0; self.config.n];
+            r.choose(&mut indices, self.config.n, &mut scratch);
             indices
         })
     }

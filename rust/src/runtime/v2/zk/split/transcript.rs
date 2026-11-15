@@ -49,14 +49,7 @@ pub fn eta<const W: usize, F: RuntimeField<W> + SupportsSampling, P: ?Sized>(
     t: &mut Bound<'_, P>,
     f: &F,
 ) -> Challenge<Eta<F::E>> {
-    t.challenge(|r| {
-        Eta(loop {
-            let x = r.elt_field(f);
-            if !f.is_zero(&x) {
-                break x;
-            }
-        })
-    })
+    t.challenge(|r| Eta(r.nonzero(f)))
 }
 
 /// `count` pure-foreign row weights (`SplitClaim::row_weight_count`), drawn
@@ -69,7 +62,7 @@ pub fn row_weights<F: SupportsSampling, P: ?Sized>(
     count: usize,
     f: &F,
 ) -> Challenge<RowWeights<F::E>> {
-    t.challenge(|r| RowWeights(r.elt_field_slice(count, f)))
+    t.challenge(|r| RowWeights(r.elements(f, count).collect()))
 }
 
 /// Send the split message before any adapter challenge. The split's derived

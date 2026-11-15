@@ -265,32 +265,61 @@ impl TranscriptRef<'_> {
         self.session.draw(f)
     }
 }
+/// The draw kinds. None allocates: an element is sampled into the field's
+/// own buffer, `elements` yields its values to the caller, and `choose`
+/// works in the caller's storage.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-impl Reading<'_> {
-    pub fn bytes(&mut self, n: usize) -> Vec<u8> {
+impl<'a> Reading<'a> {
+    /// The next `n` bytes of the stream, for tests that check the stream
+    /// itself.
+    #[cfg(test)]
+    pub(crate) fn bytes(&mut self, n: usize) -> Vec<u8> {
         let mut bytes = vec![0; n];
         self.fill(&mut bytes);
         bytes
     }
     /// Fill `out` with the next bytes of the stream.
-    pub fn fill(&mut self, out: &mut [u8]) {
-        #[cfg(test)]
+    #[cfg(test)]
+    pub(crate) fn fill(&mut self, out: &mut [u8]) {
         self.trace.draw(super::trace::Draw::Bytes);
         self.reader.read(out);
     }
+    /// element: one element of `f`. A prime field reads its sample byte
+    /// count, masks the top byte and rejects values at or above the modulus.
     pub fn elt_field<F: SupportsSampling>(&mut self, f: &F) -> F::E {
         #[cfg(test)]
         self.trace.draw(super::trace::Draw::Element);
         f.sample(|out| self.reader.read(out))
     }
-    pub fn elt_field_slice<F: SupportsSampling>(&mut self, n: usize, f: &F) -> Vec<F::E> {
-        (0..n).map(|_| self.elt_field(f)).collect()
+    /// nonzero: `elt_field` repeated until the value is not zero.
+    pub fn nonzero<F: SupportsSampling>(&mut self, f: &F) -> F::E {
+        loop {
+            let x = self.elt_field(f);
+            if !f.is_zero(&x) {
+                break x;
+            }
+        }
     }
-    pub fn choose(&mut self, out: &mut [usize], n: usize, k: usize) {
-        assert!(n >= k && out.len() >= k);
+    /// elements: `n` independent elements of `f`, in order, read as the
+    /// caller takes them.
+    pub fn elements<'r, F: SupportsSampling>(
+        &'r mut self,
+        f: &'r F,
+        n: usize,
+    ) -> impl Iterator<Item = F::E> + use<'r, 'a, F> {
+        (0..n).map(move |_| self.elt_field(f))
+    }
+    /// indices: `out.len()` distinct indices out of `0..n` by Fisher-Yates
+    /// with masked rejection, in `scratch` (at least `n` entries, overwritten).
+    pub fn choose(&mut self, out: &mut [usize], n: usize, scratch: &mut [usize]) {
+        let k = out.len();
+        assert!(n >= k && scratch.len() >= n);
         #[cfg(test)]
         self.trace.draw(super::trace::Draw::Indices);
-        let mut a: Vec<_> = (0..n).collect();
+        let a = &mut scratch[..n];
+        for (i, x) in a.iter_mut().enumerate() {
+            *x = i;
+        }
         for i in 0..k {
             let j = i + self.nat(n - i);
             a.swap(i, j);

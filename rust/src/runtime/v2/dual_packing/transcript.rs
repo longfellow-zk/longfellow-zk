@@ -52,7 +52,7 @@ where
     X::Ambient: SerializableField,
 {
     ts.send(&UMessage { f: p.field(), u });
-    ts.draw(|r| (0..p.degree()).map(|_| r.elt_field(p.field())).collect())
+    ts.draw(|r| r.elements(p.field(), p.degree()).collect())
 }
 /// Send A. It may depend on delta, but it must be fixed before the backend
 /// draws the challenges that authenticate the two resulting linear equations.

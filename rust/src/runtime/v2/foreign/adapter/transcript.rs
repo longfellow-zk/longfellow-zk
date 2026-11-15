@@ -2,19 +2,16 @@
 //! Transcript steps of the P-256 adapter: the conversion challenges and the
 //! masked quotients. The statement fixes the adapter's layout
 //! (`AdapterLayout`); derived leaf coefficients are never absorbed.
-use crate::{
-    core::algebra::AlgebraicField,
-    runtime::{
-        algebra::p256::{P256Element, P256Field},
-        v2::{
-            foreign::word::MaskedWord,
-            proto::tags::Tag,
-            transcript::{
-                Bound, Challenge, Encoder, Header, Message, ProverMessage, Reading, SetupMessage,
-                TranscriptRef,
-            },
-            zk::storage::Group,
+use crate::runtime::{
+    algebra::p256::{P256Element, P256Field},
+    v2::{
+        foreign::word::MaskedWord,
+        proto::tags::Tag,
+        transcript::{
+            Bound, Challenge, Encoder, Header, Message, ProverMessage, Reading, SetupMessage,
+            TranscriptRef,
         },
+        zk::storage::Group,
     },
 };
 
@@ -41,12 +38,7 @@ impl<const Q: usize> Message for QuotientsMessage<'_, Q> {
 impl<const Q: usize> ProverMessage for QuotientsMessage<'_, Q> {}
 
 fn draw_pair(r: &mut Reading<'_>, p: &P256Field) -> [P256Element; 2] {
-    std::array::from_fn(|_| loop {
-        let a = r.elt_field(p);
-        if !p.is_zero(&a) {
-            break a;
-        }
-    })
+    std::array::from_fn(|_| r.nonzero(p))
 }
 
 /// Two independent nonzero full-field conversion challenges. Wrapping mode

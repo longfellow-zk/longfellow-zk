@@ -44,7 +44,7 @@ pub(super) fn field_coefficients<
 ) -> [Vec<F::E>; FINGERPRINTS] {
     // Uniform, independent coordinates, not powers of one challenge. Prime
     // field rejections consume the same reader as all subsequent coordinates.
-    std::array::from_fn(|_| r.elt_field_slice(field.cells, field.f))
+    std::array::from_fn(|_| r.elements(field.f, field.cells).collect())
 }
 
 pub(super) fn send_field_response<

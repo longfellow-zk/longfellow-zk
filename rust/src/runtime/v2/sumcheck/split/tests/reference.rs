@@ -153,8 +153,8 @@ pub(in super::super) fn prove_core<
     // layer's assertion weights extend the preceding combine answer, after
     // alpha.
     let (mut a, mut rho) = t.borrow().draw(|r| {
-        let a = r.elt_field_slice(circuit.raw.noutput, f);
-        let rho = r.elt_field_slice(assertions(0), f);
+        let a = r.elements(f, circuit.raw.noutput).collect::<Vec<_>>();
+        let rho = r.elements(f, assertions(0)).collect::<Vec<_>>();
         (a, rho)
     });
     let mut claim = f.zero();
@@ -169,7 +169,7 @@ pub(in super::super) fn prove_core<
         let claim0 = f.subf(&claim, &constant);
         let (proof, mut c, mut next) =
             prover::prove_dot_product(w, q, &pads.layers[index], claim0, &mut t.borrow(), f, |r| {
-                next_rho = r.elt_field_slice(assertions(index + 1), f)
+                next_rho = r.elements(f, assertions(index + 1)).collect::<Vec<_>>()
             });
         let (weights, linear) =
             weights_next_affine(layer, constants, &a, &rho, &c.point_l, &c.alpha, f);

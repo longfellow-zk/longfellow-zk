@@ -47,7 +47,9 @@ fn sample_assertions<
     // One fragment: its quadratic markers, then its linear markers.
     let n = layer.assertion_counts().iter().sum();
     transcript.send_for_test(&(stage as u64).to_le_bytes());
-    let rho = transcript.borrow().draw(|r| r.elt_field_slice(n, f));
+    let rho = transcript
+        .borrow()
+        .draw(|r| r.elements(f, n).collect::<Vec<_>>());
     (layer, rho)
 }
 
@@ -133,7 +135,9 @@ fn check_repeated_output<
     // Repeated output indices still receive independent replacement coefficients.
     let mut expected = transcript.fork_for_test();
     expected.send_for_test(&1u64.to_le_bytes());
-    let expected_rho = expected.borrow().draw(|r| r.elt_field_slice(2, f));
+    let expected_rho = expected
+        .borrow()
+        .draw(|r| r.elements(f, 2).collect::<Vec<_>>());
     let (repeated_output, rho) = sample_assertions(repeated_output, 1, &mut transcript, f);
     assert_eq!(rho, expected_rho);
     assert_eq!(transcript.bytes(32), expected.bytes(32));
@@ -240,7 +244,9 @@ fn check_output_sampling<
         let top = top_weights(&[&circuit], &mut actual.borrow(), f).unwrap();
         let weights = actual.borrow().accept(top).unwrap().outputs().to_vec();
         let mut expected = Transcript::for_test(b"v2-output-challenges");
-        let expected_weights = expected.borrow().draw(|r| r.elt_field_slice(noutput, f));
+        let expected_weights = expected
+            .borrow()
+            .draw(|r| r.elements(f, noutput).collect::<Vec<_>>());
         assert_eq!(weights, expected_weights);
         assert_eq!(actual.bytes(32), expected.bytes(32), "logv={logv}");
     }

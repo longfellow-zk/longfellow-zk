@@ -65,7 +65,7 @@ fn batching_uses_widths_instead_of_cached_logw() {
         let draw = |rows: Rows<_>, t: &mut Transcript| {
             let rho = t
                 .borrow()
-                .draw(|r| r.elt_field_slice(rows.0 .1.len() + 1, &f));
+                .draw(|r| r.elements(&f, rows.0 .1.len() + 1).collect::<Vec<_>>());
             batch(rows, &rho, &f).unwrap()
         };
         let claim = draw(rows(&circuit, &public, constraints, &f).unwrap(), &mut tp);

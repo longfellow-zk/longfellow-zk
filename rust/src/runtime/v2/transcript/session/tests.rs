@@ -502,6 +502,50 @@ fn power_of_two_indices_consume_only_the_required_bytes() {
         assert_eq!(actual.round_count_for_test(), 1);
     }
 }
+/// `nonzero` and `elements` read exactly what repeated `elt_field` reads,
+/// and `choose` is Fisher-Yates in the caller's scratch, whatever the
+/// scratch held.
+#[test]
+fn draw_kinds_match_their_element_and_index_definitions() {
+    use crate::runtime::algebra::{fp_generic::FpGenericField, limb::LIMBS_PER_U64};
+    let f = FpGenericField::<1, { LIMBS_PER_U64 }, { 3 * LIMBS_PER_U64 }, ()>::new_generic([3]);
+    let mut actual = Transcript::for_test(b"draw kinds");
+    let mut reference = actual.fork_for_test();
+    let drawn = actual.draw(|r| {
+        let nonzero: Vec<_> = (0..16).map(|_| r.nonzero(&f)).collect();
+        let elements: Vec<_> = r.elements(&f, 16).collect();
+        let mut indices = [0; 5];
+        let mut scratch = [usize::MAX; 12];
+        r.choose(&mut indices, 9, &mut scratch);
+        (nonzero, elements, indices)
+    });
+    let expected = reference.draw(|r| {
+        let nonzero: Vec<_> = (0..16)
+            .map(|_| loop {
+                let x = r.elt_field(&f);
+                if !f.is_zero(&x) {
+                    break x;
+                }
+            })
+            .collect();
+        let elements: Vec<_> = (0..16).map(|_| r.elt_field(&f)).collect();
+        let mut a: Vec<usize> = (0..9).collect();
+        let mut indices = [0; 5];
+        for (i, out) in indices.iter_mut().enumerate() {
+            a.swap(i, i + r.nat(9 - i));
+            *out = a[i];
+        }
+        (nonzero, elements, indices)
+    });
+    assert_eq!(drawn, expected);
+    assert!(expected.0.iter().all(|x| !f.is_zero(x)));
+    let mut distinct = expected.2.to_vec();
+    distinct.sort();
+    distinct.dedup();
+    assert_eq!(distinct.len(), 5);
+    assert_eq!(actual.bytes(32), reference.bytes(32));
+}
+
 #[test]
 fn index_rejection_matches_the_same_prf_stream() {
     let mut saw_rejection = false;

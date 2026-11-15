@@ -209,3 +209,35 @@ impl Message for Ones {
     }
 }
 ```
+
+A stream is read only by the four allocation-free draw kinds: `elt_field`,
+`nonzero`, `elements` (yielded to the caller) and `choose` (in the caller's
+scratch). Raw bytes and allocating vectors are test-only:
+
+```compile_fail,E0599
+use longfellow_zk::runtime::v2::transcript::Reading;
+fn bad(r: &mut Reading<'_>) -> Vec<u8> { r.bytes(16) }
+```
+
+```compile_fail,E0599
+use longfellow_zk::runtime::v2::transcript::Reading;
+fn bad(r: &mut Reading<'_>, out: &mut [u8]) { r.fill(out) }
+```
+
+```compile_fail,E0599
+use longfellow_zk::runtime::{algebra::p256::P256Field, v2::transcript::Reading};
+fn bad(r: &mut Reading<'_>, f: &P256Field) { let _ = r.elt_field_slice(3, f); }
+```
+
+Positive control: the four draw kinds.
+
+```
+use longfellow_zk::runtime::{algebra::p256::P256Field, v2::transcript::Reading};
+fn draws(r: &mut Reading<'_>, f: &P256Field) {
+    let _ = r.elt_field(f);
+    let _ = r.nonzero(f);
+    let _: Vec<_> = r.elements(f, 3).collect();
+    let (mut out, mut scratch) = ([0; 2], [0; 8]);
+    r.choose(&mut out, 8, &mut scratch);
+}
+```

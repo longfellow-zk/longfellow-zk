@@ -127,12 +127,7 @@ pub(super) fn terminal_challenge<F: RegisteredField + SupportsSampling>(
     f: &F,
 ) -> F::E {
     transcript.send(&CrossMessage { f, cross });
-    transcript.draw(|r| loop {
-        let x = r.elt_field(f);
-        if !f.is_zero(&x) {
-            break x;
-        }
-    })
+    transcript.draw(|r| r.nonzero(f))
 }
 
 /// The coefficients a stage draws as it enters: one per circuit output that
