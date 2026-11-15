@@ -415,7 +415,7 @@ fn binary_zk_comparison() {
     let all: Vec<u8> = trace.nodes.concat();
     assert_eq!(
         hex::encode(<sha2::Sha256 as sha2::Digest>::digest(&all)),
-        "603d0edcc9cc520d552079535b92cbdad04970ab07a5b0c290b571c3a55d02df"
+        "b21022c9aa67a38ab43c5b9da418b71dc1ef1fcc75d1290892535b4c7faf4fd6"
     );
 }
 #[test]

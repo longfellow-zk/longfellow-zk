@@ -207,7 +207,7 @@ fn schema(tag: u64) -> &'static [(u64, Option<u64>)] {
         16 => &[(B, None), (B, None), (B, Some(32)), (N, Some(2))],
         17 => &[(B, None), (B, None)],
         18 => &[(B, Some(32)), (N, None), (N, Some(3))],
-        19 => &[(N, Some(4)), (B, None), (N, None), (N, Some(2))],
+        19 => &[(N, Some(4)), (B, None), (N, None), (N, None), (N, Some(2))],
         20 => &[(N, Some(4))],
         21 => &[(E, None)],
         22 => &[(B, None), (N, Some(3)), (N, None)],

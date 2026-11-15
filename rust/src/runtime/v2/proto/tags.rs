@@ -23,8 +23,9 @@ pub enum Tag {
     /// input count, public input count).
     Circuit = 18,
     /// Nats(FieldID, committed private cells, pad cells, fingerprint mask
-    /// cells), Bytes packing descriptor, Nats(storage runs), Nats(mask
-    /// start, mask width).
+    /// cells), Bytes packing descriptor, Nats(native runs as (first, count,
+    /// cell) triples), Nats(bit-stored runs as (first, count, start, width)
+    /// quadruples), Nats(mask start, mask width).
     CommitmentLayout = 19,
     /// Nats(k, s, n, t): the proof's one Polygero profile.
     JointGeometry = 20,

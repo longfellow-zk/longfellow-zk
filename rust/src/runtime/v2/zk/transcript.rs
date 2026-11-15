@@ -49,9 +49,12 @@ impl<F: SerializableField> SetupMessage for CircuitMessage<'_, F> {}
 ///   participant, the native ones of a split participant. A participant that commits nothing (pure
 ///   foreign storage) has zeros.
 /// - Bytes: the packing descriptor (field, embedding, degree and basis).
-/// - Nats: the storage runs of a split participant, flattened as `0, first value, count, first
-///   cell` for a native run and `1, first value, count, first bit, bits per value` for a run of
-///   values stored as bits of the binary commitment; empty for a native participant.
+/// - Nats: the native storage runs of a split participant, consecutive `(first value, count, first
+///   cell)` triples.
+/// - Nats: its runs of values stored as bits of the binary commitment, consecutive `(first value,
+///   count, first bit, bits per value)` quadruples.
+///
+///   Each list is in increasing first value; a native participant writes two empty lists.
 /// - Nats(mask start, mask width): the bits of the split mask R among the binary inputs (its native
 ///   cell follows every native value); (0, 0) without one.
 ///
@@ -78,24 +81,27 @@ impl<const W: usize, F: ZkField<W> + PackingField> Message for LayoutMessage<'_,
             masks as u64,
         ]);
         e.bytes(&p.backend.parameters.descriptor());
-        let mut runs = Vec::new();
+        let (mut native, mut stored) = (Vec::new(), Vec::new());
         let mut mask = Group::EMPTY;
         if let Some(split) = &p.storage {
+            // `runs` is in value order, so each list is in increasing first value.
             for run in split.map.runs() {
                 match run {
-                    Run::Native { first, count, cell } => runs.extend([0, first, count, cell]),
+                    Run::Native { first, count, cell } => {
+                        native.extend([first, count, cell].map(|x| x as u64))
+                    }
                     Run::Prime {
                         first,
                         count,
                         start,
                         width,
-                    } => runs.extend([1, first, count, start, width]),
+                    } => stored.extend([first, count, start, width].map(|x| x as u64)),
                 }
             }
             mask = split.mask.unwrap_or(Group::EMPTY);
         }
-        let flat: Vec<u64> = runs.into_iter().map(|x| x as u64).collect();
-        e.nats(&flat);
+        e.nats(&native);
+        e.nats(&stored);
         e.nats(&[mask.start() as u64, mask.width() as u64]);
     }
 }
