@@ -173,6 +173,8 @@ mod sealed {
 pub trait Participants: sealed::Sealed {
     type Witnesses;
     type Statements;
+    /// The prover's encoded rows between commitment and opening.
+    #[cfg(any(test, feature = "prover"))]
     type States;
     type Bodies;
     type Challenges;
@@ -207,7 +209,7 @@ pub trait Participants: sealed::Sealed {
     fn read_rows(&self, b: &mut Self::Bodies, bytes: &mut &[u8]) -> Result<(), PolygeroError>;
     #[cfg(any(test, feature = "prover"))]
     fn validate_witnesses(&self, w: &Self::Witnesses) -> Result<(), PolygeroError>;
-    /// Check that encoded rows have this list's row counts and widths.
+    /// Check that every field's rows were encoded for this list's geometry.
     #[cfg(any(test, feature = "prover"))]
     fn validate_states(&self, w: &Self::States) -> Result<(), PolygeroError>;
     #[cfg(any(test, feature = "prover"))]
@@ -233,6 +235,7 @@ pub trait Participants: sealed::Sealed {
 impl Participants for () {
     type Witnesses = ();
     type Statements = ();
+    #[cfg(any(test, feature = "prover"))]
     type States = ();
     type Bodies = ();
     type Challenges = ();

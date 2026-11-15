@@ -269,7 +269,7 @@ fn forged_linear_witness_is_rejected_even_with_a_genuine_opening() {
     .unwrap();
     let g = param.participants.0.param.geom;
     let z = 2; // First ordinary data row; every row is sent and authenticated.
-    for x in &mut prover.states.0[z] {
+    for x in &mut prover.states.0.rows[z] {
         f.add(x, &f.one());
     }
     prover.oracle = ColumnOracle::new(g.n, &mut DeterministicRng::new(12), |j, h| {
@@ -532,4 +532,36 @@ fn batching_weights_are_accepted_only_at_their_boundary_and_shape() {
         .prove(&mut short.bound(&param), misfit)
         .expect_err("weights for another statement shape");
     assert_eq!(error.0, "batching weights do not fit the statement");
+}
+
+/// Rows encoded for one parameter do not open under another parameter of the
+/// same row count and width: the states record their full geometry.
+#[test]
+fn rows_open_only_under_the_geometry_they_were_encoded_for() {
+    let f = P256Field::new();
+    let d = ScalarInterpolatorFactory::new(&f, 128);
+    let c = PolygeroConfig {
+        k: 4,
+        s: 0,
+        n: 8,
+        t: 1,
+    };
+    let (one, w, _) = field(&f, &d, 1, c);
+    let (two, _, statement) = field(&f, &d, 2, c);
+    let (g1, g2) = (one.param.geom, two.param.geom);
+    assert_eq!((g1.nrow(), g1.n), (g2.nrow(), g2.n));
+    assert_ne!(g1, g2);
+    let committed = JointPolygeroParam::new((one, ())).unwrap();
+    let other = JointPolygeroParam::new((two, ())).unwrap();
+    let mut t = Transcript::for_test(b"joint/geometry");
+    let (prover, _) = JointPolygeroProver::commit(
+        &mut t.bound(&committed),
+        (w, ()),
+        &mut DeterministicRng::new(5),
+    )
+    .unwrap();
+    let error = prover
+        .prove_drawing(&mut t.bound(&other), &(statement, ()))
+        .expect_err("rows encoded for another geometry");
+    assert_eq!(error.0, "joint prover parameter mismatch");
 }

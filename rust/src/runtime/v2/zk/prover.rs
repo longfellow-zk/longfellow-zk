@@ -10,7 +10,7 @@ use crate::{
         },
         random::PrivateRandom,
         v2::{
-            polygero::LinearStatement,
+            polygero::{FieldState, LinearStatement},
             proto::{
                 polygero::{PolygeroCommitment, PolygeroConfig},
                 sumcheck::SumcheckProof,
@@ -155,7 +155,7 @@ pub struct ZkProverCommitment<'s, const W: usize, F: ZkField<W> + PackingField> 
     statement: &'s ZkProofStatement<'s, W, F>,
     state: CircuitState<W, F>,
     joint: JointProver<
-        (Vec<Vec<F::E>>, ()),
+        (FieldState<F::E>, ()),
         ([Vec<F::E>; FINGERPRINTS], ()),
         (FingerprintResponse<F::E>, ()),
     >,

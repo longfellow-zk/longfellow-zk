@@ -25,15 +25,21 @@ use crate::{
 /// Preserve private rows for independent polynomial/forgery checks after prove
 /// consumes its input. Duplication is confined to tests; production state is not Clone.
 pub(super) fn snapshot<E: Clone>(
-    prover: &JointPolygeroProver<(Vec<Vec<E>>, ())>,
+    prover: &JointPolygeroProver<(FieldState<E>, ())>,
     ts: &Transcript,
-) -> (JointPolygeroProver<(Vec<Vec<E>>, ())>, Transcript) {
+) -> (JointPolygeroProver<(FieldState<E>, ())>, Transcript) {
     // The copy completes on a copy of its session: a fork, whose stamp it takes.
     let mut fork = ts.fork_for_test();
     let session = fork.bound(&()).session();
     let copy = JointPolygeroProver {
         session,
-        states: prover.states.clone(),
+        states: (
+            FieldState {
+                geom: prover.states.0.geom,
+                rows: prover.states.0.rows.clone(),
+            },
+            (),
+        ),
         oracle: ColumnOracle {
             tree: prover.oracle.tree.clone(),
             salts: prover.oracle.salts.clone(),
@@ -50,7 +56,7 @@ pub(super) fn check_recommitted_wrong_witness<
     D: EvaluationDomain<W, F>,
 >(
     joint: &JointPolygeroParam<(Participant<'_, W, F, D>, ())>,
-    prover: &JointPolygeroProver<(Vec<Vec<F::E>>, ())>,
+    prover: &JointPolygeroProver<(FieldState<F::E>, ())>,
     b: &[F::E],
     a: &[PolygeroLinearTerm<F::E>],
     mut ts: Transcript,
@@ -58,7 +64,7 @@ pub(super) fn check_recommitted_wrong_witness<
 ) {
     let (mut forged, _) = snapshot(prover, &ts);
     let param = &joint.participants.0.param;
-    for value in &mut forged.states.0[param.data_start()] {
+    for value in &mut forged.states.0.rows[param.data_start()] {
         f.add(value, &f.one());
     }
     forged.oracle = ColumnOracle::new(param.geom.n, &mut DeterministicRng::new(97), |j, h| {
@@ -147,7 +153,7 @@ pub(super) fn check<
     D: crate::runtime::algebra::range_interpolation::EvaluationDomain<W, F>,
 >(
     joint: &JointPolygeroParam<(Participant<'_, W, F, D>, ())>,
-    prover: &JointPolygeroProver<(Vec<Vec<F::E>>, ())>,
+    prover: &JointPolygeroProver<(FieldState<F::E>, ())>,
     envelope: &JointPolygeroProof<(FieldProof<F::E>, ())>,
     b: &[F::E],
     a: &[PolygeroLinearTerm<F::E>],
@@ -171,6 +177,7 @@ pub(super) fn check<
     let rows: Vec<_> = prover
         .states
         .0
+        .rows
         .iter()
         .enumerate()
         .map(|(i, row)| {
@@ -239,7 +246,10 @@ pub(super) fn check<
     assert_eq!(proof.rows.len(), g.nrow() * g.t);
     for row in 0..g.nrow() {
         for (query, &index) in indices.iter().enumerate() {
-            assert_eq!(proof.rows[row * g.t + query], prover.states.0[row][index]);
+            assert_eq!(
+                proof.rows[row * g.t + query],
+                prover.states.0.rows[row][index]
+            );
         }
     }
     // Reopen genuine columns after changing the response: authentication must

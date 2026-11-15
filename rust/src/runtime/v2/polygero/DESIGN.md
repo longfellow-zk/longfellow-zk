@@ -322,7 +322,7 @@ impl<'a, const W: usize, F, D> Participant<'a, W, F, D> {
 }
 pub trait Participants: Sealed {                    // (), (Participant, Tail): I6
     type Witnesses; type Statements; type States; type Bodies; type Challenges;
-    ..
+    ..                                              // States: prover builds only
 }
 pub struct JointPolygeroParam<L: Participants> { /* participants, config */ }
 impl<L: Participants> JointPolygeroParam<L> {
@@ -341,6 +341,8 @@ impl<L: Participants> Batched<L> {
 pub struct LinearStatement<E> { /* a: Vec<PolygeroLinearTerm<E>>, b: Vec<E> */ }
 pub struct PolygeroLinearTerm<E> { pub c: usize, pub w: usize, pub k: E }
 
+// One field's encoded rows and the geometry they were encoded for (prover).
+pub struct FieldState<E> { /* geom: PolygeroGeometry, rows: Vec<Vec<E>> */ }
 pub struct JointPolygeroProver<S> { /* session stamp, states, column oracle; not Clone */ }
 impl<S> JointPolygeroProver<S> {
     pub fn commit<L: Participants<States = S>>(
@@ -391,9 +393,11 @@ layer, `JointProver::weights` and `JointVerifier::weights` do this for
 complete proofs. `commit` and `receive`
 record the session stamp of their `Bound`; `prove` and `reduce` reject a
 `Bound` with another stamp, so a prover or verifier state cannot be
-completed on another transcript. `prove` also checks that the encoded rows
-have the parameter's row count and width (`Participants::validate_states`),
-so opening with another parameter fails cleanly. In production
+completed on another transcript. Each field's prover state (`FieldState`)
+records the full `PolygeroGeometry` its rows were encoded for, and `prove`
+compares it with the parameter's (`Participants::validate_states`), so
+opening with another parameter fails cleanly, even one with the same row
+count and width (another `nw` can give the same rows). In production
 `LinearStatement` has no public constructor: frontends build it inside
 `runtime::v2` from their absorbed messages. `LinearStatement::new` exists
 only under `test`, `testonly` or `tooling`. So do the bare body codec
@@ -418,7 +422,7 @@ from their `Bound` part.
 | Two fields with different `n` or `t` in one tree | I1: `JointPolygeroParam::new` rejects them |
 | Parsing with a geometry other than the absorbed one | I2: the complete reader takes `Bound` |
 | Reusing a root under another geometry or participant order | the statement binds both before the root is sent (transcript I3) |
-| Opening a commitment with rows encoded for another parameter | `prove` checks the rows' count and width (`validate_states`) |
+| Opening a commitment with rows encoded for another parameter | `prove` compares the geometry each state recorded with the parameter's (`validate_states`) |
 | Opened values at the wrong column | Merkle I2: the leaf binds its column index |
 | Using an opened value before authentication | I5: Merkle check precedes field checks |
 | Mixing two fields' arithmetic | I6: typed tuples, one field per participant |

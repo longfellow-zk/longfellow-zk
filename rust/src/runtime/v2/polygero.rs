@@ -66,7 +66,7 @@ cfg_prover! { mod prover_commitment; }
 pub use joint::{
     Batched, FieldChallenges, JointPolygeroParam, LinearStatement, Participant, Participants,
 };
-cfg_prover! {mod prover; pub use prover::JointPolygeroProver;}
+cfg_prover! {mod prover; pub use prover::{FieldState, JointPolygeroProver};}
 cfg_verifier! {mod verifier; pub use verifier::JointPolygeroVerifier;}
 
 #[cfg(test)]

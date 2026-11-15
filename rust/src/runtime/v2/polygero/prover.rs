@@ -11,10 +11,18 @@ use crate::runtime::{
     },
     random::PrivateRandom,
     v2::{
-        proto::polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment},
+        proto::polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroGeometry},
         transcript::{Bound, Challenge, SessionStamp},
     },
 };
+/// One field's encoded rows and the geometry they were encoded for. Opening
+/// compares the geometry with the parameter's, so rows committed for another
+/// parameter of the same row count and width are rejected.
+#[doc(hidden)]
+pub struct FieldState<E> {
+    pub(super) geom: PolygeroGeometry,
+    pub(super) rows: Vec<Vec<E>>,
+}
 /// Prover state between the commitment and the opening. It records the
 /// session that received its commitment and opens only on that session.
 pub struct JointPolygeroProver<S> {
