@@ -17,7 +17,6 @@ use std::{
     collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicUsize, Ordering},
 };
 
 #[cfg(test)]
@@ -300,14 +299,13 @@ pub(crate) struct TempDir {
     pub path: PathBuf,
 }
 impl TempDir {
+    /// Create `<temp>/<prefix>-<pid>-<n>` for the first `n` whose directory
+    /// does not exist yet. `create_dir` is atomic, so two directories alive at
+    /// once, in this process or another, never share a path.
     pub(crate) fn new(prefix: &str) -> Result<Self> {
-        static NEXT: AtomicUsize = AtomicUsize::new(0);
-        for _ in 0..100 {
-            let path = std::env::temp_dir().join(format!(
-                "{prefix}-{}-{}",
-                std::process::id(),
-                NEXT.fetch_add(1, Ordering::Relaxed)
-            ));
+        for attempt in 0..100 {
+            let path =
+                std::env::temp_dir().join(format!("{prefix}-{}-{attempt}", std::process::id()));
             match fs::create_dir(&path) {
                 Ok(()) => return Ok(Self { path }),
                 Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
