@@ -143,6 +143,11 @@ statements they are given, and no public item returns or accepts them
 indices. A commitment is opened exactly once, on the transcript that received
 it: the prover and verifier states record the session stamp at `commit` and
 `receive` and check it in `prove` and `reduce` (transcript I2).
+The masking has zero slack: each row has exactly `t` random prefix samples
+for the `t` opened columns (I7), so one more opened column of the same
+commitment, by a second query draw, a retry or a debugging opening, breaks
+zero knowledge. A commitment answers one query draw of `t` columns and
+nothing else.
 *Enforced by:* the shared schedule in `polygero/transcript.rs`, called by
 both roles (transcript I9); `JointPolygeroProver::prove` consumes the prover,
 which is not `Clone` (type); the session stamp check (runtime; test
@@ -168,6 +173,9 @@ challenges, responses and rows have the same tuple shape.
 `m`, `f*`, the `t` prefix samples of each data row) and every Merkle nonce
 is drawn from the prover's `PrivateRandom`, never from the transcript.
 Witness validation happens before any of it is drawn.
+The `t` prefix samples hide exactly the `t` opened columns, with no margin:
+the counting argument balances at `t` openings and fails at `t + 1`, so no
+extra opening of a committed row is allowed (I4).
 *Enforced by:* `encode_rows` and `ColumnOracle::new` take
 `&mut impl PrivateRandom` (type); the test
 `participant_order_and_late_errors_are_bound_before_sampling`.
