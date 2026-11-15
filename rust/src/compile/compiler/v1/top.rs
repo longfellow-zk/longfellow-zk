@@ -14,6 +14,8 @@
 
 //! Longfellow v1 algebraic compilation pipeline and scheduling entry point.
 
+#[cfg(all(test, target_pointer_width = "32"))]
+use crate::compile::compiler::arena::one_compilation;
 use crate::{
     compile::{
         algebra::CompileField,
@@ -36,6 +38,8 @@ where
     F: CompileField + SerializableField,
     Build: for<'src> FnOnce(CompilerLogic<'src, F>) -> (CompilerAssertions<'src, F>, usize, usize),
 {
+    #[cfg(all(test, target_pointer_width = "32"))]
+    let _one = one_compilation();
     let source_arena = crate::compile::compiler::arena::CompilerArena::new();
     let source_tracker = AssertionScope::new();
 

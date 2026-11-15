@@ -91,6 +91,17 @@ impl<T> DropArena<T> {
     }
 }
 
+/// Hold the test builds of 32-bit targets to one compilation at a time. A
+/// large circuit takes about 1 GB of address space to compile there, so tests
+/// that compile in parallel exhaust the 4 GB a 32-bit process has.
+#[cfg(all(test, target_pointer_width = "32"))]
+pub(in crate::compile::compiler) fn one_compilation() -> std::sync::MutexGuard<'static, ()> {
+    static COMPILING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    COMPILING
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 impl<F: CompileField> Default for CompilerArena<'_, F> {
     fn default() -> Self {
         Self::new()
