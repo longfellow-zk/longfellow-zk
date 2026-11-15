@@ -27,7 +27,7 @@ six; the verifier also takes the proof, and the prover the document.
 | Session transcript | `transcript: &[u8]` | the transport's `SessionTranscript`: exactly one CBOR item that `CborParser::parse_exact` accepts: definite lengths only, nesting depth at most 64, text strings valid UTF-8 (`session_transcript_is_one_item`) |
 | Document type | `doc_type: &str` | 1 to `K_DOC_TYPE_BYTES` = 32 bytes |
 | Time | `now: &str` | `YYYY-MM-DD[Tt]hh:mm:ss[Zz]`, ASCII digits (`timestamp_digits`) |
-| Attributes | `attrs: &[RequestedAttribute]` | exactly `spec.num_attributes`, which must be 1 to `NEXT_MAX_ATTRIBUTES` = 4; one namespace, nonempty UTF-8 of at most `K_NAMESPACE_BYTES` = 64 bytes; CBOR-encoded identifier at most `K_ATTR_ID_BYTES` = 32 bytes; CBOR value at most `K_ATTR_VALUE_BYTES` = 64 bytes, of a kind `circuit_supports` accepts |
+| Attributes | `attrs: &[RequestedAttribute]` | exactly `spec.num_attributes`, which must be 1 to `NEXT_MAX_ATTRIBUTES` = 4; one namespace, nonempty UTF-8 of at most `K_NAMESPACE_BYTES` = 64 bytes; identifier valid UTF-8, CBOR-encoded in at most `K_ATTR_ID_BYTES` = 32 bytes; CBOR value at most `K_ATTR_VALUE_BYTES` = 64 bytes, of a kind `circuit_supports` accepts |
 | Issuer key | `pkx, pky: &str` | 1 to 64 hex digits each, optional `0x`, canonical P-256 base-field elements (`parse_pk_coordinate`) |
 | Spec | `zk_spec: &ZkSpecStruct` | `supports_version()` (version `NEXT_VERSION` = 12) |
 

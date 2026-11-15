@@ -165,7 +165,9 @@ fn session_transcript_is_one_item(transcript: &[u8]) -> bool {
     CborParser::new(transcript).parse_exact().is_ok()
 }
 
-/// Reject caller data that would be truncated by the fixed public-input slots.
+/// Reject caller data that would be truncated by the fixed public-input slots,
+/// and a namespace or identifier that is not UTF-8, which no document's CBOR
+/// text can hold.
 /// Attribute counts are checked separately against the selected specification.
 fn public_inputs_fit(attrs: &[RequestedAttribute], now: &[u8], doc_type: &[u8]) -> bool {
     timestamp_digits(now).is_some()
@@ -178,6 +180,7 @@ fn public_inputs_fit(attrs: &[RequestedAttribute], now: &[u8], doc_type: &[u8]) 
         })
         && attrs.iter().all(|attribute| {
             attribute.id.len() <= K_ATTR_ID_BYTES
+                && std::str::from_utf8(&attribute.id).is_ok()
                 && encode_cbor_string(&attribute.id).len() <= K_ATTR_ID_BYTES
                 && attribute.cbor_value.len() <= K_ATTR_VALUE_BYTES
         })

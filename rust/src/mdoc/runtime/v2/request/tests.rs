@@ -406,6 +406,8 @@ fn rejects_invalid_public_inputs_before_loading_or_sampling() {
     let now = "2026-10-23T00:00:00Z";
     let mut long_id = valid.clone();
     long_id.id = vec![b'a'; 31]; // CBOR header plus text exceeds the 32-byte slot.
+    let mut non_utf8_id = valid.clone();
+    non_utf8_id.id = vec![b'a', 0xff]; // CBOR text must be UTF-8.
     let mut long_value = valid.clone();
     long_value.cbor_value = encode_cbor_string(&[b'a'; 63]);
     let mut nested_value = valid.clone();
@@ -417,6 +419,7 @@ fn rejects_invalid_public_inputs_before_loading_or_sampling() {
         (vec![], now, "doc"),
         (vec![valid.clone(), valid.clone()], now, "doc"),
         (vec![long_id], now, "doc"),
+        (vec![non_utf8_id], now, "doc"),
         (vec![long_value], now, "doc"),
         (vec![nested_value], now, "doc"),
         (vec![valid.clone()], &now[..19], "doc"),
