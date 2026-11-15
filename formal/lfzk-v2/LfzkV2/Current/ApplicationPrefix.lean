@@ -98,7 +98,7 @@ def readFrom : {out input : ℕ} → (circuit : Layered.Circuit F out input) →
   | _, _, .layer (mid := mid) _ _ rest, wire, start =>
       match vector mid (fun i => polynomial (wire (start+1+i.val))),
           cross (wire (start+1+mid)),claims (wire (start+mid+2)),
-          readFrom rest wire (if FrontendReplay.hasLayers rest then start+mid+3 else start+mid+2) with
+          readFrom rest wire (start+mid+2) with
       | some rounds,some d,some ab,some tail => some (⟨rounds,d,ab.1,ab.2⟩,tail)
       | _,_,_,_ => none
 
@@ -119,20 +119,13 @@ theorem readFrom_congr {out input : ℕ} (circuit : Layered.Circuit F out input)
         funext i
         rw [h _ (by omega) (by have := i.isLt; simp only [FrontendReplay.slots]; omega)]
       have hd := h (start+1+mid) (by omega) (by simp only [FrontendReplay.slots]; omega)
-      have hc := h (start+mid+2) (by omega) (by simp only [FrontendReplay.slots]; omega)
-      have ht := ih (if FrontendReplay.hasLayers rest then start+mid+3 else start+mid+2) (by
+      have hc := h (start+mid+2) (by omega)
+        (by have := FrontendReplay.slots_positive rest; simp only [FrontendReplay.slots]; omega)
+      have ht := ih (start+mid+2) (by
         intro q hq hupper
-        apply h q
-        · split_ifs at hq <;> omega
-        · by_cases has : FrontendReplay.hasLayers rest = true
-          · simp only [has,↓reduceIte] at hupper
-            simp only [FrontendReplay.slots,has,↓reduceIte]
-            omega
-          · have hf : FrontendReplay.hasLayers rest = false := Bool.eq_false_iff.mpr has
-            have hz : FrontendReplay.slots rest = 1 := by rw [FrontendReplay.slots_eq,hf]; rfl
-            simp only [hf,Bool.false_eq_true,↓reduceIte,hz] at hupper
-            simp only [FrontendReplay.slots,hf,Bool.false_eq_true,↓reduceIte]
-            omega)
+        apply h q (by omega)
+        simp only [FrontendReplay.slots]
+        omega)
       simp only [readFrom,hr,hd,hc,ht]
 
 theorem readFrom_layer_spec {out mid input assertions : ℕ}
@@ -143,7 +136,7 @@ theorem readFrom_layer_spec {out mid input assertions : ℕ}
     vector mid (fun i => polynomial (wire (start+1+i.val))) = some payload.1.rounds ∧
       cross (wire (start+1+mid)) = some payload.1.cross ∧
       claims (wire (start+mid+2)) = some (payload.1.claimA,payload.1.claimB) ∧
-      readFrom rest wire (if FrontendReplay.hasLayers rest then start+mid+3 else start+mid+2) = some payload.2 := by
+      readFrom rest wire (start+mid+2) = some payload.2 := by
   cases hr : vector mid (fun i => polynomial (wire (start+1+i.val))) with
   | none => simp only [readFrom,hr] at h; contradiction
   | some rounds =>
@@ -154,7 +147,7 @@ theorem readFrom_layer_spec {out mid input assertions : ℕ}
           | none => simp only [readFrom,hr,hd,hc] at h; contradiction
           | some ab =>
               cases ht : readFrom rest wire
-                  (if FrontendReplay.hasLayers rest then start+mid+3 else start+mid+2) with
+                  (start+mid+2) with
               | none => simp only [readFrom,hr,hd,hc,ht] at h; contradiction
               | some tail =>
                   simp only [readFrom,hr,hd,hc,ht] at h
@@ -227,12 +220,12 @@ theorem readFrom_writeFrom {out input : ℕ} (circuit : Layered.Circuit F out in
         have hi : ¬ (start+1 ≤ start+mid+2 ∧ start+mid+2 < start+1+mid) := by omega
         have hd : start+mid+2 ≠ start+1+mid := by omega
         simp only [FrontendTranscript.writeFrom,dif_neg hi,hd,↓reduceIte,claims]
-      let next := if FrontendReplay.hasLayers rest then start+mid+3 else start+mid+2
+      let next := start+mid+2
       have ht : readFrom rest
           (fun q => some (FrontendTranscript.writeFrom (.layer a body rest) payload start q)) next = some payload.2 := by
         rw [readFrom_congr rest _ (fun q => some (FrontendTranscript.writeFrom rest payload.2 next q)) next (by
           intro q hq _
-          have hn : start+mid+2 ≤ next := by dsimp only [next]; split_ifs <;> omega
+          have hn : start+mid+2 ≤ next := le_rfl
           have hi : ¬ (start+1 ≤ q ∧ q < start+1+mid) := by omega
           have hd : q ≠ start+1+mid := by omega
           have hc : q ≠ start+mid+2 := by omega
@@ -270,7 +263,7 @@ theorem readFrom_agrees {out input : ℕ} (circuit : Layered.Circuit F out input
               | none => simp only [readFrom,hr,hd,hc] at h; contradiction
               | some ab =>
                   cases ht : readFrom rest wire
-                      (if FrontendReplay.hasLayers rest then start+mid+3 else start+mid+2) with
+                      (start+mid+2) with
                   | none => simp only [readFrom,hr,hd,hc,ht] at h; contradiction
                   | some tail =>
                       simp only [readFrom,hr,hd,hc,ht] at h
@@ -354,8 +347,18 @@ theorem constraints_frontendTape {F Pad : Type} [Field F] {out input : ℕ}
   unfold FrontendVerifier.constraints
   rw [read_frontendTape]
 
-def rescalingIndex (g : Geometry) : ℕ := g.primeStart+(g.prime.roles .prime).length
-def conversionIndex (g : Geometry) : ℕ := rescalingIndex g+1
+/-- The prime frontend's last boundary: its answer also draws the split's
+nonzero `eta`, after alpha and the input weights. -/
+def rescalingIndex (g : Geometry) : ℕ := g.primeStart+(g.prime.roles .prime).length-1
+def conversionIndex (g : Geometry) : ℕ := g.primeStart+(g.prime.roles .prime).length
+
+theorem prime_roles_pos (g : Geometry) : 0 < (g.prime.roles .prime).length := by
+  simp [Frontend.roles]
+
+theorem conversionIndex_eq (g : Geometry) : conversionIndex g = rescalingIndex g+1 := by
+  have := prime_roles_pos g
+  simp only [conversionIndex, rescalingIndex]
+  omega
 def packingIndex (g : Geometry) : ℕ := g.binaryStart+(g.binary.roles .binary).length
 
 /-- Compile the prime rows from the complete bound prime message window.
@@ -564,5 +567,86 @@ theorem decodeChecked_off (s : BinaryPublic B shared maskBits adviceBits)
       decodeChecked s n hcard x bound hdegree binaryField primeField binaryDecode binaryNonzero
         primeDecode primeNonzero convert advice fallback point (point.priorAnswers H') := by
   rw [point.priorAnswers_off h]
+
+/-- The frontend tape at the frontend's last boundary, whose own answer
+`current` is not yet in the strict past. -/
+def currentTape (point : Point) (past : Fin point.rank → C) (current fallback : C)
+    (start slots q : ℕ) : C :=
+  if q < slots then (if start+q = point.rank then current else answerTape point past fallback start q)
+  else fallback
+
+/-- The prime data as a function of the answer at the prime frontend's last
+boundary. Its messages, including that boundary's own claims, are bound. -/
+def readPrimeCurrent (n : PrimePublic (ZMod Adapter.Mdoc.primeOrder) shared)
+    (field : fields .prime → ZMod Adapter.Mdoc.primeOrder)
+    (decode : C → ℕ → ZMod Adapter.Mdoc.primeOrder)
+    (nonzero : C → Linear.TerminalSampling.Nonzero (ZMod Adapter.Mdoc.primeOrder))
+    (fallback : C) (point : Point) (past : Fin point.rank → C) : Option (C → PrimeData n C) :=
+  if g.primeStart+FrontendReplay.slots n.circuit ≤ point.rank+1 then do
+    let payload ← Messages.read n.circuit (wire point .prime field g.primeStart)
+    some fun current => {
+      payload := payload
+      decode := decode
+      nonzero := nonzero
+      answers := currentTape point past current fallback g.primeStart (FrontendReplay.slots n.circuit) }
+  else none
+
+theorem readPrimeCurrent_spec (n : PrimePublic (ZMod Adapter.Mdoc.primeOrder) shared)
+    (field : fields .prime → ZMod Adapter.Mdoc.primeOrder)
+    (decode : C → ℕ → ZMod Adapter.Mdoc.primeOrder)
+    (nonzero : C → Linear.TerminalSampling.Nonzero (ZMod Adapter.Mdoc.primeOrder))
+    (fallback : C) (point : Point) (past : Fin point.rank → C) (prime : C → PrimeData n C)
+    (h : readPrimeCurrent n field decode nonzero fallback point past = some prime) :
+    g.primeStart+FrontendReplay.slots n.circuit ≤ point.rank+1 ∧ ∃ payload,
+      Messages.read n.circuit (wire point .prime field g.primeStart) = some payload ∧
+      prime = fun current => {
+        payload := payload
+        decode := decode
+        nonzero := nonzero
+        answers := currentTape point past current fallback g.primeStart (FrontendReplay.slots n.circuit) } := by
+  unfold readPrimeCurrent at h
+  split at h
+  · rename_i hslots
+    simp only [Option.bind_eq_bind,Option.bind_eq_some_iff] at h
+    obtain ⟨payload,hpayload,hresult⟩ := h
+    exact ⟨hslots,payload,hpayload,(Option.some.inj hresult).symm⟩
+  · contradiction
+
+/-- The split claim reads the last answer only through the coordinates its
+frontend reads there: the nonzero `eta` that answer also carries, and its
+unused coordinates, do not enter it. -/
+theorem readPrimeCurrent_claim (n : PrimePublic (ZMod Adapter.Mdoc.primeOrder) shared)
+    (field : fields .prime → ZMod Adapter.Mdoc.primeOrder)
+    (decode : C → ℕ → ZMod Adapter.Mdoc.primeOrder)
+    (nonzero : C → Linear.TerminalSampling.Nonzero (ZMod Adapter.Mdoc.primeOrder))
+    (fallback : C) (point : Point) (past : Fin point.rank → C) (prime : C → PrimeData n C)
+    (h : readPrimeCurrent n field decode nonzero fallback point past = some prime)
+    (a b : C) (hab : ∀ i < FrontendReplay.lastWidth n.circuit 0, decode a i = decode b i) :
+    (prime a).claim = (prime b).claim := by
+  obtain ⟨hslots,payload,_,rfl⟩ := readPrimeCurrent_spec n field decode nonzero fallback point past prime h
+  have hpos := FrontendReplay.slots_positive n.circuit
+  have hread : FrontendReplay.read decode nonzero n.setup.circuit n.setup.plan payload
+      (currentTape point past a fallback g.primeStart (FrontendReplay.slots n.circuit)) =
+      FrontendReplay.read decode nonzero n.setup.circuit n.setup.plan payload
+      (currentTape point past b fallback g.primeStart (FrontendReplay.slots n.circuit)) := by
+    apply FrontendReplay.readFrom_eq_of_last_decode
+    · intro j hj
+      have hj1 : j+1 < FrontendReplay.slots n.circuit := by
+        have h' := hj
+        rw [Nat.zero_add] at h'
+        exact h'
+      have hj' : j < FrontendReplay.slots n.circuit := by omega
+      have hne : g.primeStart+j ≠ point.rank := by omega
+      simp only [currentTape, if_pos hj', if_neg hne]
+    · intro i hi
+      have hlast : 0+FrontendReplay.slots n.setup.circuit-1 < FrontendReplay.slots n.circuit := by
+        change 0+FrontendReplay.slots n.circuit-1 < _
+        omega
+      by_cases he : g.primeStart+(0+FrontendReplay.slots n.setup.circuit-1) = point.rank
+      · simp only [currentTape, if_pos hlast, if_pos he]
+        exact hab i hi
+      · simp only [currentTape, if_pos hlast, if_neg he]
+  simp only [PrimeData.claim, PrimeData.frontend, FrontendVerifier.PrimeSetup.prepare,
+    FrontendVerifier.constraints, hread]
 
 end LfzkV2.Current.ApplicationPrefix

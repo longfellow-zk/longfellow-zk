@@ -2,7 +2,10 @@
 use super::super::*;
 use crate::{
     core::{algebra::ElementOf, proto::v2::Circuit},
-    runtime::v2::{sumcheck::TranscriptSumcheck, transcript::Transcript},
+    runtime::v2::{
+        sumcheck::{top_weights, TranscriptSumcheck},
+        transcript::Transcript,
+    },
 };
 
 /// Diagnostic entry point for tests that supply arbitrary intermediate witnesses.
@@ -17,12 +20,14 @@ pub(crate) fn prove_core<
     f: &F,
 ) -> (SumcheckProof<W, F>, Constraints<ElementOf<F>>) {
     let layers = super::super::super::split::split_layers(circuit, f);
+    let top = top_weights(&[circuit], transcript, f).unwrap();
     prove_split(
         &[circuit],
         vec![layers],
         w_layers,
         pads,
         Schedule::new(&[circuit]).unwrap(),
+        top,
         transcript,
         f,
     )

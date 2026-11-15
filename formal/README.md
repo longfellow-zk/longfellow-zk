@@ -57,18 +57,22 @@ $$
 P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
 $$
 
-The largest supported mdoc circuit (four attributes) has 499 rounds:
-`275 + 125 + 3*(20 + 11) + 6 = 499`. Thus `r+15 = 514 < 2^10`.
+The largest supported mdoc circuit (four attributes) has 469 rounds:
+`275 + 125 + 2*(20 + 11) + 7 = 469`. Thus `r+15 = 484 < 2^10`.
 The proof rounds the constant correction up to $2^{-246}$.
 `Mdoc.Soundness.averaged_mdoc_approximation` proves this all-budget consequence.
 
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
-487/491/496/499 rounds. `MdocRoundShape.rounds_eq` derives the total from each
+457/461/466/469 rounds. `MdocRoundShape.rounds_eq` derives the total from each
 per-layer schedule; [`check_mdoc_round_shapes.rs`](scripts/check_mdoc_round_shapes.rs)
-checks those schedules and totals against the current Rust compiler. The six
-rounds outside both frontends are witness selection, the split challenge `eta`,
-the adapter's conversion, packing, joint Polygero batching and the shared
-opening. From `formal/`, build and run the check with
+checks those schedules and totals against the current Rust compiler. Each layer
+has its sumcheck rounds, a terminal and a combine round; a later layer's
+weights follow alpha in the preceding combine answer. The seven other rounds
+are witness selection, the two frontend openings (the prime top weights after
+the fingerprint responses, the host top weights after the adapter's masked
+quotients), the adapter's conversion, packing, joint Polygero batching and the
+shared opening. The split challenge `eta` is drawn from the prime frontend's
+last combine answer. From `formal/`, build and run the check with
 `rustc --edition 2024 scripts/check_mdoc_round_shapes.rs -o /tmp/mdoc-round-shapes`
 and `/tmp/mdoc-round-shapes`. The approximation takes a supported-shape witness
 and derives the round bound internally.

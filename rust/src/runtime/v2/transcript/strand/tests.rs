@@ -10,6 +10,20 @@ impl Strand {
         }
     }
 }
+impl Reader {
+    /// A copy of this cursor, for forked test sessions.
+    pub(in crate::runtime::v2) fn clone_for_test(&self) -> Self {
+        Self {
+            prf: Prf {
+                id: self.prf.id,
+                parent: self.prf.parent,
+                counter: self.prf.counter,
+            },
+            block: self.block,
+            offset: self.offset,
+        }
+    }
+}
 
 fn root(message: &[u8]) -> Strand {
     let mut strand = Strand::new();

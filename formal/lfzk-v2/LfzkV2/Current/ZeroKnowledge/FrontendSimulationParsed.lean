@@ -149,10 +149,11 @@ theorem challenge_values :
       (ApplicationPrefix.packingIndex (G))) i.val) := by
   have first := (SimulationWrites.selected_properties binary prime primePlan samples W H
     (FingerprintPrefix.context request root) coins.fingerprints).1
-  have fits : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false+1 ≤ (G).roles.length := by
+  have fits : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false ≤ (G).roles.length := by
     rw [first,SimulationWrites.capacity binary prime primePlan]
     omega
-  have scaleIndex : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false = ApplicationPrefix.rescalingIndex (G) := by
+  have scaleIndex : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false-1 =
+      ApplicationPrefix.rescalingIndex (G) := by
     rw [first,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
     rfl
   have tape := CanonicalSimulation.batching_tape binary prime primePlan samples shape repr setup defaultAdvice publicCount

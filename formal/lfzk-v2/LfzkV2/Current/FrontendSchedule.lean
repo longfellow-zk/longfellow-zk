@@ -60,66 +60,52 @@ inductive Plan (F : Type) : {out input : ℕ} → Layered.Circuit F out input �
       (metadata : LayerMetadata body) (tail : Plan F rest) :
       Plan F (.entry checks entry (.layer assertions body rest))
 
-/-- The same public frontend role list with an explicit initial stage
-number, used when descending into a tail of the circuit. -/
-def stageRoles (side : Side) (first : ℕ) (stages : List Stage) (inputs : List Entry) : List Role :=
-  (List.finRange stages.length).flatMap fun i =>
-    (stages.get i).roles side (first+i.val) (if i.val+1 = stages.length then inputs else [])
+/-- The stage roles from stage number `first`, without the opening boundary;
+used when descending into a tail of the circuit. -/
+def stageRoles (side : Side) (first : ℕ) (frontend : Frontend) : List Role :=
+  (List.finRange frontend.stages.length).flatMap fun i =>
+    (frontend.stages.get i).roles side (first+i.val) (frontend.weightsAt (i.val+1))
+      (i.val+1 = frontend.stages.length)
 
-def rolesFrom (frontend : Frontend) (side : Side) (first : ℕ) : List Role :=
-  if frontend.stages.isEmpty then [.inputAssertions side frontend.inputEntries]
-  else stageRoles side first frontend.stages frontend.inputEntries
+theorem roles_eq_stageRoles (frontend : Frontend) (side : Side) :
+    frontend.roles side = frontend.opening side :: stageRoles side 0 frontend := by
+  simp only [Frontend.roles, stageRoles, Nat.zero_add]
 
-theorem rolesFrom_zero (frontend : Frontend) (side : Side) :
-    rolesFrom frontend side 0 = frontend.roles side := by
-  simp only [rolesFrom,stageRoles,Frontend.roles,Nat.zero_add]
+theorem weightsAt_cons (stage : Stage) (tail : List Stage) (inputs : List Entry) (i : ℕ) :
+    Frontend.weightsAt ⟨stage :: tail, inputs⟩ (i+1) = Frontend.weightsAt ⟨tail, inputs⟩ i := by
+  simp only [Frontend.weightsAt, List.getElem?_cons_succ]
 
 theorem stageRoles_cons (side : Side) (first : ℕ) (stage : Stage) (tail : List Stage)
     (inputs : List Entry) :
-    stageRoles side first (stage :: tail) inputs =
-      stage.roles side first (if tail.isEmpty then inputs else []) ++
-        stageRoles side (first+1) tail inputs := by
-  simp only [stageRoles,List.length_cons,List.finRange_succ,List.flatMap_cons,List.flatMap_map,
-    List.get_cons_zero,Fin.val_zero,Fin.val_succ,Nat.add_zero]
+    stageRoles side first ⟨stage :: tail, inputs⟩ =
+      stage.roles side first (Frontend.weightsAt ⟨tail, inputs⟩ 0) tail.isEmpty ++
+        stageRoles side (first+1) ⟨tail, inputs⟩ := by
+  simp only [stageRoles, List.length_cons, List.finRange_succ, List.flatMap_cons, List.flatMap_map,
+    List.get_cons_zero, Fin.val_zero, Fin.val_succ, Nat.add_zero, weightsAt_cons]
   congr 2
-  · split_ifs <;> simp_all
+  · cases tail <;> simp
   · funext i
     congr 1
     · omega
-    · congr 1
-      exact propext (by omega)
+    · simp only [decide_eq_decide]
+      omega
 
-theorem rolesFrom_cons (side : Side) (first : ℕ) (stage : Stage) (tail : List Stage)
-    (inputs : List Entry) :
-    rolesFrom ⟨stage :: tail,inputs⟩ side first =
-      stage.roles side first (if tail.isEmpty then inputs else []) ++
-        if tail.isEmpty then [] else rolesFrom ⟨tail,inputs⟩ side (first+1) := by
-  simp only [rolesFrom,List.isEmpty_cons,Bool.false_eq_true,↓reduceIte,stageRoles_cons]
-  by_cases h : tail.isEmpty
-  · have he : tail = [] := List.isEmpty_iff.mp h
-    subst tail
-    rfl
-  · simp only [h,Bool.false_eq_true,↓reduceIte]
-
-theorem stage_assertions (side : Side) (first : ℕ) (stage : Stage) (inputs : List Entry) :
-    (stage.roles side first inputs)[0]? = some (.assertions side first stage.entering stage.fragments) := rfl
-
-theorem stage_round (side : Side) (first : ℕ) (stage : Stage) (inputs : List Entry)
-    (i : Fin stage.rounds) :
-    (stage.roles side first inputs)[1+i.val]? = some (.sumcheck side first i.val) := by
-  rw [Nat.add_comm 1 i.val]
+theorem stage_round (side : Side) (first : ℕ) (stage : Stage) (next : List Entry × List Fragment)
+    (last : Bool) (i : Fin stage.rounds) :
+    (stage.roles side first next last)[i.val]? = some (.sumcheck side first i.val) := by
   change ((List.range stage.rounds).map (Role.sumcheck side first) ++
-    [Role.terminal side first,Role.combine side first inputs])[i.val]? = _
+    [Role.terminal side first,Role.combine side first next.1 next.2 last])[i.val]? = _
   rw [List.getElem?_append_left (by simp only [List.length_map,List.length_range]; exact i.isLt)]
   simp only [List.getElem?_map,List.getElem?_range i.isLt,Option.map_some]
 
-theorem stage_terminal (side : Side) (first : ℕ) (stage : Stage) (inputs : List Entry) :
-    (stage.roles side first inputs)[1+stage.rounds]? = some (.terminal side first) := by
-  rw [Nat.add_comm 1 stage.rounds]
+theorem stage_terminal (side : Side) (first : ℕ) (stage : Stage) (next : List Entry × List Fragment)
+    (last : Bool) : (stage.roles side first next last)[stage.rounds]? = some (.terminal side first) := by
   simp [Stage.roles]
 
-theorem stage_combine (side : Side) (first : ℕ) (stage : Stage) (inputs : List Entry) :
-    (stage.roles side first inputs)[stage.rounds+2]? = some (.combine side first inputs) := by
+theorem stage_combine (side : Side) (first : ℕ) (stage : Stage) (next : List Entry × List Fragment)
+    (last : Bool) :
+    (stage.roles side first next last)[stage.rounds+1]? =
+      some (.combine side first next.1 next.2 last) := by
   simp [Stage.roles]
 
 theorem queryIndex_shift {out input : ℕ} (circuit : Layered.Circuit F out input)
@@ -138,9 +124,8 @@ theorem queryIndex_shift {out input : ℕ} (circuit : Layered.Circuit F out inpu
       · simp only [FrontendReplay.queryIndex]; omega
       · simp only [FrontendReplay.queryIndex]; omega
       · simp only [FrontendReplay.queryIndex]
-        rw [ih role (if FrontendReplay.hasLayers rest then start+mid+3 else start+mid+2),
-          ih role (if FrontendReplay.hasLayers rest then 0+mid+3 else 0+mid+2)]
-        split_ifs <;> omega
+        rw [ih role (start+mid+2), ih role (0+mid+2)]
+        omega
 
 theorem queryIndex_no_layers {out input : ℕ} (circuit : Layered.Circuit F out input)
     (h : FrontendReplay.hasLayers circuit = false) (role : Layered.Replay.LayerRole circuit) (start : ℕ) :
@@ -153,33 +138,33 @@ theorem queryIndex_no_layers {out input : ℕ} (circuit : Layered.Circuit F out 
       | inr role => exact ih h role
   | layer => simp only [FrontendReplay.hasLayers,Bool.true_eq_false] at h
 
-/-- Entry and assertion tests share the first role. At the final layer,
-input-entry tests share the combine role instead of introducing another one. -/
+/-- `head` is the role of the answer that opens this circuit: the frontend's
+opening boundary at the top, and the preceding layer's combine below it. All
+tests of that answer (entries, assertions, a combine) share the role. -/
 def layerLocated {out mid input assertions : ℕ}
     {body : LfzkV2.Native.CircuitLayer (Cube out) (Cube mid) (Fin assertions) F}
     {rest : Layered.Circuit F mid input} (side : Side) (first : ℕ)
-    (entering : List Entry) (fragments : List Fragment) (inputs : List Entry)
+    (next : List Entry × List Fragment) (last : Bool) (head : Role)
     (tail : Layered.Replay.LayerRole rest → Role) :
     Layered.Replay.LayerRole (.layer assertions body rest) → Role
-  | .inl _ => .assertions side first entering fragments
+  | .inl _ => head
   | .inr (.inl i) => .sumcheck side first i.val
   | .inr (.inr (.inl _)) => .terminal side first
-  | .inr (.inr (.inr (.inl _))) => .combine side first
-      (if FrontendReplay.hasLayers rest then [] else inputs)
-  | .inr (.inr (.inr (.inr role))) =>
-      if FrontendReplay.hasLayers rest then tail role else .combine side first inputs
+  | .inr (.inr (.inr (.inl _))) => .combine side first next.1 next.2 last
+  | .inr (.inr (.inr (.inr role))) => tail role
 
 /-- Ordinary full-field coordinates in one frontend answer. A terminal
-answer instead uses the separately counted nonzero sampler. -/
+answer, and `eta`, instead use the separately counted nonzero sampler. -/
 def coordinates : Role → ℕ
   | .inputAssertions _ entries => (entries.map Entry.outputs).sum
   | .assertions _ _ entries fragments => (entries.map Entry.outputs).sum +
       ((fragments.map Fragment.quadraticAssertions).sum + (fragments.map Fragment.linearAssertions).sum)
   | .sumcheck .. => 1
-  | .combine _ _ entries => 1+(entries.map Entry.outputs).sum
+  | .combine _ _ entries fragments _ => 1+((entries.map Entry.outputs).sum +
+      ((fragments.map Fragment.quadraticAssertions).sum + (fragments.map Fragment.linearAssertions).sum))
   | _ => 0
 
-/-- An algebraic entry can share the final combine domain. The other three
+/-- An algebraic entry or assertion can share a combine domain. The other
 retained tests have exactly their own protocol domain. -/
 def CompatibleDomain : Linear.Challenges.Kind → Domain → Prop
   | .terminal, domain => domain = .terminal
@@ -187,17 +172,6 @@ def CompatibleDomain : Linear.Challenges.Kind → Domain → Prop
   | .ordinary .combine, domain => domain = .combine
   | .ordinary (.assertions _), domain => domain = .assertions ∨ domain = .combine
   | .ordinary (.output _), _ => False
-
-theorem kind_no_layers {out input : ℕ} (circuit : Layered.Circuit F out input)
-    (h : FrontendReplay.hasLayers circuit = false) (role : Layered.Replay.LayerRole circuit) :
-    ∃ checks, Layered.Replay.LayerRole.kind circuit role = .ordinary (.assertions checks) := by
-  induction circuit with
-  | input => exact Fin.elim0 role
-  | entry checks _ _ ih =>
-      cases role with
-      | inl => exact ⟨checks,rfl⟩
-      | inr role => exact ih h role
-  | layer => simp only [FrontendReplay.hasLayers,Bool.true_eq_false] at h
 
 namespace Plan
 
@@ -209,21 +183,27 @@ def frontend : {out input : ℕ} → {circuit : Layered.Circuit F out input} →
   | _, _, _, .entryLayer (mid := mid) entries _ metadata tail =>
       ⟨⟨entries.entries,metadata.fragments,mid⟩ :: tail.frontend.stages,tail.frontend.inputEntries⟩
 
+/-- The combine role that closes a layer whose tail has plan `tail`. -/
+def combineRole {out input : ℕ} {circuit : Layered.Circuit F out input} (tail : Plan F circuit)
+    (side : Side) (first : ℕ) : Role :=
+  .combine side first (tail.frontend.weightsAt 0).1 (tail.frontend.weightsAt 0).2
+    tail.frontend.stages.isEmpty
+
 def locatedRole : {out input : ℕ} → {circuit : Layered.Circuit F out input} →
-    Plan F circuit → Side → ℕ → Layered.Replay.LayerRole circuit → Role
-  | _, _, _, .input, _, _, role => Fin.elim0 role
-  | _, _, _, .inputEntry metadata _, side, _, role =>
+    Plan F circuit → Side → ℕ → Role → Layered.Replay.LayerRole circuit → Role
+  | _, _, _, .input, _, _, _, role => Fin.elim0 role
+  | _, _, _, .inputEntry _ _, _, _, head, role =>
       match role with
-      | .inl _ => .inputAssertions side metadata.entries
+      | .inl _ => head
       | .inr role => Fin.elim0 role
-  | _, _, _, .layer metadata tail, side, first, role =>
-      layerLocated side first [] metadata.fragments tail.frontend.inputEntries
-        (tail.locatedRole side (first+1)) role
-  | _, _, _, .entryLayer entries _ metadata tail, side, first, role =>
+  | _, _, _, .layer _ tail, side, first, head, role =>
+      layerLocated side first (tail.frontend.weightsAt 0) tail.frontend.stages.isEmpty head
+        (tail.locatedRole side (first+1) (tail.combineRole side first)) role
+  | _, _, _, .entryLayer _ _ _ tail, side, first, head, role =>
       match role with
-      | .inl _ => .assertions side first entries.entries metadata.fragments
-      | .inr role => layerLocated side first entries.entries metadata.fragments tail.frontend.inputEntries
-          (tail.locatedRole side (first+1)) role
+      | .inl _ => head
+      | .inr role => layerLocated side first (tail.frontend.weightsAt 0) tail.frontend.stages.isEmpty
+          head (tail.locatedRole side (first+1) (tail.combineRole side first)) role
 
 theorem coalesced {out input : ℕ} {circuit : Layered.Circuit F out input} (plan : Plan F circuit) :
     FrontendReplay.Coalesced circuit := by
@@ -233,17 +213,17 @@ theorem coalesced {out input : ℕ} {circuit : Layered.Circuit F out input} (pla
   | layer _ _ ih => exact ih
   | entryLayer _ _ _ _ ih => exact ⟨trivial,ih⟩
 
-/-- Exact maximum coordinate endpoint, including the entry coefficients
-that follow alpha in the last combine answer. Terminal nonzero sampling has
-its own decoder law and needs no ordinary coordinate. -/
+/-- Exact maximum coordinate endpoint, including the weights that follow
+alpha in each combine answer. Terminal nonzero sampling has its own decoder
+law and needs no ordinary coordinate. -/
 def capacityFrom : {out input : ℕ} → {circuit : Layered.Circuit F out input} →
     Plan F circuit → ℕ → ℕ
   | _, _, _, .input, offset => offset
   | _, _, _, .inputEntry (checks := checks) _ _, offset => offset+checks
-  | _, _, _, .layer (assertions := a) (rest := rest) _ tail, offset =>
-      max (offset+a) (max 1 (tail.capacityFrom (if FrontendReplay.hasLayers rest then 0 else 1)))
-  | _, _, _, .entryLayer (checks := checks) (assertions := a) (rest := rest) _ _ _ tail, offset =>
-      max (offset+checks+a) (max 1 (tail.capacityFrom (if FrontendReplay.hasLayers rest then 0 else 1)))
+  | _, _, _, .layer (assertions := a) _ tail, offset =>
+      max (offset+a) (max 1 (tail.capacityFrom 1))
+  | _, _, _, .entryLayer (checks := checks) (assertions := a) _ _ _ tail, offset =>
+      max (offset+checks+a) (max 1 (tail.capacityFrom 1))
 
 def capacity {out input : ℕ} {circuit : Layered.Circuit F out input} (plan : Plan F circuit) : ℕ :=
   plan.capacityFrom 0
@@ -279,118 +259,122 @@ theorem hasLayers_eq {out input : ℕ} {circuit : Layered.Circuit F out input} (
     FrontendReplay.hasLayers circuit = !plan.frontend.stages.isEmpty := by
   cases plan <;> rfl
 
-theorem slots_eq_rolesFrom_length {out input : ℕ} {circuit : Layered.Circuit F out input}
+/-- The last answer's used coordinates: alpha after a layer, then the
+input-only entries. -/
+theorem lastWidth_eq {out input : ℕ} {circuit : Layered.Circuit F out input} (plan : Plan F circuit)
+    (offset : ℕ) : FrontendReplay.lastWidth circuit offset =
+      (if FrontendReplay.hasLayers circuit then 1 else offset) +
+        (plan.frontend.inputEntries.map Entry.outputs).sum := by
+  induction plan generalizing offset with
+  | input => simp [FrontendReplay.lastWidth, FrontendReplay.hasLayers, frontend]
+  | inputEntry metadata entry =>
+      simp [FrontendReplay.lastWidth, FrontendReplay.hasLayers, frontend, metadata.count]
+  | layer metadata tail ih =>
+      rw [FrontendReplay.lastWidth, ih 1]
+      simp [FrontendReplay.hasLayers, frontend]
+  | entryLayer entries entry metadata tail ih =>
+      rw [FrontendReplay.lastWidth, FrontendReplay.lastWidth, ih 1]
+      simp [FrontendReplay.hasLayers, frontend]
+
+theorem slots_eq_stageRoles_length {out input : ℕ} {circuit : Layered.Circuit F out input}
     (plan : Plan F circuit) (side : Side) (first : ℕ) :
-    FrontendReplay.slots circuit = (rolesFrom plan.frontend side first).length := by
+    FrontendReplay.slots circuit = (stageRoles side first plan.frontend).length + 1 := by
   induction plan generalizing first with
   | input => rfl
   | inputEntry => rfl
   | @layer out mid input assertions body rest metadata tail ih =>
-      change mid+3+(if FrontendReplay.hasLayers rest then FrontendReplay.slots rest else 0) = _
-      rw [tail.hasLayers_eq]
-      change _ = (rolesFrom ⟨⟨[],metadata.fragments,mid⟩ :: tail.frontend.stages,
-        tail.frontend.inputEntries⟩ side first).length
-      rw [rolesFrom_cons]
-      cases h : tail.frontend.stages.isEmpty <;>
-        simp only [Bool.not_false,Bool.not_true,Bool.false_eq_true,↓reduceIte,
-          List.length_append,Stage.roles_length,List.length_nil,Nat.add_zero]
-      exact congrArg (mid+3+·) (ih (first+1))
+      change mid+2+FrontendReplay.slots rest = _
+      change _ = (stageRoles side first ⟨⟨[],metadata.fragments,mid⟩ :: tail.frontend.stages,
+        tail.frontend.inputEntries⟩).length + 1
+      rw [stageRoles_cons, List.length_append, Stage.roles_length, ih (first+1)]
+      rfl
   | @entryLayer out next mid input checks assertions entries entry body rest metadata tail ih =>
-      change mid+3+(if FrontendReplay.hasLayers rest then FrontendReplay.slots rest else 0) = _
-      rw [tail.hasLayers_eq]
-      change _ = (rolesFrom ⟨⟨entries.entries,metadata.fragments,mid⟩ :: tail.frontend.stages,
-        tail.frontend.inputEntries⟩ side first).length
-      rw [rolesFrom_cons]
-      cases h : tail.frontend.stages.isEmpty <;>
-        simp only [Bool.not_false,Bool.not_true,Bool.false_eq_true,↓reduceIte,
-          List.length_append,Stage.roles_length,List.length_nil,Nat.add_zero]
-      exact congrArg (mid+3+·) (ih (first+1))
+      change mid+2+FrontendReplay.slots rest = _
+      change _ = (stageRoles side first ⟨⟨entries.entries,metadata.fragments,mid⟩ :: tail.frontend.stages,
+        tail.frontend.inputEntries⟩).length + 1
+      rw [stageRoles_cons, List.length_append, Stage.roles_length, ih (first+1)]
+      rfl
 
 /-- Entries and fragments contribute coordinates, never extra boundaries.
 This includes scalar layers and the one input-only assertion boundary. -/
 theorem slots_eq_roles_length {out input : ℕ} {circuit : Layered.Circuit F out input}
     (plan : Plan F circuit) (side : Side) :
     FrontendReplay.slots circuit = (plan.frontend.roles side).length := by
-  rw [← rolesFrom_zero]
-  exact plan.slots_eq_rolesFrom_length side 0
+  rw [roles_eq_stageRoles, List.length_cons]
+  exact plan.slots_eq_stageRoles_length side 0
 
 private theorem layer_role_get {out mid input assertions : ℕ}
     {body : LfzkV2.Native.CircuitLayer (Cube out) (Cube mid) (Fin assertions) F}
     {rest : Layered.Circuit F mid input}
     (tail : Plan F rest) (metadata : LayerMetadata body) (entering : List Entry)
-    (side : Side) (first : ℕ)
-    (htail : ∀ role, (rolesFrom tail.frontend side (first+1))[
-      FrontendReplay.queryIndex rest role 0]? = some (tail.locatedRole side (first+1) role))
+    (side : Side) (first : ℕ) (head : Role)
+    (htail : ∀ role, (tail.combineRole side first :: stageRoles side (first+1) tail.frontend)[
+      FrontendReplay.queryIndex rest role 0]? =
+        some (tail.locatedRole side (first+1) (tail.combineRole side first) role))
     (role : Layered.Replay.LayerRole (.layer assertions body rest)) :
-    (rolesFrom ⟨⟨entering,metadata.fragments,mid⟩ :: tail.frontend.stages,
-      tail.frontend.inputEntries⟩ side first)[FrontendReplay.queryIndex (.layer assertions body rest) role 0]? =
-      some (layerLocated side first entering metadata.fragments tail.frontend.inputEntries
-        (tail.locatedRole side (first+1)) role) := by
-  rw [rolesFrom_cons]
-  have hinputs : (if tail.frontend.stages.isEmpty then tail.frontend.inputEntries else []) =
-      (if FrontendReplay.hasLayers rest then [] else tail.frontend.inputEntries) := by
-    rw [tail.hasLayers_eq]
-    cases tail.frontend.stages.isEmpty <;> rfl
+    (head :: stageRoles side first ⟨⟨entering,metadata.fragments,mid⟩ :: tail.frontend.stages,
+      tail.frontend.inputEntries⟩)[FrontendReplay.queryIndex (.layer assertions body rest) role 0]? =
+      some (layerLocated side first (tail.frontend.weightsAt 0) tail.frontend.stages.isEmpty head
+        (tail.locatedRole side (first+1) (tail.combineRole side first)) role) := by
+  rw [stageRoles_cons]
+  have hstage := Stage.roles_length side first ⟨entering,metadata.fragments,mid⟩
+    (tail.frontend.weightsAt 0) tail.frontend.stages.isEmpty
   rcases role with i | i | i | i | role
-  · simp only [FrontendReplay.queryIndex,layerLocated]
-    rw [List.getElem?_append_left (by rw [Stage.roles_length]; omega)]
-    exact stage_assertions side first _ _
+  · rfl
   · simp only [FrontendReplay.queryIndex,layerLocated,Nat.zero_add]
-    rw [List.getElem?_append_left (by rw [Stage.roles_length]; change 1+i.val < mid+3; have := i.isLt; omega)]
-    exact stage_round side first ⟨entering,metadata.fragments,mid⟩ _ i
+    rw [Nat.add_comm 1 i.val, List.getElem?_cons_succ,
+      List.getElem?_append_left (by rw [hstage]; change i.val < mid+2; have := i.isLt; omega)]
+    exact stage_round side first ⟨entering,metadata.fragments,mid⟩ _ _ i
   · simp only [FrontendReplay.queryIndex,layerLocated,Nat.zero_add]
-    rw [List.getElem?_append_left (by rw [Stage.roles_length]; change 1+mid < mid+3; omega)]
-    exact stage_terminal side first ⟨entering,metadata.fragments,mid⟩ _
+    rw [Nat.add_comm 1 mid, List.getElem?_cons_succ,
+      List.getElem?_append_left (by rw [hstage]; change mid < mid+2; omega)]
+    exact stage_terminal side first ⟨entering,metadata.fragments,mid⟩ _ _
   · simp only [FrontendReplay.queryIndex,layerLocated,Nat.zero_add]
-    rw [List.getElem?_append_left (by rw [Stage.roles_length]; change mid+2 < mid+3; omega),stage_combine,hinputs]
-  · simp only [FrontendReplay.queryIndex,layerLocated]
-    by_cases h : FrontendReplay.hasLayers rest = true
-    · have he : tail.frontend.stages.isEmpty = false := by
-        rw [tail.hasLayers_eq] at h
-        cases hb : tail.frontend.stages.isEmpty <;> simp_all
-      simp only [h,he,Bool.false_eq_true,↓reduceIte,Nat.zero_add]
-      rw [queryIndex_shift]
-      rw [List.getElem?_append_right (by rw [Stage.roles_length]; change mid+3 ≤ mid+3+_; omega)]
-      simp only [Stage.roles_length,Nat.add_sub_cancel_left]
-      exact htail role
-    · have hf : FrontendReplay.hasLayers rest = false := Bool.eq_false_iff.mpr h
-      have he : tail.frontend.stages.isEmpty = true := by
-        rw [tail.hasLayers_eq] at hf
-        cases hb : tail.frontend.stages.isEmpty <;> simp_all
-      simp only [hf,he,Bool.false_eq_true,↓reduceIte,Nat.zero_add]
-      rw [queryIndex_no_layers rest hf role (mid+2)]
-      rw [List.getElem?_append_left (by rw [Stage.roles_length]; change mid+2 < mid+3; omega)]
-      exact stage_combine side first ⟨entering,metadata.fragments,mid⟩ _
+    rw [show mid+2 = (mid+1)+1 by omega, List.getElem?_cons_succ,
+      List.getElem?_append_left (by rw [hstage]; change mid+1 < mid+2; omega)]
+    exact stage_combine side first ⟨entering,metadata.fragments,mid⟩ _ _
+  · simp only [FrontendReplay.queryIndex,layerLocated,Nat.zero_add]
+    rw [queryIndex_shift]
+    have hcomb : (head :: (Stage.roles side first ⟨entering,metadata.fragments,mid⟩
+        (tail.frontend.weightsAt 0) tail.frontend.stages.isEmpty ++
+          stageRoles side (first+1) tail.frontend)) =
+        (head :: ((List.range mid).map (Role.sumcheck side first) ++ [Role.terminal side first])) ++
+          (tail.combineRole side first :: stageRoles side (first+1) tail.frontend) := by
+      simp [Stage.roles, combineRole]
+    rw [hcomb, List.getElem?_append_right (by simp)]
+    simp only [List.length_cons, List.length_append, List.length_map, List.length_range,
+      List.length_nil]
+    rw [show mid+2+FrontendReplay.queryIndex rest role 0-(mid+(0+1)+1) =
+      FrontendReplay.queryIndex rest role 0 by omega]
+    exact htail role
 
 /-- Every retained algebraic event lands at its actual grouped role. In
-particular the map need not be injective: entry/assertion events and the
-final combine/input-entry events deliberately share their query. -/
+particular the map need not be injective: entry/assertion events share the
+opening answer, and a combine shares its answer with the next weights. -/
 theorem role_get_queryIndex {out input : ℕ} {circuit : Layered.Circuit F out input}
-    (plan : Plan F circuit) (side : Side) (first : ℕ) (role : Layered.Replay.LayerRole circuit) :
-    (rolesFrom plan.frontend side first)[FrontendReplay.queryIndex circuit role 0]? =
-      some (plan.locatedRole side first role) := by
-  induction plan generalizing first with
+    (plan : Plan F circuit) (side : Side) (first : ℕ) (head : Role)
+    (role : Layered.Replay.LayerRole circuit) :
+    (head :: stageRoles side first plan.frontend)[FrontendReplay.queryIndex circuit role 0]? =
+      some (plan.locatedRole side first head role) := by
+  induction plan generalizing first head with
   | input => exact Fin.elim0 role
   | inputEntry metadata entry =>
       cases role with
       | inl => rfl
       | inr role => exact Fin.elim0 role
-  | layer metadata tail ih => exact layer_role_get tail metadata [] side first (ih (first+1)) role
+  | layer metadata tail ih =>
+      exact layer_role_get tail metadata [] side first head (ih (first+1) _) role
   | entryLayer entries entry metadata tail ih =>
       cases role with
-      | inl =>
-          change (rolesFrom ⟨⟨entries.entries,metadata.fragments,_⟩ :: tail.frontend.stages,
-            tail.frontend.inputEntries⟩ side first)[0]? = _
-          rw [rolesFrom_cons,List.getElem?_append_left (by rw [Stage.roles_length]; omega)]
-          rfl
-      | inr role => exact layer_role_get tail metadata entries.entries side first (ih (first+1)) role
+      | inl => rfl
+      | inr role => exact layer_role_get tail metadata entries.entries side first head (ih (first+1) _) role
 
 theorem frontend_role_get_queryIndex {out input : ℕ} {circuit : Layered.Circuit F out input}
     (plan : Plan F circuit) (side : Side) (role : Layered.Replay.LayerRole circuit) :
     (plan.frontend.roles side)[FrontendReplay.queryIndex circuit role 0]? =
-      some (plan.locatedRole side 0 role) := by
-  rw [← rolesFrom_zero]
-  exact plan.role_get_queryIndex side 0 role
+      some (plan.locatedRole side 0 (plan.frontend.opening side) role) := by
+  rw [roles_eq_stageRoles]
+  exact plan.role_get_queryIndex side 0 _ role
 
 def roleIndex {out input : ℕ} {circuit : Layered.Circuit F out input}
     (plan : Plan F circuit) (side : Side) (role : Layered.Replay.LayerRole circuit) :
@@ -401,70 +385,77 @@ def roleIndex {out input : ℕ} {circuit : Layered.Circuit F out input}
 
 theorem roleIndex_get {out input : ℕ} {circuit : Layered.Circuit F out input}
     (plan : Plan F circuit) (side : Side) (role : Layered.Replay.LayerRole circuit) :
-    (plan.frontend.roles side).get (plan.roleIndex side role) = plan.locatedRole side 0 role := by
+    (plan.frontend.roles side).get (plan.roleIndex side role) =
+      plan.locatedRole side 0 (plan.frontend.opening side) role := by
   have h := plan.frontend_role_get_queryIndex side role
   have hg := List.getElem?_eq_getElem (l := plan.frontend.roles side) (plan.roleIndex side role).isLt
   exact Option.some.inj (hg.symm.trans h)
 
+theorem opening_side (frontend : Frontend) (side : Side) :
+    frontendSide (frontend.opening side) = some side := by
+  unfold Frontend.opening
+  split <;> rfl
+
 theorem locatedRole_side {out input : ℕ} {circuit : Layered.Circuit F out input}
-    (plan : Plan F circuit) (side : Side) (first : ℕ) (role : Layered.Replay.LayerRole circuit) :
-    frontendSide (plan.locatedRole side first role) = some side := by
-  induction plan generalizing first with
+    (plan : Plan F circuit) (side : Side) (first : ℕ) (head : Role)
+    (hhead : frontendSide head = some side) (role : Layered.Replay.LayerRole circuit) :
+    frontendSide (plan.locatedRole side first head role) = some side := by
+  induction plan generalizing first head with
   | input => exact Fin.elim0 role
   | inputEntry metadata entry =>
       cases role with
-      | inl => rfl
+      | inl => exact hhead
       | inr role => exact Fin.elim0 role
   | layer metadata tail ih =>
       rcases role with i | i | i | i | role
-      all_goals simp only [locatedRole,layerLocated,frontendSide]
-      split_ifs
-      · exact ih (first+1) role
+      · exact hhead
       · rfl
+      · rfl
+      · rfl
+      · exact ih (first+1) _ rfl role
   | entryLayer entries entry metadata tail ih =>
       rcases role with i | i | i | i | i | role
-      all_goals simp only [locatedRole,layerLocated,frontendSide]
-      split_ifs
-      · exact ih (first+1) role
+      · exact hhead
+      · exact hhead
       · rfl
+      · rfl
+      · rfl
+      · exact ih (first+1) _ rfl role
 
+theorem opening_domain (frontend : Frontend) (side : Side) :
+    (frontend.opening side).domain = .assertions := by
+  unfold Frontend.opening
+  split <;> rfl
+
+/-- The opening answer belongs to the assertion domain at the top and to the
+combine domain below it; its tests are entries and assertions only. -/
 theorem locatedRole_domain {out input : ℕ} {circuit : Layered.Circuit F out input}
-    (plan : Plan F circuit) (side : Side) (first : ℕ) (role : Layered.Replay.LayerRole circuit) :
+    (plan : Plan F circuit) (side : Side) (first : ℕ) (head : Role)
+    (hhead : head.domain = .assertions ∨ head.domain = .combine)
+    (role : Layered.Replay.LayerRole circuit) :
     CompatibleDomain (Layered.Replay.LayerRole.kind circuit role)
-      (plan.locatedRole side first role).domain := by
-  induction plan generalizing first with
+      (plan.locatedRole side first head role).domain := by
+  induction plan generalizing first head with
   | input => exact Fin.elim0 role
   | inputEntry metadata entry =>
       cases role with
-      | inl => exact Or.inl rfl
+      | inl => exact hhead
       | inr role => exact Fin.elim0 role
   | @layer out mid input assertions body rest metadata tail ih =>
       rcases role with i | i | i | i | role
-      · exact Or.inl rfl
+      · exact hhead
       · rfl
       · rfl
       · rfl
-      · dsimp only [locatedRole,layerLocated,Layered.Replay.LayerRole.kind]
-        split_ifs with h
-        · exact ih (first+1) role
-        · have hf : FrontendReplay.hasLayers rest = false := Bool.eq_false_iff.mpr h
-          obtain ⟨checks,hkind⟩ := kind_no_layers rest hf role
-          rw [hkind]
-          exact Or.inr rfl
+      · exact ih (first+1) _ (Or.inr rfl) role
   | @entryLayer out next mid input checks assertions entries entry body rest metadata tail ih =>
       rcases role with i | i | i | i | i | role
-      · exact Or.inl rfl
-      · exact Or.inl rfl
+      · exact hhead
+      · exact hhead
       · rfl
       · rfl
       · rfl
-      · dsimp only [locatedRole,layerLocated,Layered.Replay.LayerRole.kind]
-        split_ifs with h
-        · exact ih (first+1) role
-        · have hf : FrontendReplay.hasLayers rest = false := Bool.eq_false_iff.mpr h
-          obtain ⟨checks,hkind⟩ := kind_no_layers rest hf role
-          rw [hkind]
-          exact Or.inr rfl
+      · exact ih (first+1) _ (Or.inr rfl) role
 
 theorem input_coordinates_le {out input : ℕ} {circuit : Layered.Circuit F out input}
     (plan : Plan F circuit) (offset : ℕ) (h : FrontendReplay.hasLayers circuit = false) :
@@ -476,68 +467,84 @@ theorem input_coordinates_le {out input : ℕ} {circuit : Layered.Circuit F out 
   | layer => simp only [FrontendReplay.hasLayers,Bool.true_eq_false] at h
   | entryLayer => simp only [FrontendReplay.hasLayers,Bool.true_eq_false] at h
 
-private theorem layer_coordinates_le {out mid input assertions : ℕ}
-    {body : LfzkV2.Native.CircuitLayer (Cube out) (Cube mid) (Fin assertions) F}
-    {rest : Layered.Circuit F mid input}
-    (tail : Plan F rest) (metadata : LayerMetadata body) (entering : List Entry)
-    (side : Side) (first offset : ℕ)
-    (htail : ∀ role, coordinates (tail.locatedRole side (first+1) role) ≤
-      tail.capacityFrom (if FrontendReplay.hasLayers rest then 0 else 1))
-    (role : Layered.Replay.LayerRole (.layer assertions body rest)) :
-    coordinates (layerLocated side first entering metadata.fragments tail.frontend.inputEntries
-      (tail.locatedRole side (first+1)) role) ≤
-      max (offset+(entering.map Entry.outputs).sum+assertions)
-        (max 1 (tail.capacityFrom (if FrontendReplay.hasLayers rest then 0 else 1))) := by
-  let total := max (offset+(entering.map Entry.outputs).sum+assertions)
-    (max 1 (tail.capacityFrom (if FrontendReplay.hasLayers rest then 0 else 1)))
-  have hhead : offset+(entering.map Entry.outputs).sum+assertions ≤ total := Nat.le_max_left _ _
-  have hone : 1 ≤ total := (Nat.le_max_left _ _).trans (Nat.le_max_right _ _)
-  have htailCap : tail.capacityFrom (if FrontendReplay.hasLayers rest then 0 else 1) ≤ total :=
-    (Nat.le_max_right _ _).trans (Nat.le_max_right _ _)
-  have hinput (hf : FrontendReplay.hasLayers rest = false) :
-      1+(tail.frontend.inputEntries.map Entry.outputs).sum ≤ total := by
-    have hi := tail.input_coordinates_le 1 hf
-    rw [hf] at htailCap
-    exact hi.trans htailCap
-  change coordinates (layerLocated side first entering metadata.fragments tail.frontend.inputEntries
-    (tail.locatedRole side (first+1)) role) ≤ total
-  rcases role with i | i | i | i | role
-  · simp only [layerLocated,coordinates,metadata.count]
-    omega
-  · exact hone
-  · exact Nat.zero_le _
-  · dsimp only [layerLocated]
-    split_ifs with h
-    · simpa only [coordinates,List.map_nil,List.sum_nil,Nat.add_zero] using hone
-    · exact hinput (Bool.eq_false_iff.mpr h)
-  · dsimp only [layerLocated]
-    split_ifs with h
-    · exact (htail role).trans htailCap
-    · exact hinput (Bool.eq_false_iff.mpr h)
+/-- The weights read at a circuit's opening answer fit after `offset`. -/
+theorem opening_coordinates_le {out input : ℕ} {circuit : Layered.Circuit F out input}
+    (plan : Plan F circuit) (offset : ℕ) :
+    offset+((plan.frontend.weightsAt 0).1.map Entry.outputs).sum +
+      (((plan.frontend.weightsAt 0).2.map Fragment.quadraticAssertions).sum +
+        ((plan.frontend.weightsAt 0).2.map Fragment.linearAssertions).sum) ≤ plan.capacityFrom offset := by
+  cases plan with
+  | input => simp [frontend, Frontend.weightsAt, capacityFrom]
+  | inputEntry metadata entry =>
+      simp [frontend, Frontend.weightsAt, capacityFrom, metadata.count]
+  | layer metadata tail =>
+      simp only [frontend, Frontend.weightsAt, List.getElem?_cons_zero, List.map_nil, List.sum_nil,
+        metadata.count, capacityFrom]
+      omega
+  | entryLayer entries entry metadata tail =>
+      simp only [frontend, Frontend.weightsAt, List.getElem?_cons_zero, entries.count,
+        metadata.count, capacityFrom]
+      omega
+
+theorem combineRole_coordinates_le {out input : ℕ} {circuit : Layered.Circuit F out input}
+    (tail : Plan F circuit) (side : Side) (first : ℕ) :
+    coordinates (tail.combineRole side first) ≤ tail.capacityFrom 1 := by
+  have h := tail.opening_coordinates_le 1
+  simp only [combineRole, coordinates]
+  omega
+
+theorem opening_role_coordinates_le {out input : ℕ} {circuit : Layered.Circuit F out input}
+    (plan : Plan F circuit) (side : Side) :
+    coordinates (plan.frontend.opening side) ≤ plan.capacityFrom 0 := by
+  have h := plan.opening_coordinates_le 0
+  unfold Frontend.opening
+  split
+  · next stage hs =>
+      simp only [Frontend.weightsAt, hs] at h
+      simp only [coordinates]
+      omega
+  · next hs =>
+      simp only [Frontend.weightsAt, hs, List.map_nil, List.sum_nil] at h
+      simp only [coordinates]
+      omega
 
 /-- Every ordinary coordinate consumed by any actual grouped role fits in
 the computed decoder capacity. This is derived from syntax and public counts,
 not supplied as a separate schedule or capacity certificate. -/
 theorem locatedRole_coordinates_le {out input : ℕ} {circuit : Layered.Circuit F out input}
-    (plan : Plan F circuit) (side : Side) (first offset : ℕ) (role : Layered.Replay.LayerRole circuit) :
-    coordinates (plan.locatedRole side first role) ≤ plan.capacityFrom offset := by
-  induction plan generalizing first offset with
+    (plan : Plan F circuit) (side : Side) (first offset : ℕ) (head : Role)
+    (hhead : coordinates head ≤ plan.capacityFrom offset)
+    (role : Layered.Replay.LayerRole circuit) :
+    coordinates (plan.locatedRole side first head role) ≤ plan.capacityFrom offset := by
+  induction plan generalizing first offset head with
   | input => exact Fin.elim0 role
   | inputEntry metadata entry =>
       cases role with
-      | inl => simp only [locatedRole,coordinates,capacityFrom,metadata.count]; omega
+      | inl => exact hhead
       | inr role => exact Fin.elim0 role
-  | layer metadata tail ih =>
-      simpa only [locatedRole,capacityFrom,List.map_nil,List.sum_nil,Nat.add_zero] using
-        layer_coordinates_le tail metadata [] side first offset (ih (first+1) _) role
-  | entryLayer entries entry metadata tail ih =>
-      cases role with
-      | inl =>
-          simp only [locatedRole,coordinates,capacityFrom,entries.count,metadata.count]
-          exact (show _ ≤ offset+_+_ by omega).trans (Nat.le_max_left _ _)
-      | inr role =>
-          simpa only [locatedRole,capacityFrom,entries.count] using
-            layer_coordinates_le tail metadata entries.entries side first offset (ih (first+1) _) role
+  | @layer _ _ _ a _ _ metadata tail ih =>
+      have hone : 1 ≤ max (offset+a) (max 1 (tail.capacityFrom 1)) :=
+        (Nat.le_max_left _ _).trans (Nat.le_max_right _ _)
+      have htail : tail.capacityFrom 1 ≤ max (offset+a) (max 1 (tail.capacityFrom 1)) :=
+        (Nat.le_max_right _ _).trans (Nat.le_max_right _ _)
+      rcases role with i | i | i | i | role
+      · exact hhead
+      · exact hone
+      · exact Nat.zero_le _
+      · exact (tail.combineRole_coordinates_le side first).trans htail
+      · exact (ih (first+1) 1 _ (tail.combineRole_coordinates_le side first) role).trans htail
+  | @entryLayer _ _ _ _ checks a entries entry _ _ metadata tail ih =>
+      have hone : 1 ≤ max (offset+checks+a) (max 1 (tail.capacityFrom 1)) :=
+        (Nat.le_max_left _ _).trans (Nat.le_max_right _ _)
+      have htail : tail.capacityFrom 1 ≤ max (offset+checks+a) (max 1 (tail.capacityFrom 1)) :=
+        (Nat.le_max_right _ _).trans (Nat.le_max_right _ _)
+      rcases role with i | i | i | i | i | role
+      · exact hhead
+      · exact hhead
+      · exact hone
+      · exact Nat.zero_le _
+      · exact (tail.combineRole_coordinates_le side first).trans htail
+      · exact (ih (first+1) 1 _ (tail.combineRole_coordinates_le side first) role).trans htail
 
 end Plan
 end LfzkV2.Current.FrontendSchedule
@@ -547,8 +554,8 @@ namespace LfzkV2.Current.Geometry
 /-- Prime sumcheck follows the shared fingerprint boundary. -/
 def primeStart (_g : Geometry) : ℕ := 1
 
-/-- The rescaling and conversion boundaries separate prime and binary sumcheck. -/
-def binaryStart (g : Geometry) : ℕ := (g.prime.roles .prime).length+3
+/-- The conversion boundary separates prime and binary sumcheck. -/
+def binaryStart (g : Geometry) : ℕ := (g.prime.roles .prime).length+2
 
 def primeIndex (g : Geometry) (i : Fin (g.prime.roles .prime).length) : Fin g.roles.length :=
   ⟨g.primeStart+i.val,by
@@ -568,7 +575,7 @@ theorem prime_role_get (g : Geometry) (i : Fin (g.prime.roles .prime).length) :
     g.roles.get (g.primeIndex i) = (g.prime.roles .prime).get i := by
   have hget : g.roles[g.primeStart+i.val]? = some ((g.prime.roles .prime).get i) := by
     have hr : g.roles = [.fingerprint] ++ ((g.prime.roles .prime) ++
-      [.rescaling,.conversion] ++ g.binary.roles .binary ++
+      [.conversion] ++ g.binary.roles .binary ++
       (if g.packingDegree = 1 then [] else [.packing]) ++ [.batching,.opening]) := by
       rw [g.roles_eq]
       simp only [List.append_assoc]
@@ -582,7 +589,7 @@ theorem prime_role_get (g : Geometry) (i : Fin (g.prime.roles .prime).length) :
 
 theorem binary_role_get (g : Geometry) (i : Fin (g.binary.roles .binary).length) :
     g.roles.get (g.binaryIndex i) = (g.binary.roles .binary).get i := by
-  let leadingRoles : List Role := [.fingerprint] ++ g.prime.roles .prime ++ [.rescaling,.conversion]
+  let leadingRoles : List Role := [.fingerprint] ++ g.prime.roles .prime ++ [.conversion]
   have hlen : leadingRoles.length = g.binaryStart := by
     simp only [leadingRoles,binaryStart,List.length_append,List.length_cons,List.length_nil]
     omega

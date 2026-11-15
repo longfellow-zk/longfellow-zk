@@ -124,7 +124,15 @@ theorem roleCharge_prior (role : Role) (point : Point) (H H' : Point → Digest 
   have hbf := frontendCharge_prior S point H H' prior committed readers.binaryRead answer
   have hnf := frontendCharge_prior S point H H' prior committed readers.primeRead answer
   have hs := propext (packetBad_prior S point H H' prior committed readers.rescaleRead
-    (fun packet w a => packet.bad w (laws.rescaleDecoder.decode a)) answer.2)
+    (fun packet w a => (∀ a b, (laws.rescaleDecoder.decode a).1 = (laws.rescaleDecoder.decode b).1 →
+      packet.claim a = packet.claim b) ∧ packet.bad w a (laws.rescaleDecoder.decode a).2) answer.2)
+  have hfb := propext (frontendBad_prior S point H H' prior committed readers.primeRead answer.2)
+  have hlast : LastPrime readers point H ↔ LastPrime readers point H' := by
+    unfold LastPrime
+    rw [prior]
+  have hpf : primeCharge S laws readers point H answer = primeCharge S laws readers point H' answer := by
+    unfold primeCharge
+    simp only [hlast, rescaleBad, hs, hfb, hnf]
   have hc := propext (packetBad_prior S point H H' prior committed readers.conversionRead
     (fun packet w a => packet.bad Adapter.Mdoc.groupOrder Adapter.Mdoc.quotientBound w
       (laws.conversionDecoder.decode a)) answer.2)
@@ -132,12 +140,11 @@ theorem roleCharge_prior (role : Role) (point : Point) (H H' : Point → Digest 
     (fun packet w a => packet.bad w (laws.packingDecoder.decode a)) answer.2)
   cases role with
   | fingerprint => simp only [roleCharge, hb, hn]
-  | inputAssertions side entries => cases side <;> first | exact hbf | exact hnf
-  | assertions side stage entries fragments => cases side <;> first | exact hbf | exact hnf
-  | sumcheck side stage index => cases side <;> first | exact hbf | exact hnf
-  | terminal side stage => cases side <;> first | exact hbf | exact hnf
-  | combine side stage entries => cases side <;> first | exact hbf | exact hnf
-  | rescaling => simp only [roleCharge, rescaleBad, hs]
+  | inputAssertions side entries => cases side <;> first | exact hbf | exact hpf
+  | assertions side stage entries fragments => cases side <;> first | exact hbf | exact hpf
+  | sumcheck side stage index => cases side <;> first | exact hbf | exact hpf
+  | terminal side stage => cases side <;> first | exact hbf | exact hpf
+  | combine side stage entries fragments last => cases side <;> first | exact hbf | exact hpf
   | conversion => simp only [roleCharge, conversionBad, hc]
   | packing => simp only [roleCharge, packingBad, hp]
   | rowBatching | batching | opening => rfl

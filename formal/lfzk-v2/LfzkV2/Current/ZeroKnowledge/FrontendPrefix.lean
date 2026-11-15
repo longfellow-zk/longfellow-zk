@@ -1,9 +1,10 @@
 import LfzkV2.Current.ZeroKnowledge.FrontendCompleteWire
 
 /-! Flatten the frontend reader into its actual boundary writes. A missing
-message denotes the shared assertion boundary, which may already carry the
-fingerprint responses or adapter advice. Input assertions after the final
-combine only extend that answer and therefore add no list entry.
+message denotes the frontend's opening assertion boundary, which may already
+carry the fingerprint responses or adapter advice. Every later stage's
+weights, and the input assertions, only extend the preceding combine answer
+and therefore add no list entry.
 
 These are identities for the existing stateful reader, independent of any
 honest-witness or privacy premise. They allow its generated prefix to be
@@ -59,8 +60,10 @@ def circuit : {out input : ℕ} → {body : Layered.Circuit F out input} →
       List (Option (Layered.Replay.Message F))
   | _,_,_,.input,_,continuing => if continuing then [] else [none]
   | _,_,_,.inputEntry ..,_,continuing => if continuing then [] else [none]
-  | _,_,_,.layer _ tail,payload,_ => none :: layer payload.1 ++ circuit tail payload.2 true
-  | _,_,_,.entryLayer _ _ _ tail,payload,_ => none :: layer payload.1 ++ circuit tail payload.2 true
+  | _,_,_,.layer _ tail,payload,continuing =>
+      (if continuing then [] else [none]) ++ layer payload.1 ++ circuit tail payload.2 true
+  | _,_,_,.entryLayer _ _ _ tail,payload,continuing =>
+      (if continuing then [] else [none]) ++ layer payload.1 ++ circuit tail payload.2 true
 
 variable (decode : C → ℕ → F) (nonzero : C → {r : F // r ≠ 0})
 
@@ -90,11 +93,11 @@ theorem circuit_state {out input : ℕ} {body : Layered.Circuit F out input}
   | inputEntry => cases continuing <;> rfl
   | layer _ tail ih =>
       dsimp only [readSetup,circuit]
-      rw [ih,layer_state,execute_append]
-      rfl
+      rw [ih,layer_state,execute_append,execute_append]
+      cases continuing <;> rfl
   | entryLayer _ _ _ tail ih =>
       dsimp only [readSetup,circuit]
-      rw [ih,layer_state,execute_append]
-      rfl
+      rw [ih,layer_state,execute_append,execute_append]
+      cases continuing <;> rfl
 
 end LfzkV2.Current.ZeroKnowledge.Frontend.Prefix

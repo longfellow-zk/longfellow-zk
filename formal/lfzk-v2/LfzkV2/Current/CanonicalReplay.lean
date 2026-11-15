@@ -566,6 +566,8 @@ theorem block_dataAt_pos (context : FingerprintPrefix.Key publicCount)
   exact block_castData repr shape setup publicCount _ _
 
 
+-- The frontend role lists are irrelevant here; unfolding them only slows unification.
+attribute [local irreducible] LfzkV2.Current.Frontend.roles in
 /-- A packet factory makes every verifier replay input canonical, including
 the complete-proof final seal. Only a static public size bound is required
 for framing that last body. The two block identities are constructor

@@ -14,7 +14,8 @@
 //!
 //! Each round message precedes its challenge. The cross message precedes the
 //! nonzero terminal scale, and both masked factors precede the single alpha.
-//! Zero outputs receive fresh assertion coefficients at their own layer.
+//! Zero outputs receive fresh assertion coefficients at their own layer: the
+//! caller's top weights for the first, the preceding combine answer after.
 //! Only the current stage's split metadata is retained.
 //!
 //! This derives affine constraints, not an acceptance decision. The caller must
@@ -25,13 +26,16 @@ use super::{
     fragments::{self, Schedule, SplitFragment},
     split::SplitLayer,
     symbolic::{build_constraints, Constraints, LayerChallenges},
-    transcript::{end_layer, round_challenge, terminal_challenge},
+    transcript::{end_layer, round_challenge, terminal_challenge, TopWeights},
 };
 use crate::{
     core::{algebra::SerializableField, proto::v2::classify_constants},
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
-        v2::{proto::sumcheck::SumcheckProof, transcript::TranscriptRef},
+        v2::{
+            proto::sumcheck::SumcheckProof,
+            transcript::{Challenge, TranscriptRef},
+        },
     },
 };
 
@@ -46,18 +50,35 @@ pub(crate) fn derive_constraints<
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<Constraints<F::E>, String> {
-    derive_constraints_for_circuits(&[circuit], proof, t, f)
+    top_and_derive(&[circuit], proof, t, f)
+}
+
+/// Test convenience: draw the top weights from `t`, after the caller has
+/// bound every circuit statement, then derive the constraints.
+#[cfg(test)]
+pub(crate) fn top_and_derive<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
+    circuits: &[impl CircuitSource<F>],
+    proof: &SumcheckProof<W, F>,
+    t: &mut TranscriptRef<'_>,
+    f: &F,
+) -> Result<Constraints<F::E>, String> {
+    let top = super::transcript::top_weights(circuits, t, f)?;
+    derive_constraints_for_circuits(circuits, proof, top, t, f)
 }
 
 /// Validate all message counts before advancing the transcript. Circuit metadata
 /// is trusted, as in the single-circuit entry point; shared public inputs must
-/// already have been bound by the caller.
+/// already have been bound by the caller, and `top` drawn after them.
 pub(crate) fn derive_constraints_for_circuits<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
 >(
     circuits: &[impl CircuitSource<F>],
     proof: &SumcheckProof<W, F>,
+    top: Challenge<TopWeights<F::E>>,
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<Constraints<F::E>, String> {
@@ -69,9 +90,13 @@ pub(crate) fn derive_constraints_for_circuits<
         .iter()
         .map(|c| classify_constants(f, &c.raw().constants))
         .collect();
-    schedule.absorb(circuits, t);
+    // Accept the top weights before the first message (transcript I8).
+    let mut entering = schedule.accept_top(top, t)?;
     let mut input_assertions = Vec::new();
     let mut weights = Vec::new();
+    if schedule.layers.is_empty() {
+        weights = std::mem::take(&mut entering.outputs);
+    }
     let mut challenges = Vec::with_capacity(proof.layers.len());
     for (stage, p) in proof.layers.iter().enumerate() {
         let layout = &schedule.layers[stage];
@@ -89,13 +114,16 @@ pub(crate) fn derive_constraints_for_circuits<
                 )
             })
             .collect();
-        schedule.start_layer(&mut weights, &mut active, stage, t, f);
+        schedule.enter(
+            stage,
+            std::mem::take(&mut entering),
+            &mut weights,
+            &mut active,
+        );
         let point_l: Vec<_> = p.rounds.iter().map(|m| round_challenge(m, t, f)).collect();
         let terminal = terminal_challenge(&p.cross, t, f);
         let alpha = end_layer(&p.claims, t, f, |r| {
-            if stage + 1 == schedule.layers.len() {
-                input_assertions = schedule.input_assertions(circuits, r, f);
-            }
+            schedule.after_combine(stage, circuits, r, f, &mut entering, &mut input_assertions)
         });
         let constant = fragments::constant(circuits, &weights, &active, f);
         let (next_weights, linear) =
@@ -109,6 +137,6 @@ pub(crate) fn derive_constraints_for_circuits<
             linear,
         });
     }
-    schedule.finish_inputs(circuits, &mut weights, input_assertions, t, f);
+    schedule.finish_inputs(&mut weights, input_assertions, f);
     Ok(build_constraints(proof, challenges, weights, f))
 }

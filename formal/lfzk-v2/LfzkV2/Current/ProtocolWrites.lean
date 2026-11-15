@@ -50,7 +50,7 @@ def frontendMessages (body : Body g F Advice Auth) : Role → (side : Side) → 
       Function.update (fun _ => .empty) side (stageMessage (body.frontend side) stage (.round round))
   | .terminal side stage =>
       Function.update (fun _ => .empty) side (stageMessage (body.frontend side) stage .cross)
-  | .combine side stage _ =>
+  | .combine side stage .. =>
       Function.update (fun _ => .empty) side (stageMessage (body.frontend side) stage .claims)
   | _ => fun _ => .empty
 

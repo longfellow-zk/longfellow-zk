@@ -136,7 +136,7 @@ def geometry : Geometry where
 -- Empty vectors do not add or remove boundaries. Fragments share a layer query.
 example : scalar.roles .prime =
     [.assertions .prime 0 [⟨0, 1⟩] [⟨0, 0, 0, 0⟩],
-      .terminal .prime 0, .combine .prime 0 []] := by decide +kernel
+      .terminal .prime 0, .combine .prime 0 [] [] true] := by decide +kernel
 
 example : (fragmented.roles .binary).map Role.domain =
     [.assertions, .sumcheck, .terminal, .combine] := by decide
@@ -144,23 +144,26 @@ example : (fragmented.roles .binary).map Role.domain =
 example : (Frontend.roles .binary ⟨[], [⟨0, 1⟩]⟩) =
     [.inputAssertions .binary [⟨0, 1⟩]] := by decide
 
--- A shallower circuit enters at the next stage; terminals remain global.
+-- A shallower circuit enters at the next stage, in the preceding combine
+-- answer; terminals remain global. Only the opening has an assertion boundary.
 example : (Frontend.roles .binary
     ⟨[⟨[⟨0, 1⟩], [⟨0, 0, 0, 0⟩], 2⟩,
-      ⟨[⟨1, 1⟩], [⟨0, 1, 0, 0⟩, ⟨1, 0, 0, 0⟩], 1⟩], []⟩).map Role.domain =
-    [.assertions, .sumcheck, .sumcheck, .terminal, .combine,
-      .assertions, .sumcheck, .terminal, .combine] := by decide
+      ⟨[⟨1, 1⟩], [⟨0, 1, 0, 0⟩, ⟨1, 0, 0, 0⟩], 1⟩], []⟩) =
+    [.assertions .binary 0 [⟨0, 1⟩] [⟨0, 0, 0, 0⟩], .sumcheck .binary 0 0, .sumcheck .binary 0 1,
+      .terminal .binary 0, .combine .binary 0 [⟨1, 1⟩] [⟨0, 1, 0, 0⟩, ⟨1, 0, 0, 0⟩] false,
+      .sumcheck .binary 1 0, .terminal .binary 1, .combine .binary 1 [] [] true] := by decide
 
+-- The prime frontend's last combine also draws eta: there is no rescaling boundary.
 example : geometry.roles.map Role.domain =
-    [.fingerprint, .assertions, .terminal, .combine, .rescaling,
+    [.fingerprint, .assertions, .terminal, .combine,
       .conversion, .assertions, .sumcheck, .terminal,
       .combine, .packing, .batching, .opening] := by decide
 
-example : geometry.roles.length + 1 = 14 := by decide
+example : geometry.roles.length + 1 = 13 := by decide
 example : geometry.actions.take 4 =
     [.bind .setup, .query .fingerprint, .bind .fingerprints, .bind (.frontend .prime)] := by decide
 
-example : ({geometry with packingDegree := 1, packingPositive := by decide}.roles).length = 12 :=
+example : ({geometry with packingDegree := 1, packingPositive := by decide}.roles).length = 11 :=
   by decide
 example : packingActions 1 = [] := rfl
 -- The prime statement has its unbatched layer row, the native split row and

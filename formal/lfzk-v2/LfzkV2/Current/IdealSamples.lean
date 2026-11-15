@@ -122,6 +122,40 @@ def primeNonzeroDecoder :
     (decoder B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity .primeNonzero)
     (IdealProjections.decoder (Equiv.refl _))
 
+/-- The prime vector and the first prime nonzero scalar are independent
+factors: the prime frontend's last answer reads its coordinates and `eta`. -/
+def primeEtaFactor :
+    Answer B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity ≃
+      ((Fin primeCapacity → N) × Linear.TerminalSampling.Nonzero N) ×
+        (Linear.TerminalSampling.Nonzero N ×
+          ((other : {other : {other : Component // other ≠ .prime} //
+              other ≠ ⟨.primeNonzero, by decide⟩}) →
+            Data B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity other.val.val)) :=
+  let first := factor B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity .prime
+  let second := Equiv.piSplitAt (⟨.primeNonzero, by decide⟩ : {other : Component // other ≠ .prime})
+    (fun other => Data B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity other.val)
+  { toFun := fun answer =>
+      let x := first answer
+      let y := second x.2
+      ((x.1,y.1.1),(y.1.2,y.2))
+    invFun := fun z => first.symm (z.1.1,second.symm ((z.1.2,z.2.1),z.2.2))
+    left_inv := by
+      intro answer
+      simp
+    right_inv := by
+      rintro ⟨⟨v,e⟩,⟨e',rest⟩⟩
+      simp }
+
+def primeEtaDecoder :
+    BalancedDecoder (Answer B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity)
+      ((Fin primeCapacity → N) × Linear.TerminalSampling.Nonzero N) :=
+  IdealProjections.decoder (primeEtaFactor B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity)
+
+theorem primeEtaDecoder_apply
+    (answer : Answer B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity) :
+    (primeEtaDecoder B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity).decode answer =
+      (answer .prime,(answer .primeNonzero).1) := rfl
+
 def binaryFrontend (positive : 0 < binaryCapacity) :
     FrontendReplay.Decoder binaryCapacity
       (vectorRead (decoder B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity .binary))

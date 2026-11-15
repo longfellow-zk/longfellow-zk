@@ -103,6 +103,57 @@ theorem bad_card_mul_le [Fintype F] [DecidableEq F] [Fintype C]
       rw [hevent]
       exact hcount
 
+/-- At the frontend's last answer the whole local test is one affine
+cancellation: at most one value in `|F|`. -/
+theorem bad_card_mul_le_last [Fintype F] [DecidableEq F] [Fintype C]
+    (lists : Key → Oracle → Finset (WitnessSelection.Candidate B IB) ×
+      Finset (WitnessSelection.Candidate N IN))
+    (fingerprintCoins : C → Coins B IB × Coins N IN)
+    (response : Point → (B × B) × (N × N))
+    (oracle : (Point → Link × C) → Key → Oracle)
+    {out input : ℕ} (circuit : Layered.Circuit F out input)
+    (plan : Layered.Replay.PadPlan (Pad := Pad) circuit)
+    (payload : Point → Layered.Replay.Payload circuit)
+    (inputs : Selection.Pair B N IB IN → SumcheckV2.Cube input → F)
+    (pads : Selection.Pair B N IB IN → Pad → F)
+    (decode : C → ℕ → F) (nonzero : C → Linear.TerminalSampling.Nonzero F)
+    {capacity : ℕ} (decoder : FrontendReplay.Decoder capacity decode nonzero)
+    (start : ℕ) (fallback : C) (point : Point) (H : Point → Link × C)
+    (hstart : start ≤ point.rank) (hcoalesced : FrontendReplay.Coalesced circuit)
+    (hfits : FrontendReplay.Fits capacity circuit 0)
+    (hlast : point.rank-start+1 = FrontendReplay.slots circuit) :
+    (Finset.univ.filter (bad lists fingerprintCoins response oracle circuit plan payload
+      inputs pads decode nonzero start fallback point H)).card * Fintype.card F ≤
+        Fintype.card C := by
+  classical
+  cases hselected : Selection.atPoint lists fingerprintCoins response oracle point H with
+  | none => simp [bad, hselected]
+  | some witness =>
+      have hcount := FrontendReplay.badAt_prefix_last_card_mul_le decoder circuit plan
+        (payload point) (inputs witness) (pads witness) (point.rank-start)
+        (fun i : Fin (point.rank-start) =>
+          point.priorAnswers H ⟨start+i.val, by have := i.isLt; omega⟩)
+        fallback hcoalesced hfits hlast
+      have hevent : bad lists fingerprintCoins response oracle circuit plan payload
+          inputs pads decode nonzero start fallback point H =
+          fun answer => FrontendReplay.BadAt decode nonzero circuit plan (payload point)
+            (completeAnswers
+              (fun i : Fin (point.rank-start) =>
+                point.priorAnswers H ⟨start+i.val, by have := i.isLt; omega⟩)
+              answer fallback) (inputs witness) (pads witness) (point.rank-start) := by
+        funext answer
+        apply propext
+        simp only [bad, hselected, Option.some.injEq]
+        constructor
+        · rintro ⟨w,hw,hbad⟩
+          subst w
+          simpa only [shifted_answersWith start point H answer fallback hstart] using hbad
+        · intro hbad
+          refine ⟨witness,rfl,?_⟩
+          simpa only [shifted_answersWith start point H answer fallback hstart] using hbad
+      rw [hevent]
+      exact hcount
+
 /-- Even a malformed query preimage cannot make this local test read its own
 oracle answer implicitly. Its answer is supplied only by `answer`. -/
 theorem bad_off

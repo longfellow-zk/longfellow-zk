@@ -60,15 +60,14 @@ theorem stage_ranks :
     (simulateCircuit binary.description.circuit coins.binary) next.2.2 (by rw [next.1,middle.1,first.1,cap]; omega)
   refine ⟨first.1,?_,?_,?_⟩
   · rw [middle.1,first.1,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
-    change 1+(primePlan.frontend.roles .prime).length+1 = 1+(primePlan.frontend.roles .prime).length+1
     rfl
   · rw [next.1,middle.1,first.1,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
-    change 1+(primePlan.frontend.roles .prime).length+1+1 = (primePlan.frontend.roles .prime).length+3
+    change 1+(primePlan.frontend.roles .prime).length+1 = (primePlan.frontend.roles .prime).length+2
     omega
   · rw [last.1,next.1,middle.1,first.1,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime,
       Frontend.ScheduleLength.circuitFuel_roles binary.plan .binary]
-    change 1+(primePlan.frontend.roles .prime).length+1+1+(binary.plan.frontend.roles .binary).length =
-      (primePlan.frontend.roles .prime).length+3+(binary.plan.frontend.roles .binary).length
+    change 1+(primePlan.frontend.roles .prime).length+1+(binary.plan.frontend.roles .binary).length =
+      (primePlan.frontend.roles .prime).length+2+(binary.plan.frontend.roles .binary).length
     omega
 
 omit [DecidableEq B] in
@@ -113,8 +112,8 @@ theorem binary_messages :
       Frontend.ScheduleLength.circuitFuel binary.plan false ≤
         (G).roles.length := by
     rw [rank,SimulationWrites.capacity binary prime primePlan,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
-    change (primePlan.frontend.roles .prime).length+3+Frontend.ScheduleLength.circuitFuel binary.plan false ≤
-      (primePlan.frontend.roles .prime).length+Frontend.ScheduleLength.circuitFuel binary.plan false+6
+    change (primePlan.frontend.roles .prime).length+2+Frontend.ScheduleLength.circuitFuel binary.plan false ≤
+      (primePlan.frontend.roles .prime).length+Frontend.ScheduleLength.circuitFuel binary.plan false+5
     omega
   have message := CompilerTransport.messages
     (g := G) (fields := MdocRuntime.fields B) (Authentication := OpeningBody.Authentication (G))

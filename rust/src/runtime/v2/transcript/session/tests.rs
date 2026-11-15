@@ -17,6 +17,7 @@ impl Transcript {
             strand: self.strand.clone_for_test(),
             position: self.position,
             session: SessionStamp::fresh(),
+            stream: self.stream.as_ref().map(Reader::clone_for_test),
             _round_count: RoundCount(self._round_count.0),
         }
     }
@@ -121,17 +122,23 @@ fn distinct_labels_and_terminal_authentication_are_bound() {
 
 #[test]
 fn sealed_and_verified_proofs_record_their_round_count() {
+    let run = |t: &mut Transcript| {
+        t.bytes(32);
+        t.bytes(32);
+        t.absorb(|w| w.write_bytes(b"message"));
+        t.bytes(32);
+    };
     let mut prover = Transcript::new(b"round count");
-    prover.bytes(32);
-    prover.bytes(32);
+    run(&mut prover);
     let encoded = prover.append_final_seal(vec![1, 2, 3]);
     assert_eq!(encoded.round_count_for_test(), 2);
     let mut verifier = Transcript::new(b"round count");
-    verifier.bytes(32);
-    verifier.bytes(32);
+    run(&mut verifier);
     let verified = verifier.verify_final_seal(encoded.as_bytes()).unwrap();
     assert_eq!(verified.round_count_for_test(), 2);
 }
+/// The vectors are SHA-256 over the documented strand and PRF encodings,
+/// computed outside this crate.
 #[test]
 fn parent_chain_matches_independent_two_round_vector() {
     let mut t = Transcript::new(b"feedback");
@@ -139,11 +146,57 @@ fn parent_chain_matches_independent_two_round_vector() {
         hex::encode(t.bytes(32)),
         "0e5adbfa0ab03fef54b0925af4c171995fe070e0e024d6a23b64fc6758300dca"
     );
+    // No message since the boundary: PRF block one of the same node.
     assert_eq!(
         hex::encode(t.bytes(32)),
-        "b3a4f9b134d29d6110d15e195d477269e289dcf201cf39238cbdb626b014fe8d"
+        "ed890adb7cf166182a29fa73b0252867a14676055d906781876d319e5ba7f597"
+    );
+    assert_eq!(t._round_count.0, 1);
+    // A message: the next draw ends node one, whose parent is node zero.
+    t.absorb(|w| w.write_bytes(b"m"));
+    assert_eq!(
+        hex::encode(t.bytes(32)),
+        "8973e25116b52df2a1b5156fc9b582942a01190a12a65ec8ada44d1f2b67cc4a"
     );
     assert_eq!(t._round_count.0, 2);
+}
+#[test]
+fn a_draw_without_a_message_continues_the_stream() {
+    // Two draws with no message between them read one stream: the same
+    // bytes as one draw that reads both, with no footer for the second.
+    let mut split = Transcript::new(b"continue");
+    let mut whole = split.fork_for_test();
+    let first = split.round(RoundLabel::Combine, |mut w| {
+        w.write_bytes(b"claims");
+        let mut r = w.begin_squeeze();
+        let x = r.bytes(5);
+        r.end_round(x)
+    });
+    let position = split.position();
+    // The second draw's label is never written.
+    let second = split.round(RoundLabel::Rescaling, |w| {
+        let mut r = w.begin_squeeze();
+        let x = r.bytes(40);
+        r.end_round(x)
+    });
+    assert!(split.position() == position);
+    let both = whole.round(RoundLabel::Combine, |mut w| {
+        w.write_bytes(b"claims");
+        let mut r = w.begin_squeeze();
+        let x = r.bytes(45);
+        r.end_round(x)
+    });
+    assert_eq!([first, second].concat(), both);
+    assert_eq!(split.round_count_for_test(), 1);
+    assert_eq!(split.bytes(32), whole.bytes(32));
+    // A message closes the stream: the next draw opens a node with the
+    // footer of its own label.
+    split.absorb(|w| w.write_bytes(b"next"));
+    whole.absorb(|w| w.write_bytes(b"next"));
+    split.round(RoundLabel::Sumcheck, |w| w.begin_squeeze().end_round(()));
+    whole.round(RoundLabel::Packing, |w| w.begin_squeeze().end_round(()));
+    assert_eq!(split.round_count_for_test(), 2);
+    assert_ne!(split.bytes(32), whole.bytes(32));
 }
 #[test]
 fn large_reads_extend_the_same_prf_stream() {

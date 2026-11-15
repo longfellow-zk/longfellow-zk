@@ -13,6 +13,9 @@ open Application ApplicationSetup CanonicalPrefix QueryRuntime
 open Finset Merkle.RandomOracle TranscriptV2
 open scoped Classical
 
+-- The frontend role lists are irrelevant here; unfolding them only slows unification.
+attribute [local irreducible] LfzkV2.Current.Frontend.roles
+
 variable {g : Geometry} {fields : Fields} {Advice C B Salt Enc : Type}
 variable [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
 variable [∀ side, Fintype (fields side)] [Fintype Advice]

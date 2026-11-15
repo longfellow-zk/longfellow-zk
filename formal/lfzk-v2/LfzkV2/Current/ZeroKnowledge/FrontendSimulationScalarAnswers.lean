@@ -29,12 +29,12 @@ theorem first_values (context : Key) (coins : CompleteSimulation.Coins binary pr
     _ inside (SimulationAnswers.first_future binary prime primePlan samples base H context coins)
 
 omit [Fintype B] [DecidableEq B] in
-/-- The split claim is computed from the prime messages alone; eta is the
-answer of the step right after the prime frontend. -/
+/-- The split claim is computed from the prime messages alone; eta is read
+from the prime frontend's last answer, after its coordinates. -/
 theorem prime_values
     (state future : CompleteSimulation.State binary prime primePlan (Key := Key) (Base := Base) (C := C))
     (payload : Layered.Replay.Payload prime.circuit)
-    (fits : state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false+1 ≤
+    (fits : state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false ≤
       (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length)
     (extended : Extends samples.fallback
       (CompleteSimulation.primePrefix binary prime primePlan samples base H state payload).state future) :
@@ -43,17 +43,28 @@ theorem prime_values
     let native := CompleteSimulation.primePrefix binary prime primePlan samples base H state payload
     native.claim = CompleteSimulation.primeClaim prime (messagesFromSetup prime.circuit read.1 payload) ∧
       native.eta = samples.primeNonzero (lookup samples.fallback future
-        (state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false)) := by
+        (state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false-1)) := by
   let read := readSetup (CompleteTranscript.reader .prime (Equiv.refl P)
     samples.prime samples.primeNonzero base H) primePlan prime.setup.plan payload state false
+  have fuel : 0 < Frontend.ScheduleLength.circuitFuel primePlan false := by
+    rw [Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
+    exact List.length_pos_iff.mpr (primePlan.frontend.roles_ne_nil .prime)
   have readRank : read.2.rank.val = state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false := by
     rw [SimulationWrites.read_rank]
     exact Nat.min_eq_right (by omega)
-  have scaleInside : read.2.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by omega
-  have scaleAnswer := step_answer_into base H samples.fallback read.2 future scaleInside extended
-  rw [readRank] at scaleAnswer
-  change _ = _ ∧ samples.primeNonzero (CompleteTranscript.step base H read.2).1 = _
-  exact ⟨rfl,by rw [scaleAnswer]⟩
+  have inside : state.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by
+    omega
+  have readLast : Last samples.fallback read.2 := by
+    change Last samples.fallback (readSetup _ primePlan prime.setup.plan payload state false).2
+    rw [Prefix.circuit_state, Prefix.circuit_open, Prefix.execute]
+    apply execute_last
+    exact step_last_inside base H samples.fallback _ inside
+  have value : read.2.lastAnswer = lookup samples.fallback future
+      (state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false-1) := by
+    rw [readLast, ← readRank]
+    exact (extended.2 _ (by change read.2.rank.val-1 < read.2.rank.val; omega)).symm
+  change _ = _ ∧ samples.primeNonzero read.2.lastAnswer = _
+  exact ⟨rfl,by rw [value]⟩
 
 omit [Fintype B] [DecidableEq B] in
 theorem conversion_values

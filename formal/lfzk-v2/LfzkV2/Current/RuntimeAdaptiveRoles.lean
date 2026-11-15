@@ -56,19 +56,37 @@ theorem roleCharge_frontend (role : Role) (side : Side) (point : Point)
     (answer : Digest × C) (h : frontendSide role = some side) :
     roleCharge S laws readers role point H answer = match side with
       | .binary => frontendCharge S readers.binaryRead point H answer
-      | .prime => frontendCharge S readers.primeRead point H answer := by
+      | .prime => primeCharge S laws readers point H answer := by
   cases role with
   | inputAssertions participant entries => cases participant <;> cases h <;> rfl
   | assertions participant stage entries fragments => cases participant <;> cases h <;> rfl
   | sumcheck participant stage round => cases participant <;> cases h <;> rfl
   | terminal participant stage => cases participant <;> cases h <;> rfl
-  | combine participant stage entries => cases participant <;> cases h <;> rfl
-  | fingerprint | rowBatching | rescaling | conversion | packing | batching | opening => cases h
+  | combine participant stage entries fragments last => cases participant <;> cases h <;> rfl
+  | fingerprint | rowBatching | conversion | packing | batching | opening => cases h
+
+/-- A prime frontend failure is charged at its own boundary, alone or fused
+with the rescaling test at the prime frontend's last boundary. -/
+theorem primeCharge_of_frontendBad (point : Point) (answer : Digest × C)
+    (h : frontendBad S readers.primeRead point H answer.2) :
+    primeCharge S laws readers point H answer = 1 := by
+  by_cases hlast : LastPrime readers point H
+  · rw [primeCharge_last S laws readers point H answer hlast]
+    simp [indicator, h]
+  · rw [primeCharge_other S laws readers point H answer hlast]
+    simp [frontendCharge, indicator, h]
+
+theorem primeCharge_of_rescaleBad (point : Point) (answer : Digest × C)
+    (hlast : LastPrime readers point H)
+    (h : rescaleBad S readers.rescaleRead laws.rescaleDecoder point H answer.2) :
+    primeCharge S laws readers point H answer = 1 := by
+  rw [primeCharge_last S laws readers point H answer hlast]
+  simp [indicator, h]
 
 theorem prime_single (primeGeometry : primePlan.frontend = g.prime) (query : ℕ)
     (hquery : query < FrontendReplay.slots prime.circuit) (answer : Digest × C) :
     single S laws readers ((e.chain initialLink).point proof H (g.primeStart+query)) H answer =
-      frontendCharge S readers.primeRead ((e.chain initialLink).point proof H (g.primeStart+query)) H answer := by
+      primeCharge S laws readers ((e.chain initialLink).point proof H (g.primeStart+query)) H answer := by
   have hslots : FrontendReplay.slots prime.circuit = (g.prime.roles .prime).length := by
     rw [primePlan.slots_eq_roles_length .prime,primeGeometry]
   let i : Fin (g.prime.roles .prime).length := ⟨query,by omega⟩
@@ -102,28 +120,57 @@ theorem binary_single (binaryGeometry : binaryTemplate.frontend = g.binary)
   rw [hr]
   exact roleCharge_frontend binary prime P R cfg S laws H readers _ .binary _ answer hs
 
-theorem adapter_single (i : Fin 2) (answer : Digest × C) :
-    single S laws readers ((e.chain initialLink).point proof H (ApplicationPrefix.rescalingIndex g+i.val)) H answer =
-      roleCharge S laws readers (([Role.rescaling,.conversion]).get i)
-        ((e.chain initialLink).point proof H (ApplicationPrefix.rescalingIndex g+i.val)) H answer := by
-  have hindex : ApplicationPrefix.rescalingIndex g+i.val < g.roles.length := by
-    have hlength := g.roles_length
-    have hi := i.isLt
-    simp only [ApplicationPrefix.rescalingIndex,Geometry.primeStart] at *
-    omega
-  have hr := point_role_of_get e initialLink proof H _ hindex _ (RuntimeShape.adapter_get g i)
-  simp only [single,hr]
-
+/-- The prime frontend's last boundary also carries the rescaling test. -/
 theorem rescaling_single (answer : Digest × C) :
     single S laws readers ((e.chain initialLink).point proof H (ApplicationPrefix.rescalingIndex g)) H answer =
-      indicator (rescaleBad S readers.rescaleRead laws.rescaleDecoder ((e.chain initialLink).point proof H (ApplicationPrefix.rescalingIndex g)) H answer.2) := by
-  simpa [roleCharge] using adapter_single binary prime P R cfg S laws e initialLink proof H readers 0 answer
+      primeCharge S laws readers ((e.chain initialLink).point proof H (ApplicationPrefix.rescalingIndex g)) H answer := by
+  have hindex : ApplicationPrefix.rescalingIndex g < g.roles.length := by
+    have hlength := g.roles_length
+    have hpos := ApplicationPrefix.prime_roles_pos g
+    simp only [ApplicationPrefix.rescalingIndex,Geometry.primeStart] at *
+    omega
+  have hr := point_role_of_get e initialLink proof H _ hindex _ (RuntimeShape.prime_last_get g)
+  unfold single
+  rw [hr]
+  apply roleCharge_frontend binary prime P R cfg S laws H readers _ .prime _ answer
+  rcases Frontend.lastRole_cases .prime g.prime with ⟨_,he⟩ | ⟨_,stage,he⟩ <;>
+    rw [he] <;> rfl
+
+/-- Every concrete prime view read at the rescaling boundary ends there: it
+is the prime frontend's last boundary. -/
+theorem lastPrime_concrete (primeGeometry : primePlan.frontend = g.prime) :
+    LastPrime (concreteReaders S laws hashPublic decodePublic primePlan primeFits binaryTemplate binaryFits)
+      ((e.chain initialLink).point proof H (ApplicationPrefix.rescalingIndex g)) H := by
+  have hindex : ApplicationPrefix.rescalingIndex g ≤ g.roles.length := by
+    have hlength := g.roles_length
+    simp only [ApplicationPrefix.rescalingIndex,Geometry.primeStart] at *
+    omega
+  have hr := (e.chain initialLink).point_rank proof H hindex
+  change Input.rank _ = ApplicationPrefix.rescalingIndex g at hr
+  refine ⟨hr,?_⟩
+  intro view hview
+  simp only [concreteReaders,RuntimeAdaptiveViews.readPrimeView,Option.bind_eq_bind,
+    Option.bind_eq_some_iff] at hview
+  obtain ⟨values,_,hview⟩ := hview
+  unfold ApplicationViews.readPrimeView at hview
+  split at hview
+  · obtain ⟨payload,_,rfl⟩ := Option.map_eq_some_iff.mp hview
+    change _ = g.primeStart+FrontendReplay.slots prime.circuit
+    rw [primePlan.slots_eq_roles_length .prime,primeGeometry,hr,
+      ← ApplicationPrefix.conversionIndex_eq]
+    rfl
+  · contradiction
 
 theorem conversion_single (answer : Digest × C) :
     single S laws readers ((e.chain initialLink).point proof H (ApplicationPrefix.conversionIndex g)) H answer =
       indicator (conversionBad S readers.conversionRead laws.conversionDecoder Adapter.Mdoc.groupOrder Adapter.Mdoc.quotientBound
         ((e.chain initialLink).point proof H (ApplicationPrefix.conversionIndex g)) H answer.2) := by
-  simpa [ApplicationPrefix.conversionIndex,roleCharge] using adapter_single binary prime P R cfg S laws e initialLink proof H readers 1 answer
+  have hindex : ApplicationPrefix.conversionIndex g < g.roles.length := by
+    have hlength := g.roles_length
+    simp only [ApplicationPrefix.conversionIndex,Geometry.primeStart] at *
+    omega
+  have hr := point_role_of_get e initialLink proof H _ hindex _ (RuntimeShape.conversion_get g)
+  simp only [single,hr,roleCharge]
 
 theorem packing_single (answer : Digest × C) :
     single S laws readers ((e.chain initialLink).point proof H (ApplicationPrefix.packingIndex g)) H answer =

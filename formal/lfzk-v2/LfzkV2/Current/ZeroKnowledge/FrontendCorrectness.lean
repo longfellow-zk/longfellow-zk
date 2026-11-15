@@ -83,14 +83,14 @@ theorem readSetup_uses (reader : CircuitReader F State)
   | layer _ _ ih => exact ⟨rfl,ih _ _ _ true⟩
   | entryLayer _ _ _ _ ih => exact ⟨rfl,ih _ _ _ true⟩
 
-theorem realCircuit_honest (reader : CircuitReader F State)
+theorem realCircuitFrom_honest (reader : CircuitReader F State)
     {out input : ℕ} {circuit : Layered.Circuit F out input}
     (plan : FrontendSchedule.Plan F circuit)
     (ids : Layered.Replay.PadPlan (Pad := Pad) circuit)
     (w : Cube input → F) (weights : Cube out → F) (state : State) (continuing : Bool)
     (tape : CircuitTape circuit) (pads : Pad → F)
     (hvalues : Assignment circuit ids tape pads) :
-    let payload := realCircuit reader plan w weights state tape
+    let payload := circuitEquivFrom reader plan w weights state continuing tape
     let setup := (readSetup reader plan ids payload state continuing).1
     messagesFromSetup circuit setup payload = Layered.Circuit.prove circuit setup w weights pads := by
   induction plan generalizing state continuing with
@@ -106,6 +106,18 @@ theorem realCircuit_honest (reader : CircuitReader F State)
       · apply Prod.ext
         · exact realLayer_messages_eq_honest_at _ _ _ _ _ _ _ _ _ hvalues.1
         · exact ih _ _ _ _ true _ hvalues.2
+
+theorem realCircuit_honest (reader : CircuitReader F State)
+    {out input : ℕ} {circuit : Layered.Circuit F out input}
+    (plan : FrontendSchedule.Plan F circuit)
+    (ids : Layered.Replay.PadPlan (Pad := Pad) circuit)
+    (w : Cube input → F) (weights : Cube out → F) (state : State)
+    (tape : CircuitTape circuit) (pads : Pad → F)
+    (hvalues : Assignment circuit ids tape pads) :
+    let payload := realCircuit reader plan w weights state tape
+    let setup := (readSetup reader plan ids payload state false).1
+    messagesFromSetup circuit setup payload = Layered.Circuit.prove circuit setup w weights pads :=
+  realCircuitFrom_honest reader plan ids w weights state false tape pads hvalues
 
 /-- Recovering cells is a proof coupling, not an input to the simulator.
 All its product cells are in the ordinary committed pad suffix. -/
@@ -129,7 +141,7 @@ theorem realCircuit_constraints (reader : CircuitReader F State)
   dsimp only
   let payload := realCircuit reader plan w 0 state tape
   let setup := (readSetup reader plan ids payload state false).1
-  have hm := realCircuit_honest reader plan ids w 0 state false tape pads hvalues
+  have hm := realCircuit_honest reader plan ids w 0 state tape pads hvalues
   have hpads := assignment_honest circuit ids tape pads setup
     (readSetup_uses reader plan ids payload state false) hvalues
   have h := Layered.Circuit.prove_complete circuit setup w pads hvalid hpads
@@ -158,7 +170,7 @@ theorem simulated_constraints (reader : CircuitReader F State)
   have hvalues := circuitPadValues_assignment circuit tape
   have hreal : realCircuit reader plan w 0 state tape = payload :=
     (circuitEquiv reader plan w 0 state).apply_symm_apply payload
-  have hmessages := realCircuit_honest reader plan ids w 0 state false tape pads hvalues
+  have hmessages := realCircuit_honest reader plan ids w 0 state tape pads hvalues
   rw [hreal] at hmessages
   have hpads := assignment_honest circuit ids tape pads setup
     (readSetup_uses reader plan ids payload state false) hvalues

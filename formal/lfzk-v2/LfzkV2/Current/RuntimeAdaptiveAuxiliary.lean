@@ -1,6 +1,7 @@
 import LfzkV2.Current.RuntimeAdaptiveReplay
 
-/-! Rescaling, conversion and packing events at their actual adaptive query boundaries.
+/-! Rescaling, conversion and packing events at their actual adaptive query
+boundaries; the rescaling event shares the prime frontend's last answer.
 Only public values already recovered from those prefixes enter the local tests. -/
 noncomputable section
 namespace LfzkV2.Current.RuntimeAdaptiveAuxiliary
@@ -36,9 +37,14 @@ variable (H : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advic
 
 include primePlan primeGeometry in
 private theorem prime_window : g.primeStart+FrontendReplay.slots prime.circuit =
-    ApplicationPrefix.rescalingIndex g := by
+    ApplicationPrefix.conversionIndex g := by
   rw [primePlan.slots_eq_roles_length .prime,primeGeometry]
   rfl
+
+include primePlan primeGeometry in
+private theorem prime_last : g.primeStart+FrontendReplay.slots prime.circuit =
+    ApplicationPrefix.rescalingIndex g+1 := by
+  rw [prime_window primePlan primeGeometry, ApplicationPrefix.conversionIndex_eq]
 
 omit [Fintype C] in
 /-- Successful strict-past parsing identifies both the earlier rank and
@@ -92,8 +98,7 @@ theorem conversion_of_late
   let point := (e.chain initialLink).point proof H index
   have hindex : index < g.roles.length := by
     have hh := g.roles_length
-    simp only [index,ApplicationPrefix.conversionIndex,ApplicationPrefix.rescalingIndex,
-      Geometry.primeStart] at *
+    simp only [index,ApplicationPrefix.conversionIndex,Geometry.primeStart] at *
     omega
   have hs := ApplicationPrefix.readPrime_spec (primeWithInputs prime inputs) cfg.primeField cfg.primeDecode
     cfg.primeNonzero cfg.fallback _ _ nd hread
@@ -107,7 +112,7 @@ theorem conversion_of_late
   have hprime := ApplicationViewReplay.readPrime_from_late e initialLink proof (primeWithInputs prime inputs)
     cfg.primeField cfg.primeDecode cfg.primeNonzero cfg.fallback H index later hindex.le hlater
     (by change g.primeStart+FrontendReplay.slots prime.circuit ≤ index
-        rw [prime_window primePlan primeGeometry]; dsimp [index,ApplicationPrefix.conversionIndex]; omega)
+        rw [prime_window primePlan primeGeometry])
     (by have hh := hs.1
         change g.primeStart+FrontendReplay.slots prime.circuit ≤ ((e.chain initialLink).point proof H later).rank at hh
         rw [hr] at hh
@@ -117,8 +122,8 @@ theorem conversion_of_late
       (ApplicationPrefix.rescalingIndex g) = some scale := by
     rw [ApplicationViewReplay.strictAnswer_replay_eq e initialLink proof H index later
       (ApplicationPrefix.rescalingIndex g) hindex.le hlater
-      (by dsimp [index,ApplicationPrefix.rescalingIndex,ApplicationPrefix.conversionIndex]; omega)
-      (by dsimp [index,ApplicationPrefix.rescalingIndex,ApplicationPrefix.conversionIndex] at hpast ⊢; omega)]
+      (by dsimp only [index]; rw [ApplicationPrefix.conversionIndex_eq]; omega)
+      (by dsimp only [index] at hpast; rw [ApplicationPrefix.conversionIndex_eq] at hpast; omega)]
     exact hscale
   have hmu : point.readAt index (fun block => block.2.mu.map cfg.primeField) = some bd.mu := by
     rw [ApplicationViewReplay.readAt_replay_eq e initialLink proof H
@@ -147,8 +152,9 @@ theorem conversion_of_late
   exact ⟨hbad.1,hbad.2 0,hbad.2 1⟩
 
 include primePlan primeGeometry in
-/-- The rescaling event is tested directly after the prime frontend: mixed
-storage has no row-combination challenge before eta. -/
+/-- The rescaling event is tested at the prime frontend's last boundary, whose
+answer draws eta after alpha and the input weights: the split claim is that
+answer's function, and mixed storage has no row-combination challenge. -/
 theorem rescale_of_late
     (later : ℕ) (hlater : later ≤ g.roles.length)
     (bits : Fin binary.nPublic → Bool) (inputs : Fin prime.nPublic → N)
@@ -178,40 +184,38 @@ theorem rescale_of_late
   let point := (e.chain initialLink).point proof H index
   have hindex : index < g.roles.length := by
     have hh := g.roles_length
+    have hpos := ApplicationPrefix.prime_roles_pos g
     simp only [index,ApplicationPrefix.rescalingIndex,Geometry.primeStart] at *
     omega
-  have hs := ApplicationPrefix.readPrime_spec (primeWithInputs prime inputs) cfg.primeField cfg.primeDecode
-    cfg.primeNonzero cfg.fallback _ _ nd hread
   have hb := ApplicationPrefix.readBinary_spec (binaryWithBits binary bits) nd Generator cfg.packingDegree
     cfg.binaryField cfg.primeField cfg.binaryDecode cfg.binaryNonzero cfg.primeNonzero
     cfg.conversion cfg.advice cfg.fallback _ _ bd hbinary
-  have hr := (e.chain initialLink).point_rank proof H hlater
-  change Input.rank _ = later at hr
   obtain ⟨answer,hanswer,heta⟩ := hb.2.1
   obtain ⟨hpast,ha⟩ := strictAnswer_from_late e initialLink proof H later hlater index answer hanswer
-  have hprime := ApplicationViewReplay.readPrime_from_late e initialLink proof (primeWithInputs prime inputs)
-    cfg.primeField cfg.primeDecode cfg.primeNonzero cfg.fallback H index later hindex.le hlater
-    (by change g.primeStart+FrontendReplay.slots prime.circuit ≤ index
-        rw [prime_window primePlan primeGeometry])
-    (by have hh := hs.1
-        change g.primeStart+FrontendReplay.slots prime.circuit ≤ ((e.chain initialLink).point proof H later).rank at hh
-        rw [hr] at hh
-        exact hh) nd hread
+  obtain ⟨current,hcurrent,hvalue⟩ := ApplicationViewReplay.readPrimeCurrent_from_late e initialLink proof
+    (primeWithInputs prime inputs) cfg.primeField cfg.primeDecode cfg.primeNonzero cfg.fallback H index later
+    hindex hlater hpast (prime_last primePlan primeGeometry) nd hread
   have hstart : g.primeStart ≤ index := by
+    have hpos := ApplicationPrefix.prime_roles_pos g
     dsimp only [index,ApplicationPrefix.rescalingIndex]; omega
   have hpublicEarly := (RuntimeAdaptiveReplay.publics_replay_eq binary prime hashPublic decodePublic
     e initialLink proof H index later hindex.le hlater (lt_of_le_of_lt hstart hindex)
     hstart (hstart.trans hpast.le)).trans hpublic
   refine ⟨w,hselected,?_⟩
-  change optionBad (fun packet w answer => packet.bad w (laws.rescaleDecoder.decode answer))
+  change optionBad (fun packet w answer =>
+      (∀ a b, (laws.rescaleDecoder.decode a).1 = (laws.rescaleDecoder.decode b).1 →
+        packet.claim a = packet.claim b) ∧ packet.bad w answer (laws.rescaleDecoder.decode answer).2)
     ((RuntimeAdaptiveViews.readRescale binary prime P R cfg hashPublic decodePublic) point (point.priorAnswers H)) w (H point).2
   unfold RuntimeAdaptiveViews.readRescale
   rw [hpublicEarly]
   simp only [Option.bind_eq_bind,Option.bind_some]
   unfold readRescalePacket
-  rw [hprime]
-  change Prime.RescalingBad _ _ (laws.rescaleDecoder.decode (H point).2).val
-  rw [laws.rescale_agrees]
+  rw [hcurrent]
+  refine ⟨fun a b hab => ApplicationPrefix.readPrimeCurrent_claim _ _ _ _ _ _ _ current hcurrent a b
+    (fun i _ => congrFun (laws.rescale_coordinates a b hab) i), ?_⟩
+  change Prime.RescalingBad ((current (H point).2).claim.residual _ _) _
+    (laws.rescaleDecoder.decode (H point).2).2.val
+  rw [laws.rescale_agrees, hvalue]
   rw [heta,ha] at hbad
   exact hbad
 
@@ -253,9 +257,7 @@ theorem packing_of_late
   have hn := ApplicationPrefix.readPrime_spec (primeWithInputs prime inputs) cfg.primeField cfg.primeDecode
     cfg.primeNonzero cfg.fallback _ _ nd hreadPrime
   have hprimeWindow : g.primeStart+FrontendReplay.slots prime.circuit =
-      ApplicationPrefix.rescalingIndex g := by
-    rw [primePlan.slots_eq_roles_length .prime,primeGeometry]
-    rfl
+      ApplicationPrefix.conversionIndex g := prime_window primePlan primeGeometry
   have hwindowLate : g.primeStart+FrontendReplay.slots prime.circuit ≤ later := by
     have hh := hn.1
     change g.primeStart+FrontendReplay.slots prime.circuit ≤ ((e.chain initialLink).point proof H later).rank at hh
@@ -285,12 +287,12 @@ theorem packing_of_late
     rfl
   have hprimeEarlier : g.primeStart+FrontendReplay.slots prime.circuit ≤ index := by
     rw [hprimeWindow]
-    simp only [index,ApplicationPrefix.packingIndex,ApplicationPrefix.rescalingIndex,
+    simp only [index,ApplicationPrefix.packingIndex,ApplicationPrefix.conversionIndex,
       Geometry.primeStart,Geometry.binaryStart]
     omega
   have hconversion : ApplicationPrefix.conversionIndex g < index := by
     simp only [index,ApplicationPrefix.packingIndex,ApplicationPrefix.conversionIndex,
-      ApplicationPrefix.rescalingIndex,Geometry.primeStart,Geometry.binaryStart]
+      Geometry.primeStart,Geometry.binaryStart]
     omega
   have hstart : g.binaryStart ≤ index := by unfold index ApplicationPrefix.packingIndex; omega
   have hpacket := ApplicationViewReplay.readBinaryPacket_from_late e initialLink proof (binaryWithBits binary bits) (primeWithInputs prime inputs)

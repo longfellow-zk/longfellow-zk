@@ -26,7 +26,7 @@ top-down [proof map](../README.md#proof-map). The endpoints are
 bound is `LfzkV2.Current.Soundness.Rate7.failureBound`.
 
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
-487/491/496/499 rounds. `MdocRoundShape.rounds_eq` derives the total from each
+457/461/466/469 rounds. `MdocRoundShape.rounds_eq` derives the total from each
 per-layer schedule; [`check_mdoc_round_shapes.rs`](../scripts/check_mdoc_round_shapes.rs)
 checks those schedules and totals against the current Rust compiler. The
 approximation takes a supported-shape witness and derives the round bound
@@ -137,8 +137,7 @@ it into a native row for Polygero and a modular claim for the adapter.
 | Boundary | Data bound before the challenge | Answer block |
 |---|---|---|
 | Witness selection | Joint root, field identities and layouts | Two independent full coefficient vectors per field |
-| Prime layered sumcheck | Public prime inputs and preceding masked messages | Shared assertion/entry coefficients, ordinary rounds, nonzero terminals and combine coefficients |
-| Split | Preceding prime frontend messages and rescaling domain | One nonzero prime scalar `eta` |
+| Prime layered sumcheck | Public prime inputs and preceding masked messages | Shared assertion/entry coefficients, ordinary rounds, nonzero terminals and combine coefficients followed by the next weights; the last combine answer also draws the split's nonzero `eta` |
 | Conversion | Split message `mu` and conversion domain | Two nonzero prime scalars in one answer |
 | Binary layered sumcheck | Both masked quotients and public statements | One shared sumcheck over the hash circuit and the adapter fragment |
 | Packing | Caller statement, public cell counts and trace-zero vector `U` | One full-field vector; absent for degree one |
@@ -168,15 +167,17 @@ read without an intervening prover message. Fragments add no boundaries or wire
 arrays. Components are ordered by decreasing depth, with original input index
 breaking ties, including duplicate circuit identifiers. Outputs are zero
 assertions at their own layer; entering outputs and explicit assertions share
-one answer. Input-only assertions extend the final combine answer.
+one answer: the frontend's opening answer at its first layer, and the
+preceding combine answer, after alpha, at every later layer. Input-only
+assertions extend the final combine answer, and the prime frontend's last
+answer also draws the split's nonzero `eta`.
 
-A frontend with layers has `sum(logw)+3*depth` boundaries. A frontend without
-layers has one input-assertion boundary. Besides both frontends there are five
-ordinary boundaries (witness selection, split, conversion, joint Polygero
-batching and shared opening), one optional packing boundary, and the final
-seal. There is no row-batching boundary; it remains only for pure foreign
+A frontend with layers has `sum(logw)+2*depth+1` boundaries. A frontend without
+layers has one input-assertion boundary. Besides both frontends there are four
+ordinary boundaries (witness selection, conversion, joint Polygero batching and
+shared opening), one optional packing boundary, and the final seal. There is no row-batching boundary; it remains only for pure foreign
 storage, which mdoc does not use. The one-/two-/three-/four-attribute
-presentations have respectively 487/491/496/499 ordinary boundaries. The Rust
+presentations have respectively 457/461/466/469 ordinary boundaries. The Rust
 `test_all_next_zk` test counts actual `begin_squeeze()` calls in both the complete prover and verifier and checks
 these values independently of the geometry-derived schedule. Finalization
 then uses a strand-node query and a seal PRF query. Binding source circuit identifiers

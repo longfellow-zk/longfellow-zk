@@ -113,8 +113,15 @@ def samplerLaws
     (by have := binary.degree_gt; omega)
   primeDecoder := IdealSamples.primeFrontend B N binary.Original prime.Original
     (RawBinary P countBinary) (RawPrime R countPrime) (Fin t ↪ Fin n) binaryCapacity primeCapacity (by omega)
-  rescaleDecoder := primeNonzero binary prime P R countBinary countPrime binaryCapacity primeCapacity
-  rescale_agrees := rfl
+  rescaleDecoder := IdealSamples.primeEtaDecoder B N binary.Original prime.Original
+    (RawBinary P countBinary) (RawPrime R countPrime) (Fin t ↪ Fin n) binaryCapacity primeCapacity
+  rescale_agrees _ := rfl
+  rescale_coordinates first second h := by
+    change first .prime = second .prime at h
+    funext index
+    change (if hi : index < primeCapacity then first .prime ⟨index,hi⟩ else 0) =
+      (if hi : index < primeCapacity then second .prime ⟨index,hi⟩ else 0)
+    rw [h]
   conversionDecoder := component binary prime P R countBinary countPrime binaryCapacity primeCapacity .primeNonzero
   conversion_agrees answer := rfl
   packingDecoder := IdealSamples.vectorBlock

@@ -32,6 +32,7 @@ use crate::{
             dual_packing::verifier::reduce,
             polygero::LinearStatement,
             proto::{polygero::PolygeroConfig, Digest},
+            sumcheck::TranscriptSumcheck,
             zk::{
                 constraint_compiler,
                 joint::{FrontendPart, JointParam, SelectedField},

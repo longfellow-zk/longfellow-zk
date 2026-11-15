@@ -14,10 +14,38 @@ use crate::{
             proto::{dual_packing::PackingProof, zk::CircuitProof},
             sumcheck::eval_circuit,
             transcript::Transcript,
-            zk::{prove, reduce, VirtualInputs},
+            zk::{self, VirtualInputs},
         },
     },
 };
+
+/// Draw `t`'s top weights, then prove its frontend.
+fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+    state: crate::runtime::v2::zk::prover::CircuitState<W, F>,
+    virtual_inputs: &VirtualInputs<F::E>,
+    ctx: &ZkContext<'_, W, F, D>,
+) -> Result<
+    (
+        CircuitProof<W, F>,
+        crate::runtime::v2::polygero::LinearStatement<F::E>,
+    ),
+    String,
+> {
+    let top = top_weights(t)?;
+    zk::prove(t, state, top, virtual_inputs, ctx)
+}
+
+/// Draw `t`'s top weights, then reduce its frontend.
+fn reduce<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+    proof: &CircuitProof<W, F>,
+    virtual_inputs: &VirtualInputs<F::E>,
+    ctx: &ZkContext<'_, W, F, D>,
+) -> Result<crate::runtime::v2::polygero::LinearStatement<F::E>, String> {
+    let top = top_weights(t)?;
+    zk::reduce(t, proof, top, virtual_inputs, ctx)
+}
 
 #[test]
 fn selected_joint_wrapper_supports_three_typed_fields() {

@@ -8,15 +8,32 @@ use crate::{
         algebra::{p256::P256Field, SupportsSampling},
         random::{DeterministicRng, RandomEngine},
         v2::{
-            proto::sumcheck::SumcheckProof,
+            proto::{sumcheck::SumcheckProof, RoundLabel},
             sumcheck::{
-                derive_constraints_for_circuits as derive, evaluate_and_prove_circuits as prove,
-                sample_pads, split::split_layers,
+                sample_pads, split::split_layers, top_and_derive as derive, top_and_prove as prove,
             },
             transcript::Transcript,
         },
     },
 };
+
+/// Draw stage `stage`'s weights from a fresh boundary and enter the stage.
+fn draw_and_enter<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
+    schedule: &Schedule,
+    stage: usize,
+    entering: &mut Vec<F::E>,
+    active: &mut [SplitFragment<'_, F::E>],
+    t: &mut Transcript,
+    f: &F,
+) {
+    let drawn = t.round(RoundLabel::Assertions, |mut w| {
+        w.write_bytes(&(stage as u64).to_le_bytes());
+        let mut r = w.begin_squeeze();
+        let drawn = schedule.draw_stage(stage, &mut r, f);
+        r.end_round(drawn)
+    });
+    schedule.enter(stage, drawn, entering, active);
+}
 
 fn check_early_output_weights(short_has_layer: bool) {
     use crate::{
@@ -245,11 +262,10 @@ fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampli
         let mut tv = Transcript::new(b"shared-wires");
         let (proof, c) = prove(&circuits, inputs.clone(), &pads, &mut tp.borrow(), f).unwrap();
         let d = derive(&circuits, &proof, &mut tv.borrow(), f).unwrap();
-        let expected_flips = if schedule.layers.is_empty() {
-            1
-        } else {
-            schedule.geometry.logw_layers.iter().sum::<usize>() + 3 * schedule.layers.len()
-        };
+        // The top weights' boundary, then one per round and two per layer:
+        // every later stage's weights extend the preceding combine answer.
+        let expected_flips =
+            1 + schedule.geometry.logw_layers.iter().sum::<usize>() + 2 * schedule.layers.len();
         assert_eq!(tp.round_count_for_test(), expected_flips as u64);
         assert_eq!(tv.round_count_for_test(), expected_flips as u64);
         assert_eq!(c, d);
@@ -444,11 +460,12 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
         if stage > 0 {
             entering.resize(layout.nv, f.zero());
         }
-        schedule.start_layer(
+        draw_and_enter(
+            &schedule,
+            stage,
             &mut entering,
             &mut active,
-            stage,
-            &mut fragmented_t.borrow(),
+            &mut fragmented_t,
             f,
         );
         let merged_schedule = Schedule::new(&[&merged]).unwrap();
@@ -463,11 +480,12 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + SerializableField + Suppo
         if stage > 0 {
             merged_entering.resize(layout.nv, f.zero());
         }
-        merged_schedule.start_layer(
+        draw_and_enter(
+            &merged_schedule,
+            stage,
             &mut merged_entering,
             &mut merged_active,
-            stage,
-            &mut merged_t.borrow(),
+            &mut merged_t,
             f,
         );
         assert_eq!(entering, merged_entering);

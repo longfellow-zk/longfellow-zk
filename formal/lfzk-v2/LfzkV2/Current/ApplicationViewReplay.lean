@@ -124,6 +124,56 @@ theorem readPrime_from_late (H : Point → Digest × C) (n m : ℕ)
   (readPrime_replay_eq e initialLink proof prime field decode nonzero fallback H n m hn hm
     hwn hwm).trans hlate
 
+/-- At the prime frontend's last boundary, a late successful read supplies
+the prime data as a function of that boundary's answer: at its actual
+answer it is the late data. -/
+theorem readPrimeCurrent_from_late (H : Point → Digest × C) (n m : ℕ)
+    (hn : n < g.roles.length) (hm : m ≤ g.roles.length) (hnm : n < m)
+    (hwn : g.primeStart+FrontendReplay.slots prime.circuit = n+1)
+    (data : PrimeData prime C)
+    (hlate : ApplicationPrefix.readPrime prime field decode nonzero fallback
+      ((e.chain initialLink).point proof H m)
+      (((e.chain initialLink).point proof H m).priorAnswers H) = some data) :
+    ∃ current, ApplicationPrefix.readPrimeCurrent prime field decode nonzero fallback
+        ((e.chain initialLink).point proof H n)
+        (((e.chain initialLink).point proof H n).priorAnswers H) = some current ∧
+      current (H ((e.chain initialLink).point proof H n)).2 = data := by
+  have hrn := (e.chain initialLink).point_rank proof H hn.le
+  have hrm := (e.chain initialLink).point_rank proof H hm
+  change Input.rank _ = n at hrn
+  change Input.rank _ = m at hrm
+  obtain ⟨_,hpayload,hdecode,hnonzero,hanswers⟩ :=
+    ApplicationPrefix.readPrime_spec prime field decode nonzero fallback _ _ data hlate
+  have hmessages : ApplicationPrefix.Messages.read prime.circuit
+      (ApplicationPrefix.wire ((e.chain initialLink).point proof H n) .prime field g.primeStart) =
+      ApplicationPrefix.Messages.read prime.circuit
+      (ApplicationPrefix.wire ((e.chain initialLink).point proof H m) .prime field g.primeStart) := by
+    apply ApplicationPrefix.Messages.readFrom_congr
+    intro q _ hq
+    exact ApplicationViews.wire_replay_eq e .prime field initialLink proof H n m g.primeStart q hn.le hm
+      (by omega) (by omega) (by omega)
+  unfold ApplicationPrefix.readPrimeCurrent
+  rw [if_pos (by rw [hrn]; omega), hmessages, hpayload]
+  refine ⟨_,rfl,?_⟩
+  cases data
+  simp only at hdecode hnonzero hanswers
+  subst hdecode hnonzero hanswers
+  congr 1
+  funext q
+  by_cases hq : q < FrontendReplay.slots prime.circuit
+  · simp only [ApplicationPrefix.currentTape, ApplicationPrefix.frontendTape, if_pos hq]
+    by_cases he : g.primeStart+q = ((e.chain initialLink).point proof H n).rank
+    · rw [if_pos he]
+      rw [hrn] at he
+      simp only [ApplicationPrefix.answerTape]
+      rw [strictAnswer_replay e initialLink proof H m (g.primeStart+q) hm (by omega), he]
+      rfl
+    · rw [if_neg he]
+      simp only [ApplicationPrefix.answerTape]
+      rw [hrn] at he
+      rw [strictAnswer_replay_eq e initialLink proof H n m (g.primeStart+q) hn.le hm (by omega) (by omega)]
+  · simp only [ApplicationPrefix.currentTape, ApplicationPrefix.frontendTape, if_neg hq]
+
 end Prime
 
 section Adapter
@@ -177,10 +227,10 @@ theorem readAdapter_replay_eq (H : Point → Digest × C) (n m : ℕ)
         ((e.chain initialLink).point proof H m)
         (((e.chain initialLink).point proof H m).priorAnswers H) := by
   have hsn : ApplicationPrefix.rescalingIndex g < n := by
-    unfold ApplicationPrefix.conversionIndex at hcn
+    rw [ApplicationPrefix.conversionIndex_eq] at hcn
     omega
   have hsm : ApplicationPrefix.rescalingIndex g < m := by
-    unfold ApplicationPrefix.conversionIndex at hcm
+    rw [ApplicationPrefix.conversionIndex_eq] at hcm
     omega
   have hab : g.binaryStart < g.roles.length := by
     have hlength := g.roles_length

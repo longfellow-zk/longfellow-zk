@@ -14,22 +14,19 @@ private def FrontendValid (frontend : Frontend) (side : Side) : Role → Prop
   | .assertions participant stage .. => participant = side ∧ stage < frontend.stages.length
   | .sumcheck participant stage round => participant = side ∧
       ∃ hs : stage < frontend.stages.length, round < (frontend.stages.get ⟨stage,hs⟩).rounds
-  | .terminal participant stage | .combine participant stage _ =>
+  | .terminal participant stage | .combine participant stage .. =>
       participant = side ∧ stage < frontend.stages.length
   | _ => False
 
 private theorem frontend_valid (frontend : Frontend) (side : Side) (role : Role)
     (h : role ∈ frontend.roles side) : FrontendValid frontend side role := by
-  by_cases he : frontend.stages.isEmpty
-  · simp only [Frontend.roles,he,↓reduceIte,List.mem_cons,List.not_mem_nil,or_false] at h
-    subst role
-    rfl
-  · simp only [Frontend.roles,he,Bool.false_eq_true,↓reduceIte,List.mem_flatMap] at h
-    obtain ⟨i,_,hr⟩ := h
-    simp only [Stage.roles,List.mem_append,List.mem_cons,List.mem_map,List.mem_range,
-      List.not_mem_nil,or_false] at hr
-    rcases hr with (rfl | ⟨round,hround,rfl⟩) | rfl | rfl
-    · exact ⟨rfl,i.isLt⟩
+  rcases Frontend.mem_roles h with rfl | ⟨i,hr⟩
+  · rcases Frontend.opening_cases side frontend with ⟨_,he⟩ | ⟨hpos,he⟩
+    · rw [he]
+      rfl
+    · rw [he]
+      exact ⟨rfl,hpos⟩
+  · rcases Stage.mem_roles hr with ⟨round,hround,rfl⟩ | rfl | rfl
     · exact ⟨rfl,i.isLt,hround⟩
     · exact ⟨rfl,i.isLt⟩
     · exact ⟨rfl,i.isLt⟩
@@ -38,7 +35,7 @@ def ValidRole (g : Geometry) : Role → Prop
   | .sumcheck side stage round =>
       ∃ hs : stage < (g.frontend side).stages.length,
         round < ((g.frontend side).stages.get ⟨stage,hs⟩).rounds
-  | .terminal side stage | .combine side stage _ => stage < (g.frontend side).stages.length
+  | .terminal side stage | .combine side stage .. => stage < (g.frontend side).stages.length
   | .packing => g.packingDegree ≠ 1
   | _ => True
 
@@ -48,7 +45,7 @@ private theorem prime_role_valid (g : Geometry) (role : Role) (h : role ∈ g.pr
   cases role with
   | sumcheck side stage round => rcases hf with ⟨rfl,hf⟩; exact hf
   | terminal side stage => rcases hf with ⟨rfl,hf⟩; exact hf
-  | combine side stage entries => rcases hf with ⟨rfl,hf⟩; exact hf
+  | combine side stage entries fragments last => rcases hf with ⟨rfl,hf⟩; exact hf
   | packing => exact False.elim hf
   | _ => trivial
 
@@ -58,7 +55,7 @@ private theorem binary_role_valid (g : Geometry) (role : Role) (h : role ∈ g.b
   cases role with
   | sumcheck side stage round => rcases hf with ⟨rfl,hf⟩; exact hf
   | terminal side stage => rcases hf with ⟨rfl,hf⟩; exact hf
-  | combine side stage entries => rcases hf with ⟨rfl,hf⟩; exact hf
+  | combine side stage entries fragments last => rcases hf with ⟨rfl,hf⟩; exact hf
   | packing => exact False.elim hf
   | _ => trivial
 
@@ -70,10 +67,9 @@ theorem role_valid (g : Geometry) (i : Fin g.roles.length) : ValidRole g (g.role
   change ValidRole g role
   rw [g.roles_eq] at h
   simp only [List.mem_append,List.mem_cons,List.not_mem_nil,or_false,or_assoc] at h
-  rcases h with hfp | hp | hres | hconv | hb | hpack | hbatch | hopen
+  rcases h with hfp | hp | hconv | hb | hpack | hbatch | hopen
   · rw [hfp]; trivial
   · exact prime_role_valid g _ hp
-  · rw [hres]; trivial
   · rw [hconv]; trivial
   · exact binary_role_valid g _ hb
   · by_cases he : g.packingDegree = 1
@@ -122,9 +118,8 @@ def roleFromBody (body : Body g fields Advice Auth) :
       let hs := valid.choose
       ((body.frontend side) ⟨stage,hs⟩).coefficients ⟨round,valid.choose_spec⟩
   | .terminal side stage, valid, _ => ((body.frontend side) ⟨stage,valid⟩).cross
-  | .combine side stage _, valid, _ => ((body.frontend side) ⟨stage,valid⟩).claims
+  | .combine side stage .., valid, _ => ((body.frontend side) ⟨stage,valid⟩).claims
   | .rowBatching, _, _ => ()
-  | .rescaling, _, _ => ()
   | .conversion, _, _ => body.mu
   | .packing, valid, metadata => (metadata,(packingValues body valid).1)
   | .batching, _, metadata => (if h : g.packingDegree = 1 then
@@ -160,7 +155,7 @@ private theorem roleFromBody_cache (body : Body g fields Advice Auth) (role : Ro
       have hs : stage < (g.frontend side).stages.length := valid
       simp [roleFromBody,roleCache,roleBodyCache,ProtocolWrites.frontendMessages,
         ProtocolWrites.stageMessage,ProtocolWrites.layerMessage,hs]
-  | combine side stage entries =>
+  | combine side stage entries fragments last =>
       have hs : stage < (g.frontend side).stages.length := valid
       simp [roleFromBody,roleCache,roleBodyCache,ProtocolWrites.frontendMessages,
         ProtocolWrites.stageMessage,ProtocolWrites.layerMessage,hs]

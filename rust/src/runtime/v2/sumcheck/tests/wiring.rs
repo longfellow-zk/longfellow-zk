@@ -25,11 +25,11 @@ use crate::{
         v2::{
             proto::RoundLabel,
             sumcheck::{
-                fragments::{QuadFragment, Schedule, SplitFragment},
+                fragments::Schedule,
                 monomial,
                 quad::{bind_l, bind_r},
                 split::SplitLayer,
-                transcript::assertion_weights,
+                transcript::top_weights,
             },
             transcript::Transcript,
         },
@@ -46,21 +46,15 @@ fn sample_assertions<
     transcript: &mut Transcript,
     f: &F,
 ) -> (SplitLayer<'a>, Vec<F::E>) {
-    let fragment = QuadFragment {
-        circuit: 0,
-        layer: stage,
-        input_range: 0..layer.nw,
-        output_range: 0..0,
-    };
-    let mut active = [SplitFragment::new(&fragment, layer)];
-    transcript.round(RoundLabel::Assertions, |mut w| {
+    // One fragment: its quadratic markers, then its linear markers.
+    let n = layer.assertion_counts().iter().sum();
+    let rho = transcript.round(RoundLabel::Assertions, |mut w| {
         w.write_bytes(&(stage as u64).to_le_bytes());
         let mut r = w.begin_squeeze();
-        assertion_weights(&mut active, &mut r, f);
-        r.end_round(())
+        let rho = r.elt_field_slice(n, f);
+        r.end_round(rho)
     });
-    let [sampled] = active;
-    (sampled.layer, sampled.assertions)
+    (layer, rho)
 }
 
 fn check<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
@@ -251,17 +245,14 @@ fn check_output_sampling<
             }
             .build(),
         );
+        // A zero-layer circuit's top weights are its input assertions.
         let mut actual = Transcript::new(b"v2-output-challenges");
-        let schedule = Schedule::new(&[&circuit]).unwrap();
-        let mut weights = Vec::new();
-        schedule.finish_inputs(
-            &[&circuit],
-            &mut weights,
-            Vec::new(),
-            &mut actual.borrow(),
-            f,
-        );
+        let top = top_weights(&[&circuit], &mut actual.borrow(), f).unwrap();
+        let weights = actual.borrow().accept(top).unwrap().outputs().to_vec();
         let mut expected = Transcript::new(b"v2-output-challenges");
+        Schedule::new(&[&circuit])
+            .unwrap()
+            .absorb(&[&circuit], &mut expected.borrow());
         let expected_weights = expected.round(RoundLabel::Assertions, |mut w| {
             w.write_bytes(&0u64.to_le_bytes());
             let mut r = w.begin_squeeze();

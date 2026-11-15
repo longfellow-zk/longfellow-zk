@@ -51,8 +51,23 @@ impl<'a, P: ?Sized> Bound<'a, P> {
         label: impl Into<u8>,
         f: impl for<'r> FnOnce(Writing<'r>) -> RoundEnd<'r, T>,
     ) -> Challenge<T> {
-        let value = self.owner.borrow().round(label, f);
-        Challenge::stamp(value, self.owner.position())
+        self.transcript().challenge(label, f)
+    }
+}
+impl TranscriptRef<'_> {
+    /// Run a round whose value a later component consumes, stamped with the
+    /// boundary it reads from (transcript I7, I8).
+    pub(crate) fn challenge<T>(
+        &mut self,
+        label: impl Into<u8>,
+        f: impl for<'r> FnOnce(Writing<'r>) -> RoundEnd<'r, T>,
+    ) -> Challenge<T> {
+        let value = self.round(label, f);
+        Challenge::stamp(value, self.session.position())
+    }
+    /// Consume `c` if this session still stands where it was drawn.
+    pub(crate) fn accept<T>(&self, c: Challenge<T>) -> Result<T, StaleChallenge> {
+        c.accept(self.session.position())
     }
 }
 

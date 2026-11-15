@@ -182,7 +182,6 @@ only actual canonical bytes are ever written or accepted. -/
 def roleBound : ℕ :=
   (9+2*32) +
   (bytesDomain "native-masked-sumcheck/all-linear-rows/v1").length+(bytesDomain "all-linear-rows").length +
-  (bytesDomain "native-shared-prefix/nonzero-rescaling/v2").length +
   ((bytesDomain "native-shared-prefix/masked-opening/v2").length+
     33+(bytesDomain "p256-adapter/two-independent-full-field-rescalings/v3").length) +
   (packingHeaderBound shape+34+(9+16*g.packingDegree)) +
@@ -210,7 +209,7 @@ private theorem role_length_le (role : Role) (value : RoleData shape role) :
     have h := field_width_le repr side
     unfold roleBound
     omega
-  | combine side _ =>
+  | combine side _ _ _ _ =>
     change ((pairSlice (fieldCodec repr side)).encode value).length ≤ _
     rw [pairSlice_length]
     have h := field_width_le repr side
@@ -219,10 +218,6 @@ private theorem role_length_le (role : Role) (value : RoleData shape role) :
   | rowBatching =>
     change (bytesDomain "native-masked-sumcheck/all-linear-rows/v1" ++ bytesDomain "all-linear-rows").length ≤ _
     rw [List.length_append]
-    unfold roleBound
-    omega
-  | rescaling =>
-    change (bytesDomain "native-shared-prefix/nonzero-rescaling/v2").length ≤ _
     unfold roleBound
     omega
   | conversion =>

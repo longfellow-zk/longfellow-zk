@@ -60,6 +60,11 @@ def FrontendData.bad {F Pad : Type} [Field F]
   d.start ≤ point.rank ∧ SelectedFrontendOracle.bad S.lists S.coins S.responses S.oracle
     d.circuit d.plan d.payload d.inputs d.pads d.decode d.nonzero d.start d.fallback point H answer
 
+/-- Per-query budgets. Every frontend answer is within `2/(|F|-1)`: rounds
+have degree two, and an opening or combine answer (alpha with the next
+weights) is one affine cancellation. The prime frontend's last answer also
+draws `eta`: its frontend test (`1/(p-1)`) and the rescaling test (`1/(p-1)`)
+share the prime budget. -/
 def roundBudget (B : Type) [Fintype B] (p M K LB LN : ℕ) : Role → ℚ
   | .fingerprint => (LB.choose 2 : ℚ)/(Fintype.card B : ℚ)^2 +
       (LN.choose 2 : ℚ)/(p : ℚ)^2
@@ -67,7 +72,6 @@ def roundBudget (B : Type) [Fintype B] (p M K LB LN : ℕ) : Role → ℚ
       .terminal .binary .. | .combine .binary .. => 2/((Fintype.card B-1 : ℕ) : ℚ)
   | .inputAssertions .prime .. | .assertions .prime .. | .sumcheck .prime .. |
       .terminal .prime .. | .combine .prime .. => 2/((p-1 : ℕ) : ℚ)
-  | .rescaling => 1/((p-1 : ℕ) : ℚ)
   | .conversion => ((2*(K*p/M)+1 : ℕ) : ℚ)^2/((p-1 : ℕ) : ℚ)^2
   | .packing => 1/(Fintype.card B : ℚ)
   -- Row batching is pure-foreign storage only and absent from the mdoc schedule.

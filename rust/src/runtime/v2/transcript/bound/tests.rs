@@ -90,3 +90,28 @@ fn every_session_has_its_own_stamp() {
     assert_ne!(stamp, b.bound(&part).session());
     assert_ne!(stamp, a.fork_for_test().bound(&part).session());
 }
+
+#[test]
+fn draws_that_continue_the_stream_keep_the_challenge_fresh() {
+    // A draw with no message since the boundary reads further from the same
+    // node (transcript I7), so both challenges stand at that boundary.
+    let part = [0u8; 3];
+    let mut t = Transcript::new(b"bound/continue");
+    let mut b = t.bound(&part);
+    let first = draw(&mut b);
+    let second = b.challenge(ROUND, |w| {
+        let mut r = w.begin_squeeze();
+        let x = r.bytes(16);
+        r.end_round(x)
+    });
+    let second_value = b.accept(second).unwrap();
+    let first_value = b.accept(first).unwrap();
+    let mut plain = Transcript::new(b"bound/continue");
+    let expected = plain.borrow().round(ROUND, |mut w| {
+        w.write_bytes(b"message");
+        let mut r = w.begin_squeeze();
+        let x = r.bytes(32);
+        r.end_round(x)
+    });
+    assert_eq!([first_value, second_value].concat(), expected);
+}

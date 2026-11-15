@@ -15,10 +15,10 @@ use crate::{
                 zk::{CircuitProof, ZkProof, ZkProofGeometry},
                 Digest,
             },
-            sumcheck::{self, TranscriptSumcheck},
-            transcript::{Bound, Transcript, Unverified, VerifiedProof},
+            sumcheck::{self, TopWeights},
+            transcript::{Bound, Challenge, Transcript, Unverified, VerifiedProof},
             zk::{
-                joint::{CircuitParticipant, FrontendPart, JointParam},
+                joint::{top_weights, CircuitParticipant, FrontendPart, JointParam},
                 packing_commitment::PackingCommitment,
                 split::SplitClaim,
                 CircuitInput, VirtualInputs, ZkContext,
@@ -31,12 +31,15 @@ use crate::{
 /// acceptance decision: the caller must verify their joint Polygero proof
 /// against the root received before sumcheck.
 ///
-/// `virtual_inputs` must be the definitions the prover used. They must be
-/// fixed before this call draws any challenge: derive them only from data
-/// the transcript already binds, never from this proof's own messages.
+/// `top` is the frontend's top weights, drawn by the caller
+/// (`joint::top_weights`). `virtual_inputs` must be the definitions the
+/// prover used. They must be fixed before the caller draws `top`: derive
+/// them only from data the transcript already binds, never from this proof's
+/// own messages.
 pub fn reduce<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
     proof: &CircuitProof<W, F>,
+    top: Challenge<TopWeights<F::E>>,
     virtual_inputs: &VirtualInputs<F::E>,
     ctx: &ZkContext<'_, W, F, D>,
 ) -> Result<LinearStatement<F::E>, String> {
@@ -44,6 +47,7 @@ pub fn reduce<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<
         t,
         &proof.sumcheck_proof,
         &proof.packing,
+        top,
         virtual_inputs,
         ctx,
     )
@@ -52,6 +56,7 @@ fn reduce_parts<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomai
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
     sumcheck: &SumcheckProof<W, F>,
     packing: &PackingProof<F::E>,
+    top: Challenge<TopWeights<F::E>>,
     virtual_inputs: &VirtualInputs<F::E>,
     ctx: &ZkContext<'_, W, F, D>,
 ) -> Result<LinearStatement<F::E>, String> {
@@ -62,12 +67,10 @@ fn reduce_parts<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomai
         .validate(&p.geometry.sc_geom)
         .map_err(|e| e.to_string())?;
     let f = ctx.field();
-    for c in &part.circuits {
-        t.transcript().write_sumcheck_statement(c, &part.public, f);
-    }
     let constraints = sumcheck::derive_constraints_for_circuits(
         &part.circuits,
         sumcheck,
+        top,
         &mut t.transcript(),
         f,
     )?;
@@ -176,14 +179,19 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         let mut verifier = param.receive(&proof.com, (proof.fingerprints.clone(), ()), t);
         let part = FrontendPart::new(&self.participant, &[&self.circuit], public)
             .map_err(ZkVerificationError::InvalidSumcheck)?;
-        let statement = reduce_parts(
-            &mut verifier.bound(&part),
-            &proof.sumcheck_proof,
-            &proof.packing,
-            &VirtualInputs::none(),
-            ctx,
-        )
-        .map_err(ZkVerificationError::InvalidSumcheck)?;
+        let mut frontend = verifier.bound(&part);
+        let statement = top_weights(&mut frontend)
+            .and_then(|top| {
+                reduce_parts(
+                    &mut frontend,
+                    &proof.sumcheck_proof,
+                    &proof.packing,
+                    top,
+                    &VirtualInputs::none(),
+                    ctx,
+                )
+            })
+            .map_err(ZkVerificationError::InvalidSumcheck)?;
         verifier
             .authenticate(&proof.com_proof, (statement, ()))
             .map(|authenticated| authenticated.into_transcript())
@@ -219,12 +227,13 @@ impl fmt::Display for ZkVerificationError {
 
 impl std::error::Error for ZkVerificationError {}
 
-/// Check the split frontend proof of `t`'s part and reduce its constraints
-/// to the claim its storage discharges (`split_claim`), before the split
-/// challenge.
+/// Check the split frontend proof of `t`'s part from its top weights `top`
+/// and reduce its constraints to the claim its storage discharges
+/// (`split_claim`), before the split challenge.
 pub fn reduce_split<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
     proof: &SumcheckProof<W, F>,
+    top: Challenge<TopWeights<F::E>>,
     ctx: &ZkContext<'_, W, F, D>,
 ) -> Result<SplitClaim<F::E>, String> {
     let part = t.part();
@@ -234,10 +243,12 @@ pub fn reduce_split<const W: usize, F: ZkField<W> + PackingField, D: EvaluationD
         .validate(&p.geometry.sc_geom)
         .map_err(|e| e.to_string())?;
     let f = ctx.field();
-    for c in &part.circuits {
-        t.transcript().write_sumcheck_statement(c, &part.public, f);
-    }
-    let constraints =
-        sumcheck::derive_constraints_for_circuits(&part.circuits, proof, &mut t.transcript(), f)?;
+    let constraints = sumcheck::derive_constraints_for_circuits(
+        &part.circuits,
+        proof,
+        top,
+        &mut t.transcript(),
+        f,
+    )?;
     CircuitParticipant::split_claim(t, constraints, f)
 }

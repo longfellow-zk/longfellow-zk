@@ -6,7 +6,11 @@ use crate::runtime::{
     v2::{
         proto::{composed::ComposedProof, dual_packing::PackingProof, zk::CircuitProof},
         transcript::Transcript,
-        zk::{self, joint::FrontendPart, split, CircuitInput},
+        zk::{
+            self,
+            joint::{self, FrontendPart},
+            split, CircuitInput,
+        },
     },
 };
 
@@ -55,24 +59,27 @@ where
         let (mut joint, commitment, fingerprints) =
             param.commit((w_host, (w_split, ())), transcript, rng)?;
 
-        // Split frontend, then the split of its input equation.
+        // Split frontend from the top weights after the fingerprint
+        // responses, then the split of its input equation. eta extends the
+        // frontend's last combine answer.
         let mut ts = joint.bound(&split_part);
-        let (sumcheck, pending) = zk::prove_split(&mut ts, state_split, &self.split_ctx)?;
+        let top_split = joint::top_weights(&mut ts)?;
+        let (sumcheck, pending) =
+            zk::prove_split(&mut ts, state_split, top_split, &self.split_ctx)?;
         let values = self.split.foreign_values(&pending)?;
         let eta = split::transcript::eta(&mut ts, fs);
         let (mu, split) = pending.open(&mut ts, eta, fs)?;
 
-        // Adapter rounds, then the host frontend with the mode's fragment.
+        // Adapter rounds, then the host frontend with the mode's fragment,
+        // from the top weights after the adapter's masked quotients.
         let mut ta = joint.bound(&self.mode);
         let conversion = M::draw_conversion(&mut ta, fs);
         let (message, leaves) =
             M::prove(&mut ta, &split.foreign, &values, &pads, conversion, fs, fh)?;
-        let (host, statement_host) = zk::prove(
-            &mut joint.bound(&host_part),
-            state_host,
-            &leaves,
-            &self.host_ctx,
-        )?;
+        let mut th = joint.bound(&host_part);
+        let top_host = joint::top_weights(&mut th)?;
+        let (host, statement_host) =
+            zk::prove(&mut th, state_host, top_host, &leaves, &self.host_ctx)?;
         let (polygero, transcript) =
             joint.prove(&param, (statement_host, (split.statement, ())))?;
         Ok((

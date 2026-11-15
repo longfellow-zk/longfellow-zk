@@ -22,8 +22,8 @@ use crate::{
                 zk::CircuitGeometry,
                 Digest,
             },
-            sumcheck::circuit_geometry,
-            transcript::TranscriptRef,
+            sumcheck::{self, circuit_geometry, TopWeights, TranscriptSumcheck},
+            transcript::{Bound, Challenge, TranscriptRef},
             witness_selection,
         },
     },
@@ -372,6 +372,22 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField> FrontendPart<'a, W, F> {
     pub fn public(&self) -> &[F::E] {
         &self.public
     }
+}
+
+/// Bind each circuit statement of `t`'s frontend, then draw the frontend's
+/// sumcheck top weights. The driver draws them where the frontend starts, after
+/// the last message the frontend depends on (its virtual-input definitions
+/// included), and hands them to `prove`, `prove_split`, `reduce` or
+/// `reduce_split` before any other message (transcript I8).
+pub fn top_weights<const W: usize, F: ZkField<W> + PackingField>(
+    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+) -> Result<Challenge<TopWeights<F::E>>, String> {
+    let part = t.part();
+    let f = part.participant.backend.parameters.field();
+    for c in &part.circuits {
+        t.transcript().write_sumcheck_statement(c, &part.public, f);
+    }
+    sumcheck::top_weights(&part.circuits, &mut t.transcript(), f)
 }
 
 #[cfg(test)]

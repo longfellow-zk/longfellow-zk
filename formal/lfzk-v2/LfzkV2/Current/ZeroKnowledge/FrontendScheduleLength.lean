@@ -12,8 +12,10 @@ def circuitFuel : {out input : ℕ} → {circuit : Layered.Circuit F out input} 
     FrontendSchedule.Plan F circuit → Bool → ℕ
   | _,_,_,.input,continuing => if continuing then 0 else 1
   | _,_,_,.inputEntry ..,continuing => if continuing then 0 else 1
-  | _,_,_,.layer (mid := mid) _ tail,_ => circuitFuel tail true+(2+mid)+1
-  | _,_,_,.entryLayer (mid := mid) _ _ _ tail,_ => circuitFuel tail true+(2+mid)+1
+  | _,_,_,.layer (mid := mid) _ tail,continuing =>
+      circuitFuel tail true+(2+mid)+(if continuing then 0 else 1)
+  | _,_,_,.entryLayer (mid := mid) _ _ _ tail,continuing =>
+      circuitFuel tail true+(2+mid)+(if continuing then 0 else 1)
 
 
 end Static
@@ -96,38 +98,40 @@ theorem circuit_length {out input : ℕ} {body : Layered.Circuit F out input}
   | input => cases continuing <;> rfl
   | inputEntry => cases continuing <;> rfl
   | layer _ tail ih =>
+      cases continuing <;>
       simp only [Frontend.Prefix.circuit,Frontend.Prefix.layer,Frontend.Prefix.rounds,circuitFuel,
-        List.length_cons,List.length_append,List.length_ofFn,ih,List.length_nil]
-      omega
+        List.length_cons,List.length_append,List.length_ofFn,ih,List.length_nil,
+        Bool.false_eq_true,↓reduceIte] <;> omega
   | entryLayer _ _ _ tail ih =>
+      cases continuing <;>
       simp only [Frontend.Prefix.circuit,Frontend.Prefix.layer,Frontend.Prefix.rounds,circuitFuel,
-        List.length_cons,List.length_append,List.length_ofFn,ih,List.length_nil]
-      omega
+        List.length_cons,List.length_append,List.length_ofFn,ih,List.length_nil,
+        Bool.false_eq_true,↓reduceIte] <;> omega
 
 omit [Field F] in
+/-- A continuing circuit opens in the preceding combine answer, which it
+does not count. -/
 theorem circuitFuel_slots {out input : ℕ} {body : Layered.Circuit F out input}
     (plan : FrontendSchedule.Plan F body) (continuing : Bool) :
-    circuitFuel plan continuing = if FrontendReplay.hasLayers body then FrontendReplay.slots body
-      else if continuing then 0 else 1 := by
+    circuitFuel plan continuing+(if continuing then 1 else 0) = FrontendReplay.slots body := by
   induction plan generalizing continuing with
   | input => cases continuing <;> rfl
   | inputEntry => cases continuing <;> rfl
   | @layer out mid input assertions body rest metadata tail ih =>
-      simp only [circuitFuel,FrontendReplay.hasLayers,↓reduceIte,FrontendReplay.slots,ih]
-      cases FrontendReplay.hasLayers rest <;> omega
+      have h := ih true
+      simp only [↓reduceIte] at h
+      cases continuing <;> simp only [circuitFuel,FrontendReplay.slots,Bool.false_eq_true,↓reduceIte] <;> omega
   | @entryLayer out next mid input checks assertions entries entry body rest metadata tail ih =>
-      simp only [circuitFuel,FrontendReplay.hasLayers,↓reduceIte,FrontendReplay.slots,ih]
-      cases FrontendReplay.hasLayers rest <;> omega
+      have h := ih true
+      simp only [↓reduceIte] at h
+      cases continuing <;> simp only [circuitFuel,FrontendReplay.slots,Bool.false_eq_true,↓reduceIte] <;> omega
 
 omit [Field F] in
 theorem circuitFuel_roles {out input : ℕ} {body : Layered.Circuit F out input}
     (plan : FrontendSchedule.Plan F body) (side : Side) :
     circuitFuel plan false = (plan.frontend.roles side).length := by
-  rw [circuitFuel_slots,← plan.slots_eq_roles_length side]
-  cases h : FrontendReplay.hasLayers body
-  · rw [FrontendReplay.slots_eq,h]
-    rfl
-  · rfl
+  rw [← plan.slots_eq_roles_length side, ← circuitFuel_slots plan false]
+  rfl
 
 
 end Complete

@@ -32,12 +32,14 @@ use crate::{
 /// Locate one circuit layer's sparse terms in the global layer arrays.
 /// Quadratic, linear and constant streams use the same offsets. These ranges
 /// describe gate addressing; the fragment owns no wire values or dense weights.
+/// `assertions` counts the layer's quadratic and linear assertion markers.
 #[derive(Clone)]
 pub(super) struct QuadFragment {
     pub circuit: usize,
     pub layer: usize,
     pub input_range: Range<usize>,
     pub output_range: Range<usize>,
+    pub assertions: [usize; 2],
 }
 pub(super) struct LayerLayout {
     pub fragments: Vec<QuadFragment>,
@@ -122,6 +124,7 @@ impl Schedule {
                         layer,
                         input_range: inputs,
                         output_range: nv..next_v,
+                        assertions: c.raw().layers[layer].assertion_counts(),
                     });
                     nv = next_v;
                 }
@@ -167,11 +170,11 @@ pub(super) struct SplitFragment<'a, E> {
 impl<'a, E> SplitFragment<'a, E> {
     pub(super) fn new(fragment: &QuadFragment, layer: SplitLayer<'a>) -> Self {
         assert_eq!(layer.nw, fragment.input_range.len());
-        let assertions = Vec::with_capacity(layer.assertion_counts().iter().sum());
+        assert_eq!(layer.assertion_counts(), fragment.assertions);
         Self {
             fragment: fragment.clone(),
             layer,
-            assertions,
+            assertions: Vec::new(),
         }
     }
 }

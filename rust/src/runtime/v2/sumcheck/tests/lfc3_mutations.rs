@@ -19,7 +19,7 @@ use crate::{
         random::{DeterministicRng, RandomEngine},
         v2::{
             proto::sumcheck::{LayerProof, RoundPoly, SumcheckProof},
-            sumcheck::{circuit_geometry, derive_constraints_for_circuits},
+            sumcheck::{circuit_geometry, top_and_derive},
             transcript::Transcript,
         },
     },
@@ -140,7 +140,7 @@ fn check_mutations<const W: usize, F: RuntimeField<W> + SerializableField + Supp
             let mut rng = DeterministicRng::new(seed ^ iteration as u64);
             let proof = random_proof(&geometry.logw_layers, &mut rng, f);
             let outcome = catch_unwind(AssertUnwindSafe(|| {
-                let _ = derive_constraints_for_circuits(
+                let _ = top_and_derive(
                     list.as_slice(),
                     &proof,
                     &mut Transcript::new(b"lfc3-mutations").borrow(),

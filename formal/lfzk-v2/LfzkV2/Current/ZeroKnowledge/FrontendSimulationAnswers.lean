@@ -25,8 +25,8 @@ theorem prime_tail
     Extends samples.fallback
       (readSetup (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero base H)
         primePlan prime.setup.plan payload state false).2
-      (CompleteSimulation.primePrefix binary prime primePlan samples base H state payload).state := by
-  exact step_extends base H samples.fallback _
+      (CompleteSimulation.primePrefix binary prime primePlan samples base H state payload).state :=
+  Extends.refl samples.fallback _
 
 omit [Fintype B] [DecidableEq B] in
 theorem conversion

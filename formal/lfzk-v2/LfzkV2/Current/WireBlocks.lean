@@ -178,7 +178,6 @@ def RoleData : Role → Type
   | .terminal side .. => fields side
   | .combine side .. => fields side × fields side
   | .rowBatching => Unit
-  | .rescaling => Unit
   | .conversion => fields .prime
   | .packing => PackingStatement shape × (Fin g.packingDegree → fields .binary)
   | .batching => PackingA g fields × (SourceStatement × SourceStatement)
@@ -200,7 +199,6 @@ def roleCodec : (role : Role) → PrefixCodec (RoleData shape role)
   | .combine side .. => pairSlice (fieldCodec repr side)
   | .rowBatching => PrefixCodec.marker
       (bytesDomain "native-masked-sumcheck/all-linear-rows/v1" ++ bytesDomain "all-linear-rows")
-  | .rescaling => PrefixCodec.marker (bytesDomain "native-shared-prefix/nonzero-rescaling/v2")
   | .conversion => followed
       ((scalar repr.prime).prefixed (bytesDomain "native-shared-prefix/masked-opening/v2"))
       (bytesDomain "p256-adapter/two-independent-full-field-rescalings/v3")

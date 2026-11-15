@@ -58,7 +58,7 @@ def readBinaryView (point : Point) (past : Fin point.rank → C) :
     cfg.fallback point past
 
 def readRescale (point : Point) (past : Fin point.rank → C) :
-    Option (RescaleData N (Fin shared) prime.Other Pair) := do
+    Option (RescaleData N (Fin shared) prime.Other Pair C) := do
   let values ← publics binary prime hashPublic decodePublic point
   ApplicationViews.readRescalePacket (binaryWithBits binary values.1) (primeWithInputs prime values.2)
     cfg.primeField cfg.primeDecode cfg.primeNonzero cfg.fallback point past

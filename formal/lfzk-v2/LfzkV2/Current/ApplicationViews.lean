@@ -53,6 +53,20 @@ theorem bad_card_mul_le (view : View) (point : Point) (H : Point → Link × C) 
         point H hs view.coalesced view.fits
   · simp [bad,FrontendData.bad,hs]
 
+/-- The frontend's last answer: one affine cancellation. -/
+theorem bad_card_mul_le_last (view : View) (point : Point) (H : Point → Link × C)
+    (hlast : point.rank+1 = view.data.start+FrontendReplay.slots view.data.circuit) :
+    (univ.filter (view.bad S point H)).card * (Fintype.card F-1) ≤ Fintype.card C := by
+  have hs : view.data.start ≤ point.rank := by
+    have := FrontendReplay.slots_positive view.data.circuit
+    omega
+  have h := SelectedFrontendOracle.bad_card_mul_le_last S.lists S.coins S.responses S.oracle
+    view.data.circuit view.data.plan view.data.payload view.data.inputs view.data.pads
+    view.data.decode view.data.nonzero view.decoder view.data.start view.data.fallback
+    point H hs view.coalesced view.fits (by omega)
+  refine (Nat.mul_le_mul_left _ (Nat.sub_le _ _)).trans ?_
+  simpa only [bad,FrontendData.bad,hs,true_and] using h
+
 end FrontendView
 
 variable (read : (point : Input roles Key Block Link Body) → (Fin point.rank → C) →
@@ -83,6 +97,16 @@ theorem frontendBad_card_mul_le (point : Point) (H : Point → Link × C) :
   cases read point (point.priorAnswers H) with
   | none => simp
   | some view => exact view.bad_card_mul_le S point H
+
+/-- The frontend's last answer, when every view read there ends at it. -/
+theorem frontendBad_card_mul_le_last (point : Point) (H : Point → Link × C)
+    (hlast : ∀ view, read point (point.priorAnswers H) = some view →
+      point.rank+1 = view.data.start+FrontendReplay.slots view.data.circuit) :
+    (univ.filter (frontendBad S read point H)).card * (Fintype.card F-1) ≤ Fintype.card C := by
+  unfold frontendBad
+  cases hr : read point (point.priorAnswers H) with
+  | none => simp
+  | some view => exact view.bad_card_mul_le_last S point H (hlast view hr)
 
 theorem frontendCharge_nonneg (point : Point) (H : Point → Link × C) (answer : Link × C) :
     0 ≤ frontendCharge S read point H answer := by
@@ -153,19 +177,38 @@ theorem packetCharge_off
   unfold packetCharge
   rw [packetBad_off S read bad point H H' h answer.2]
 
-def rescaleBad {Shared Other : Type} [Fintype Shared] [Fintype Other]
-    (read : (point : Input roles Key Block Link Body) → (Fin point.rank → C) → Option (RescaleData N Shared Other Pair))
-    (decoder : BalancedDecoder C (Linear.TerminalSampling.Nonzero N)) :=
-  packetBad S read (fun packet w answer => packet.bad w (decoder.decode answer))
+/-- The rescaling test of the answer that draws `eta`. Its packet supplies
+the split claim as a function of that answer, which is counted with the
+answer's coordinates only when the claim reads nothing else of it. -/
+def rescaleBad {Shared Other V : Type} [Fintype Shared] [Fintype Other] [Fintype V]
+    (read : (point : Input roles Key Block Link Body) → (Fin point.rank → C) →
+      Option (RescaleData N Shared Other Pair C))
+    (decoder : BalancedDecoder C (V × Linear.TerminalSampling.Nonzero N)) :=
+  packetBad S read (fun packet w answer =>
+    (∀ a b, (decoder.decode a).1 = (decoder.decode b).1 → packet.claim a = packet.claim b) ∧
+      packet.bad w answer (decoder.decode answer).2)
 
 omit [Fintype B] in
-theorem rescaleBad_card_mul_le {Shared Other : Type} [Fintype Shared] [Fintype Other]
-    (read : (point : Input roles Key Block Link Body) → (Fin point.rank → C) → Option (RescaleData N Shared Other Pair))
-    (decoder : BalancedDecoder C (Linear.TerminalSampling.Nonzero N)) (point : Point) (H : Point → Link × C) :
+theorem rescaleBad_card_mul_le {Shared Other V : Type} [Fintype Shared] [Fintype Other] [Fintype V]
+    (read : (point : Input roles Key Block Link Body) → (Fin point.rank → C) →
+      Option (RescaleData N Shared Other Pair C))
+    (decoder : BalancedDecoder C (V × Linear.TerminalSampling.Nonzero N)) (point : Point)
+    (H : Point → Link × C) :
     (univ.filter (rescaleBad S read decoder point H)).card*(Fintype.card N-1) ≤ Fintype.card C := by
   simpa only [rescaleBad,one_mul] using packetBad_card_mul_le S read
-    (fun packet w answer => packet.bad w (decoder.decode answer)) point H 1 (Fintype.card N-1)
-    (fun packet w => by simpa only [one_mul] using packet.bad_card_mul_le w decoder)
+    (fun packet w answer =>
+      (∀ a b, (decoder.decode a).1 = (decoder.decode b).1 → packet.claim a = packet.claim b) ∧
+        packet.bad w answer (decoder.decode answer).2) point H 1 (Fintype.card N-1)
+    (fun packet w => by
+      by_cases hfactor : ∀ a b, (decoder.decode a).1 = (decoder.decode b).1 → packet.claim a = packet.claim b
+      · have h := packet.bad_card_mul_le w decoder hfactor
+        rw [one_mul]
+        refine le_of_eq_of_le ?_ h
+        congr 2
+        ext raw
+        simp only [mem_filter, mem_univ, true_and]
+        exact ⟨fun hr => hr.2, fun hr => ⟨hfactor, hr⟩⟩
+      · simp [hfactor])
 
 def conversionBad {p bits : ℕ} [Fact p.Prime]
     (read : (point : Input roles Key Block Link Body) → (Fin point.rank → C) → Option (ConversionData p bits Pair))
@@ -480,14 +523,16 @@ def readAdapter (s : BinaryPublic B shared maskBits adviceBits) (n : PrimePublic
   let masked ← advice rawAdvice
   some ⟨prime,(primeNonzero scale).val,mu,convert conversion,masked⟩
 
+/-- At the prime frontend's last boundary, whose answer also draws `eta`.
+The split claim is the prime data's, as a function of that answer. -/
 def readRescalePacket (s : BinaryPublic B shared maskBits adviceBits) (n : PrimePublic N shared)
     (primeField : fields .prime → N) (primeDecode : C → ℕ → N)
     (primeNonzero : C → Linear.TerminalSampling.Nonzero N)
     (fallback : C) (point : Point) (past : Fin point.rank → C) :
-    Option (RescaleData N (Fin shared) n.Other (Selection.Pair B N s.Original n.Original)) := do
-  let prime ← ApplicationPrefix.readPrime n primeField primeDecode primeNonzero fallback point past
+    Option (RescaleData N (Fin shared) n.Other (Selection.Pair B N s.Original n.Original) C) := do
+  let prime ← ApplicationPrefix.readPrimeCurrent n primeField primeDecode primeNonzero fallback point past
   some {
-    claim := prime.claim
+    claim := fun current => (prime current).claim
     shared := fun w i => if s.sharedValues w.1 i then 1 else 0
     other := fun w i => primeValues s n w (.inl i)
     binaryMask := fun w => Handoff.binaryMask (s.mask w.1)

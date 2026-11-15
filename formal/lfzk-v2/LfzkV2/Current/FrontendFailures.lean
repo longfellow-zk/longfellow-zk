@@ -28,9 +28,7 @@ def sampleAtRole (decode : C → ℕ → F)
       | .inr (.inr (.inl _)) => nonzero (answers (start+1+mid))
       | .inr (.inr (.inr (.inl _))) => fun _ => decode (answers (start+mid+2)) 0
       | .inr (.inr (.inr (.inr role))) =>
-          sampleAtRole decode nonzero rest role answers
-            (if hasLayers rest then start+mid+3 else start+mid+2)
-            (if hasLayers rest then 0 else 1)
+          sampleAtRole decode nonzero rest role answers (start+mid+2) 1
 
 noncomputable def dataAtRole (decode : C → ℕ → F)
     (nonzero : C → Linear.TerminalSampling.Nonzero F) :
@@ -41,7 +39,7 @@ noncomputable def dataAtRole (decode : C → ℕ → F)
   | _, _, .input, _, _, _, _, _, _, _, _, _, role => Fin.elim0 role
   | _, _, .entry n e rest, plan, payload, answers, start, offset, w, weights, pads, claim, role =>
       match role with
-      | .inl _ => (dot weights (e.previous (rest.eval w)), claim, e.residuals (rest.eval w))
+      | .inl _ => (dot weights (e.previous (rest.eval w)), claim, Layered.Circuit.entryResiduals e rest w)
       | .inr role => dataAtRole decode nonzero rest plan payload answers start (offset+n)
           w (e.weights weights (fun i => decode (answers start) (offset+i.val))) pads claim role
   | _, _, .layer (mid := mid) _ body rest, plan, payload, answers, start, offset,
@@ -60,12 +58,10 @@ noncomputable def dataAtRole (decode : C → ℕ → F)
       | .inr (.inr (.inl _)) =>
           ⟨t.finalClaim pads claim, evaluate wires ml.point, evaluate q ml.point,
             payload.1.cross, t.terminalPads pads⟩
-      | .inr (.inr (.inr (.inl _))) =>
+      | .inr (.inr (.inr (.inl _))) => Layered.Replay.gatedCombine (∀ i, rest.headResiduals w i = 0)
           ⟨evaluate wires ml.point, evaluate q ml.point, t.clearA pads, t.clearB pads⟩
       | .inr (.inr (.inr (.inr role))) =>
-          dataAtRole decode nonzero rest plan.2 payload.2 answers
-            (if hasLayers rest then start+mid+3 else start+mid+2)
-            (if hasLayers rest then 0 else 1) w
+          dataAtRole decode nonzero rest plan.2 payload.2 answers (start+mid+2) 1 w
             (nextWeights Q (monomialWeights ml.point) ml.alpha) pads (t.nextValue pads) role
 
 theorem dataAtRole_valid (decode : C → ℕ → F)
@@ -143,7 +139,7 @@ theorem bad_at_role (decode : C → ℕ → F)
         · refine ⟨.inr (.inr (.inr (.inl 0))), ?_⟩
           simpa only [dataAtRole, sampleAtRole, LayerRole.kind, Data.Bad, readFrom,
             Linear.LayerMessages.transcript, ChallengeBlocks.Data.Bad,
-            ChallengeBlocks.Kind.dimension] using hcombine
+            ChallengeBlocks.Kind.dimension, Layered.Replay.gatedCombine_bad] using hcombine
       · obtain ⟨role,hrole⟩ := ih plan.2 payload.2 _ _ _ _ _ hr
         exact ⟨.inr (.inr (.inr (.inr role))),hrole⟩
 

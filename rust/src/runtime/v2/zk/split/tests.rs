@@ -11,18 +11,47 @@ use crate::{
         random::DeterministicRng,
         v2::{
             polygero::LinearStatement,
-            proto::polygero::PolygeroConfig,
-            transcript::Transcript,
+            proto::{polygero::PolygeroConfig, sumcheck::SumcheckProof},
+            transcript::{Bound, Transcript},
             zk::{
-                joint::{CircuitParticipant, FrontendPart},
-                prove_split, reduce_split,
-                split::{transcript, value_count},
+                self,
+                joint::{top_weights, CircuitParticipant, FrontendPart},
+                prover::SplitState,
+                split::{transcript, value_count, PendingSplit, SplitClaim},
                 storage::{Group, StorageMap},
                 ZkContext,
             },
         },
     },
 };
+
+type Part<'a> = FrontendPart<'a, 4, P256Field>;
+
+/// Draw `t`'s top weights, then prove its split frontend.
+fn prove_split<D: crate::runtime::algebra::range_interpolation::EvaluationDomain<4, P256Field>>(
+    t: &mut Bound<'_, Part<'_>>,
+    state: SplitState<4, P256Field>,
+    ctx: &ZkContext<'_, 4, P256Field, D>,
+) -> Result<
+    (
+        SumcheckProof<4, P256Field>,
+        PendingSplit<<P256Field as crate::core::algebra::BareField>::E>,
+    ),
+    String,
+> {
+    let top = top_weights(t)?;
+    zk::prove_split(t, state, top, ctx)
+}
+
+/// Draw `t`'s top weights, then reduce its split frontend.
+fn reduce_split<D: crate::runtime::algebra::range_interpolation::EvaluationDomain<4, P256Field>>(
+    t: &mut Bound<'_, Part<'_>>,
+    proof: &SumcheckProof<4, P256Field>,
+    ctx: &ZkContext<'_, 4, P256Field, D>,
+) -> Result<SplitClaim<<P256Field as crate::core::algebra::BareField>::E>, String> {
+    let top = top_weights(t)?;
+    zk::reduce_split(t, proof, top, ctx)
+}
 
 fn small_circuit(f: &P256Field) -> Circuit<P256Field> {
     let raw = RawCircuitBuilder {

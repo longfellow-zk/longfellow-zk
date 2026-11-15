@@ -73,7 +73,7 @@ private def circuit : ConcreteTopology.Circuit (ZMod 3) 0 0 :=
 boundaries even at the scalar-layer edge case. -/
 example : circuit.plan.frontend.roles .binary =
     [.assertions .binary 0 [] [⟨0,0,1,1⟩,⟨1,0,1,1⟩],
-      .terminal .binary 0,.combine .binary 0 []] := rfl
+      .terminal .binary 0,.combine .binary 0 [] [] true] := rfl
 
 example : (ConcreteTopology.Layer.circuit [fragment 0,fragment 1]).assertions ⟨0,by decide⟩ =
     .quadratic () () := rfl

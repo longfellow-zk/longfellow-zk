@@ -24,14 +24,13 @@ def Coalesced : {out input : ℕ} → Layered.Circuit F out input → Prop
       (match rest with | .entry .. => False | _ => True) ∧ Coalesced rest
 
 /-- Every coordinate consumed by the parser is within the ideal decoder's
-public capacity. Input entries start after the final combine coefficient. -/
+public capacity. A layer's tail starts after its combine coefficient. -/
 def Fits (capacity : ℕ) : {out input : ℕ} → Layered.Circuit F out input → ℕ → Prop
   | _, _, .input, _ => True
   | _, _, .entry n _ rest, offset =>
       offset+n ≤ capacity ∧ Fits capacity rest (offset+n)
   | _, _, .layer a _ rest, offset =>
-      offset+a ≤ capacity ∧ 1 ≤ capacity ∧
-        Fits capacity rest (if hasLayers rest then 0 else 1)
+      offset+a ≤ capacity ∧ 1 ≤ capacity ∧ Fits capacity rest 1
 
 /-- A grouped failure is either two fixed affine hyperplanes, an ordinary
 quadratic root, or a nonzero terminal root. The two affine hyperplanes are a
@@ -166,6 +165,42 @@ theorem QueryTest.bad_card_mul_le [Fintype F] [DecidableEq F] [Fintype C]
         _ = Fintype.card C := decoder.field_balanced
         _ ≤ 2 * Fintype.card C := by omega
 
+/-- One affine hyperplane, or no test at all: at most one value in `|F|`. -/
+def QueryTest.Single : QueryTest F → Prop
+  | .empty => True
+  | .affine _ _ _ _ left right => left = right
+  | _ => False
+
+theorem QueryTest.bad_card_mul_le_single [Fintype F] [DecidableEq F] [Fintype C]
+    {capacity : ℕ} {decode : C → ℕ → F}
+    {nonzero : C → Linear.TerminalSampling.Nonzero F}
+    (decoder : Decoder capacity decode nonzero) (test : QueryTest F)
+    (hvalid : test.Valid capacity) (hsingle : test.Single) :
+    (univ.filter (test.Bad decode nonzero)).card * Fintype.card F ≤ Fintype.card C := by
+  cases test with
+  | empty => simp [QueryTest.Bad]
+  | affine offset dimension incoming claim left right =>
+      change left = right at hsingle
+      subst hsingle
+      obtain ⟨sampler,hsampler⟩ := decoder.blocks offset dimension hvalid
+      let balanced : BalancedDecoder C (Fin dimension → F) := {
+        decode := sampler.decode
+        fiber := sampler.fiber
+        fiber_bound := by
+          intro z
+          convert! sampler.fiber_bound z using 1
+          congr 1
+          ext raw
+          simp only [mem_filter]
+        balanced := by simpa only [Fintype.card_fun, Fintype.card_fin] using sampler.balanced }
+      have hraw := balanced.bad_card_mul_le
+        (fun beta => AssertionBad incoming claim beta left) 1 (Fintype.card F)
+        (by simpa only [one_mul] using EntryChallenges.block_bad_card_mul_le incoming claim left)
+      simpa only [QueryTest.Bad, or_self, balanced, hsampler, one_mul] using hraw
+  | round => exact hsingle.elim
+  | combine => exact hsingle.elim
+  | terminal => exact hsingle.elim
+
 /-- The generalized form lets the structural proof descend through the actual
 parser while retaining the carried weights and claim of the preceding layer. -/
 noncomputable def BadFrom (decode : C → ℕ → F)
@@ -200,53 +235,6 @@ theorem append_decode (decode : C → ℕ → F) (answer : C) (offset n m : ℕ)
     simp
   · intro j
     simp [Nat.add_assoc]
-
-/-- At a shared entry/assertion boundary, the two retained failure positions
-are contained in two fixed hyperplanes in the complete coefficient block. -/
-theorem entry_layer_at_start (decode : C → ℕ → F)
-    (nonzero : C → Linear.TerminalSampling.Nonzero F)
-    {out next mid input n a : ℕ}
-    (e : Layered.Entry (Cube out) (Cube next) n)
-    (body : LfzkV2.Native.CircuitLayer (Cube next) (Cube mid) (Fin a) F)
-    (rest : Layered.Circuit F mid input)
-    (plan : Layered.Replay.PadPlan (Pad := Pad) (.layer a body rest))
-    (payload : Layered.Replay.Payload (.layer a body rest))
-    (answers : ℕ → C) (start offset : ℕ) (w : Cube input → F)
-    (weights : Cube out → F) (pads : Pad → F) (claim : F)
-    (h : BadFrom decode nonzero (.entry n e (.layer a body rest)) plan payload
-      answers start offset w weights pads claim start) :
-    (QueryTest.affine offset (n+a)
-      (dot weights (e.previous (body.outputs (rest.eval w)))) claim
-      (Fin.append (e.residuals (body.outputs (rest.eval w))) 0)
-      (Fin.append (e.residuals (body.outputs (rest.eval w))) (body.residuals (rest.eval w)))).Bad
-        decode nonzero (answers start) := by
-  obtain ⟨role,hindex,hbad⟩ := h
-  have hseq :
-      AssertionBad (dot weights (e.previous (body.outputs (rest.eval w)))) claim
-        (fun i : Fin n => decode (answers start) (offset+i.val))
-        (e.residuals (body.outputs (rest.eval w))) ∨
-      AssertionBad (dot weights (e.previous (body.outputs (rest.eval w))) +
-          dot (fun i : Fin n => decode (answers start) (offset+i.val))
-            (e.residuals (body.outputs (rest.eval w)))) claim
-        (fun i : Fin a => decode (answers start) (offset+n+i.val))
-        (body.residuals (rest.eval w)) := by
-    rcases role with i | i | i | i | i | role
-    · exact Or.inl hbad
-    · apply Or.inr
-      simpa only [dataAtRole, sampleAtRole, LayerRole.kind, Data.Bad,
-        ChallengeBlocks.Data.Bad, Layered.Circuit.eval, e.dot_weights] using hbad
-    · simp only [queryIndex] at hindex
-      omega
-    · simp only [queryIndex] at hindex
-      omega
-    · simp only [queryIndex] at hindex
-      omega
-    · have hge := queryIndex_ge rest role
-          (if hasLayers rest then start+mid+3 else start+mid+2)
-      simp only [queryIndex] at hindex
-      split_ifs at hindex hge <;> omega
-  have hcover := EntryChallenges.sequential_entry_cover _ _ _ _ _ _ hseq
-  simpa only [QueryTest.Bad, append_decode] using hcover
 
 theorem layer_round_data_update (decode : C → ℕ → F)
     (nonzero : C → Linear.TerminalSampling.Nonzero F)
@@ -322,74 +310,6 @@ theorem layer_combine_data_update (decode : C → ℕ → F)
     Linear.LayerTranscript.terminalPads]
   rw [hb, hp, hs]
 
-theorem layer_final_entry_at_combine (decode : C → ℕ → F)
-    (nonzero : C → Linear.TerminalSampling.Nonzero F)
-    {out mid input a n : ℕ}
-    (body : LfzkV2.Native.CircuitLayer (Cube out) (Cube mid) (Fin a) F)
-    (e : Layered.Entry (Cube mid) (Cube input) n)
-    (plan : Layered.Replay.PadPlan (Pad := Pad) (.layer a body (.entry n e .input)))
-    (payload : Layered.Replay.Payload (.layer a body (.entry n e .input)))
-    (answers : ℕ → C) (start offset : ℕ) (w : Cube input → F)
-    (weights : Cube out → F) (pads : Pad → F) (claim : F)
-    (h : BadFrom decode nonzero (.layer a body (.entry n e .input)) plan payload
-      answers start offset w weights pads claim (start+mid+2)) :
-    let d := dataAtRole decode nonzero (.layer a body (.entry n e .input)) plan payload
-      answers start offset w weights pads claim (.inr (.inr (.inr (.inl 0))))
-    (QueryTest.affine 0 (n+1) (d.claimA-d.trueA) 0
-      (Fin.cons (d.claimB-d.trueB) 0)
-      (Fin.cons (d.claimB-d.trueB) (fun i => -(e.residuals w) i))).Bad
-        decode nonzero (answers (start+mid+2)) := by
-  let ml := (readFrom decode nonzero (.layer a body (.entry n e .input))
-    plan payload answers start offset).1
-  let wires := e.previous w
-  let Q := body.effectiveQuadratic weights ml.beta
-  let L := body.effectiveLinear weights ml.beta
-  let q := bindRightAffine Q L wires
-  let t := ml.transcript body weights
-  have hseq : BadCombineEvent (evaluate wires ml.point) (evaluate q ml.point)
-        (t.clearA pads) (t.clearB pads) ml.alpha ∨
-      AssertionBad (evaluate wires ml.point + ml.alpha*(evaluate q ml.point-evaluate L ml.point))
-        (t.clearA pads + ml.alpha*(t.clearB pads-evaluate L ml.point))
-        (fun i : Fin n => decode (answers (start+mid+2)) (1+i.val)) (e.residuals w) := by
-    obtain ⟨role,hindex,hbad⟩ := h
-    rcases role with i | i | i | i | i | role
-    · simp only [queryIndex] at hindex
-      omega
-    · simp only [queryIndex] at hindex
-      have := i.isLt
-      omega
-    · simp only [queryIndex] at hindex
-      omega
-    · exact Or.inl hbad
-    · apply Or.inr
-      have hdot := affine_nextWeights_correct Q L (monomialWeights ml.point) wires ml.alpha
-      dsimp only [dataAtRole, sampleAtRole, LayerRole.kind, Data.Bad,
-        ChallengeBlocks.Data.Bad, readFrom, hasLayers] at hbad
-      change AssertionBad (dot (nextWeights Q (monomialWeights ml.point) ml.alpha) wires)
-        (t.nextValue pads) (fun i : Fin n => decode (answers (start+mid+2)) (1+i.val))
-        (e.residuals w) at hbad
-      rw [hdot] at hbad
-      have htalpha : t.alpha = ml.alpha := rfl
-      have htlinear : t.linear = evaluate L ml.point := rfl
-      simpa only [← evaluate_eq_dot, Linear.LayerTranscript.nextValue, htalpha, htlinear, q] using hbad
-    · exact Fin.elim0 role
-  have hcover := EntryChallenges.sequential_combine_cover (t.clearA pads) (t.clearB pads)
-    (evaluate wires ml.point) (evaluate q ml.point) (evaluate L ml.point) ml.alpha
-    (fun i : Fin n => decode (answers (start+mid+2)) (1+i.val)) (e.residuals w) hseq
-  have hcons : (fun i : Fin (n+1) => decode (answers (start+mid+2)) i.val) =
-      Fin.cons ml.alpha (fun i : Fin n => decode (answers (start+mid+2)) (1+i.val)) := by
-    funext i
-    refine Fin.cases ?_ ?_ i
-    · rfl
-    · intro j
-      simp [Nat.add_comm]
-  change (QueryTest.affine 0 (n+1) (t.clearA pads-evaluate wires ml.point) 0
-    (Fin.cons (t.clearB pads-evaluate q ml.point) 0)
-    (Fin.cons (t.clearB pads-evaluate q ml.point) (fun i => -(e.residuals w) i))).Bad
-      decode nonzero (answers (start+mid+2))
-  simp only [QueryTest.Bad, Nat.zero_add, hcons]
-  exact hcover
-
 theorem layer_head_update_after (decode : C → ℕ → F)
     (nonzero : C → Linear.TerminalSampling.Nonzero F)
     {out mid input a : ℕ} (body : LfzkV2.Native.CircuitLayer (Cube out) (Cube mid) (Fin a) F)
@@ -414,6 +334,241 @@ theorem layer_head_update_after (decode : C → ℕ → F)
   dsimp only [readFrom]
   rw [hb, hp, hs, ha]
 
+omit [Field F] in
+theorem fin_zero_fun_eq (f g : Fin 0 → F) : f = g := funext fun i => Fin.elim0 i
+
+theorem assertionBad_zero {n : ℕ} (incoming claim : F) (beta : Fin n → F) :
+    ¬ AssertionBad incoming claim beta 0 := by
+  rintro ⟨i, _, hi, _⟩
+  exact hi rfl
+
+/-- An entry and the layer it enters are one affine test of their common
+coefficient block. The entry is reported alone only when the layer passes. -/
+theorem entry_head_cover {n m : ℕ} (incoming claim : F)
+    (rho entries : Fin n → F) (beta assertions : Fin m → F)
+    (h : AssertionBad incoming claim rho (if ∀ i, assertions i = 0 then entries else 0) ∨
+      AssertionBad (incoming + dot rho entries) claim beta assertions) :
+    AssertionBad incoming claim (Fin.append rho beta) (Fin.append entries assertions) := by
+  rcases h with he | ha
+  · by_cases hz : ∀ i, assertions i = 0
+    · simp only [hz, implies_true, ↓reduceIte] at he
+      have hzero : assertions = 0 := funext hz
+      subst hzero
+      have heq := ChallengeBlocks.assertion_bad_equation _ _ _ _ he
+      obtain ⟨i, _, hi, _⟩ := he
+      apply assertion_reduction
+      · exact ⟨i.castAdd m, by simpa using hi⟩
+      · rw [EntryChallenges.dot_append]
+        simp only [dot, Pi.zero_apply, mul_zero, Finset.sum_const_zero, add_zero]
+        simp only [dot] at heq
+        linear_combination -heq
+    · simp only [hz, ↓reduceIte] at he
+      exact (assertionBad_zero _ _ _ he).elim
+  · have heq := ChallengeBlocks.assertion_bad_equation _ _ _ _ ha
+    obtain ⟨i, _, hi, _⟩ := ha
+    apply assertion_reduction
+    · exact ⟨i.natAdd n, by simpa using hi⟩
+    · rw [EntryChallenges.dot_append]
+      linear_combination -heq
+
+/-- Every test located at a circuit's opening answer is one affine test of
+that answer's whole coefficient block: the entry and the assertions of the
+layer it enters. -/
+theorem head_cover (decode : C → ℕ → F)
+    (nonzero : C → Linear.TerminalSampling.Nonzero F)
+    {out input : ℕ} (circuit : Layered.Circuit F out input)
+    (plan : Layered.Replay.PadPlan (Pad := Pad) circuit) (payload : Layered.Replay.Payload circuit)
+    (answers : ℕ → C) (start offset : ℕ) (w : Cube input → F)
+    (weights : Cube out → F) (pads : Pad → F) (claim : F) (hcoalesced : Coalesced circuit)
+    (h : BadFrom decode nonzero circuit plan payload answers start offset w weights pads claim start) :
+    AssertionBad (dot weights (circuit.eval w)) claim
+      (fun i : Fin circuit.headWidth => decode (answers start) (offset+i.val))
+      (circuit.headResiduals w) := by
+  obtain ⟨role,hindex,hbad⟩ := h
+  cases circuit with
+  | input => exact Fin.elim0 role
+  | entry n e rest =>
+      cases rest with
+      | input =>
+          cases role with
+          | inl i =>
+              have he : AssertionBad (dot weights (e.previous w)) claim
+                  (fun i : Fin n => decode (answers start) (offset+i.val)) (e.residuals w) := by
+                simpa only [dataAtRole, sampleAtRole, LayerRole.kind, Data.Bad,
+                  ChallengeBlocks.Data.Bad, ChallengeBlocks.Kind.dimension, Layered.Circuit.eval,
+                  Layered.Circuit.entryResiduals, Layered.Circuit.layerWidth,
+                  Layered.Circuit.layerResiduals, IsEmpty.forall_iff, implies_true,
+                  ↓reduceIte] using hbad
+              have hc := entry_head_cover (m := 0) _ _ _ _ (fun i : Fin 0 => decode (answers start) (offset+n+i.val))
+                (Layered.Circuit.layerResiduals (.input (F := F) (n := input)) w)
+                (Or.inl (by simpa only [IsEmpty.forall_iff, implies_true, ↓reduceIte] using he))
+              simpa only [Layered.Circuit.eval, Layered.Circuit.headResiduals, Layered.Circuit.headWidth,
+                Layered.Circuit.layerWidth, append_decode] using hc
+          | inr role => exact Fin.elim0 role
+      | entry => exact hcoalesced.1.elim
+      | @layer _ mid _ a body rest =>
+          have hc : AssertionBad (dot weights (e.previous (body.outputs (rest.eval w)))) claim
+              (Fin.append (fun i : Fin n => decode (answers start) (offset+i.val))
+                (fun i : Fin a => decode (answers start) (offset+n+i.val)))
+              (Fin.append (e.residuals (body.outputs (rest.eval w))) (body.residuals (rest.eval w))) := by
+            apply entry_head_cover
+            rcases role with i | i | i | i | i | role
+            · apply Or.inl
+              simpa only [dataAtRole, sampleAtRole, LayerRole.kind, Data.Bad,
+                ChallengeBlocks.Data.Bad, ChallengeBlocks.Kind.dimension, Layered.Circuit.eval,
+                Layered.Circuit.entryResiduals, Layered.Circuit.layerWidth,
+                Layered.Circuit.layerResiduals] using hbad
+            · apply Or.inr
+              simpa only [dataAtRole, sampleAtRole, LayerRole.kind, Data.Bad,
+                ChallengeBlocks.Data.Bad, ChallengeBlocks.Kind.dimension, Layered.Circuit.eval,
+                e.dot_weights] using hbad
+            · simp only [queryIndex] at hindex; omega
+            · simp only [queryIndex] at hindex; omega
+            · simp only [queryIndex] at hindex; omega
+            · have hge := queryIndex_ge rest role (start+mid+2)
+              simp only [queryIndex] at hindex
+              omega
+          simpa only [Layered.Circuit.eval, Layered.Circuit.headResiduals, Layered.Circuit.headWidth,
+            Layered.Circuit.layerWidth, Layered.Circuit.layerResiduals, append_decode] using hc
+  | @layer _ mid _ a body rest =>
+      rcases role with i | i | i | i | role
+      · simpa only [dataAtRole, sampleAtRole, LayerRole.kind, Data.Bad, ChallengeBlocks.Kind.dimension,
+          ChallengeBlocks.Data.Bad, Layered.Circuit.eval, Layered.Circuit.headWidth,
+          Layered.Circuit.headResiduals] using hbad
+      · simp only [queryIndex] at hindex; omega
+      · simp only [queryIndex] at hindex; omega
+      · simp only [queryIndex] at hindex; omega
+      · have hge := queryIndex_ge rest role (start+mid+2)
+        simp only [queryIndex] at hindex
+        omega
+
+/-- The combine answer's test: alpha, then the next weights. The reduction
+reports the combine failure only when every check that follows it in this
+answer passes, so both are one affine cancellation. -/
+noncomputable def combineTest {out mid input a : ℕ}
+    (body : LfzkV2.Native.CircuitLayer (Cube out) (Cube mid) (Fin a) F)
+    (rest : Layered.Circuit F mid input) (ml : Linear.LayerMessages Pad F mid a)
+    (w : Cube input → F) (weights : Cube out → F) (pads : Pad → F) : QueryTest F :=
+  let t := ml.transcript body weights
+  let wires := rest.eval w
+  let q := bindRightAffine (body.effectiveQuadratic weights ml.beta)
+    (body.effectiveLinear weights ml.beta) wires
+  let v : Fin (rest.headWidth+1) → F :=
+    Fin.cons (t.clearB pads - evaluate q ml.point) (fun i => -(rest.headResiduals w i))
+  .affine 0 (rest.headWidth+1) (t.clearA pads - evaluate wires ml.point) 0 v v
+
+theorem layer_combine_cover (decode : C → ℕ → F)
+    (nonzero : C → Linear.TerminalSampling.Nonzero F)
+    {out mid input a : ℕ}
+    (body : LfzkV2.Native.CircuitLayer (Cube out) (Cube mid) (Fin a) F)
+    (rest : Layered.Circuit F mid input)
+    (plan : Layered.Replay.PadPlan (Pad := Pad) (.layer a body rest))
+    (payload : Layered.Replay.Payload (.layer a body rest))
+    (answers : ℕ → C) (start offset : ℕ) (w : Cube input → F)
+    (weights : Cube out → F) (pads : Pad → F) (claim : F) (hcoalesced : Coalesced rest)
+    (h : BadFrom decode nonzero (.layer a body rest) plan payload
+      answers start offset w weights pads claim (start+mid+2)) :
+    (combineTest body rest (readFrom decode nonzero (.layer a body rest) plan payload
+      answers start offset).1 w weights pads).Bad decode nonzero (answers (start+mid+2)) := by
+  let ml := (readFrom decode nonzero (.layer a body rest) plan payload answers start offset).1
+  let wires := rest.eval w
+  let Q := body.effectiveQuadratic weights ml.beta
+  let L := body.effectiveLinear weights ml.beta
+  let q := bindRightAffine Q L wires
+  let t := ml.transcript body weights
+  let coefficients := fun i : Fin rest.headWidth => decode (answers (start+mid+2)) (1+i.val)
+  have hcover : AssertionBad (t.clearA pads - evaluate wires ml.point) 0
+      (Fin.cons ml.alpha coefficients)
+      (Fin.cons (t.clearB pads - evaluate q ml.point) (fun i => -rest.headResiduals w i)) := by
+    obtain ⟨role,hindex,hbad⟩ := h
+    rcases role with i | i | i | i | role
+    · simp only [queryIndex] at hindex; omega
+    · simp only [queryIndex] at hindex; have := i.isLt; omega
+    · simp only [queryIndex] at hindex; omega
+    · have hc : (∀ i, rest.headResiduals w i = 0) ∧
+          BadCombineEvent (evaluate wires ml.point) (evaluate q ml.point)
+            (t.clearA pads) (t.clearB pads) ml.alpha := by
+        simp only [dataAtRole, sampleAtRole, LayerRole.kind, Data.Bad, ChallengeBlocks.Data.Bad,
+          Layered.Replay.gatedCombine_bad] at hbad
+        exact hbad
+      have hz : rest.headResiduals w = 0 := funext hc.1
+      have hf : t.clearA pads ≠ evaluate wires ml.point ∨ t.clearB pads ≠ evaluate q ml.point ∨
+          ∃ i, rest.headResiduals w i ≠ 0 := by
+        rcases hc.2.1 with hA | hB
+        · exact Or.inl hA
+        · exact Or.inr (Or.inl hB)
+      apply EntryChallenges.combine_entry_reduction _ _ _ _ (evaluate L ml.point) _ _ _ hf
+      rw [hz]
+      simp only [dot, Pi.zero_apply, mul_zero, Finset.sum_const_zero, add_zero]
+      linear_combination hc.2.2
+    · have hr : BadFrom decode nonzero rest plan.2 payload.2 answers (start+mid+2) 1 w
+          (nextWeights Q (monomialWeights ml.point) ml.alpha) pads (t.nextValue pads) (start+mid+2) :=
+        ⟨role, by simpa only [queryIndex] using hindex, by
+          simpa only [dataAtRole, sampleAtRole, LayerRole.kind] using hbad⟩
+      have hhead := head_cover decode nonzero rest plan.2 payload.2 answers (start+mid+2) 1 w
+        _ pads _ hcoalesced hr
+      have hdot := affine_nextWeights_correct Q L (monomialWeights ml.point) wires ml.alpha
+      rw [hdot] at hhead
+      have heq := ChallengeBlocks.assertion_bad_equation _ _ _ _ hhead
+      obtain ⟨i, _, hi, _⟩ := hhead
+      apply EntryChallenges.combine_entry_reduction _ _ _ _ (evaluate L ml.point) _ _ _
+        (Or.inr (Or.inr ⟨i,hi⟩))
+      have htalpha : t.alpha = ml.alpha := rfl
+      have htlinear : t.linear = evaluate L ml.point := rfl
+      simp only [← evaluate_eq_dot, Linear.LayerTranscript.nextValue, htalpha, htlinear] at heq
+      linear_combination -heq
+  have hcons : (fun i : Fin (rest.headWidth+1) => decode (answers (start+mid+2)) i.val) =
+      Fin.cons ml.alpha coefficients := by
+    funext i
+    refine Fin.cases ?_ ?_ i
+    · rfl
+    · intro j
+      simp [coefficients, Nat.add_comm]
+  change (QueryTest.affine 0 (rest.headWidth+1) (t.clearA pads - evaluate wires ml.point) 0
+    (Fin.cons (t.clearB pads - evaluate q ml.point) (fun i => -(rest.headResiduals w i)))
+    (Fin.cons (t.clearB pads - evaluate q ml.point) (fun i => -(rest.headResiduals w i)))).Bad
+      decode nonzero (answers (start+mid+2))
+  simp only [QueryTest.Bad, Nat.zero_add, hcons, or_self]
+  exact hcover
+
+theorem layer_messages_update_combine (decode : C → ℕ → F)
+    (nonzero : C → Linear.TerminalSampling.Nonzero F)
+    {out mid input a : ℕ} (body : LfzkV2.Native.CircuitLayer (Cube out) (Cube mid) (Fin a) F)
+    (rest : Layered.Circuit F mid input)
+    (plan : Layered.Replay.PadPlan (Pad := Pad) (.layer a body rest))
+    (payload : Layered.Replay.Payload (.layer a body rest))
+    (answers : ℕ → C) (start offset : ℕ) (answer : C) :
+    (readFrom decode nonzero (.layer a body rest) plan payload
+      (Function.update answers (start+mid+2) answer) start offset).1 =
+    { (readFrom decode nonzero (.layer a body rest) plan payload answers start offset).1 with
+      alpha := decode answer 0 } := by
+  have hb : Function.update answers (start+mid+2) answer start = answers start :=
+    Function.update_of_ne (by omega) _ _
+  have hp : (fun j : Fin mid => decode (Function.update answers (start+mid+2) answer
+      (start+1+j.val)) 0) = (fun j : Fin mid => decode (answers (start+1+j.val)) 0) := by
+    funext j
+    rw [Function.update_of_ne (by have := j.isLt; omega)]
+  have hs : Function.update answers (start+mid+2) answer (start+1+mid) =
+      answers (start+1+mid) := Function.update_of_ne (by omega) _ _
+  dsimp only [readFrom]
+  rw [hb, hp, hs, Function.update_self]
+
+omit [Field F] in
+theorem fits_head (capacity : ℕ) {out input : ℕ} (circuit : Layered.Circuit F out input)
+    (offset : ℕ) (hcoalesced : Coalesced circuit) (hfits : Fits capacity circuit offset)
+    (hoffset : offset ≤ capacity) : offset + circuit.headWidth ≤ capacity := by
+  cases circuit with
+  | input => simpa [Layered.Circuit.headWidth] using hoffset
+  | entry n e rest =>
+      cases rest with
+      | input => simpa [Layered.Circuit.headWidth, Layered.Circuit.layerWidth] using hfits.1
+      | entry => exact hcoalesced.1.elim
+      | layer a body rest =>
+          have h := hfits.2.1
+          simp only [Layered.Circuit.headWidth, Layered.Circuit.layerWidth]
+          omega
+  | layer a body rest => exact hfits.1
+
 /-- Construct the local test from the actual parser and retained circuit
 reduction. The test itself is fixed while the current answer is varied. -/
 theorem local_test_cover (decode : C → ℕ → F)
@@ -422,47 +577,33 @@ theorem local_test_cover (decode : C → ℕ → F)
     (plan : Layered.Replay.PadPlan (Pad := Pad) circuit) (payload : Layered.Replay.Payload circuit)
     (answers : ℕ → C) (start offset : ℕ) (w : Cube input → F)
     (weights : Cube out → F) (pads : Pad → F) (claim : F) (query capacity : ℕ)
-    (hcoalesced : Coalesced circuit) (hfits : Fits capacity circuit offset) :
-    ∃ test : QueryTest F, test.Valid capacity ∧ ∀ answer,
+    (hcoalesced : Coalesced circuit) (hfits : Fits capacity circuit offset)
+    (hoffset : offset ≤ capacity) :
+    ∃ test : QueryTest F, test.Valid capacity ∧
+      (query+1 = start+slots circuit → test.Single) ∧ ∀ answer,
       BadFrom decode nonzero circuit plan payload (Function.update answers query answer)
         start offset w weights pads claim query → test.Bad decode nonzero answer := by
   induction circuit generalizing start offset claim query with
   | input =>
-      refine ⟨.empty, trivial, ?_⟩
+      refine ⟨.empty, trivial, fun _ => trivial, ?_⟩
       rintro answer ⟨role,_,_⟩
       exact Fin.elim0 role
   | @entry out next input n e rest ih =>
       by_cases hquery : query = start
       · subst query
-        cases rest with
-        | input =>
-            refine ⟨.affine offset n (dot weights (e.previous w)) claim
-              (e.residuals w) (e.residuals w), hfits.1, ?_⟩
-            rintro answer ⟨role,hindex,hbad⟩
-            cases role with
-            | inl i =>
-                apply Or.inl
-                simpa only [dataAtRole, sampleAtRole, LayerRole.kind, Data.Bad,
-                  ChallengeBlocks.Data.Bad, Layered.Circuit.eval, Function.update_self] using hbad
-            | inr role => exact Fin.elim0 role
-        | entry m e' rest => exact hcoalesced.1.elim
-        | layer a body rest =>
-            refine ⟨.affine offset (n+a)
-              (dot weights (e.previous (body.outputs (rest.eval w)))) claim
-              (Fin.append (e.residuals (body.outputs (rest.eval w))) 0)
-              (Fin.append (e.residuals (body.outputs (rest.eval w))) (body.residuals (rest.eval w))),
-              ?_, ?_⟩
-            · have hf := hfits.2.1
-              dsimp only [QueryTest.Valid]
-              omega
-            · intro answer hbad
-              have hcover := entry_layer_at_start decode nonzero e body rest plan payload
-                (Function.update answers start answer) start offset w weights pads claim hbad
-              simpa only [Function.update_self] using hcover
+        refine ⟨.affine offset (Layered.Circuit.headWidth (.entry n e rest))
+          (dot weights (Layered.Circuit.eval (.entry n e rest) w)) claim
+          ((Layered.Circuit.entry n e rest).headResiduals w)
+          ((Layered.Circuit.entry n e rest).headResiduals w),
+          fits_head capacity _ offset hcoalesced hfits hoffset, fun _ => rfl, ?_⟩
+        intro answer hbad
+        have hc := head_cover decode nonzero (.entry n e rest) plan payload
+          (Function.update answers start answer) start offset w weights pads claim hcoalesced hbad
+        simpa only [QueryTest.Bad, Function.update_self, or_self] using hc
       · let nextWeights := e.weights weights (fun i => decode (answers start) (offset+i.val))
-        obtain ⟨test,htest,hcover⟩ := ih plan payload start (offset+n) w nextWeights claim query
-          hcoalesced.2 hfits.2
-        refine ⟨test,htest,?_⟩
+        obtain ⟨test,htest,hsingle,hcover⟩ := ih plan payload start (offset+n) w nextWeights claim query
+          hcoalesced.2 hfits.2 hfits.1
+        refine ⟨test,htest,fun hlast => hsingle (by simpa only [slots] using hlast),?_⟩
         rintro answer ⟨role,hindex,hbad⟩
         cases role with
         | inl i => exact (hquery hindex.symm).elim
@@ -473,36 +614,29 @@ theorem local_test_cover (decode : C → ℕ → F)
               Function.update_of_ne (Ne.symm hquery), nextWeights] using hbad
   | @layer out mid input a body rest ih =>
       by_cases hbefore : query < start
-      · refine ⟨.empty,trivial,?_⟩
+      · refine ⟨.empty,trivial,fun _ => trivial,?_⟩
         intro answer hbad
         exact (Nat.not_le_of_gt hbefore (badFrom_ge _ _ _ _ _ _ _ _ _ _ _ _ _ hbad)).elim
       · have hge : start ≤ query := Nat.le_of_not_gt hbefore
         by_cases hstart : query = start
         · subst query
           refine ⟨.affine offset a (dot weights (body.outputs (rest.eval w))) claim
-            (body.residuals (rest.eval w)) (body.residuals (rest.eval w)), hfits.1, ?_⟩
-          rintro answer ⟨role,hindex,hbad⟩
-          rcases role with i | i | i | i | role
-          · apply Or.inl
-            simpa only [dataAtRole, sampleAtRole, LayerRole.kind, Data.Bad,
-              ChallengeBlocks.Data.Bad, Function.update_self] using hbad
-          · simp only [queryIndex] at hindex
-            omega
-          · simp only [queryIndex] at hindex
-            omega
-          · simp only [queryIndex] at hindex
-            omega
-          · have hi := queryIndex_ge rest role
-              (if hasLayers rest then start+mid+3 else start+mid+2)
-            simp only [queryIndex] at hindex
-            split_ifs at hindex hi <;> omega
+            (body.residuals (rest.eval w)) (body.residuals (rest.eval w)), hfits.1, fun _ => rfl, ?_⟩
+          intro answer hbad
+          have hc := head_cover decode nonzero (.layer a body rest) plan payload
+            (Function.update answers start answer) start offset w weights pads claim hcoalesced hbad
+          simpa only [QueryTest.Bad, Function.update_self, or_self, Layered.Circuit.eval,
+            Layered.Circuit.headWidth, Layered.Circuit.headResiduals] using hc
         · by_cases hround : query < start+1+mid
           · let i : Fin mid := ⟨query-start-1, by omega⟩
             have hi : query = start+1+i.val := by dsimp [i]; omega
             let data := dataAtRole decode nonzero (.layer a body rest) plan payload
               answers start offset w weights pads claim (.inr (.inl i))
-            refine ⟨.round data, ⟨hfits.2.1, ?_⟩, ?_⟩
+            refine ⟨.round data, ⟨hfits.2.1, ?_⟩, fun hlast => ?_, ?_⟩
             · exact RoundReplay.dataAt_valid _ _ _ _ _ _
+            · have := slots_positive rest
+              simp only [slots] at hlast
+              omega
             · rintro answer ⟨role,hindex,hbad⟩
               rcases role with j | j | j | j | role
               · simp only [queryIndex] at hindex
@@ -520,15 +654,17 @@ theorem local_test_cover (decode : C → ℕ → F)
                 omega
               · simp only [queryIndex] at hindex
                 omega
-              · have hj := queryIndex_ge rest role
-                  (if hasLayers rest then start+mid+3 else start+mid+2)
+              · have hj := queryIndex_ge rest role (start+mid+2)
                 simp only [queryIndex] at hindex
-                split_ifs at hindex hj <;> omega
+                omega
           · by_cases hterminal : query = start+1+mid
             · subst query
               let data := dataAtRole decode nonzero (.layer a body rest) plan payload
                 answers start offset w weights pads claim (.inr (.inr (.inl 0)))
-              refine ⟨.terminal data,trivial,?_⟩
+              refine ⟨.terminal data,trivial,fun hlast => ?_,?_⟩
+              · have := slots_positive rest
+                simp only [slots] at hlast
+                omega
               rintro answer ⟨role,hindex,hbad⟩
               rcases role with j | j | j | j | role
               · simp only [queryIndex] at hindex
@@ -543,110 +679,48 @@ theorem local_test_cover (decode : C → ℕ → F)
                   QueryTest.Bad, data] using hbad
               · simp only [queryIndex] at hindex
                 omega
-              · have hj := queryIndex_ge rest role
-                  (if hasLayers rest then start+mid+3 else start+mid+2)
+              · have hj := queryIndex_ge rest role (start+mid+2)
                 simp only [queryIndex] at hindex
-                split_ifs at hindex hj <;> omega
+                omega
             · by_cases hcombine : query = start+mid+2
               · subst query
-                by_cases hrest : hasLayers rest = true
-                · let data := dataAtRole decode nonzero (.layer a body rest) plan payload
-                    answers start offset w weights pads claim (.inr (.inr (.inr (.inl 0))))
-                  refine ⟨.combine data,hfits.2.1,?_⟩
-                  rintro answer ⟨role,hindex,hbad⟩
-                  rcases role with j | j | j | j | role
-                  · simp only [queryIndex] at hindex
-                    omega
-                  · simp only [queryIndex] at hindex
-                    have := j.isLt
-                    omega
-                  · simp only [queryIndex] at hindex
-                    omega
-                  · have hj : j = 0 := Subsingleton.elim _ _
-                    subst j
-                    rw [layer_combine_data_update] at hbad
-                    simpa only [sampleAtRole, LayerRole.kind, Data.Bad, ChallengeBlocks.Data.Bad,
-                      Function.update_self, QueryTest.Bad, data] using hbad
-                  · have hj := queryIndex_ge rest role (start+mid+3)
-                    simp only [queryIndex, hrest, ↓reduceIte] at hindex
-                    omega
-                · have hrfalse : hasLayers rest = false := Bool.eq_false_iff.mpr hrest
-                  cases rest with
-                  | input =>
-                      let data := dataAtRole decode nonzero (.layer a body .input) plan payload
-                        answers start offset w weights pads claim (.inr (.inr (.inr (.inl 0))))
-                      refine ⟨.combine data,hfits.2.1,?_⟩
-                      rintro answer ⟨role,hindex,hbad⟩
-                      rcases role with j | j | j | j | role
-                      · simp only [queryIndex] at hindex
-                        omega
-                      · simp only [queryIndex] at hindex
-                        have := j.isLt
-                        omega
-                      · simp only [queryIndex] at hindex
-                        omega
-                      · have hj : j = 0 := Subsingleton.elim _ _
-                        subst j
-                        rw [layer_combine_data_update] at hbad
-                        simpa only [sampleAtRole, LayerRole.kind, Data.Bad, ChallengeBlocks.Data.Bad,
-                          Function.update_self, QueryTest.Bad, data] using hbad
-                      · exact Fin.elim0 role
-                  | layer => simp [hasLayers] at hrfalse
-                  | entry n e tail =>
-                      cases tail with
-                      | entry => exact hcoalesced.1.elim
-                      | layer => simp [hasLayers] at hrfalse
-                      | input =>
-                          let data := dataAtRole decode nonzero (.layer a body (.entry n e .input))
-                            plan payload answers start offset w weights pads claim
-                              (.inr (.inr (.inr (.inl 0))))
-                          refine ⟨.affine 0 (n+1) (data.claimA-data.trueA) 0
-                            (Fin.cons (data.claimB-data.trueB) 0)
-                            (Fin.cons (data.claimB-data.trueB) (fun i => -(e.residuals w) i)), ?_, ?_⟩
-                          · have hf := hfits.2.2.1
-                            simp only [hasLayers, Bool.false_eq_true, ↓reduceIte] at hf
-                            dsimp only [QueryTest.Valid]
-                            omega
-                          · intro answer hbad
-                            have hc := layer_final_entry_at_combine decode nonzero body e plan payload
-                              (Function.update answers (start+mid+2) answer) start offset w weights pads claim hbad
-                            dsimp only at hc
-                            rw [layer_combine_data_update] at hc
-                            simpa only [Function.update_self, data] using hc
-              · have hafter : start+mid+2 < query := by omega
-                by_cases hrest : hasLayers rest = true
-                · let ml := (readFrom decode nonzero (.layer a body rest) plan payload answers start offset).1
-                  let nextWeights := SumcheckV2.nextWeights (body.effectiveQuadratic weights ml.beta)
-                    (monomialWeights ml.point) ml.alpha
-                  let nextClaim := (ml.transcript body weights).nextValue pads
-                  obtain ⟨test,htest,hcover⟩ := ih plan.2 payload.2 (start+mid+3) 0 w nextWeights
-                    nextClaim query hcoalesced (by simpa only [hrest, ↓reduceIte] using hfits.2.2)
-                  refine ⟨test,htest,?_⟩
-                  rintro answer ⟨role,hindex,hbad⟩
-                  rcases role with j | j | j | j | role
-                  · simp only [queryIndex] at hindex
-                    omega
-                  · simp only [queryIndex] at hindex
-                    have := j.isLt
-                    omega
-                  · simp only [queryIndex] at hindex
-                    omega
-                  · simp only [queryIndex] at hindex
-                    omega
-                  · apply hcover answer
-                    refine ⟨role,?_,?_⟩
-                    · simpa only [queryIndex, hrest, ↓reduceIte] using hindex
-                    · dsimp only [dataAtRole, LayerRole.kind, sampleAtRole] at hbad
-                      rw [layer_head_update_after decode nonzero body rest plan payload answers
-                        start offset query answer hafter] at hbad
-                      simpa only [hrest, ↓reduceIte, ml, nextWeights, nextClaim] using hbad
-                · refine ⟨.empty,trivial,?_⟩
-                  intro answer hbad
-                  obtain ⟨role,hindex,_⟩ := hbad
-                  have hi := queryIndex_lt (.layer a body rest) role start
-                  have hf : hasLayers rest = false := Bool.eq_false_iff.mpr hrest
-                  simp only [slots, hf, Bool.false_eq_true, ↓reduceIte] at hi
+                let ml := (readFrom decode nonzero (.layer a body rest) plan payload answers start offset).1
+                refine ⟨combineTest body rest ml w weights pads, ?_, fun _ => rfl, ?_⟩
+                · have hh := fits_head capacity rest 1 hcoalesced hfits.2.2 hfits.2.1
+                  dsimp only [combineTest, QueryTest.Valid]
                   omega
+                · intro answer hbad
+                  have hc := layer_combine_cover decode nonzero body rest plan payload
+                    (Function.update answers (start+mid+2) answer) start offset w weights pads claim
+                    hcoalesced hbad
+                  rw [layer_messages_update_combine, Function.update_self] at hc
+                  exact hc
+              · have hafter : start+mid+2 < query := by omega
+                let ml := (readFrom decode nonzero (.layer a body rest) plan payload answers start offset).1
+                let nextWeights := SumcheckV2.nextWeights (body.effectiveQuadratic weights ml.beta)
+                  (monomialWeights ml.point) ml.alpha
+                let nextClaim := (ml.transcript body weights).nextValue pads
+                obtain ⟨test,htest,hsingle,hcover⟩ := ih plan.2 payload.2 (start+mid+2) 1 w nextWeights
+                  nextClaim query hcoalesced hfits.2.2 hfits.2.1
+                refine ⟨test,htest,fun hlast => hsingle (by simp only [slots] at hlast; omega),?_⟩
+                rintro answer ⟨role,hindex,hbad⟩
+                rcases role with j | j | j | j | role
+                · simp only [queryIndex] at hindex
+                  omega
+                · simp only [queryIndex] at hindex
+                  have := j.isLt
+                  omega
+                · simp only [queryIndex] at hindex
+                  omega
+                · simp only [queryIndex] at hindex
+                  omega
+                · apply hcover answer
+                  refine ⟨role,?_,?_⟩
+                  · simpa only [queryIndex] using hindex
+                  · dsimp only [dataAtRole, LayerRole.kind, sampleAtRole] at hbad
+                    rw [layer_head_update_after decode nonzero body rest plan payload answers
+                      start offset query answer hafter] at hbad
+                    simpa only [ml, nextWeights, nextClaim] using hbad
 
 theorem badFrom_card_mul_le [Fintype F] [DecidableEq F] [Fintype C]
     {capacity : ℕ} {decode : C → ℕ → F}
@@ -656,19 +730,25 @@ theorem badFrom_card_mul_le [Fintype F] [DecidableEq F] [Fintype C]
     (plan : Layered.Replay.PadPlan (Pad := Pad) circuit) (payload : Layered.Replay.Payload circuit)
     (answers : ℕ → C) (start offset : ℕ) (w : Cube input → F)
     (weights : Cube out → F) (pads : Pad → F) (claim : F) (query : ℕ)
-    (hcoalesced : Coalesced circuit) (hfits : Fits capacity circuit offset) :
+    (hcoalesced : Coalesced circuit) (hfits : Fits capacity circuit offset)
+    (hoffset : offset ≤ capacity) :
     (univ.filter fun answer => BadFrom decode nonzero circuit plan payload
       (Function.update answers query answer) start offset w weights pads claim query).card *
-        (Fintype.card F-1) ≤ 2 * Fintype.card C := by
-  obtain ⟨test,hvalid,hcover⟩ := local_test_cover decode nonzero circuit plan payload answers
-    start offset w weights pads claim query capacity hcoalesced hfits
+        (Fintype.card F-1) ≤ 2 * Fintype.card C ∧
+    (query+1 = start+slots circuit →
+      (univ.filter fun answer => BadFrom decode nonzero circuit plan payload
+        (Function.update answers query answer) start offset w weights pads claim query).card *
+          Fintype.card F ≤ Fintype.card C) := by
+  obtain ⟨test,hvalid,hsingle,hcover⟩ := local_test_cover decode nonzero circuit plan payload answers
+    start offset w weights pads claim query capacity hcoalesced hfits hoffset
   have hsub : (univ.filter fun answer => BadFrom decode nonzero circuit plan payload
       (Function.update answers query answer) start offset w weights pads claim query) ⊆
       univ.filter (test.Bad decode nonzero) := by
     intro answer hanswer
     exact mem_filter.mpr ⟨mem_univ _, hcover answer (mem_filter.mp hanswer).2⟩
-  exact (Nat.mul_le_mul_right _ (card_le_card hsub)).trans
-    (test.bad_card_mul_le decoder hvalid)
+  exact ⟨(Nat.mul_le_mul_right _ (card_le_card hsub)).trans (test.bad_card_mul_le decoder hvalid),
+    fun hlast => (Nat.mul_le_mul_right _ (card_le_card hsub)).trans
+      (test.bad_card_mul_le_single decoder hvalid (hsingle hlast))⟩
 
 /-- This is the actual whole-query local bound used by the oracle charging
 step. It is derived from circuit structure, not a caller-supplied error budget. -/
@@ -682,10 +762,26 @@ theorem badAt_card_mul_le [Fintype F] [DecidableEq F] [Fintype C]
     (hcoalesced : Coalesced circuit) (hfits : Fits capacity circuit 0) :
     (univ.filter fun answer => BadAt decode nonzero circuit plan payload
       (Function.update answers query answer) w pads query).card * (Fintype.card F-1) ≤
-        2 * Fintype.card C := by
-  exact badFrom_card_mul_le decoder circuit plan payload answers 0 0 w 0 pads 0 query
-    hcoalesced hfits
+        2 * Fintype.card C :=
+  (badFrom_card_mul_le decoder circuit plan payload answers 0 0 w 0 pads 0 query
+    hcoalesced hfits (Nat.zero_le _)).1
 
+/-- The frontend's last answer, its combine answer (or its opening answer
+with no layers), is one affine test: at most one value in `|F|`. -/
+theorem badAt_last_card_mul_le [Fintype F] [DecidableEq F] [Fintype C]
+    {capacity : ℕ} {decode : C → ℕ → F}
+    {nonzero : C → Linear.TerminalSampling.Nonzero F}
+    (decoder : Decoder capacity decode nonzero)
+    {out input : ℕ} (circuit : Layered.Circuit F out input)
+    (plan : Layered.Replay.PadPlan (Pad := Pad) circuit) (payload : Layered.Replay.Payload circuit)
+    (answers : ℕ → C) (w : Cube input → F) (pads : Pad → F) (query : ℕ)
+    (hcoalesced : Coalesced circuit) (hfits : Fits capacity circuit 0)
+    (hlast : query+1 = slots circuit) :
+    (univ.filter fun answer => BadAt decode nonzero circuit plan payload
+      (Function.update answers query answer) w pads query).card * Fintype.card F ≤
+        Fintype.card C :=
+  (badFrom_card_mul_le decoder circuit plan payload answers 0 0 w 0 pads 0 query
+    hcoalesced hfits (Nat.zero_le _)).2 (by simpa using hlast)
 omit [Field F] in
 theorem completeAnswers_update {query : ℕ} (past : Fin query → C) (answer fallback : C) :
     completeAnswers past answer fallback =
@@ -712,5 +808,21 @@ theorem badAt_prefix_card_mul_le [Fintype F] [DecidableEq F] [Fintype C]
   simpa only [← completeAnswers_update] using
     badAt_card_mul_le decoder circuit plan payload (completeAnswers past fallback fallback)
       w pads query hcoalesced hfits
+
+theorem badAt_prefix_last_card_mul_le [Fintype F] [DecidableEq F] [Fintype C]
+    {capacity : ℕ} {decode : C → ℕ → F}
+    {nonzero : C → Linear.TerminalSampling.Nonzero F}
+    (decoder : Decoder capacity decode nonzero)
+    {out input : ℕ} (circuit : Layered.Circuit F out input)
+    (plan : Layered.Replay.PadPlan (Pad := Pad) circuit) (payload : Layered.Replay.Payload circuit)
+    (w : Cube input → F) (pads : Pad → F) (query : ℕ) (past : Fin query → C) (fallback : C)
+    (hcoalesced : Coalesced circuit) (hfits : Fits capacity circuit 0)
+    (hlast : query+1 = slots circuit) :
+    (univ.filter fun answer => BadAt decode nonzero circuit plan payload
+      (completeAnswers past answer fallback) w pads query).card * Fintype.card F ≤
+        Fintype.card C := by
+  simpa only [← completeAnswers_update] using
+    badAt_last_card_mul_le decoder circuit plan payload (completeAnswers past fallback fallback)
+      w pads query hcoalesced hfits hlast
 
 end LfzkV2.Current.FrontendReplay

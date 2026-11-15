@@ -142,10 +142,11 @@ theorem parsed_charged
     rwa [binaryGeometry] at hh
   have hr : ApplicationPrefix.rescalingIndex g < g.roles.length := by
     have hh := g.roles_length
+    have hpos := ApplicationPrefix.prime_roles_pos g
     simp only [ApplicationPrefix.rescalingIndex,Geometry.primeStart] at *; omega
   have hc : ApplicationPrefix.conversionIndex g < g.roles.length := by
     have hh := g.roles_length
-    simp only [ApplicationPrefix.conversionIndex,ApplicationPrefix.rescalingIndex,Geometry.primeStart] at *; omega
+    simp only [ApplicationPrefix.conversionIndex,Geometry.primeStart] at *; omega
   have hp : ApplicationPrefix.packingIndex g < g.roles.length := by
     have hh := g.roles_length
     simp only [ApplicationPrefix.packingIndex,Geometry.binaryStart] at *; omega
@@ -174,17 +175,21 @@ theorem parsed_charged
       e cfg.initialLink output.proof H g.batchingIndex.val g.batchingIndex.isLt.le bits inputs hpublic nd hprime query hquery w
       (selected _ hi (by have := g.primeStart_pos; omega)) hbad
     refine ⟨g.primeStart+query,hi,?_⟩
-    rw [RuntimeAdaptiveVerifier.point_eq,RuntimeAdaptiveRoles.prime_single binary prime P R cfg S laws primePlan e cfg.initialLink output.proof H readers primeGeometry query hquery]
-    exact indicator_charged hlocal
+    rw [RuntimeAdaptiveVerifier.point_eq,RuntimeAdaptiveRoles.prime_single binary prime P R cfg S laws primePlan e cfg.initialLink output.proof H readers primeGeometry query hquery,
+      RuntimeAdaptiveRoles.primeCharge_of_frontendBad binary prime P R cfg S laws H readers _ _ hlocal]
   · have hlocal := RuntimeAdaptiveAuxiliary.rescale_of_late laws hashPublic decodePublic primePlan primeGeometry e cfg.initialLink
       output.proof H g.batchingIndex.val g.batchingIndex.isLt.le bits inputs hpublic nd bd hprime hbinary w
-      (selected _ hr (by dsimp only [ApplicationPrefix.rescalingIndex,Geometry.primeStart]; omega)) hbad
+      (selected _ hr (by
+        have hpos := ApplicationPrefix.prime_roles_pos g
+        dsimp only [ApplicationPrefix.rescalingIndex,Geometry.primeStart]; omega)) hbad
     refine ⟨ApplicationPrefix.rescalingIndex g,hr,?_⟩
-    rw [RuntimeAdaptiveVerifier.point_eq,RuntimeAdaptiveRoles.rescaling_single binary prime P R cfg S laws e cfg.initialLink output.proof H readers]
-    exact indicator_charged hlocal
+    rw [RuntimeAdaptiveVerifier.point_eq,RuntimeAdaptiveRoles.rescaling_single binary prime P R cfg S laws e cfg.initialLink output.proof H readers,
+      RuntimeAdaptiveRoles.primeCharge_of_rescaleBad binary prime P R cfg S laws H readers _ _
+        (RuntimeAdaptiveRoles.lastPrime_concrete binary prime P R cfg S laws hashPublic decodePublic primePlan primeFits
+          binaryTemplate binaryFits e cfg.initialLink output.proof H primeGeometry) hlocal]
   · have hlocal := RuntimeAdaptiveAuxiliary.conversion_of_late laws hashPublic decodePublic primePlan primeGeometry e cfg.initialLink
       output.proof H g.batchingIndex.val g.batchingIndex.isLt.le bits inputs hpublic nd bd hprime hbinary w
-      (selected _ hc (by dsimp only [ApplicationPrefix.conversionIndex,ApplicationPrefix.rescalingIndex,Geometry.primeStart]; omega)) hbad
+      (selected _ hc (by dsimp only [ApplicationPrefix.conversionIndex,Geometry.primeStart]; omega)) hbad
     refine ⟨ApplicationPrefix.conversionIndex g,hc,?_⟩
     rw [RuntimeAdaptiveVerifier.point_eq,RuntimeAdaptiveRoles.conversion_single binary prime P R cfg S laws e cfg.initialLink output.proof H readers]
     exact indicator_charged hlocal

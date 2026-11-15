@@ -107,7 +107,8 @@ instance proofFintype (g : Geometry) (F : Fields) (Advice Authentication : Type)
 instance samplesFintype (g : Geometry) (F : Fields) [∀ side, Zero (F side)]
     [∀ side, Fintype (F side)] (role : Role) : Fintype (Samples g F role) := by
   classical
-  cases role <;> dsimp only [Samples] <;> infer_instance
+  rcases role with _ | ⟨side, _⟩ | _ | _ | _ | ⟨side, _, _, _, last⟩ | _ | _ | _ | _ | _ <;>
+    (try cases side) <;> (try cases last) <;> dsimp only [Samples] <;> infer_instance
 
 instance roundPayloadFintype (g : Geometry) (F : Fields) [∀ side, Fintype (F side)]
     (role : Role) : Fintype (RoundPayload g F role) := by

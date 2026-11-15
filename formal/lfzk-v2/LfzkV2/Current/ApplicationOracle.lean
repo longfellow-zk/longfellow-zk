@@ -155,28 +155,59 @@ theorem selected_card_mul_le (selected : Option W) (bad : W → Raw → Prop)
 
 variable {F Slot Shared Other I J KField : Type} [Field F] [Fintype F] [DecidableEq F]
 
-structure RescaleData (F Shared Other W : Type) [Field F] where
-  claim : Prime.Claim Shared Other F
+/-- The split's rescaling test. `eta` is drawn from the prime frontend's
+last answer after alpha and the input weights, so the split claim is a
+function of that same answer, through its full-field coordinates only. -/
+structure RescaleData (F Shared Other W Raw : Type) [Field F] where
+  claim : Raw → Prime.Claim Shared Other F
   shared : W → Shared → F
   other : W → Other → F
   binaryMask : W → F
   primeMask : W → F
 
 def RescaleData.bad [Fintype Shared] [Fintype Other]
-    (d : RescaleData F Shared Other W) (w : W) (eta : Linear.TerminalSampling.Nonzero F) : Prop :=
-  Prime.RescalingBad (d.claim.residual (d.shared w) (d.other w))
+    (d : RescaleData F Shared Other W Raw) (w : W) (raw : Raw)
+    (eta : Linear.TerminalSampling.Nonzero F) : Prop :=
+  Prime.RescalingBad ((d.claim raw).residual (d.shared w) (d.other w))
     (d.binaryMask w - d.primeMask w) eta.val
 
-theorem RescaleData.bad_card_mul_le [Fintype Shared] [Fintype Other]
-    (d : RescaleData F Shared Other W) (w : W)
-    (decoder : BalancedDecoder Raw (Linear.TerminalSampling.Nonzero F)) :
-    (univ.filter fun raw => d.bad w (decoder.decode raw)).card * (Fintype.card F-1) ≤
+omit [Fintype Raw] in
+/-- The answer's coordinates and its `eta` are jointly uniform; given the
+coordinates, which fix the claim, at most one `eta` repairs a false claim. -/
+theorem RescaleData.bad_card_mul_le [Fintype Raw] [Fintype Shared] [Fintype Other] {V : Type} [Fintype V]
+    (d : RescaleData F Shared Other W Raw) (w : W)
+    (decoder : BalancedDecoder Raw (V × Linear.TerminalSampling.Nonzero F))
+    (hclaim : ∀ a b, (decoder.decode a).1 = (decoder.decode b).1 → d.claim a = d.claim b) :
+    (univ.filter fun raw => d.bad w raw (decoder.decode raw).2).card * (Fintype.card F-1) ≤
       Fintype.card Raw := by
-  apply (decoder.bad_card_mul_le (d.bad w) 1 (Fintype.card F-1) ?_).trans_eq (one_mul _)
-  simpa only [RescaleData.bad, Linear.TerminalSampling.nonzero_card, one_mul] using
-    Nat.mul_le_mul_right (Fintype.card F-1)
-      (Prime.rescaling_bad_card (d.claim.residual (d.shared w) (d.other w))
-        (d.binaryMask w-d.primeMask w))
+  let bad' : V × Linear.TerminalSampling.Nonzero F → Prop := fun p =>
+    ∃ a, (decoder.decode a).1 = p.1 ∧ d.bad w a p.2
+  letI : DecidablePred bad' := fun p => Classical.propDecidable (bad' p)
+  have hsub : (univ.filter fun raw => d.bad w raw (decoder.decode raw).2) ⊆
+      univ.filter fun raw => bad' (decoder.decode raw) := by
+    intro raw hraw
+    exact mem_filter.mpr ⟨mem_univ _, raw, rfl, (mem_filter.mp hraw).2⟩
+  have hinj : Set.InjOn Prod.fst (↑(univ.filter bad') : Set (V × Linear.TerminalSampling.Nonzero F)) := by
+    rintro ⟨v,eta⟩ hp ⟨v',eta'⟩ hq hv
+    obtain ⟨a,ha,hbad⟩ := (mem_filter.mp hp).2
+    obtain ⟨b,hb,hbad'⟩ := (mem_filter.mp hq).2
+    change v = v' at hv
+    subst hv
+    have hc := hclaim a b (ha.trans hb.symm)
+    simp only [RescaleData.bad] at hbad hbad'
+    rw [hc] at hbad
+    have hcard := Prime.rescaling_bad_card ((d.claim b).residual (d.shared w) (d.other w))
+      (d.binaryMask w-d.primeMask w)
+    have he : eta = eta' := card_le_one.mp hcard eta (mem_filter.mpr ⟨mem_univ _, hbad⟩)
+      eta' (mem_filter.mpr ⟨mem_univ _, hbad'⟩)
+    rw [he]
+  have hcount : (univ.filter bad').card ≤ Fintype.card V :=
+    (card_le_card_of_injOn Prod.fst (fun _ _ => mem_univ _) hinj).trans (by simp)
+  have h := decoder.bad_card_mul_le bad' 1 (Fintype.card F-1) (by
+    rw [Fintype.card_prod, Linear.TerminalSampling.nonzero_card, one_mul]
+    exact Nat.mul_le_mul_right (Fintype.card F-1) hcount)
+  rw [one_mul] at h
+  exact (Nat.mul_le_mul_right _ (card_le_card hsub)).trans h
 
 variable {p bits M K : ℕ} [Fact p.Prime]
 

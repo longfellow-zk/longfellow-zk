@@ -116,11 +116,8 @@ theorem dataAtRole_eq_of_inclusive_prefix (decode : C → ℕ → F)
           Linear.LayerTranscript.clearA, Linear.LayerTranscript.clearB,
           Linear.LayerTranscript.terminalPads]
         rw [hb, hp, hs, hc.1, hc.2]
-      · let next := if hasLayers rest then start+mid+3 else start+mid+2
-        have hnext : start+mid+2 ≤ queryIndex rest role next := by
-          have h := queryIndex_ge rest role next
-          dsimp [next] at h ⊢
-          split_ifs at h ⊢ <;> omega
+      · let next := start+mid+2
+        have hnext : start+mid+2 ≤ queryIndex rest role next := queryIndex_ge rest role next
         have hb := hanswers start (by change _ ≤ queryIndex rest role next; omega)
         have hp : (fun j : Fin mid => decode (first (start+1+j.val)) 0) =
             (fun j : Fin mid => decode (second (start+1+j.val)) 0) := by

@@ -46,18 +46,19 @@ theorem readLayer_answers (decode : C → ℕ → F) (nonzero : C → {r : F // 
   rw [readRounds_answers]
   rfl
 
-def replayStart {out input : ℕ} (circuit : Layered.Circuit F out input)
+def replayStart {out input : ℕ} (_circuit : Layered.Circuit F out input)
     (state : ℕ) (continuing : Bool) : ℕ :=
-  if continuing && !FrontendReplay.hasLayers circuit then state-1 else state
+  if continuing then state-1 else state
 
-def replayOffset {out input : ℕ} (circuit : Layered.Circuit F out input)
+def replayOffset {out input : ℕ} (_circuit : Layered.Circuit F out input)
     (continuing : Bool) : ℕ :=
-  if continuing && !FrontendReplay.hasLayers circuit then 1 else 0
+  if continuing then 1 else 0
 
 theorem readSetup_answers (decode : C → ℕ → F) (nonzero : C → {r : F // r ≠ 0})
     (answers : ℕ → C) {out input : ℕ} {circuit : Layered.Circuit F out input}
     (plan : FrontendSchedule.Plan F circuit) (ids : Layered.Replay.PadPlan (Pad := Pad) circuit)
-    (payload : Layered.Replay.Payload circuit) (state : ℕ) (continuing : Bool) :
+    (payload : Layered.Replay.Payload circuit) (state : ℕ) (continuing : Bool)
+    (hstate : continuing = true → 0 < state) :
     messagesFromSetup circuit
         (readSetup (answerReader decode nonzero answers) plan ids payload state continuing).1 payload =
       FrontendReplay.readFrom decode nonzero circuit ids payload answers
@@ -66,30 +67,56 @@ theorem readSetup_answers (decode : C → ℕ → F) (nonzero : C → {r : F // 
   | input => rfl
   | inputEntry =>
       cases continuing <;> simp [readSetup,messagesFromSetup,inputCoefficients,answerReader,
-        replayStart,replayOffset,FrontendReplay.hasLayers,FrontendReplay.readFrom]
+        replayStart,replayOffset,FrontendReplay.readFrom]
   | @layer out mid input assertions body rest metadata tail ih =>
+      obtain ⟨start, hstart, hnext⟩ : ∃ start, replayStart (.layer assertions body rest) state continuing = start ∧
+          (inputCoefficients (answerReader decode nonzero answers) continuing state assertions).2 = start+1 := by
+        cases continuing
+        · exact ⟨state, rfl, rfl⟩
+        · obtain ⟨s, rfl⟩ := Nat.exists_eq_add_of_lt (hstate rfl)
+          exact ⟨s, by simp [replayStart], by simp [inputCoefficients, answerReader]⟩
       dsimp only [readSetup,messagesFromSetup,setupLayer]
-      rw [readLayer_answers]
+      rw [readLayer_answers, hstart, hnext]
       apply Prod.ext
-      · simp [replayStart,replayOffset,FrontendReplay.hasLayers,FrontendReplay.readFrom,
-          answerReader,linearPlan,Nat.add_assoc,Nat.add_left_comm,Nat.add_comm]
-      · have h := ih ids.2 payload.2 (state+1+mid+2) true
-        cases hr : FrontendReplay.hasLayers rest <;>
-          simpa [replayStart,replayOffset,hr,FrontendReplay.hasLayers,FrontendReplay.readFrom,
-            answerReader,Nat.add_assoc,Nat.add_left_comm,Nat.add_comm] using h
+      · have hbeta : (inputCoefficients (answerReader decode nonzero answers) continuing state assertions).1 =
+            fun i => decode (answers start) (replayOffset (.layer assertions body rest) continuing+i.val) := by
+          cases continuing
+          · simp only [replayStart] at hstart
+            subst hstart
+            simp [inputCoefficients, answerReader, replayOffset]
+          · simp only [replayStart] at hstart
+            subst hstart
+            simp [inputCoefficients, answerReader, replayOffset]
+        simp [FrontendReplay.readFrom, hbeta, linearPlan, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm]
+      · have h := ih ids.2 payload.2 (start+1+mid+2) true (fun _ => by omega)
+        simpa [replayStart,replayOffset,FrontendReplay.readFrom,
+          answerReader,Nat.add_assoc,Nat.add_left_comm,Nat.add_comm] using h
   | @entryLayer out next mid input checks assertions entries entry body rest metadata tail ih =>
+      obtain ⟨start, hstart, hnext⟩ : ∃ start, replayStart (.entry checks entry (.layer assertions body rest)) state continuing = start ∧
+          (inputCoefficients (answerReader decode nonzero answers) continuing state (checks+assertions)).2 = start+1 := by
+        cases continuing
+        · exact ⟨state, rfl, rfl⟩
+        · obtain ⟨s, rfl⟩ := Nat.exists_eq_add_of_lt (hstate rfl)
+          exact ⟨s, by simp [replayStart], by simp [inputCoefficients, answerReader]⟩
+      have hcoeff : (inputCoefficients (answerReader decode nonzero answers) continuing state (checks+assertions)).1 =
+          fun i => decode (answers start) (replayOffset (.entry checks entry (.layer assertions body rest)) continuing+i.val) := by
+        cases continuing
+        · simp only [replayStart] at hstart
+          subst hstart
+          simp [inputCoefficients, answerReader, replayOffset]
+        · simp only [replayStart] at hstart
+          subst hstart
+          simp [inputCoefficients, answerReader, replayOffset]
       dsimp only [readSetup,messagesFromSetup,setupLayer]
-      rw [readLayer_answers]
+      rw [readLayer_answers, hstart, hnext, hcoeff]
       apply Prod.ext
-      · simp [replayStart,replayOffset,FrontendReplay.hasLayers,FrontendReplay.readFrom,
-          answerReader]
+      · simp [FrontendReplay.readFrom, replayOffset]
       · apply Prod.ext
-        · simp [replayStart,replayOffset,FrontendReplay.hasLayers,FrontendReplay.readFrom,
-            answerReader,linearPlan,Nat.add_assoc,Nat.add_left_comm,Nat.add_comm]
-        · have h := ih ids.2 payload.2 (state+1+mid+2) true
-          cases hr : FrontendReplay.hasLayers rest <;>
-            simpa [replayStart,replayOffset,hr,FrontendReplay.hasLayers,FrontendReplay.readFrom,
-              answerReader,Nat.add_assoc,Nat.add_left_comm,Nat.add_comm] using h
+        · simp [FrontendReplay.readFrom, replayOffset, linearPlan, Nat.add_assoc, Nat.add_left_comm,
+            Nat.add_comm]
+        · have h := ih ids.2 payload.2 (start+1+mid+2) true (fun _ => by omega)
+          simpa [replayStart,replayOffset,FrontendReplay.readFrom,
+            answerReader,Nat.add_assoc,Nat.add_left_comm,Nat.add_comm] using h
 
 theorem readSetup_answers_initial (decode : C → ℕ → F) (nonzero : C → {r : F // r ≠ 0})
     (answers : ℕ → C) {out input : ℕ} {circuit : Layered.Circuit F out input}
@@ -98,8 +125,9 @@ theorem readSetup_answers_initial (decode : C → ℕ → F) (nonzero : C → {r
     messagesFromSetup circuit
         (readSetup (answerReader decode nonzero answers) plan ids payload 0 false).1 payload =
       FrontendReplay.read decode nonzero circuit ids payload answers := by
-  simpa only [replayStart,replayOffset,Bool.false_and,Bool.false_eq_true,↓reduceIte,
+  simpa only [replayStart,replayOffset,Bool.false_eq_true,↓reduceIte,
     FrontendReplay.read] using readSetup_answers decode nonzero answers plan ids payload 0 false
+      (fun h => Bool.false_ne_true h |>.elim)
 
 /-- The public simulator's payload reconstructs through the current verifier
 reader, and its recovered cells satisfy that reader's actual affine rows. -/

@@ -51,7 +51,7 @@ variable (H : CompleteSimulation.Point binary prime primePlan (Key := Key) (Base
 omit [Fintype B] [DecidableEq B] in
 theorem capacity :
     (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length =
-      Frontend.ScheduleLength.circuitFuel primePlan false+Frontend.ScheduleLength.circuitFuel binary.plan false+6 := by
+      Frontend.ScheduleLength.circuitFuel primePlan false+Frontend.ScheduleLength.circuitFuel binary.plan false+5 := by
   have length := (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles_length
   have packing : (MdocRuntime.geometry binary.description prime binary.plan primePlan).packingDegree ≠ 1 := by
     change (128:ℕ) ≠ 1
@@ -60,9 +60,9 @@ theorem capacity :
   rw [Frontend.ScheduleLength.circuitFuel_roles primePlan .prime,
     Frontend.ScheduleLength.circuitFuel_roles binary.plan .binary]
   change (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length =
-    (primePlan.frontend.roles .prime).length+(binary.plan.frontend.roles .binary).length+6
+    (primePlan.frontend.roles .prime).length+(binary.plan.frontend.roles .binary).length+5
   change (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length =
-    (primePlan.frontend.roles .prime).length+(binary.plan.frontend.roles .binary).length+1+5 at length
+    (primePlan.frontend.roles .prime).length+(binary.plan.frontend.roles .binary).length+1+4 at length
   omega
 
 def writes (coins : CompleteSimulation.Coins binary prime) :
@@ -70,7 +70,7 @@ def writes (coins : CompleteSimulation.Coins binary prime) :
   [WriteLog.empty] ++
     WriteLog.snapshots .prime (Equiv.refl P) { fingerprints := some coins.fingerprints }
       (Prefix.circuit primePlan (simulateCircuit prime.circuit coins.prime) false) ++
-    [WriteLog.empty,{ mu := some coins.mu }] ++
+    [{ mu := some coins.mu }] ++
     WriteLog.snapshots .binary (Equiv.refl B) { advice := some coins.advice }
       (Prefix.circuit binary.plan (simulateCircuit binary.description.circuit coins.binary) false) ++
     [{ packingU := some (fun i => ((Packing.simulate binary.basis 0 coins.packing).1 i).val) }]
@@ -88,16 +88,17 @@ theorem selected_properties (context : Key) (fingerprints : Current.Fingerprints
   exact ⟨rfl,rfl,rfl⟩
 
 omit [Fintype B] [DecidableEq B] in
+/-- The prime frontend ends at its last answer, which also carries `eta`;
+no further boundary is read before the conversion. -/
 theorem prime_properties
     (state : CompleteSimulation.State binary prime primePlan (Key := Key) (Base := Base) (C := C))
     (payload : Layered.Replay.Payload prime.circuit)
-    (fits : state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false+1 ≤
+    (fits : state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false ≤
       (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length) :
     let result := CompleteSimulation.primePrefix binary prime primePlan samples base H state payload
-    result.state.rank.val = state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false+1 ∧
+    result.state.rank.val = state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false ∧
       WriteLog.log result.state = WriteLog.log state ++
-        WriteLog.snapshots .prime (Equiv.refl P) state.pending (Prefix.circuit primePlan payload false) ++
-          [WriteLog.empty] ∧
+        WriteLog.snapshots .prime (Equiv.refl P) state.pending (Prefix.circuit primePlan payload false) ∧
       result.state.pending = {} := by
   let read := readSetup
     (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero base H)
@@ -113,17 +114,7 @@ theorem prime_properties
     primePlan prime.setup.plan payload false state readFits
   have readPending := WriteLog.circuit_pending .prime (Equiv.refl P) base H samples.prime samples.primeNonzero
     primePlan prime.setup.plan payload state readFits
-  have inside : read.2.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by omega
-  have lastRank := step_rank base H read.2
-  have scaleLog := WriteLog.step_log base H read.2 inside
-  have scalePending := WriteLog.step_pending base H read.2 inside
-  change (CompleteTranscript.step base H read.2).2.rank.val = _ ∧
-    WriteLog.log (CompleteTranscript.step base H read.2).2 = _ ∧
-      (CompleteTranscript.step base H read.2).2.pending = {}
-  refine ⟨?_,?_,scalePending⟩
-  · rw [lastRank,Nat.min_eq_right (by omega),readRank]
-  · rw [scaleLog,readPending,readLog]
-    simp only [List.append_assoc,WriteLog.empty]
+  exact ⟨readRank,readLog,readPending⟩
 
 omit [Fintype B] [DecidableEq B] in
 theorem conversion_properties
@@ -220,7 +211,7 @@ theorem simulate_properties (context : Key) (coins : CompleteSimulation.Coins bi
       rw [convertedFacts.1,nativeFacts.1,selectedFacts.1,cap]
       omega)
   have readRank : read.2.rank.val =
-      Frontend.ScheduleLength.circuitFuel primePlan false+Frontend.ScheduleLength.circuitFuel binary.plan false+3 := by
+      Frontend.ScheduleLength.circuitFuel primePlan false+Frontend.ScheduleLength.circuitFuel binary.plan false+2 := by
     rw [binaryFacts.1,convertedFacts.1,nativeFacts.1,selectedFacts.1]
     omega
   have inside : pending.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by

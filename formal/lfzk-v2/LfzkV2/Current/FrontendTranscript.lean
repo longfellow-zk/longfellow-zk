@@ -28,8 +28,9 @@ def claims : Message F → F × F
   | _ => (0, 0)
 
 /-- One message per existing boundary.  The empty message has no field bytes;
-it does not add a boundary.  Future recursion starts after combine, except
-for input-only entries, whose coefficient reads share that combine answer. -/
+it does not add a boundary.  Future recursion starts at the combine answer,
+whose coefficients the next weights share; that answer carries no further
+message. -/
 def writeFrom : {out input : ℕ} → (circuit : Layered.Circuit F out input) →
     Payload circuit → ℕ → ℕ → Message F
   | _, _, .input, _, _, _ => .empty
@@ -39,8 +40,7 @@ def writeFrom : {out input : ℕ} → (circuit : Layered.Circuit F out input) �
         .round (payload.1.rounds ⟨q-(start+1), by omega⟩)
       else if q = start+1+mid then .cross payload.1.cross
       else if q = start+mid+2 then .claims payload.1.claimA payload.1.claimB
-      else writeFrom rest payload.2
-        (if FrontendReplay.hasLayers rest then start+mid+3 else start+mid+2) q
+      else writeFrom rest payload.2 (start+mid+2) q
 
 /-- The payload has only prover messages.  No challenge is recovered from a
 message, and reading a payload performs no oracle query. -/
@@ -51,8 +51,7 @@ def readFrom : {out input : ℕ} → (circuit : Layered.Circuit F out input) →
   | _, _, .layer (mid := mid) _ _ rest, wire, start =>
       (⟨fun i => polynomial (wire (start+1+i.val)), cross (wire (start+1+mid)),
         (claims (wire (start+mid+2))).1, (claims (wire (start+mid+2))).2⟩,
-       readFrom rest wire
-        (if FrontendReplay.hasLayers rest then start+mid+3 else start+mid+2))
+       readFrom rest wire (start+mid+2))
 
 def write {out input : ℕ} (circuit : Layered.Circuit F out input)
     (payload : Payload circuit) : ℕ → Message F := writeFrom circuit payload 0
@@ -74,11 +73,7 @@ theorem readFrom_congr {out input : ℕ} (circuit : Layered.Circuit F out input)
         rw [h _ (by omega)]
       have ht := h (start+1+mid) (by omega)
       have hc := h (start+mid+2) (by omega)
-      have htail := ih (if FrontendReplay.hasLayers rest then start+mid+3 else start+mid+2)
-        (by
-          intro q hq
-          apply h q
-          split_ifs at hq <;> omega)
+      have htail := ih (start+mid+2) (fun q hq => h q (by omega))
       dsimp only [readFrom]
       rw [hr, ht, hc, htail]
 
@@ -108,11 +103,11 @@ theorem readFrom_writeFrom {out input : ℕ} (circuit : Layered.Circuit F out in
         have hround : ¬ (start+1 ≤ start+mid+2 ∧ start+mid+2 < start+1+mid) := by omega
         have hcross : start+mid+2 ≠ start+1+mid := by omega
         simp only [writeFrom, dif_neg hround, hcross, ↓reduceIte, claims]
-      let next := if FrontendReplay.hasLayers rest then start+mid+3 else start+mid+2
+      let next := start+mid+2
       have htail : readFrom rest (writeFrom (.layer a body rest) payload start) next = payload.2 := by
         rw [readFrom_congr rest _ (writeFrom rest payload.2 next) next (by
           intro q hq
-          have hn : start+mid+2 ≤ next := by dsimp [next]; split_ifs <;> omega
+          have hn : start+mid+2 ≤ next := le_rfl
           have hround : ¬ (start+1 ≤ q ∧ q < start+1+mid) := by omega
           have hcross : q ≠ start+1+mid := by omega
           have hcombine : q ≠ start+mid+2 := by omega
@@ -154,7 +149,8 @@ theorem layerMessage_readFrom_congr {out input : ℕ}
       · simp only [FrontendReplay.queryIndex] at h
         dsimp only [readFrom, layerMessage]
         rw [h]
-      · exact ih role _ h
+      · simp only [FrontendReplay.queryIndex] at h
+        exact ih role _ h
 
 /-- A prefix view is an analysis operation, not another transcript write or
 query.  Missing future messages use the ordinary zero defaults above. -/

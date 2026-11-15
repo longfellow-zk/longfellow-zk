@@ -34,6 +34,20 @@ theorem read_clearMessages (decode : (n : ℕ) → C → Fin n → F)
   simp only [readFrom, Linear.LayerMessages.transcript, Linear.LayerTranscript.clearRounds, List.map_ofFn]
   rfl
 
+/-- A combination test that the reduction reports only when `valid` holds;
+otherwise its claims are the true values, which no challenge can repair. -/
+noncomputable def gatedCombine (valid : Prop) (d : CombineData F) : CombineData F :=
+  open Classical in if valid then d else ⟨d.trueA, d.trueB, d.trueA, d.trueB⟩
+
+theorem gatedCombine_bad (valid : Prop) (d : CombineData F) (alpha : F) :
+    BadCombineEvent (gatedCombine valid d).trueA (gatedCombine valid d).trueB
+      (gatedCombine valid d).claimA (gatedCombine valid d).claimB alpha ↔
+      valid ∧ BadCombineEvent d.trueA d.trueB d.claimA d.claimB alpha := by
+  classical
+  by_cases h : valid
+  · simp [gatedCombine, h]
+  · simp [gatedCombine, h, BadCombineEvent]
+
 noncomputable def layerData (decode : (n : ℕ) → C → Fin n → F)
     (nonzero : C → Linear.TerminalSampling.Nonzero F) :
     {out input : ℕ} → (circuit : Layered.Circuit F out input) →
@@ -43,7 +57,7 @@ noncomputable def layerData (decode : (n : ℕ) → C → Fin n → F)
   | _, _, .input, _, _, _, _, _, _, _, _, role => Fin.elim0 role
   | _, _, .entry n e rest, plan, payload, answers, start, w, weights, pads, claim, role =>
       match role with
-      | .inl _ => (dot weights (e.previous (rest.eval w)), claim, e.residuals (rest.eval w))
+      | .inl _ => (dot weights (e.previous (rest.eval w)), claim, Circuit.entryResiduals e rest w)
       | .inr role => layerData decode nonzero rest plan payload answers (start + vectorSlots n)
           w (e.weights weights (decode n (answers start))) pads claim role
   | _, _, .layer (mid := mid) a body rest, plan, payload, answers, start, w, weights,
@@ -63,7 +77,7 @@ noncomputable def layerData (decode : (n : ℕ) → C → Fin n → F)
       | .inr (.inr (.inl _)) =>
           ⟨t.finalClaim pads claim, evaluate wires ml.point, evaluate q ml.point,
             payload.1.cross, t.terminalPads pads⟩
-      | .inr (.inr (.inr (.inl _))) =>
+      | .inr (.inr (.inr (.inl _))) => gatedCombine (∀ i, rest.headResiduals w i = 0)
           ⟨evaluate wires ml.point, evaluate q ml.point, t.clearA pads, t.clearB pads⟩
       | .inr (.inr (.inr (.inr role))) =>
           layerData decode nonzero rest plan.2 payload.2 answers
@@ -134,7 +148,7 @@ theorem layer_bad_of_bad (decode : (n : ℕ) → C → Fin n → F)
         · refine ⟨.inr (.inr (.inr (.inl 0))), ?_⟩
           simpa only [layerData, LayerRole.kind, layerSlot_combine, Data.Bad, readFrom,
             Linear.LayerMessages.transcript, ChallengeBlocks.Data.Bad, decodeSample,
-            ChallengeBlocks.Kind.dimension, Nat.add_assoc] using hcombine
+            ChallengeBlocks.Kind.dimension, Nat.add_assoc, gatedCombine_bad] using hcombine
       · obtain ⟨role, hrole⟩ := ih plan.2 payload.2 _ _ _ _ hrest
         refine ⟨.inr (.inr (.inr (.inr role))), ?_⟩
         simpa only [layerData, LayerRole.kind, layerSlot_there, readFrom,

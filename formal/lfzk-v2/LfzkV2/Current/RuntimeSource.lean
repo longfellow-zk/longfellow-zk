@@ -45,8 +45,11 @@ structure SamplerLaws (S : Source (g := g) (fields := fields) (Advice := Advice)
   binaryCapacity : ℕ
   primeDecoder : FrontendReplay.Decoder primeCapacity cfg.primeDecode cfg.primeNonzero
   binaryDecoder : FrontendReplay.Decoder binaryCapacity cfg.binaryDecode cfg.binaryNonzero
-  rescaleDecoder : BalancedDecoder C (Linear.TerminalSampling.Nonzero N)
-  rescale_agrees : rescaleDecoder.decode = cfg.primeNonzero
+  /-- The prime frontend's last answer: its coordinates, then `eta`. -/
+  rescaleDecoder : BalancedDecoder C ((Fin primeCapacity → N) × Linear.TerminalSampling.Nonzero N)
+  rescale_agrees : ∀ answer, (rescaleDecoder.decode answer).2 = cfg.primeNonzero answer
+  rescale_coordinates : ∀ first second, (rescaleDecoder.decode first).1 = (rescaleDecoder.decode second).1 →
+    cfg.primeDecode first = cfg.primeDecode second
   conversionDecoder : BalancedDecoder C (Linear.TerminalSampling.Nonzero N × Linear.TerminalSampling.Nonzero N)
   conversion_agrees : ∀ answer, conversionDecoder.decode answer =
     (cfg.conversion answer 0,cfg.conversion answer 1)

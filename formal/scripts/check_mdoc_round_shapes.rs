@@ -11,10 +11,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// Ordinary boundaries outside both frontends: witness selection, the split's
-/// `eta`, the adapter's conversion, packing, joint Polygero batching and the
-/// shared opening. The final seal is counted separately.
-const OTHER_ROUNDS: usize = 6;
+/// Boundaries outside the frontends' layers: witness selection, the two
+/// frontends' top weights, the adapter's conversion, packing, joint Polygero
+/// batching and the shared opening. Each later stage's weights and the split's
+/// `eta` extend a combine answer and open no boundary. The final seal is
+/// counted separately.
+const OTHER_ROUNDS: usize = 7;
 
 /// Wait for `child`, killing it after `seconds`.
 fn finish(mut child: Child, what: &str, seconds: u64) {
@@ -191,7 +193,7 @@ fn main() {
         }
         let rounds = row.binary.iter().sum::<usize>()
             + row.prime.iter().sum::<usize>()
-            + 3 * (row.binary.len() + row.prime.len())
+            + 2 * (row.binary.len() + row.prime.len())
             + OTHER_ROUNDS;
         if rounds != counts[index] {
             matches = false;

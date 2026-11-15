@@ -2,6 +2,9 @@
 //! V2 transcript sessions. begin_squeeze consumes the writer, and only closing
 //! the reader produces the completion token required by round().
 //! The session is exclusively borrowed throughout, including on error paths.
+//! A draw ends a node only after a message (transcript I7): begin_squeeze
+//! with no message since the last boundary reads further from that
+//! boundary's PRF stream, writing nothing.
 //! Complete-proof encoders append a final seal over the chained transcript and
 //! canonical proof body; complete verification must check that final seal.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
@@ -35,6 +38,10 @@ pub struct Transcript {
     position: Position,
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
     session: SessionStamp,
+    /// The last boundary's PRF stream while no message has been written
+    /// since; the next draw continues it (transcript I7).
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    stream: Option<Reader>,
     _round_count: RoundCount,
 }
 
@@ -77,7 +84,7 @@ impl Eq for SessionStamp {}
 /// Borrowed protocol operations on one owned session. This capability cannot
 /// expose, replace, reset or finalize its owner's transcript.
 pub struct TranscriptRef<'a> {
-    session: &'a mut Transcript,
+    pub(super) session: &'a mut Transcript,
 }
 #[cfg_attr(any(test, feature = "prover", feature = "verifier"), doc = include_str!("compile_fail.md"))]
 /// Exclusive permission to bind messages before the round query.
@@ -86,7 +93,9 @@ pub struct Writing<'a> {
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
     label: u8,
 }
-/// Exclusive permission to read the finalized strand's PRF stream.
+/// Exclusive permission to read the last boundary's PRF stream. The session
+/// keeps the stream when the round ends, for draws that follow with no
+/// message in between.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub struct Reading<'a> {
     session: &'a mut Transcript,
@@ -112,6 +121,8 @@ impl Transcript {
             },
             #[cfg(any(test, feature = "prover", feature = "verifier"))]
             session: SessionStamp::fresh(),
+            #[cfg(any(test, feature = "prover", feature = "verifier"))]
+            stream: None,
             _round_count: Default::default(),
         };
         t.absorb(|w| {
@@ -177,11 +188,13 @@ impl TranscriptRef<'_> {
     }
 }
 impl Writing<'_> {
-    /// Each write is one message of the session's count.
+    /// Each write is one message of the session's count. A message ends the
+    /// current stream: the next draw opens a node.
     fn count_message(&mut self) {
         #[cfg(any(test, feature = "prover", feature = "verifier"))]
         {
             self.session.position.messages += 1;
+            self.session.stream = None;
         }
     }
     pub fn write_bytes(&mut self, bytes: &[u8]) {
@@ -223,7 +236,21 @@ impl Writing<'_> {
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl<'a> Writing<'a> {
+    /// Start reading challenges. After a message this ends the node with the
+    /// round footer, labeled by this draw, and opens the next one; with no
+    /// message since the last boundary it continues that boundary's stream
+    /// and writes nothing (transcript I7).
     pub fn begin_squeeze(mut self) -> Reading<'a> {
+        let reader = match self.session.stream.take() {
+            Some(reader) => reader,
+            None => self.open(),
+        };
+        Reading {
+            session: self.session,
+            reader,
+        }
+    }
+    fn open(&mut self) -> Reader {
         self.write_bytes(b"longfellow/transcript/v2/round");
         self.write_bytes(&[self.label]);
         #[cfg(test)]
@@ -238,17 +265,16 @@ impl<'a> Writing<'a> {
         let (node, digest) = prf.boundary();
         self.session.position.node = node;
         self.session.position.digest = *digest;
-        Reading {
-            session: self.session,
-            reader: Reader::new(prf),
-        }
+        Reader::new(prf)
     }
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl<'a> Reading<'a> {
     /// Close the reading phase and return a value to the round caller.
-    /// The returned value is not absorbed into the transcript.
+    /// The returned value is not absorbed into the transcript. The session
+    /// keeps the stream for a draw that follows with no message in between.
     pub fn end_round<T>(self, value: T) -> RoundEnd<'a, T> {
+        self.session.stream = Some(self.reader);
         RoundEnd {
             _session: self.session,
             _value: value,

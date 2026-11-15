@@ -4,7 +4,11 @@ use super::*;
 use crate::runtime::v2::{
     proto::composed::ComposedProof,
     transcript::Transcript,
-    zk::{self, joint::FrontendPart, split, CircuitInput},
+    zk::{
+        self,
+        joint::{self, FrontendPart},
+        split, CircuitInput,
+    },
 };
 
 impl<const W: usize, F, DH, DS, M> Composition<'_, W, F, DH, DS, M>
@@ -34,22 +38,28 @@ where
         )?;
         let mut joint = param.receive(&proof.commitment, proof.fingerprints.clone(), transcript);
 
-        // Split frontend, then the split of its input equation.
+        // Split frontend from the top weights after the fingerprint
+        // responses, then the split of its input equation. eta extends the
+        // frontend's last combine answer.
         let mut ts = joint.bound(&split_part);
-        let claim = zk::reduce_split(&mut ts, &proof.split.sumcheck_proof, &self.split_ctx)?;
+        let top_split = joint::top_weights(&mut ts)?;
+        let claim = zk::reduce_split(
+            &mut ts,
+            &proof.split.sumcheck_proof,
+            top_split,
+            &self.split_ctx,
+        )?;
         let eta = split::transcript::eta(&mut ts, fs);
         let split = claim.receive(&mut ts, eta, &proof.mu, fs)?;
 
-        // Adapter rounds, then the host frontend with the mode's fragment.
+        // Adapter rounds, then the host frontend with the mode's fragment,
+        // from the top weights after the adapter's masked quotients.
         let mut ta = joint.bound(&self.mode);
         let conversion = M::draw_conversion(&mut ta, fs);
         let leaves = M::verify(&mut ta, &split.foreign, &proof.message, conversion, fs, fh)?;
-        let statement_host = zk::reduce(
-            &mut joint.bound(&host_part),
-            &proof.host,
-            &leaves,
-            &self.host_ctx,
-        )?;
+        let mut th = joint.bound(&host_part);
+        let top_host = joint::top_weights(&mut th)?;
+        let statement_host = zk::reduce(&mut th, &proof.host, top_host, &leaves, &self.host_ctx)?;
         Ok(joint
             .authenticate(&proof.polygero, (statement_host, (split.statement, ())))?
             .into_transcript())

@@ -1106,7 +1106,7 @@ fn run_next_circuit_hashes(test_circuits: &TestCircuits) {
     }
 }
 
-// These counts come from actual begin_squeeze calls, independently of the
+// These counts come from the nodes begin_squeeze actually opens, independently of the
 // geometry summation used by the Lean metadata checker. Final sealing does
 // not call begin_squeeze and is deliberately excluded.
 fn run_next_measured_round_counts(test_circuits: &TestCircuits) {
@@ -1120,7 +1120,7 @@ fn run_next_measured_round_counts(test_circuits: &TestCircuits) {
     };
     let pkx = coordinate(&issuer_pk.0);
     let pky = coordinate(&issuer_pk.1);
-    for (count, expected) in [(1, 487), (2, 491), (3, 496), (4, 499)] {
+    for (count, expected) in [(1, 457), (2, 461), (3, 466), (4, 469)] {
         let attrs: Vec<_> = parsed
             .attrs
             .iter()

@@ -4,8 +4,8 @@ import LfzkV2.Current.FrontendSchedule
 
 /-! A simulator for the complete grouped layered frontend.  The recursion is
 on the current public normalized schedule, so an entry and its following
-assertions share a boundary, while input-only entries continue the last
-combine answer.  There are no oracle calls for fragments or pad products.
+assertions share a boundary, and every later stage's weights and the
+input-only entries continue the preceding combine answer.  There are no oracle calls for fragments or pad products.
 
 The simulator draws the public payload directly.  Secret input tables occur
 only in the inverse coupling used to prove its exact distribution. -/
@@ -16,9 +16,10 @@ open scoped Classical
 variable {F State Pad : Type} [Field F]
 
 structure CircuitReader (F State : Type) [Field F] extends Reader F State where
-  /-- Begin the single shared entry/assertion round at this layer. -/
+  /-- Begin the frontend's opening entry/assertion round. -/
   assertions : State → (count : ℕ) → (Fin count → F) × State
-  /-- Continue the final combine answer, after its alpha coordinate. -/
+  /-- Continue the preceding combine answer, after its alpha coordinate:
+  the next stage's weights or the input entries. -/
   inputAssertions : State → (count : ℕ) → (Fin count → F) × State
 
 abbrev CircuitTape : {out input : ℕ} → Layered.Circuit F out input → Type
@@ -69,14 +70,14 @@ def readSetup (reader : CircuitReader F State) :
   | _, _, _, .inputEntry (checks := checks) _ _, _, _, state, continuing =>
       let coefficients := inputCoefficients reader continuing state checks
       ((coefficients.1,()),coefficients.2)
-  | _, _, _, .layer (assertions := assertions) _ tail, ids, payload, state, _ =>
-      let coefficients := reader.assertions state assertions
+  | _, _, _, .layer (assertions := assertions) _ tail, ids, payload, state, continuing =>
+      let coefficients := inputCoefficients reader continuing state assertions
       let replay := readLayer reader.toReader coefficients.2 payload.1
       let next := readSetup reader tail ids.2 payload.2 replay.state true
       ((setupLayer reader coefficients.2 payload.1 coefficients.1 ids.1,next.1),next.2)
   | _, _, _, .entryLayer (checks := checks) (assertions := assertions) _ _ _ tail,
-      ids, payload, state, _ =>
-      let coefficients := reader.assertions state (checks+assertions)
+      ids, payload, state, continuing =>
+      let coefficients := inputCoefficients reader continuing state (checks+assertions)
       let entering := fun i : Fin checks => coefficients.1 ⟨i.val,by omega⟩
       let beta := fun i : Fin assertions => coefficients.1 ⟨checks+i.val,by omega⟩
       let replay := readLayer reader.toReader coefficients.2 payload.1
@@ -99,27 +100,28 @@ def messagesFromSetup : {out input : ℕ} → (circuit : Layered.Circuit F out i
        messagesFromSetup rest setup.2 payload.2)
 
 /-- The adaptive bijection uses only previously public messages when choosing
-the next fiber.  Later pads are never exposed to an earlier reader call. -/
-def circuitEquiv (reader : CircuitReader F State) :
+the next fiber.  Later pads are never exposed to an earlier reader call.
+Below the top layer, a layer's weights continue the preceding combine answer. -/
+def circuitEquivFrom (reader : CircuitReader F State) :
     {out input : ℕ} → {circuit : Layered.Circuit F out input} →
-    FrontendSchedule.Plan F circuit → (Cube input → F) → (Cube out → F) → State →
+    FrontendSchedule.Plan F circuit → (Cube input → F) → (Cube out → F) → State → Bool →
     CircuitTape circuit ≃ Layered.Replay.Payload circuit
-  | _, _, _, .input, _, _, _ => Equiv.refl _
-  | _, _, _, .inputEntry _ _, _, _, _ => Equiv.refl _
+  | _, _, _, .input, _, _, _, _ => Equiv.refl _
+  | _, _, _, .inputEntry _ _, _, _, _, _ => Equiv.refl _
   | _, _, _, .layer (assertions := assertions) (body := body) (rest := rest)
-      _ tail, w, weights, state =>
-      let coefficients := reader.assertions state assertions
+      _ tail, w, weights, state, continuing =>
+      let coefficients := inputCoefficients reader continuing state assertions
       let Q := body.effectiveQuadratic weights coefficients.1
       let L := body.effectiveLinear weights coefficients.1
       let head := layerEquiv reader.toReader (bindRightAffine Q L (rest.eval w))
         (rest.eval w) coefficients.2
       (Equiv.prodCongr head (Equiv.refl _)).trans (Equiv.prodCongrRight fun payload =>
         let replay := readLayer reader.toReader coefficients.2 payload
-        circuitEquiv reader tail w (nextWeights Q (monomialWeights replay.point) replay.alpha)
-          replay.state)
+        circuitEquivFrom reader tail w (nextWeights Q (monomialWeights replay.point) replay.alpha)
+          replay.state true)
   | _, _, _, .entryLayer (checks := checks) (assertions := assertions) (body := body)
-      (rest := rest) _ entry _ tail, w, weights, state =>
-      let coefficients := reader.assertions state (checks+assertions)
+      (rest := rest) _ entry _ tail, w, weights, state, continuing =>
+      let coefficients := inputCoefficients reader continuing state (checks+assertions)
       let entering := fun i : Fin checks => coefficients.1 ⟨i.val,by omega⟩
       let beta := fun i : Fin assertions => coefficients.1 ⟨checks+i.val,by omega⟩
       let previous := entry.weights weights entering
@@ -129,8 +131,14 @@ def circuitEquiv (reader : CircuitReader F State) :
         (rest.eval w) coefficients.2
       (Equiv.prodCongr head (Equiv.refl _)).trans (Equiv.prodCongrRight fun payload =>
         let replay := readLayer reader.toReader coefficients.2 payload
-        circuitEquiv reader tail w (nextWeights Q (monomialWeights replay.point) replay.alpha)
-          replay.state)
+        circuitEquivFrom reader tail w (nextWeights Q (monomialWeights replay.point) replay.alpha)
+          replay.state true)
+
+/-- The bijection of a whole frontend, which opens with its own answer. -/
+def circuitEquiv (reader : CircuitReader F State) {out input : ℕ} {circuit : Layered.Circuit F out input}
+    (plan : FrontendSchedule.Plan F circuit) (w : Cube input → F) (weights : Cube out → F)
+    (state : State) : CircuitTape circuit ≃ Layered.Replay.Payload circuit :=
+  circuitEquivFrom reader plan w weights state false
 
 def realCircuit {out input : ℕ} {circuit : Layered.Circuit F out input}
     (reader : CircuitReader F State) (plan : FrontendSchedule.Plan F circuit)

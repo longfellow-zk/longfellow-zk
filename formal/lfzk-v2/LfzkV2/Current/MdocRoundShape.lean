@@ -16,9 +16,9 @@ def binaryRounds (attributes : Fin 4) : List ℕ :=
 def primeRounds : List ℕ := [4, 5, 11, 11, 13, 14, 13, 14, 14, 14, 12]
 
 def roundCount (attributes : Fin 4) : ℕ :=
-  (binaryRounds attributes).sum + primeRounds.sum + 3*(20+11) + 6
+  (binaryRounds attributes).sum + primeRounds.sum + 2*(20+11) + 7
 
-theorem counts : List.ofFn roundCount = [487,491,496,499] := by decide
+theorem counts : List.ofFn roundCount = [457,461,466,469] := by decide
 
 structure Matches (g : Geometry) (attributes : Fin 4) : Prop where
   binary : g.binary.stages.map Stage.rounds = binaryRounds attributes
@@ -45,17 +45,9 @@ theorem rounds_eq (g : Geometry) (attributes : Fin 4) (shape : Matches g attribu
   have primeLength : g.prime.stages.length = 11 := by
     have h := congrArg List.length shape.prime
     simpa only [List.length_map, primeRounds, List.length_cons, List.length_nil] using h
-  have binaryNonempty : g.binary.stages.isEmpty = false := by
-    cases h : g.binary.stages with
-    | nil => simp [h] at binaryLength
-    | cons _ _ => rfl
-  have primeNonempty : g.prime.stages.isEmpty = false := by
-    cases h : g.prime.stages with
-    | nil => simp [h] at primeLength
-    | cons _ _ => rfl
   rw [Geometry.roles_length, Frontend.roles_length, Frontend.roles_length]
-  simp only [binaryNonempty, primeNonempty, Bool.false_eq_true, ↓reduceIte,
-    sumcheckRounds_eq, shape.binary, shape.prime, binaryLength, primeLength, shape.packing, roundCount]
+  simp only [sumcheckRounds_eq, shape.binary, shape.prime, binaryLength, primeLength, shape.packing,
+    roundCount, if_false]
   omega
 
 theorem rounds_le (g : Geometry) (shape : Supported g) : g.roles.length ≤ 499 := by

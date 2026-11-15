@@ -42,7 +42,6 @@ def roleFromFresh (fresh : ProtocolWrites.Fresh g fields Advice) :
   | .terminal side .., _ => cross (shape.zero side) (fresh.frontend side)
   | .combine side .., _ => claims (shape.zero side) (fresh.frontend side)
   | .rowBatching, _ => ()
-  | .rescaling, _ => ()
   | .conversion, _ => fresh.mu.getD (shape.zero .prime)
   | .packing, metadata => (metadata,fresh.packingU.getD (fun _ => shape.zero .binary))
   | .batching, metadata =>
@@ -101,7 +100,7 @@ theorem roleFromFresh_body_for (body : Body g fields Advice Auth) (i : Fin g.rol
       change stage < (g.frontend side).stages.length at valid
       simp [roleFromFresh,WireBlocks.roleFromBody,ProtocolWrites.fresh,hr,
         ProtocolWrites.frontendMessages,ProtocolWrites.stageMessage,ProtocolWrites.layerMessage,valid,cross]
-  | combine side stage entries =>
+  | combine side stage entries fragments last =>
       change stage < (g.frontend side).stages.length at valid
       simp [roleFromFresh,WireBlocks.roleFromBody,ProtocolWrites.fresh,hr,
         ProtocolWrites.frontendMessages,ProtocolWrites.stageMessage,ProtocolWrites.layerMessage,valid,claims]

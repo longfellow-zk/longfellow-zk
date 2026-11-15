@@ -150,40 +150,43 @@ pub(in super::super) fn prove_core<
         w.write_bytes(&circuit.id);
         w.write_bytes(&(circuit.raw.layers.len() as u64).to_le_bytes());
     });
-    let mut a = Vec::new();
+    let assertions = |index: usize| -> usize {
+        circuit
+            .raw
+            .layers
+            .get(index)
+            .map_or(0, |l| l.assertion_counts().iter().sum())
+    };
+    // The top weights open their own boundary; every later layer's
+    // assertion weights extend the preceding combine answer, after alpha.
+    let (mut a, mut rho) = t.round(RoundLabel::Assertions, |mut w| {
+        w.write_bytes(&0u64.to_le_bytes());
+        let mut r = w.begin_squeeze();
+        let a = r.elt_field_slice(circuit.raw.noutput, f);
+        let rho = r.elt_field_slice(assertions(0), f);
+        r.end_round((a, rho))
+    });
     let mut claim = f.zero();
     let mut layers = Vec::new();
     let mut challenges = Vec::new();
     for (index, w) in witnesses.into_iter().enumerate() {
         let layer = &circuit.raw.layers[index];
         let constants = &circuit.raw.constants;
-        let rho = t.round(RoundLabel::Assertions, |mut w| {
-            w.write_bytes(&(index as u64).to_le_bytes());
-            let mut r = w.begin_squeeze();
-            if index == 0 {
-                a = r.elt_field_slice(circuit.raw.noutput, f);
-            }
-            let rho = r.elt_field_slice(layer.assertion_counts().iter().sum(), f);
-            r.end_round(rho)
-        });
+        let mut next_rho = Vec::new();
         let q = bind_r(layer, constants, &a, &rho, &w, f);
         let constant = affine_constant(layer, constants, &a, f);
         let claim0 = f.subf(&claim, &constant);
-        let (proof, mut c, mut next) = prover::prove_dot_product(
-            w,
-            q,
-            &pads.layers[index],
-            claim0,
-            &mut t.borrow(),
-            f,
-            |_| {},
-        );
+        let (proof, mut c, mut next) =
+            prover::prove_dot_product(w, q, &pads.layers[index], claim0, &mut t.borrow(), f, |r| {
+                next_rho = r.elt_field_slice(assertions(index + 1), f)
+            });
         let (weights, linear) =
             weights_next_affine(layer, constants, &a, &rho, &c.point_l, &c.alpha, f);
         f.fnms(&mut next, &c.alpha, &linear);
         c.constant = constant;
         c.linear = linear;
         a = weights;
+        rho = next_rho;
         claim = next;
         layers.push(proof);
         challenges.push(c);

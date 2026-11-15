@@ -32,7 +32,6 @@ theorem prime_good (context : Key)
     (payload : Layered.Replay.Payload prime.circuit) (good : History.Good base H context state) :
     History.Good base H context
       (CompleteSimulation.primePrefix binary prime primePlan samples base H state payload).state := by
-  apply History.step_good
   exact History.circuit_good base H .prime (Equiv.refl P) samples.prime samples.primeNonzero
     primePlan prime.setup.plan payload false context state good
 

@@ -9,11 +9,11 @@ namespace LfzkV2.Current
 namespace Stage
 
 @[simp] theorem batching_not_mem (side : Side) (index : ℕ) (stage : Stage)
-    (entries : List Entry) : .batching ∉ stage.roles side index entries := by
+    (next : List Entry × List Fragment) (last : Bool) : .batching ∉ stage.roles side index next last := by
   simp [roles]
 
 @[simp] theorem opening_not_mem (side : Side) (index : ℕ) (stage : Stage)
-    (entries : List Entry) : .opening ∉ stage.roles side index entries := by
+    (next : List Entry × List Fragment) (last : Bool) : .opening ∉ stage.roles side index next last := by
   simp [roles]
 
 end Stage
@@ -22,19 +22,21 @@ namespace Frontend
 
 @[simp] theorem batching_not_mem (side : Side) (frontend : Frontend) :
     .batching ∉ frontend.roles side := by
-  by_cases h : frontend.stages.isEmpty
-  · simp [roles, h]
-  · simp only [roles, h, Bool.false_eq_true, ↓reduceIte, List.mem_flatMap]
-    rintro ⟨i,_,hi⟩
-    exact Stage.batching_not_mem _ _ _ _ hi
+  simp only [roles, List.mem_cons, List.mem_flatMap, not_or]
+  refine ⟨?_, ?_⟩
+  · unfold opening
+    split <;> simp
+  · rintro ⟨i,_,hi⟩
+    exact Stage.batching_not_mem _ _ _ _ _ hi
 
 @[simp] theorem opening_not_mem (side : Side) (frontend : Frontend) :
     .opening ∉ frontend.roles side := by
-  by_cases h : frontend.stages.isEmpty
-  · simp [roles, h]
-  · simp only [roles, h, Bool.false_eq_true, ↓reduceIte, List.mem_flatMap]
-    rintro ⟨i,_,hi⟩
-    exact Stage.opening_not_mem _ _ _ _ hi
+  simp only [roles, List.mem_cons, List.mem_flatMap, not_or]
+  refine ⟨?_, ?_⟩
+  · unfold opening
+    split <;> simp
+  · rintro ⟨i,_,hi⟩
+    exact Stage.opening_not_mem _ _ _ _ _ hi
 
 end Frontend
 
@@ -42,7 +44,7 @@ namespace Geometry
 
 /-- All boundaries preceding the one joint backend. -/
 def backendPrefix (g : Geometry) : List Role :=
-  [.fingerprint] ++ g.prime.roles .prime ++ [.rescaling,.conversion] ++
+  [.fingerprint] ++ g.prime.roles .prime ++ [.conversion] ++
     g.binary.roles .binary ++ (if g.packingDegree = 1 then [] else [.packing])
 
 theorem roles_eq_backend (g : Geometry) :

@@ -87,10 +87,10 @@ example : (word.encode 4660) = [0,8,0,0,0,0,0,0,0,52,18,0,0,0,0,0,0] := by decid
 example : (roleCodec repr shape (.sumcheck .binary 0 0)).encode (b 7,b 9) =
     [1] ++ List.replicate 16 7 ++ [1] ++ List.replicate 16 9 := by decide
 
-example : (roleCodec repr shape (.combine .binary 0 [])).encode (b 7,b 9) =
+example : (roleCodec repr shape (.combine .binary 0 [] [] true)).encode (b 7,b 9) =
     [2,2,0,0,0,0,0,0,0] ++ List.replicate 16 7 ++ List.replicate 16 9 := by decide
 
-example : (roleCodec repr shape (.combine .binary 0 [])).decode
+example : (roleCodec repr shape (.combine .binary 0 [] [] true)).decode
     ([2,3,0,0,0,0,0,0,0] ++ List.replicate 32 7) = none := by decide
 
 example : (roleCodec repr shape .rowBatching).encode () =

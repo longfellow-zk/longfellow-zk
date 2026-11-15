@@ -61,13 +61,10 @@ fn batching_uses_widths_instead_of_cached_logw() {
         let mut tv = tp.fork_for_test();
         tp.borrow().write_sumcheck_statement(&circuit, &public, &f);
         let (proof, constraints) =
-            sumcheck::evaluate_and_prove_circuits(&[&circuit], inputs, &pads, &mut tp.borrow(), &f)
-                .unwrap();
+            sumcheck::top_and_prove(&[&circuit], inputs, &pads, &mut tp.borrow(), &f).unwrap();
         let claim = batch(&circuit, &public, constraints, &mut tp.borrow(), &f).unwrap();
         tv.borrow().write_sumcheck_statement(&circuit, &public, &f);
-        let derived =
-            sumcheck::derive_constraints_for_circuits(&[&circuit], &proof, &mut tv.borrow(), &f)
-                .unwrap();
+        let derived = sumcheck::top_and_derive(&[&circuit], &proof, &mut tv.borrow(), &f).unwrap();
         let checked = batch(&circuit, &public, derived, &mut tv.borrow(), &f).unwrap();
         assert_eq!(claim.weights, checked.weights);
         assert_eq!(claim.target, checked.target);

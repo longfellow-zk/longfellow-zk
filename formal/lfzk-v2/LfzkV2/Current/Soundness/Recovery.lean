@@ -14,6 +14,9 @@ open Finset Merkle Merkle.Indexed Merkle.RandomOracle TranscriptV2 Bcs.FinitePro
 open StrandMerkleMissingQueries
 open scoped Classical
 
+-- The frontend role lists are irrelevant here; unfolding them only slows unification.
+attribute [local irreducible] LfzkV2.Current.Frontend.roles
+
 def hashCorrection (queries rounds columns : ℕ) : ℚ :=
   (((queries*(queries-1)/2 : ℕ) : ℚ) + rounds + Heap.heapDepth columns + 3)/2^256
 

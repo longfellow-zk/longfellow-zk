@@ -5,8 +5,9 @@ import LfzkV2.Current.FrontendSchedule
 /-! The physical block sampled at a boundary is a product factor of the
 common ideal answer. Frontend blocks use only their public coordinate width;
 the remaining vector entries and all other roles are analysis randomness.
-Prime terminal/rescaling reads use one nonzero scalar, whereas conversion
-keeps the two scalars together. No independent physical samples are added.
+Prime terminal reads use one nonzero scalar, the prime frontend's last
+boundary also reads `eta` as that scalar after its coordinates, whereas
+conversion keeps the two scalars together. No independent physical samples are added.
 -/
 noncomputable section
 namespace LfzkV2.Current.StrandRoleSampling
@@ -30,6 +31,8 @@ inductive Kind where
   | binary (count : ℕ)
   | binaryNonzero
   | prime (count : ℕ)
+  /-- The prime frontend's last boundary: its coordinates, then `eta`. -/
+  | primeEta (count : ℕ)
   | primeNonzero
   | conversion
   | fingerprints
@@ -40,10 +43,12 @@ def roleKind (packingDegree rowCount : ℕ) (role : Role) : Kind :=
   match role with
   | .inputAssertions .binary .. | .assertions .binary .. | .sumcheck .binary .. |
       .combine .binary .. => .binary (FrontendSchedule.coordinates role)
-  | .inputAssertions .prime .. | .assertions .prime .. | .sumcheck .prime .. |
-      .combine .prime .. => .prime (FrontendSchedule.coordinates role)
+  | .inputAssertions .prime .. | .combine .prime _ _ _ true =>
+      .primeEta (FrontendSchedule.coordinates role)
+  | .assertions .prime .. | .sumcheck .prime .. | .combine .prime _ _ _ false =>
+      .prime (FrontendSchedule.coordinates role)
   | .terminal .binary .. => .binaryNonzero
-  | .terminal .prime .. | .rescaling => .primeNonzero
+  | .terminal .prime .. => .primeNonzero
   -- Pure-foreign storage only; absent from the mdoc schedule.
   | .rowBatching => .prime rowCount
   | .packing => .binary packingDegree
@@ -55,91 +60,66 @@ def roleKind (packingDegree rowCount : ℕ) (role : Role) : Kind :=
 section PublicWidths
 open FrontendSchedule
 
-private theorem stage_coordinates_le (stage : Stage) (side : Side) (index : ℕ)
-    (inputs : List Entry) (capacity : ℕ)
-    (assertions : coordinates (.assertions side index stage.entering stage.fragments) ≤ capacity)
-    (one : 1 ≤ capacity) (combine : 1+(inputs.map Entry.outputs).sum ≤ capacity)
-    (role : Role) (member : role ∈ stage.roles side index inputs) : coordinates role ≤ capacity := by
-  simp only [Stage.roles,List.mem_append,List.mem_cons,List.not_mem_nil,or_false] at member
-  rcases member with (rfl | member) | (rfl | rfl)
-  · exact assertions
-  · obtain ⟨round,_,rfl⟩ := List.mem_map.mp member
-    exact one
-  · exact Nat.zero_le _
-  · exact combine
+theorem stageRoles_coordinates_le {F : Type} {out input : ℕ} {circuit : Layered.Circuit F out input}
+    (plan : Plan F circuit) (side : Side) (first offset : ℕ)
+    (role : Role) (member : role ∈ stageRoles side first plan.frontend) :
+    coordinates role ≤ plan.capacityFrom offset := by
+  induction plan generalizing first offset with
+  | input => simp [Plan.frontend, stageRoles] at member
+  | inputEntry => simp [Plan.frontend, stageRoles] at member
+  | @layer out mid input assertions body rest metadata tail ih =>
+      change role ∈ stageRoles side first ⟨⟨[],metadata.fragments,mid⟩ :: tail.frontend.stages,
+        tail.frontend.inputEntries⟩ at member
+      rw [stageRoles_cons] at member
+      change coordinates role ≤ max (offset+assertions) (max 1 (tail.capacityFrom 1))
+      have one : 1 ≤ max (offset+assertions) (max 1 (tail.capacityFrom 1)) :=
+        (Nat.le_max_left _ _).trans (Nat.le_max_right _ _)
+      have restBound : tail.capacityFrom 1 ≤ max (offset+assertions) (max 1 (tail.capacityFrom 1)) :=
+        (Nat.le_max_right _ _).trans (Nat.le_max_right _ _)
+      rcases List.mem_append.mp member with member | member
+      · simp only [Stage.roles,List.mem_append,List.mem_cons,List.not_mem_nil,or_false] at member
+        rcases member with member | rfl | rfl
+        · obtain ⟨round,_,rfl⟩ := List.mem_map.mp member
+          exact one
+        · exact Nat.zero_le _
+        · exact (tail.combineRole_coordinates_le side first).trans restBound
+      · exact (ih (first+1) 1 member).trans restBound
+  | @entryLayer out next mid input checks assertions entries entry body rest metadata tail ih =>
+      change role ∈ stageRoles side first ⟨⟨entries.entries,metadata.fragments,mid⟩ :: tail.frontend.stages,
+        tail.frontend.inputEntries⟩ at member
+      rw [stageRoles_cons] at member
+      change coordinates role ≤ max (offset+checks+assertions) (max 1 (tail.capacityFrom 1))
+      have one : 1 ≤ max (offset+checks+assertions) (max 1 (tail.capacityFrom 1)) :=
+        (Nat.le_max_left _ _).trans (Nat.le_max_right _ _)
+      have restBound : tail.capacityFrom 1 ≤ max (offset+checks+assertions) (max 1 (tail.capacityFrom 1)) :=
+        (Nat.le_max_right _ _).trans (Nat.le_max_right _ _)
+      rcases List.mem_append.mp member with member | member
+      · simp only [Stage.roles,List.mem_append,List.mem_cons,List.not_mem_nil,or_false] at member
+        rcases member with member | rfl | rfl
+        · obtain ⟨round,_,rfl⟩ := List.mem_map.mp member
+          exact one
+        · exact Nat.zero_le _
+        · exact (tail.combineRole_coordinates_le side first).trans restBound
+      · exact (ih (first+1) 1 member).trans restBound
 
 /-- The public schedule includes empty assertion boundaries too. Their
 width is zero even when there is no retained algebraic failure position. -/
 theorem frontend_coordinates_le {F : Type} {out input : ℕ} {circuit : Layered.Circuit F out input}
-    (plan : Plan F circuit) (side : Side) (first offset : ℕ)
-    (role : Role) (member : role ∈ rolesFrom plan.frontend side first) :
-    coordinates role ≤ plan.capacityFrom offset := by
-  induction plan generalizing first offset role with
-  | input =>
-      simp only [Plan.frontend,rolesFrom,List.isEmpty_nil,↓reduceIte,List.mem_singleton] at member
-      subst role
-      exact Nat.zero_le _
-  | inputEntry metadata entry =>
-      simp only [Plan.frontend,rolesFrom,List.isEmpty_nil,↓reduceIte,List.mem_singleton] at member
-      subst role
-      simp only [coordinates,metadata.count,Plan.capacityFrom]
-      omega
-  | @layer out mid input assertions body rest metadata tail ih =>
-      change role ∈ rolesFrom ⟨⟨[],metadata.fragments,mid⟩ :: tail.frontend.stages,tail.frontend.inputEntries⟩ side first at member
-      rw [rolesFrom_cons] at member
-      change coordinates role ≤ max (offset+assertions) (max 1 (tail.capacityFrom (if FrontendReplay.hasLayers rest then 0 else 1)))
-      have head := Nat.le_max_left (offset+assertions) (max 1 (tail.capacityFrom (if FrontendReplay.hasLayers rest then 0 else 1)))
-      have one := (Nat.le_max_left 1 (tail.capacityFrom (if FrontendReplay.hasLayers rest then 0 else 1))).trans
-        (Nat.le_max_right (offset+assertions) _)
-      have restBound := (Nat.le_max_right 1 (tail.capacityFrom (if FrontendReplay.hasLayers rest then 0 else 1))).trans
-        (Nat.le_max_right (offset+assertions) _)
-      rcases List.mem_append.mp member with member | member
-      · apply stage_coordinates_le _ side first _ _ _ one _ role member
-        · simpa only [coordinates,List.map_nil,List.sum_nil,Nat.zero_add,metadata.count] using
-            (show assertions ≤ offset+assertions by omega).trans head
-        · by_cases empty : tail.frontend.stages.isEmpty = true
-          · simp only [if_pos empty]
-            have noLayers : FrontendReplay.hasLayers rest = false := by rw [tail.hasLayers_eq,empty]; rfl
-            rw [noLayers] at restBound ⊢
-            exact (tail.input_coordinates_le 1 noLayers).trans restBound
-          · simpa only [if_neg empty,List.map_nil,List.sum_nil,Nat.add_zero] using one
-      · split_ifs at member with empty
-        · cases member
-        · exact (ih (first+1) _ role member).trans restBound
-  | @entryLayer out next mid input checks assertions entries entry body rest metadata tail ih =>
-      change role ∈ rolesFrom ⟨⟨entries.entries,metadata.fragments,mid⟩ :: tail.frontend.stages,tail.frontend.inputEntries⟩ side first at member
-      rw [rolesFrom_cons] at member
-      change coordinates role ≤ max (offset+checks+assertions) (max 1 (tail.capacityFrom (if FrontendReplay.hasLayers rest then 0 else 1)))
-      have head := Nat.le_max_left (offset+checks+assertions) (max 1 (tail.capacityFrom (if FrontendReplay.hasLayers rest then 0 else 1)))
-      have one := (Nat.le_max_left 1 (tail.capacityFrom (if FrontendReplay.hasLayers rest then 0 else 1))).trans
-        (Nat.le_max_right (offset+checks+assertions) _)
-      have restBound := (Nat.le_max_right 1 (tail.capacityFrom (if FrontendReplay.hasLayers rest then 0 else 1))).trans
-        (Nat.le_max_right (offset+checks+assertions) _)
-      rcases List.mem_append.mp member with member | member
-      · apply stage_coordinates_le _ side first _ _ _ one _ role member
-        · simpa only [coordinates,entries.count,metadata.count] using
-            (show checks+assertions ≤ offset+checks+assertions by omega).trans head
-        · by_cases empty : tail.frontend.stages.isEmpty = true
-          · simp only [if_pos empty]
-            have noLayers : FrontendReplay.hasLayers rest = false := by rw [tail.hasLayers_eq,empty]; rfl
-            rw [noLayers] at restBound ⊢
-            exact (tail.input_coordinates_le 1 noLayers).trans restBound
-          · simpa only [if_neg empty,List.map_nil,List.sum_nil,Nat.add_zero] using one
-      · split_ifs at member with empty
-        · cases member
-        · exact (ih (first+1) _ role member).trans restBound
+    (plan : Plan F circuit) (side : Side)
+    (role : Role) (member : role ∈ plan.frontend.roles side) : coordinates role ≤ plan.capacity := by
+  rw [roles_eq_stageRoles, List.mem_cons] at member
+  rcases member with rfl | member
+  · exact plan.opening_role_coordinates_le side
+  · exact stageRoles_coordinates_le plan side 0 0 role member
 
 theorem frontend_side (frontend : Frontend) (side : Side) (role : Role)
     (member : role ∈ frontend.roles side) : frontendSide role = some side := by
-  unfold Frontend.roles at member
-  split_ifs at member
-  · have equal := List.mem_singleton.mp member
-    subst role
-    rfl
+  rw [roles_eq_stageRoles, List.mem_cons] at member
+  rcases member with rfl | member
+  · exact Plan.opening_side frontend side
   · obtain ⟨index,_,member⟩ := List.mem_flatMap.mp member
     simp only [Stage.roles,List.mem_append,List.mem_cons,List.not_mem_nil,or_false] at member
-    rcases member with (rfl | member) | (rfl | rfl)
-    · rfl
+    rcases member with member | rfl | rfl
     · obtain ⟨round,_,rfl⟩ := List.mem_map.mp member
       rfl
     · rfl
@@ -158,6 +138,7 @@ def Value : Kind → Type
   | .binary count => Fin count → B
   | .binaryNonzero => Linear.TerminalSampling.Nonzero B
   | .prime count => Fin count → N
+  | .primeEta count => (Fin count → N) × Linear.TerminalSampling.Nonzero N
   | .primeNonzero => Linear.TerminalSampling.Nonzero N
   | .conversion => Linear.TerminalSampling.Nonzero N × Linear.TerminalSampling.Nonzero N
   | .fingerprints => WitnessSelection.Coins B IB × WitnessSelection.Coins N IN
@@ -168,12 +149,20 @@ abbrev Complement (kind : Component) :=
   (other : {other : Component // other ≠ kind}) →
     IdealSamples.Data B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity other.val
 
+/-- The components other than the prime vector and the prime nonzero pair. -/
+abbrev EtaComplement :=
+  (other : {other : {other : Component // other ≠ .prime} // other ≠ ⟨.primeNonzero, by decide⟩}) →
+    IdealSamples.Data B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity other.val.val
+
 def Unused : Kind → Type
   | .binary count => ((Fin 0 → B) × (Fin (binaryCapacity-(0+count)) → B)) ×
       Complement B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity .binary
   | .binaryNonzero => Complement B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity .binaryNonzero
   | .prime count => ((Fin 0 → N) × (Fin (primeCapacity-(0+count)) → N)) ×
       Complement B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity .prime
+  | .primeEta count => ((Fin 0 → N) × (Fin (primeCapacity-(0+count)) → N)) ×
+      (Linear.TerminalSampling.Nonzero N × EtaComplement B N IB IN RawBinary RawPrime Openings
+        binaryCapacity primeCapacity)
   | .primeNonzero => Linear.TerminalSampling.Nonzero N ×
       Complement B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity .primeNonzero
   | .conversion => Complement B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity .primeNonzero
@@ -184,6 +173,7 @@ def Unused : Kind → Type
 def Fits : Kind → Prop
   | .binary count => count ≤ binaryCapacity
   | .prime count => count ≤ primeCapacity
+  | .primeEta count => count ≤ primeCapacity
   | _ => True
 
 section ScheduleFits
@@ -194,11 +184,13 @@ private theorem frontend_fits {F : Type} {out input : ℕ} {circuit : Layered.Ci
     (capacity : plan.capacity ≤ match side with | .binary => binaryCapacity | .prime => primeCapacity)
     (role : Role) (member : role ∈ plan.frontend.roles side) :
     Fits binaryCapacity primeCapacity (roleKind degree rowCount role) := by
-  have width := (frontend_coordinates_le plan side 0 0 role
-    (by simpa only [FrontendSchedule.rolesFrom_zero] using member)).trans capacity
+  have width := (frontend_coordinates_le plan side role member).trans capacity
   have owner := frontend_side plan.frontend side role member
   cases role <;> simp only [frontendSide,Option.some.injEq,reduceCtorEq] at owner
-  all_goals cases owner; cases side <;> first | exact width | trivial
+  all_goals cases owner
+  all_goals first
+    | (cases side <;> first | exact width | trivial)
+    | (rename_i last; cases side <;> cases last <;> exact width)
 
 /-- Every scheduled block fits the same public capacities already used by
 the actual frontend readers. This includes empty rounds and the optional
@@ -218,11 +210,10 @@ theorem roleFits {BF PF : Type} {bo bi po pi : ℕ}
   generalize actual : g.roles.get index = role at member ⊢
   rw [g.roles_eq] at member
   simp only [List.mem_append,List.mem_cons,List.not_mem_nil,or_false] at member
-  rcases member with ((((rfl | primeMember) | (rfl | rfl)) | binaryMember) | packingMember) | (rfl | rfl)
+  rcases member with ((((rfl | primeMember) | rfl) | binaryMember) | packingMember) | (rfl | rfl)
   · trivial
   · rw [← primeGeometry] at primeMember
     exact frontend_fits binaryCapacity primeCapacity primePlan .prime degree rowCount primeFits _ primeMember
-  · trivial
   · trivial
   · rw [← binaryGeometry] at binaryMember
     exact frontend_fits binaryCapacity primeCapacity binaryPlan .binary degree rowCount binaryFits _ binaryMember
@@ -242,9 +233,31 @@ def binary (count : ℕ) (fits : count ≤ binaryCapacity) :=
 def prime (count : ℕ) (fits : count ≤ primeCapacity) :=
   refine (component .prime) (IdealProjections.boundedSlice primeCapacity 0 count (by simpa using fits))
 
-/-- Exactly the first prime nonzero scalar is used at a terminal or rescaling
-boundary. The second coordinate is reserved for the conversion role. -/
+/-- Exactly the first prime nonzero scalar is used at a terminal boundary.
+The second coordinate is reserved for the conversion role. -/
 def primeNonzero := refine (component .primeNonzero) (Equiv.refl _)
+
+/-- The prime frontend's last boundary reads its coordinates from the prime
+vector and `eta` as the first prime nonzero scalar: two independent factors. -/
+def primeEta (count : ℕ) (fits : count ≤ primeCapacity) :
+    Answer ≃ ((Fin count → N) × Linear.TerminalSampling.Nonzero N) ×
+      (((Fin 0 → N) × (Fin (primeCapacity-(0+count)) → N)) ×
+        (Linear.TerminalSampling.Nonzero N × EtaComplement B N IB IN RawBinary RawPrime Openings
+          binaryCapacity primeCapacity)) :=
+  let first := prime B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity count fits
+  let second := Equiv.piSplitAt (⟨.primeNonzero, by decide⟩ : {other : Component // other ≠ .prime})
+    (fun other => IdealSamples.Data B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity other.val)
+  { toFun := fun answer =>
+      let x := first answer
+      let y := second x.2.2
+      ((x.1,y.1.1),(x.2.1,(y.1.2,y.2)))
+    invFun := fun z => first.symm (z.1.1,(z.2.1,second.symm ((z.1.2,z.2.2.1),z.2.2.2)))
+    left_inv := by
+      intro answer
+      simp
+    right_inv := by
+      rintro ⟨⟨v,e⟩,⟨u,⟨e',rest⟩⟩⟩
+      simp }
 
 /-- This supplies the dependent factor required by `StrandSampling.read`
 and `oracle_on_success`. Its fit premise is a public coordinate bound. -/
@@ -254,6 +267,7 @@ def factor (kind : Kind) (fits : Fits binaryCapacity primeCapacity kind) :
   cases kind with
   | binary count => exact binary B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity count fits
   | prime count => exact prime B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity count fits
+  | primeEta count => exact primeEta B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity count fits
   | binaryNonzero => exact component .binaryNonzero
   | primeNonzero => exact primeNonzero B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity
   | conversion => exact component .primeNonzero
@@ -351,6 +365,48 @@ theorem normalize_prime_read (count : ℕ) (fits : count ≤ primeCapacity)
   exact normalize_prime B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity
     count fits fallback answer ⟨index,inside⟩
 
+omit [Fintype B] [Fintype N] [DecidableEq B] [DecidableEq N] [Fintype IB] [Fintype IN]
+  [DecidableEq IB] [DecidableEq IN] [Fintype RawBinary] [Fintype RawPrime] [Fintype Openings] in
+theorem primeEta_vector (count : ℕ) (fits : count ≤ primeCapacity) (answer : Answer) :
+    ((primeEta B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity count fits answer).1).1 =
+      (prime B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity count fits answer).1 := rfl
+
+omit [Fintype B] [Fintype N] [DecidableEq B] [DecidableEq N] [Fintype IB] [Fintype IN]
+  [DecidableEq IB] [DecidableEq IN] [Fintype RawBinary] [Fintype RawPrime] [Fintype Openings] in
+theorem primeEta_eta (count : ℕ) (fits : count ≤ primeCapacity) (answer : Answer) :
+    ((primeEta B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity count fits answer).1).2 =
+      (answer .primeNonzero).1 := rfl
+
+theorem normalize_primeEta_read (count : ℕ) (fits : count ≤ primeCapacity)
+    (fallback answer : Answer) (index : ℕ) (inside : index < count) :
+    IdealSamples.vectorRead
+      (IdealSamples.decoder B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity .prime)
+      (StrandSampling.normalize
+        (primeEta B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity count fits)
+        fallback answer) index =
+      IdealSamples.vectorRead
+        (IdealSamples.decoder B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity .prime)
+        answer index := by
+  have within : index < primeCapacity := lt_of_lt_of_le inside fits
+  have h := congrArg (fun z => z.1 ⟨index,inside⟩) (StrandSampling.normalize_value
+    (primeEta B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity count fits)
+    fallback answer)
+  simp only [primeEta_vector, prime_value] at h
+  simp only [IdealSamples.vectorRead,dif_pos within,IdealSamples.decoder_apply]
+  exact h
+
+omit [Fintype B] [Fintype N] [DecidableEq B] [DecidableEq N] [Fintype IB] [Fintype IN]
+  [DecidableEq IB] [DecidableEq IN] [Fintype RawBinary] [Fintype RawPrime] [Fintype Openings] in
+theorem normalize_primeEta_nonzero (count : ℕ) (fits : count ≤ primeCapacity)
+    (fallback answer : Answer) :
+    ((StrandSampling.normalize
+        (primeEta B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity count fits)
+        fallback answer) .primeNonzero).1 = (answer .primeNonzero).1 := by
+  have h := congrArg (fun z => z.2) (StrandSampling.normalize_value
+    (primeEta B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity count fits)
+    fallback answer)
+  simpa only [primeEta_eta] using h
+
 theorem normalize_binary_role_read (degree rowCount : ℕ) (role : Role)
     (fits : Fits binaryCapacity primeCapacity (roleKind degree rowCount role))
     (side : frontendSide role = some .binary) (fallback answer : Answer)
@@ -379,7 +435,11 @@ theorem normalize_prime_role_read (degree rowCount : ℕ) (role : Role)
   cases role <;> simp only [frontendSide,Option.some.injEq,reduceCtorEq] at side
   all_goals try contradiction
   all_goals subst side
-  all_goals exact normalize_prime_read B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity _ fits fallback answer index inside
+  all_goals first
+    | exact normalize_prime_read B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity _ fits fallback answer index inside
+    | (rename_i last; cases last
+       · exact normalize_prime_read B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity _ fits fallback answer index inside
+       · exact normalize_primeEta_read B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity _ fits fallback answer index inside)
 
 omit [Fintype B] [Fintype N] [DecidableEq B] [DecidableEq N] [Fintype IB] [Fintype IN]
   [DecidableEq IB] [DecidableEq IN] [Fintype RawBinary] [Fintype RawPrime] [Fintype Openings] in
@@ -412,5 +472,21 @@ theorem normalize_prime_role_nonzero (degree rowCount : ℕ) (role : Role)
   subst side'
   exact normalize_primeNonzero B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity
     fallback answer
+
+omit [Fintype B] [Fintype N] [DecidableEq B] [DecidableEq N] [Fintype IB] [Fintype IN]
+  [DecidableEq IB] [DecidableEq IN] [Fintype RawBinary] [Fintype RawPrime] [Fintype Openings] in
+/-- The prime frontend's last boundary also reads `eta` as its first prime
+nonzero scalar. -/
+theorem normalize_prime_role_eta (degree rowCount : ℕ) (role : Role)
+    (fits : Fits binaryCapacity primeCapacity (roleKind degree rowCount role))
+    (last : roleKind degree rowCount role = .primeEta (FrontendSchedule.coordinates role))
+    (fallback answer : Answer) :
+    ((StrandSampling.normalize (factor B N IB IN RawBinary RawPrime Openings
+      binaryCapacity primeCapacity (roleKind degree rowCount role) fits) fallback answer) .primeNonzero).1 =
+      (answer .primeNonzero).1 := by
+  generalize hk : roleKind degree rowCount role = kind at fits last ⊢
+  subst last
+  exact normalize_primeEta_nonzero B N IB IN RawBinary RawPrime Openings binaryCapacity primeCapacity
+    _ fits fallback answer
 
 end LfzkV2.Current.StrandRoleSampling

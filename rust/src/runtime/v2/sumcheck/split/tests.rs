@@ -503,6 +503,106 @@ fn split_preserves_proof_transcript_and_circuit_binary() {
     check_proof(&Gf2_128Field::new());
 }
 
+/// A later layer's assertion weights extend the preceding combine answer:
+/// a two-layer proof matches the reference schedule byte for byte, with one
+/// boundary for the top weights and none for the second layer.
+fn check_two_layers<const W: usize, F>(f: &F)
+where F: RuntimeField<W> + SerializableField + SupportsSampling {
+    use crate::{
+        core::proto::v2::{Circuit, RawCircuitBuilder},
+        runtime::{
+            random::DeterministicRng,
+            v2::{
+                sumcheck::{self, circuit_geometry, prover::sample_pads, TranscriptSumcheck},
+                transcript::Transcript,
+            },
+        },
+    };
+    let mut rng = DeterministicRng::new(45);
+    let (x, y) = (rng.elt_field(f), rng.elt_field(f));
+    let inputs = vec![x.clone(), y.clone(), f.mulf(&x, &y), f.zero()];
+    // Input layer: v = [x*y, z], asserting u = 0 and u*x = 0. Output layer:
+    // v0 - v1, with no assertion of its own.
+    let input_layer = Layer::new(
+        4,
+        Stream::<Quadratic>::from_terms([
+            Quadratic {
+                g: 0,
+                l: 0,
+                r: 1,
+                k: 1,
+            },
+            Quadratic {
+                g: 0,
+                l: 3,
+                r: 0,
+                k: 0,
+            },
+        ]),
+        Stream::<Linear>::from_terms([Linear { g: 1, l: 2, k: 1 }, Linear { g: 0, l: 3, k: 0 }]),
+        Stream::default(),
+    );
+    let output_layer = Layer::new(
+        2,
+        Stream::default(),
+        Stream::<Linear>::from_terms([Linear { g: 0, l: 0, k: 1 }, Linear { g: 0, l: 1, k: 2 }]),
+        Stream::default(),
+    );
+    let raw = RawCircuitBuilder {
+        ninput: 4,
+        npublic_input: 1,
+        noutput: 1,
+        logv: 0,
+        constants: vec![f.zero(), f.one(), f.mone()],
+        layers: vec![output_layer, input_layer],
+    }
+    .build();
+    let circuit = Circuit::from_raw(f, raw);
+    assert_eq!(circuit.raw.layers[0].assertion_counts(), [0, 0]);
+    assert_eq!(circuit.raw.layers[1].assertion_counts(), [1, 1]);
+    let geometry = circuit_geometry(&[&circuit]).unwrap();
+    let (pads, _) = sample_pads(&geometry, &mut rng, f);
+    let mut actual = Transcript::new(b"two-layer-schedule");
+    actual
+        .borrow()
+        .write_sumcheck_statement(&circuit, &inputs[..1], f);
+    let got =
+        sumcheck::evaluate_and_prove(inputs.clone(), &pads, &circuit, &mut actual.borrow(), f)
+            .unwrap();
+    let mut expected = Transcript::new(b"two-layer-schedule");
+    expected
+        .borrow()
+        .write_sumcheck_statement(&circuit, &inputs[..1], f);
+    let witnesses = reference::eval_circuit(inputs.clone(), &circuit, f).unwrap();
+    let reference = reference::prove_core(witnesses, &pads, &circuit, &mut expected, f);
+    assert_eq!(
+        got.0.write(&geometry, f).unwrap(),
+        reference.0.write(&geometry, f).unwrap()
+    );
+    assert_eq!(got.1, reference.1);
+    let rounds = geometry.logw_layers.iter().sum::<usize>() as u64;
+    assert_eq!(actual.round_count_for_test(), 1 + rounds + 2 * 2);
+    assert_eq!(expected.round_count_for_test(), 1 + rounds + 2 * 2);
+    assert_eq!(actual.bytes(64), expected.bytes(64));
+    sumcheck::tests::diagnostic::verify(
+        inputs,
+        &pads,
+        &circuit,
+        &got.0,
+        &mut Transcript::new(b"two-layer-schedule"),
+        f,
+    )
+    .unwrap();
+}
+#[test]
+fn later_layers_draw_from_the_combine_answer_prime() {
+    check_two_layers(&P256Field::new());
+}
+#[test]
+fn later_layers_draw_from_the_combine_answer_binary() {
+    check_two_layers(&Gf2_128Field::new());
+}
+
 pub(super) mod fixtures;
 
 pub(super) mod reference;

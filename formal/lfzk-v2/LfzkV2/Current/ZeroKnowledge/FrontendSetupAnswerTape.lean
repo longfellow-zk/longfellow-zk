@@ -3,7 +3,8 @@ import LfzkV2.Current.ZeroKnowledge.FrontendLayerAnswerTape
 
 /-! The stateful frontend compiler consumes exactly the answer coordinates
 that the verifier later replays. This includes shared entry/assertion
-coefficients and input assertions extending the final combine answer. -/
+coefficients, and later weights and input assertions extending the
+preceding combine answer. -/
 noncomputable section
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.AnswerTape
 
@@ -19,51 +20,41 @@ variable (H : CompleteTranscript.Point (g := g) (fields := fields) (Advice := Ad
   (Authentication := Authentication) (Key := Key) (Base := Base) → Digest × C)
 variable (decode : C → ℕ → F) (nonzero : C → {r : F // r ≠ 0}) (fallback : C)
 
-theorem head_rank {n : ℕ} (state : CompleteTranscript.State g fields Advice Key Base C)
-    (payload : LayerPayload F n) (fits : state.rank.val+n+3 ≤ g.roles.length) :
-    (readLayer (CompleteTranscript.reader side field decode nonzero base H).toReader
-      (CompleteTranscript.step base H state).2 payload).state.rank.val = state.rank.val+n+3 := by
-  have first : (CompleteTranscript.step base H state).2.rank.val = state.rank.val+1 := by
-    rw [SimulationWrites.step_rank]
-    exact Nat.min_eq_right (by omega)
-  have next := layer_properties side field base H decode nonzero state.lastAnswer
-    (CompleteTranscript.step base H state).2 payload (by rw [first]; omega)
-  rw [next.1,first]
-  omega
-
-theorem head_last {n : ℕ} (state : CompleteTranscript.State g fields Advice Key Base C)
-    (payload : LayerPayload F n) (fits : state.rank.val+n+3 ≤ g.roles.length) :
-    Last fallback (readLayer (CompleteTranscript.reader side field decode nonzero base H).toReader
-      (CompleteTranscript.step base H state).2 payload).state := by
-  apply layer_last
-  exact step_last_inside base H fallback state (by omega)
-
-theorem head_setup {n assertions : ℕ} (state future : CompleteTranscript.State g fields Advice Key Base C)
-    (payload : LayerPayload F n) (ids : Layered.Replay.LayerPads Pad n) (offset : ℕ)
-    (fits : state.rank.val+n+3 ≤ g.roles.length)
+/-- A layer's weights: the opening answer's coordinates, or the preceding
+combine answer's coordinates after alpha. -/
+theorem open_facts (count : ℕ) (state future : CompleteTranscript.State g fields Advice Key Base C)
+    (continuing : Bool) (last : continuing = true → Last fallback state)
+    (positive : continuing = true → 0 < state.rank.val)
+    (inside : continuing = false → state.rank.val < g.roles.length)
     (extended : Extends fallback
-      (readLayer (CompleteTranscript.reader side field decode nonzero base H).toReader
-        (CompleteTranscript.step base H state).2 payload).state future) :
-    setupLayer (CompleteTranscript.reader side field decode nonzero base H)
-      (CompleteTranscript.step base H state).2 payload
-      (fun i : Fin assertions => decode (CompleteTranscript.step base H state).1 (offset+i.val)) ids =
-      ⟨linearPlan ids,
-        (fun i => decode (lookup fallback future (state.rank.val+1+i.val)) 0),
-        nonzero (lookup fallback future (state.rank.val+1+n)),
-        decode (lookup fallback future (state.rank.val+n+2)) 0,
-        (fun i => decode (lookup fallback future state.rank.val) (offset+i.val))⟩ := by
-  have inside : state.rank.val < g.roles.length := by omega
-  have first : (CompleteTranscript.step base H state).2.rank.val = state.rank.val+1 := by
-    rw [SimulationWrites.step_rank]
-    exact Nat.min_eq_right (by omega)
-  have layer := layer_properties_into side field base H decode nonzero fallback
-    (CompleteTranscript.step base H state).2 future payload (by rw [first]; omega) extended
-  have firstExtended := (layer_extends side field base H decode nonzero fallback
-    (CompleteTranscript.step base H state).2 payload).trans extended
-  have answer := step_answer_into base H fallback state future inside firstExtended
-  simp only [setupLayer]
-  rw [layer.2.1,layer.2.2.1,layer.2.2.2,answer,first]
-  rw [show state.rank.val+1+n+1 = state.rank.val+n+2 by omega]
+      (inputCoefficients (CompleteTranscript.reader side field decode nonzero base H) continuing state count).2
+        future) :
+    let opened := inputCoefficients (CompleteTranscript.reader side field decode nonzero base H) continuing state count
+    let start := if continuing then state.rank.val-1 else state.rank.val
+    opened.2.rank.val = start+1 ∧ Last fallback opened.2 ∧
+      opened.1 = (fun i => decode (lookup fallback future start) ((if continuing then 1 else 0)+i.val)) ∧
+      Extends fallback state opened.2 := by
+  cases continuing with
+  | false =>
+      have hin := inside rfl
+      refine ⟨?_,?_,?_,?_⟩
+      · change (CompleteTranscript.step base H state).2.rank.val = state.rank.val+1
+        rw [SimulationWrites.step_rank]
+        exact Nat.min_eq_right (by omega)
+      · exact step_last_inside base H fallback state hin
+      · change (fun i : Fin count => decode (CompleteTranscript.step base H state).1 i.val) = _
+        rw [step_answer_into base H fallback state future hin extended]
+        funext i
+        simp
+      · exact step_extends base H fallback state
+  | true =>
+      have hpos := positive rfl
+      refine ⟨by change state.rank.val = state.rank.val-1+1; omega,last rfl,?_,Extends.refl fallback state⟩
+      change (fun i : Fin count => decode state.lastAnswer (1+i.val)) = _
+      have hvalue : state.lastAnswer = lookup fallback future (state.rank.val-1) :=
+        (last rfl).trans (extended.2 _ (by change state.rank.val-1 < state.rank.val; omega)).symm
+      rw [hvalue]
+      rfl
 
 theorem readSetup_into {out input : ℕ} {circuit : Layered.Circuit F out input}
     (plan : FrontendSchedule.Plan F circuit) (ids : Layered.Replay.PadPlan (Pad := Pad) circuit)
@@ -91,100 +82,115 @@ theorem readSetup_into {out input : ℕ} {circuit : Layered.Circuit F out input}
           have answer := step_answer_into base H fallback state future inside extended
           simp only [readSetup,inputCoefficients,Bool.false_eq_true,↓reduceIte,
             CompleteTranscript.reader,messagesFromSetup,replayStart,replayOffset,
-            FrontendReplay.hasLayers,FrontendReplay.readFrom,Bool.false_and,Nat.zero_add]
+            FrontendReplay.readFrom,Nat.zero_add]
           rw [answer]
       | true =>
           change Extends fallback state future at extended
           have value : state.lastAnswer = lookup fallback future (state.rank.val-1) :=
             (last rfl).trans (extended.2 _ (by have := positive rfl; omega)).symm
           simp only [readSetup,inputCoefficients,↓reduceIte,CompleteTranscript.reader,messagesFromSetup,
-            replayStart,replayOffset,FrontendReplay.hasLayers,FrontendReplay.readFrom,
-            Bool.not_false,Bool.true_and]
+            replayStart,replayOffset,FrontendReplay.readFrom]
           rw [value]
   | @layer out mid input assertions body rest metadata tail ih =>
-      let first := CompleteTranscript.step base H state
-      let replay := readLayer (CompleteTranscript.reader side field decode nonzero base H).toReader first.2 payload.1
-      have headFits : state.rank.val+mid+3 ≤ g.roles.length := by
-        simp only [Frontend.ScheduleLength.circuitFuel] at fits
-        omega
-      have rank := head_rank side field base H decode nonzero state payload.1 headFits
-      have rankNamed : replay.state.rank.val = state.rank.val+mid+3 := rank
-      have tailFits : replay.state.rank.val+Frontend.ScheduleLength.circuitFuel tail true ≤ g.roles.length := by
-        rw [rank]
-        simp only [Frontend.ScheduleLength.circuitFuel] at fits
-        omega
+      let opened := inputCoefficients (CompleteTranscript.reader side field decode nonzero base H)
+        continuing state assertions
+      let replay := readLayer (CompleteTranscript.reader side field decode nonzero base H).toReader opened.2 payload.1
+      have fuel : Frontend.ScheduleLength.circuitFuel (.layer metadata tail) continuing =
+          Frontend.ScheduleLength.circuitFuel tail true+(2+mid)+(if continuing then 0 else 1) := rfl
       have through := (readSetup_extends base H side field decode nonzero fallback
         tail ids.2 payload.2 replay.state true).trans extended
-      have head := head_setup side field base H decode nonzero fallback (assertions := assertions)
-        state future payload.1 ids.1 0 headFits through
-      have headLast := head_last side field base H decode nonzero fallback state payload.1 headFits
-      have tailEq := ih ids.2 payload.2 replay.state future true (fun _ => headLast)
-        (fun _ => by rw [rank]; omega) tailFits extended
-      dsimp only [readSetup,messagesFromSetup]
+      have layerThrough := (layer_extends side field base H decode nonzero fallback opened.2 payload.1).trans through
+      have facts := open_facts side field base H decode nonzero fallback assertions state future continuing last
+        positive (fun h => by rw [fuel, h] at fits; simp at fits; omega) layerThrough
+      obtain ⟨openRank,openLast,openCoefficients,_⟩ := facts
+      have hs : (if continuing then state.rank.val-1 else state.rank.val)+1 =
+          state.rank.val+(if continuing then 0 else 1) := by
+        cases continuing
+        · rfl
+        · have := positive rfl
+          simp only [↓reduceIte]
+          omega
+      have layerFits : opened.2.rank.val+mid+2 ≤ g.roles.length := by
+        rw [openRank]
+        rw [fuel] at fits
+        omega
+      have layer := layer_properties_into side field base H decode nonzero fallback opened.2 future payload.1
+        layerFits through
+      have tailFits : replay.state.rank.val+Frontend.ScheduleLength.circuitFuel tail true ≤ g.roles.length := by
+        rw [layer.1,openRank]
+        rw [fuel] at fits
+        omega
+      have tailEq := ih ids.2 payload.2 replay.state future true
+        (fun _ => layer_last side field base H decode nonzero fallback opened.2 payload.1 openLast)
+        (fun _ => by rw [layer.1]; omega) tailFits extended
+      have replayRank : replay.state.rank.val = (if continuing then state.rank.val-1 else state.rank.val)+mid+3 := by
+        rw [layer.1,openRank]; omega
+      simp only [replayStart,replayOffset,↓reduceIte,replayRank] at tailEq
+      rw [show (if continuing then state.rank.val-1 else state.rank.val)+mid+3-1 =
+        (if continuing then state.rank.val-1 else state.rank.val)+mid+2 by omega] at tailEq
+      dsimp only [readSetup,messagesFromSetup,setupLayer]
       apply Prod.ext
-      · have message := congrArg (fun setup =>
-          (messagesFromSetup (.layer assertions body rest)
-            (setup,(readSetup (CompleteTranscript.reader side field decode nonzero base H)
-              tail ids.2 payload.2 replay.state true).1) payload).1) head
-        simpa only [first,CompleteTranscript.reader,messagesFromSetup,replayStart,replayOffset,FrontendReplay.hasLayers,
-          FrontendReplay.readFrom,Bool.not_true,Bool.and_false,Bool.false_eq_true,↓reduceIte,
-          linearPlan,Nat.zero_add] using message
-      · cases h : FrontendReplay.hasLayers rest with
-        | false =>
-            simp only [replayStart,replayOffset,h,Bool.not_false,Bool.true_and,↓reduceIte] at tailEq
-            rw [rankNamed,show state.rank.val+mid+3-1 = state.rank.val+mid+2 by omega] at tailEq
-            simpa only [first,replay,CompleteTranscript.reader,replayStart,replayOffset,FrontendReplay.hasLayers,FrontendReplay.readFrom,h,
-              Bool.not_true,Bool.and_false,Bool.false_eq_true,↓reduceIte] using tailEq
-        | true =>
-            simp only [replayStart,replayOffset,h,Bool.not_true,Bool.and_false,Bool.false_eq_true,↓reduceIte] at tailEq
-            rw [rankNamed] at tailEq
-            simpa only [first,replay,CompleteTranscript.reader,replayStart,replayOffset,FrontendReplay.hasLayers,FrontendReplay.readFrom,h,
-              Bool.not_true,Bool.and_false,Bool.false_eq_true,↓reduceIte] using tailEq
+      · have hp := layer.2.1
+        have hsc := layer.2.2.1
+        have ha := layer.2.2.2
+        simp only [opened] at hp hsc ha openRank openCoefficients
+        rw [openRank] at hp hsc ha
+        rw [show (if continuing then state.rank.val-1 else state.rank.val)+1+mid+1 =
+          (if continuing then state.rank.val-1 else state.rank.val)+mid+2 by omega] at ha
+        simp only [openCoefficients,replayStart,replayOffset,FrontendReplay.readFrom,linearPlan,hp,hsc,ha]
+      · exact tailEq
   | @entryLayer out next mid input checks assertions entries entry body rest metadata tail ih =>
-      let first := CompleteTranscript.step base H state
-      let replay := readLayer (CompleteTranscript.reader side field decode nonzero base H).toReader first.2 payload.1
-      have headFits : state.rank.val+mid+3 ≤ g.roles.length := by
-        simp only [Frontend.ScheduleLength.circuitFuel] at fits
-        omega
-      have rank := head_rank side field base H decode nonzero state payload.1 headFits
-      have rankNamed : replay.state.rank.val = state.rank.val+mid+3 := rank
-      have tailFits : replay.state.rank.val+Frontend.ScheduleLength.circuitFuel tail true ≤ g.roles.length := by
-        rw [rank]
-        simp only [Frontend.ScheduleLength.circuitFuel] at fits
-        omega
+      let opened := inputCoefficients (CompleteTranscript.reader side field decode nonzero base H)
+        continuing state (checks+assertions)
+      let replay := readLayer (CompleteTranscript.reader side field decode nonzero base H).toReader opened.2 payload.1
+      have fuel : Frontend.ScheduleLength.circuitFuel (.entryLayer entries entry metadata tail) continuing =
+          Frontend.ScheduleLength.circuitFuel tail true+(2+mid)+(if continuing then 0 else 1) := rfl
       have through := (readSetup_extends base H side field decode nonzero fallback
         tail ids.2 payload.2 replay.state true).trans extended
-      have firstThrough := (layer_extends side field base H decode nonzero fallback first.2 payload.1).trans through
-      have answer := step_answer_into base H fallback state future (by omega) firstThrough
-      have head := head_setup side field base H decode nonzero fallback (assertions := assertions)
-        state future payload.1 ids.1 checks headFits through
-      have headLast := head_last side field base H decode nonzero fallback state payload.1 headFits
-      have tailEq := ih ids.2 payload.2 replay.state future true (fun _ => headLast)
-        (fun _ => by rw [rank]; omega) tailFits extended
-      dsimp only [readSetup,messagesFromSetup]
+      have layerThrough := (layer_extends side field base H decode nonzero fallback opened.2 payload.1).trans through
+      have facts := open_facts side field base H decode nonzero fallback (checks+assertions) state future continuing
+        last positive (fun h => by rw [fuel, h] at fits; simp at fits; omega) layerThrough
+      obtain ⟨openRank,openLast,openCoefficients,_⟩ := facts
+      have hs : (if continuing then state.rank.val-1 else state.rank.val)+1 =
+          state.rank.val+(if continuing then 0 else 1) := by
+        cases continuing
+        · rfl
+        · have := positive rfl
+          simp only [↓reduceIte]
+          omega
+      have layerFits : opened.2.rank.val+mid+2 ≤ g.roles.length := by
+        rw [openRank]
+        rw [fuel] at fits
+        omega
+      have layer := layer_properties_into side field base H decode nonzero fallback opened.2 future payload.1
+        layerFits through
+      have tailFits : replay.state.rank.val+Frontend.ScheduleLength.circuitFuel tail true ≤ g.roles.length := by
+        rw [layer.1,openRank]
+        rw [fuel] at fits
+        omega
+      have tailEq := ih ids.2 payload.2 replay.state future true
+        (fun _ => layer_last side field base H decode nonzero fallback opened.2 payload.1 openLast)
+        (fun _ => by rw [layer.1]; omega) tailFits extended
+      have replayRank : replay.state.rank.val = (if continuing then state.rank.val-1 else state.rank.val)+mid+3 := by
+        rw [layer.1,openRank]; omega
+      simp only [replayStart,replayOffset,↓reduceIte,replayRank] at tailEq
+      rw [show (if continuing then state.rank.val-1 else state.rank.val)+mid+3-1 =
+        (if continuing then state.rank.val-1 else state.rank.val)+mid+2 by omega] at tailEq
+      dsimp only [readSetup,messagesFromSetup,setupLayer]
       apply Prod.ext
-      · simp only [CompleteTranscript.reader,replayStart,replayOffset,FrontendReplay.hasLayers,
-          FrontendReplay.readFrom,Bool.not_true,Bool.and_false,Bool.false_eq_true,↓reduceIte,
-          answer,Nat.zero_add]
+      · rw [openCoefficients]
+        simp only [replayStart,replayOffset,FrontendReplay.readFrom]
       · apply Prod.ext
-        · have message := congrArg (fun setup =>
-            (messagesFromSetup (.layer assertions body rest)
-              (setup,(readSetup (CompleteTranscript.reader side field decode nonzero base H)
-                tail ids.2 payload.2 replay.state true).1) payload).1) head
-          simpa only [first,CompleteTranscript.reader,messagesFromSetup,replayStart,replayOffset,FrontendReplay.hasLayers,
-            FrontendReplay.readFrom,Bool.not_true,Bool.and_false,Bool.false_eq_true,↓reduceIte,
-            linearPlan,Nat.zero_add] using message
-        · cases h : FrontendReplay.hasLayers rest with
-          | false =>
-              simp only [replayStart,replayOffset,h,Bool.not_false,Bool.true_and,↓reduceIte] at tailEq
-              rw [rankNamed,show state.rank.val+mid+3-1 = state.rank.val+mid+2 by omega] at tailEq
-              simpa only [first,replay,CompleteTranscript.reader,replayStart,replayOffset,FrontendReplay.hasLayers,FrontendReplay.readFrom,h,
-                Bool.not_true,Bool.and_false,Bool.false_eq_true,↓reduceIte] using tailEq
-          | true =>
-              simp only [replayStart,replayOffset,h,Bool.not_true,Bool.and_false,Bool.false_eq_true,↓reduceIte] at tailEq
-              rw [rankNamed] at tailEq
-              simpa only [first,replay,CompleteTranscript.reader,replayStart,replayOffset,FrontendReplay.hasLayers,FrontendReplay.readFrom,h,
-                Bool.not_true,Bool.and_false,Bool.false_eq_true,↓reduceIte] using tailEq
+        · have hp := layer.2.1
+          have hsc := layer.2.2.1
+          have ha := layer.2.2.2
+          simp only [opened] at hp hsc ha openRank openCoefficients
+          rw [openRank] at hp hsc ha
+          rw [show (if continuing then state.rank.val-1 else state.rank.val)+1+mid+1 =
+            (if continuing then state.rank.val-1 else state.rank.val)+mid+2 by omega] at ha
+          simp only [openCoefficients,replayStart,replayOffset,FrontendReplay.readFrom,linearPlan,hp,hsc,ha,
+            Nat.add_assoc]
+        · exact tailEq
 
 theorem readSetup_initial_into {out input : ℕ} {circuit : Layered.Circuit F out input}
     (plan : FrontendSchedule.Plan F circuit) (ids : Layered.Replay.PadPlan (Pad := Pad) circuit)
@@ -196,7 +202,7 @@ theorem readSetup_initial_into {out input : ℕ} {circuit : Layered.Circuit F ou
     messagesFromSetup circuit
       (readSetup (CompleteTranscript.reader side field decode nonzero base H) plan ids payload state false).1 payload =
       FrontendReplay.readFrom decode nonzero circuit ids payload (lookup fallback future) state.rank.val 0 := by
-  simpa only [replayStart,replayOffset,Bool.false_and,Bool.false_eq_true,↓reduceIte] using
+  simpa only [replayStart,replayOffset,Bool.false_eq_true,↓reduceIte] using
     readSetup_into side field base H decode nonzero fallback plan ids payload state future false
       (by simp) (by simp) fits extended
 
@@ -214,9 +220,6 @@ theorem replay_shift {out input : ℕ} (circuit : Layered.Circuit F out input)
       simp only [FrontendReplay.readFrom]
       apply Prod.ext
       · simp only [Nat.add_assoc]
-      · cases h : FrontendReplay.hasLayers rest <;>
-          simpa only [h,Bool.false_eq_true,↓reduceIte,Nat.add_assoc] using
-            ih ids.2 payload.2 (if FrontendReplay.hasLayers rest then start+mid+3 else start+mid+2)
-              (if FrontendReplay.hasLayers rest then 0 else 1)
+      · simpa only [Nat.add_assoc] using ih ids.2 payload.2 (start+mid+2) 1
 
 end LfzkV2.Current.ZeroKnowledge.Frontend.AnswerTape

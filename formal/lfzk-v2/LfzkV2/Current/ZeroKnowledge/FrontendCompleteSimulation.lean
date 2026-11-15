@@ -130,8 +130,7 @@ def primePrefix (state : State binary prime primePlan (Key := Key) (Base := Base
     (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero base H)
     primePlan prime.setup.plan payload state false
   let claim := primeClaim prime (messagesFromSetup prime.circuit read.1 payload)
-  let rescaled := CompleteTranscript.step base H read.2
-  ⟨claim,samples.primeNonzero rescaled.1,rescaled.2⟩
+  ⟨claim,samples.primeNonzero read.2.lastAnswer,read.2⟩
 
 /-- Conversion is completed before masked advice is available to the reader. -/
 def conversionPrefix (native : PrimePrefix binary prime primePlan Key Base C) (mu : P) :

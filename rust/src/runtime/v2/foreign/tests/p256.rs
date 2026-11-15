@@ -140,7 +140,7 @@ fn tree_leaves_authenticate_claim_bits_and_masked_quotients() {
         let inputs = with_leaves(&committed);
         let geometry = sumcheck::circuit_geometry(&[&c]).unwrap();
         let (pads_sc, _) = sumcheck::sample_pads(&geometry, &mut DeterministicRng::new(5), &f);
-        let (proof, claim_sc) = sumcheck::evaluate_and_prove_circuits(
+        let (proof, claim_sc) = sumcheck::top_and_prove(
             &[&c],
             inputs.clone(),
             &pads_sc,
@@ -148,7 +148,7 @@ fn tree_leaves_authenticate_claim_bits_and_masked_quotients() {
             &f,
         )
         .unwrap();
-        let check = sumcheck::derive_constraints_for_circuits(
+        let check = sumcheck::top_and_derive(
             &[&c],
             &proof,
             &mut Transcript::new(b"tree-proof").borrow(),
@@ -169,7 +169,7 @@ fn tree_leaves_authenticate_claim_bits_and_masked_quotients() {
             }
             let mut bad = committed.clone();
             f.add(&mut bad[index], &f.one());
-            assert!(sumcheck::evaluate_and_prove_circuits(
+            assert!(sumcheck::top_and_prove(
                 &[&c],
                 with_leaves(&bad),
                 &pads_sc,

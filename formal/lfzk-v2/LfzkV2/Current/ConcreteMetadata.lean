@@ -127,7 +127,7 @@ def role (ids : FingerprintPrefix.Setup) :
   | .batching => ((ids.hashCircuit,params.binaryContext,⟨g.affineRows .binary,params.binaryRowsFit⟩),
       (ids.primeCircuit,params.primeContext,⟨g.affineRows .prime,params.primeRowsFit⟩))
   | .fingerprint | .inputAssertions .. | .assertions .. | .sumcheck .. |
-      .terminal .. | .combine .. | .rowBatching | .rescaling | .conversion | .opening => ()
+      .terminal .. | .combine .. | .rowBatching | .conversion | .opening => ()
 
 /-- Fixed public metadata plus actual body messages are the only absorbed
 values. Request public inputs are installed separately by `fromRequest`.

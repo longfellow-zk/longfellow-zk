@@ -20,6 +20,9 @@ namespace LfzkV2.Current.Mdoc.Soundness
 open Application ApplicationSetup RuntimeAdaptive Bcs.FiniteProbability Merkle.RandomOracle TranscriptV2
 open scoped Classical
 
+-- The frontend role lists are irrelevant here; unfolding them only slows unification.
+attribute [local irreducible] LfzkV2.Current.Frontend.roles
+
 variable {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
 variable (binary : ConcreteSetup.BinaryCircuit B) (prime : ConcreteSetup.PrimeCircuit)
 variable (cantor : Module.Basis (Fin 128) (ZMod 2) B) (scalars : MdocRuntime.Scalars B)

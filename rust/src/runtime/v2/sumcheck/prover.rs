@@ -46,7 +46,7 @@ use super::{
     fragments::{self, Schedule, SplitFragment},
     split::{split_layers, SplitLayer},
     symbolic::{build_constraints, Constraints, LayerChallenges},
-    transcript::{end_layer, round_challenge},
+    transcript::{end_layer, round_challenge, TopWeights},
 };
 use crate::{
     core::algebra::SerializableField,
@@ -55,11 +55,13 @@ use crate::{
         random::PrivateRandom,
         v2::{
             proto::sumcheck::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
-            transcript::{Reading, TranscriptRef},
+            transcript::{Challenge, Reading, TranscriptRef},
         },
     },
 };
 
+/// Single-circuit convenience for tests: draw the top weights from `t`,
+/// after the caller has bound the circuit statement, then prove.
 #[cfg(test)]
 pub(crate) fn evaluate_and_prove<
     const W: usize,
@@ -71,12 +73,30 @@ pub(crate) fn evaluate_and_prove<
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
-    evaluate_and_prove_circuits(&[circuit], inputs, pads, t, f)
+    top_and_prove(&[circuit], inputs, pads, t, f)
 }
 
-/// The caller binds all circuit statements and shared public inputs first.
-/// Split each circuit once for both evaluation and proving; consume its split
-/// layers and witnesses as the shared schedule advances toward the inputs.
+/// Test convenience: draw the top weights from `t`, after the caller has
+/// bound every circuit statement, then prove.
+#[cfg(test)]
+pub(crate) fn top_and_prove<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
+    circuits: &[impl CircuitSource<F>],
+    inputs: Vec<F::E>,
+    pads: &SumcheckProof<W, F>,
+    t: &mut TranscriptRef<'_>,
+    f: &F,
+) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
+    let top = super::transcript::top_weights(circuits, t, f)?;
+    evaluate_and_prove_circuits(circuits, inputs, pads, top, t, f)
+}
+
+/// The caller binds all circuit statements and shared public inputs, then
+/// draws `top` (`top_weights`). Split each circuit once for both evaluation
+/// and proving; consume its split layers and witnesses as the shared schedule
+/// advances toward the inputs.
 pub(crate) fn evaluate_and_prove_circuits<
     const W: usize,
     F: RuntimeField<W> + SerializableField + SupportsSampling,
@@ -84,6 +104,7 @@ pub(crate) fn evaluate_and_prove_circuits<
     circuits: &[impl CircuitSource<F>],
     inputs: Vec<F::E>,
     pads: &SumcheckProof<W, F>,
+    top: Challenge<TopWeights<F::E>>,
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
@@ -96,15 +117,17 @@ pub(crate) fn evaluate_and_prove_circuits<
     let layers: Vec<_> = circuits.iter().map(|c| split_layers(c, f)).collect();
     let witnesses = super::eval::eval_circuits(inputs, circuits, &layers, &schedule, f)
         .map_err(|e| format!("eval_circuit failed: {e}"))?;
-    prove_split(circuits, layers, witnesses, pads, schedule, t, f)
+    prove_split(circuits, layers, witnesses, pads, schedule, top, t, f)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + SupportsSampling>(
     circuits: &[impl CircuitSource<F>],
     layers: Vec<Vec<SplitLayer<'_>>>,
     witnesses: Vec<Vec<F::E>>,
     pads: &SumcheckProof<W, F>,
     schedule: Schedule,
+    top: Challenge<TopWeights<F::E>>,
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
@@ -113,9 +136,13 @@ fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + Supports
     assert_eq!(layers.len(), circuits.len());
     assert_eq!(witnesses.len(), schedule.layers.len());
     let mut layers: Vec<_> = layers.into_iter().map(Vec::into_iter).collect();
-    schedule.absorb(circuits, t);
+    // Accept the top weights before the first message (transcript I8).
+    let mut entering = schedule.accept_top(top, t)?;
     let mut input_assertions = Vec::new();
     let mut weights = Vec::new();
+    if schedule.layers.is_empty() {
+        weights = std::mem::take(&mut entering.outputs);
+    }
     let mut claim = f.zero();
     let mut proof_layers = Vec::with_capacity(pads.layers.len());
     let mut challenges = Vec::with_capacity(pads.layers.len());
@@ -127,7 +154,12 @@ fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + Supports
             .iter()
             .map(|s| SplitFragment::new(s, layers[s.circuit].next().expect("scheduled fragment")))
             .collect();
-        schedule.start_layer(&mut weights, &mut active, stage, t, f);
+        schedule.enter(
+            stage,
+            std::mem::take(&mut entering),
+            &mut weights,
+            &mut active,
+        );
         // Every fragment accumulates into its slice of one q_l. At the shared
         // input boundary those slices overlap intentionally, combining the gates.
         let mut q = vec![f.zero(); layout.nw];
@@ -146,9 +178,7 @@ fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + Supports
         let constant = fragments::constant(circuits, &weights, &active, f);
         let (proof, mut c, mut next) =
             prove_dot_product(w, q, pp, f.subf(&claim, &constant), t, f, |r| {
-                if stage + 1 == schedule.layers.len() {
-                    input_assertions = schedule.input_assertions(circuits, r, f);
-                }
+                schedule.after_combine(stage, circuits, r, f, &mut entering, &mut input_assertions)
             });
         let (next_weights, linear) = fragments::transition(
             circuits, &weights, &active, layout.nw, &c.point_l, &c.alpha, f,
@@ -161,7 +191,7 @@ fn prove_split<const W: usize, F: RuntimeField<W> + SerializableField + Supports
         proof_layers.push(proof);
         challenges.push(c);
     }
-    schedule.finish_inputs(circuits, &mut weights, input_assertions, t, f);
+    schedule.finish_inputs(&mut weights, input_assertions, f);
     let proof = SumcheckProof {
         layers: proof_layers,
     };

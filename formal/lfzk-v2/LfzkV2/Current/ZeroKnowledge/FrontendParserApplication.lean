@@ -13,6 +13,9 @@ set_option maxRecDepth 4096
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.ParserApplication
 open SumcheckV2 ApplicationSetup ConcreteSetup
 open scoped Classical
+
+-- The frontend role lists are irrelevant here; unfolding them only slows unification.
+attribute [local irreducible] LfzkV2.Current.Frontend.roles
 theorem quotient_bound : 2^10 ≤ Current.Adapter.Mdoc.quotientBound := by decide
 variable {B C : Type} [Field B] [DecidableEq B] [Algebra (ZMod 2) B]
 local notation "P" => Adapter.Mdoc.P
@@ -50,7 +53,7 @@ omit [DecidableEq B] in
 theorem prime_window : (G).primeStart+FrontendReplay.slots prime.circuit ≤ (G).batchingIndex.val := by
   rw [primePlan.slots_eq_roles_length .prime]
   change (G).primeStart+((G).prime.roles .prime).length ≤ _
-  exact (positions binary prime primePlan).1.le
+  exact (positions binary prime primePlan).2.1.le
 
 omit [DecidableEq B] in
 theorem binary_window {out input : ℕ} (circuit : Layered.Circuit B out input)

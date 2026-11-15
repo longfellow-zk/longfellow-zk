@@ -30,7 +30,7 @@ def usedWidth : {out input : ℕ} → (circuit : Layered.Circuit F out input) �
       | .inr (.inl _) => 1
       | .inr (.inr (.inl _)) => 0
       | .inr (.inr (.inr (.inl _))) => 1
-      | .inr (.inr (.inr (.inr role))) => usedWidth rest role (if hasLayers rest then 0 else 1)
+      | .inr (.inr (.inr (.inr role))) => usedWidth rest role 1
 
 theorem sampleAtRole_eq_of_block {out input : ℕ} (circuit : Layered.Circuit F out input)
     (role : LayerRole circuit) (first second : ℕ → C) (start offset : ℕ)
@@ -59,73 +59,69 @@ theorem sampleAtRole_eq_of_block {out input : ℕ} (circuit : Layered.Circuit F 
         exact same 0 (by change 0 < 1; decide)
       · exact ih role _ _ same sameNonzero
 
-omit [Field F] in
-private theorem no_layers_coordinates {out input : ℕ} {circuit : Layered.Circuit F out input}
-    (plan : FrontendSchedule.Plan F circuit) (side : Side) (first : ℕ)
-    (none : hasLayers circuit = false) (role : LayerRole circuit) :
-    FrontendSchedule.coordinates (plan.locatedRole side first role) =
-      (plan.frontend.inputEntries.map Entry.outputs).sum := by
-  cases plan with
-  | input => exact Fin.elim0 role
-  | inputEntry metadata entry =>
-      cases role with
-      | inl _ => rfl
-      | inr role => exact Fin.elim0 role
-  | layer | entryLayer => simp only [hasLayers,Bool.true_eq_false] at none
+/-- The ordinary coordinates of the weights read at a circuit's opening. -/
+def openingWidth (weights : List Entry × List Fragment) : ℕ :=
+  (weights.1.map Entry.outputs).sum +
+    ((weights.2.map Fragment.quadraticAssertions).sum + (weights.2.map Fragment.linearAssertions).sum)
 
 omit [Field F] in
-private theorem layer_width_bound {out mid input assertions : ℕ}
-    {body : LfzkV2.Native.CircuitLayer (Cube out) (Cube mid) (Fin assertions) F}
-    {rest : Layered.Circuit F mid input} (tail : FrontendSchedule.Plan F rest)
-    (metadata : FrontendSchedule.LayerMetadata body) (entering : List Entry)
-    (side : Side) (first offset : ℕ)
-    (ih : ∀ nextOffset role, usedWidth rest role nextOffset ≤
-      FrontendSchedule.coordinates (tail.locatedRole side (first+1) role)+nextOffset)
-    (role : LayerRole (.layer assertions body rest)) :
-    usedWidth (.layer assertions body rest) role (offset+(entering.map Entry.outputs).sum) ≤
-      FrontendSchedule.coordinates (FrontendSchedule.layerLocated side first entering metadata.fragments
-        tail.frontend.inputEntries (tail.locatedRole side (first+1)) role)+offset := by
-  rcases role with i | i | i | i | role
-  · simp only [usedWidth,FrontendSchedule.layerLocated,FrontendSchedule.coordinates,metadata.count]
-    omega
-  · simp only [usedWidth,FrontendSchedule.layerLocated,FrontendSchedule.coordinates]
-    omega
-  · exact Nat.zero_le _
-  · dsimp only [usedWidth,FrontendSchedule.layerLocated]
-    split_ifs <;> simp only [FrontendSchedule.coordinates] <;> omega
-  · dsimp only [usedWidth,FrontendSchedule.layerLocated]
-    split_ifs with layers
-    · exact (ih 0 role).trans (by omega)
-    · have none := Bool.eq_false_iff.mpr layers
-      have bound := ih 1 role
-      rw [no_layers_coordinates tail side (first+1) none role] at bound
-      simpa only [FrontendSchedule.coordinates] using bound.trans (by omega)
+theorem opening_coordinates (frontend : Frontend) (side : Side) :
+    FrontendSchedule.coordinates (frontend.opening side) = openingWidth (frontend.weightsAt 0) := by
+  unfold Frontend.opening Frontend.weightsAt
+  split <;> simp [FrontendSchedule.coordinates, openingWidth]
 
 omit [Field F] in
 /-- The public schedule's width covers every actual coordinate read. This
-is proved from its circuit annotation, including entry/layer and final
-combine/input sharing; it is not a supplied sampler correspondence premise. -/
+is proved from its circuit annotation, including entry/layer sharing and the
+next weights after a combine coefficient; it is not a supplied sampler
+correspondence premise. `head` is the role of the circuit's opening answer,
+whose coordinates follow `offset`. -/
 theorem usedWidth_le {out input : ℕ} {circuit : Layered.Circuit F out input}
-    (plan : FrontendSchedule.Plan F circuit) (side : Side) (first offset : ℕ)
+    (plan : FrontendSchedule.Plan F circuit) (side : Side) (first offset : ℕ) (head : Role)
+    (hhead : offset+openingWidth (plan.frontend.weightsAt 0) ≤ FrontendSchedule.coordinates head)
     (role : LayerRole circuit) : usedWidth circuit role offset ≤
-      FrontendSchedule.coordinates (plan.locatedRole side first role)+offset := by
-  induction plan generalizing first offset with
+      FrontendSchedule.coordinates (plan.locatedRole side first head role) := by
+  induction plan generalizing first offset head with
   | input => exact Fin.elim0 role
   | inputEntry metadata entry =>
       cases role with
-      | inl _ => simp only [usedWidth,FrontendSchedule.Plan.locatedRole,FrontendSchedule.coordinates,metadata.count]; omega
+      | inl _ =>
+          simp only [FrontendSchedule.Plan.frontend, Frontend.weightsAt, List.getElem?_nil, openingWidth,
+            metadata.count, List.map_nil, List.sum_nil] at hhead
+          simp only [usedWidth, FrontendSchedule.Plan.locatedRole]
+          omega
       | inr role => exact Fin.elim0 role
-  | layer metadata tail ih =>
-      simpa only [FrontendSchedule.Plan.locatedRole,List.map_nil,List.sum_nil,Nat.add_zero] using
-        layer_width_bound tail metadata [] side first offset (ih (first+1)) role
-  | entryLayer entries entry metadata tail ih =>
+  | @layer out mid input assertions body rest metadata tail ih =>
+      have hcount : openingWidth ((FrontendSchedule.Plan.frontend (.layer metadata tail)).weightsAt 0) = assertions := by
+        simp [FrontendSchedule.Plan.frontend, Frontend.weightsAt, openingWidth, metadata.count]
+      rw [hcount] at hhead
+      rcases role with i | i | i | i | role
+      · exact hhead
+      · simp only [usedWidth, FrontendSchedule.Plan.locatedRole, FrontendSchedule.layerLocated,
+          FrontendSchedule.coordinates]; omega
+      · exact Nat.zero_le _
+      · simp only [usedWidth, FrontendSchedule.Plan.locatedRole, FrontendSchedule.layerLocated,
+          FrontendSchedule.coordinates]; omega
+      · exact ih (first+1) 1 _ (by simp [FrontendSchedule.Plan.combineRole, FrontendSchedule.coordinates,
+          openingWidth]) role
+  | @entryLayer out next mid input checks assertions entries entry body rest metadata tail ih =>
+      have hcount : openingWidth ((FrontendSchedule.Plan.frontend
+          (.entryLayer entries entry metadata tail)).weightsAt 0) = checks+assertions := by
+        simp [FrontendSchedule.Plan.frontend, Frontend.weightsAt, openingWidth, metadata.count, entries.count]
+      rw [hcount] at hhead
       cases role with
       | inl _ =>
-          simp only [usedWidth,FrontendSchedule.Plan.locatedRole,FrontendSchedule.coordinates,entries.count,metadata.count]
-          omega
+          simp only [usedWidth, FrontendSchedule.Plan.locatedRole]; omega
       | inr role =>
-          simpa only [usedWidth,FrontendSchedule.Plan.locatedRole,entries.count] using
-            layer_width_bound tail metadata entries.entries side first offset (ih (first+1)) role
+          rcases role with i | i | i | i | role
+          · simp only [usedWidth, FrontendSchedule.Plan.locatedRole, FrontendSchedule.layerLocated]; omega
+          · simp only [usedWidth, FrontendSchedule.Plan.locatedRole, FrontendSchedule.layerLocated,
+              FrontendSchedule.coordinates]; omega
+          · exact Nat.zero_le _
+          · simp only [usedWidth, FrontendSchedule.Plan.locatedRole, FrontendSchedule.layerLocated,
+              FrontendSchedule.coordinates]; omega
+          · exact ih (first+1) 1 _ (by simp [FrontendSchedule.Plan.combineRole, FrontendSchedule.coordinates,
+              openingWidth]) role
 
 omit [Field F] in
 private theorem vector_sample {count : ℕ} {first second : Fin count → F}
@@ -163,9 +159,7 @@ theorem readFrom_eq_of_samples {out input : ℕ} (circuit : Layered.Circuit F ou
         exact congrFun (same (.inr (.inl i))) 0
       have scale := same (.inr (.inr (.inl 0)))
       have alpha := congrFun (same (.inr (.inr (.inr (.inl 0))))) 0
-      have tail := ih plan.2 payload.2
-        (if hasLayers rest then start+mid+3 else start+mid+2)
-        (if hasLayers rest then 0 else 1)
+      have tail := ih plan.2 payload.2 (start+mid+2) 1
         (fun role => same (.inr (.inr (.inr (.inr role)))))
       change nonzero (first (start+1+mid)) = nonzero (second (start+1+mid)) at scale
       change decode (first (start+mid+2)) 0 = decode (second (start+mid+2)) 0 at alpha
@@ -230,7 +224,7 @@ theorem current_samples {roles : List Role} {Key Block Link Body : Type}
     (point : Input roles Key Block Link Body) (H : Input roles Key Block Link Body → Link × C)
     (start : ℕ) (left right fallback : C)
     (located : ∀ role, start+queryIndex circuit role 0 = point.rank →
-      point.role = some (shape.locatedRole side 0 role))
+      point.role = some (shape.locatedRole side 0 (shape.frontend.opening side) role))
     (ordinary : ∀ physical, point.role = some physical →
       ∀ i < FrontendSchedule.coordinates physical, decode left i = decode right i)
     (terminal : ∀ physical, point.role = some physical → physical.domain = .terminal →
@@ -243,14 +237,16 @@ theorem current_samples {roles : List Role} {Key Block Link Body : Type}
   apply sampleAtRole_eq_of_block decode nonzero circuit role
   · intro i bound
     by_cases current : start+queryIndex circuit role 0 = point.rank
-    · have width := usedWidth_le shape side 0 0 role
+    · have width := usedWidth_le shape side 0 0 (shape.frontend.opening side)
+        (by rw [opening_coordinates]; omega) role
       have same := ordinary _ (located role current) i (by omega)
       simpa only [Input.answersWith,completeAnswers,current,lt_self_iff_false,
         ↓reduceDIte,↓reduceIte] using same
     · simp only [Input.answersWith,completeAnswers,current,↓reduceIte]
   · intro kind
     by_cases current : start+queryIndex circuit role 0 = point.rank
-    · have domain := shape.locatedRole_domain side 0 role
+    · have domain := shape.locatedRole_domain side 0 (shape.frontend.opening side)
+        (Or.inl (FrontendSchedule.Plan.opening_domain shape.frontend side)) role
       rw [kind] at domain
       have same := terminal _ (located role current) domain
       simpa only [Input.answersWith,completeAnswers,current,lt_self_iff_false,
@@ -263,13 +259,15 @@ private theorem prime_located {g : Geometry} {fields : Fields} {Advice Base Key 
     (shape : FrontendSchedule.Plan F circuit) (geometry : shape.frontend = g.prime)
     (point : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key))
     (role : LayerRole circuit) (current : g.primeStart+queryIndex circuit role 0 = point.rank) :
-    point.role = some (shape.locatedRole .prime 0 role) := by
+    point.role = some (shape.locatedRole .prime 0 (shape.frontend.opening .prime) role) := by
   let index : Fin (g.prime.roles .prime).length := ⟨queryIndex circuit role 0,by
     rw [← geometry]; exact (shape.roleIndex .prime role).isLt⟩
   have indexValue : index.val = queryIndex circuit role 0 := rfl
-  have roleGet : (g.prime.roles .prime).get index = shape.locatedRole .prime 0 role := by
+  have roleGet : (g.prime.roles .prime).get index =
+      shape.locatedRole .prime 0 (shape.frontend.opening .prime) role := by
     have got := shape.frontend_role_get_queryIndex .prime role
-    rw [geometry] at got
+    have roles : shape.frontend.roles .prime = g.prime.roles .prime := by rw [geometry]
+    rw [roles] at got
     exact Option.some.inj ((List.getElem?_eq_getElem index.isLt).symm.trans got)
   cases point with
   | round i history block =>
@@ -291,13 +289,15 @@ private theorem binary_located {g : Geometry} {fields : Fields} {Advice Base Key
     (shape : FrontendSchedule.Plan F circuit) (geometry : shape.frontend = g.binary)
     (point : RuntimeVerifier.Point (g := g) (fields := fields) (Advice := Advice) (Base := Base) (Key := Key))
     (role : LayerRole circuit) (current : g.binaryStart+queryIndex circuit role 0 = point.rank) :
-    point.role = some (shape.locatedRole .binary 0 role) := by
+    point.role = some (shape.locatedRole .binary 0 (shape.frontend.opening .binary) role) := by
   let index : Fin (g.binary.roles .binary).length := ⟨queryIndex circuit role 0,by
     rw [← geometry]; exact (shape.roleIndex .binary role).isLt⟩
   have indexValue : index.val = queryIndex circuit role 0 := rfl
-  have roleGet : (g.binary.roles .binary).get index = shape.locatedRole .binary 0 role := by
+  have roleGet : (g.binary.roles .binary).get index =
+      shape.locatedRole .binary 0 (shape.frontend.opening .binary) role := by
     have got := shape.frontend_role_get_queryIndex .binary role
-    rw [geometry] at got
+    have roles : shape.frontend.roles .binary = g.binary.roles .binary := by rw [geometry]
+    rw [roles] at got
     exact Option.some.inj ((List.getElem?_eq_getElem index.isLt).symm.trans got)
   cases point with
   | round i history block =>
@@ -327,7 +327,7 @@ private theorem frontend_data_answer
     (point : Input roles Key Block Link Body) (H : Input roles Key Block Link Body → Link × C)
     (left right : C)
     (located : ∀ role, data.start+queryIndex data.circuit role 0 = point.rank →
-      point.role = some (shape.locatedRole side 0 role))
+      point.role = some (shape.locatedRole side 0 (shape.frontend.opening side) role))
     (ordinary : ∀ physical, point.role = some physical →
       ∀ i < FrontendSchedule.coordinates physical, data.decode left i = data.decode right i)
     (terminal : ∀ physical, point.role = some physical → physical.domain = .terminal →
@@ -405,17 +405,14 @@ private theorem prime_frontend_normalize
     (side : frontendSide physical = some .prime)
     (fits : StrandRoleSampling.Fits binaryCapacity primeCapacity
       (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) physical))
-    (fallback answer : Answer) (H : Point → Digest × Answer) (link : Digest) :
-    ApplicationViews.frontendCharge S
+    (fallback answer : Answer) (H : Point → Digest × Answer) :
+    ApplicationViews.frontendBad S
       (RuntimeAdaptiveViews.readPrimeView binary prime P R publicCfg S laws hashPublic decodePublic shape capacity)
-      point H (link,StrandSampling.normalize
-        (factor (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) physical) fits) fallback answer) =
-    ApplicationViews.frontendCharge S
+      point H (StrandSampling.normalize
+        (factor (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) physical) fits) fallback answer) ↔
+    ApplicationViews.frontendBad S
       (RuntimeAdaptiveViews.readPrimeView binary prime P R publicCfg S laws hashPublic decodePublic shape capacity)
-      point H (link,answer) := by
-  unfold ApplicationViews.frontendCharge
-  congr 1
-  apply propext
+      point H answer := by
   unfold ApplicationViews.frontendBad RuntimeAdaptiveViews.readPrimeView
   cases hp : RuntimeAdaptiveViews.publics binary prime hashPublic decodePublic point with
   | none => rfl
@@ -520,24 +517,113 @@ private theorem packet_answer {Data : Type}
   | none => rfl
   | some data => exact same data w
 
-private theorem rescaling_charge_normalize (fallback answer : Answer) (point : Point)
-    (H : Point → Digest × Answer) (link : Digest) :
-    roleCharge S laws readers .rescaling point H
-      (link,StrandSampling.normalize (factor .primeNonzero trivial) fallback answer) =
-      roleCharge S laws readers .rescaling point H (link,answer) := by
-  have sample : laws.rescaleDecoder.decode
-      (StrandSampling.normalize (factor .primeNonzero trivial) fallback answer) =
-      laws.rescaleDecoder.decode answer := by
-    rw [laws.rescale_agrees]
-    exact StrandRoleSampling.normalize_primeNonzero B N binary.Original prime.Original RawB RawN (Fin t ↪ Fin n)
-      binaryCapacity primeCapacity fallback answer
-  change RecursivePolygero.indicator (ApplicationViews.rescaleBad S readers.rescaleRead laws.rescaleDecoder
-    point H _) = RecursivePolygero.indicator (ApplicationViews.rescaleBad S readers.rescaleRead laws.rescaleDecoder point H answer)
-  congr 1
-  apply propext
-  exact packet_answer binary prime P R countBinary countPrime binaryCapacity primeCapacity S
-    readers.rescaleRead (fun data w a => data.bad w (laws.rescaleDecoder.decode a)) point H _ _
-    (fun _ _ => by rw [sample])
+/-- At the prime frontend's last boundary the rescaling test reads the
+coordinates its frontend reads there and `eta`, both kept by the physical
+factor. -/
+private theorem rescale_normalize
+    (hashPublic : Key → Option (Fin binary.nPublic → Bool))
+    (decodePublic : Base → Option (Fin prime.nPublic → N))
+    (shape : FrontendSchedule.Plan N prime.circuit) (geometry : shape.frontend = g.prime)
+    (physical : Role) (point : Point) (current : point.role = some physical)
+    (last : point.rank = ApplicationPrefix.rescalingIndex g)
+    (fits : StrandRoleSampling.Fits binaryCapacity primeCapacity
+      (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) physical))
+    (fallback answer : Answer) (H : Point → Digest × Answer) :
+    ApplicationViews.rescaleBad S (RuntimeAdaptiveViews.readRescale binary prime P R publicCfg hashPublic decodePublic)
+      laws.rescaleDecoder point H (StrandSampling.normalize
+        (factor (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) physical) fits) fallback answer) ↔
+    ApplicationViews.rescaleBad S (RuntimeAdaptiveViews.readRescale binary prime P R publicCfg hashPublic decodePublic)
+      laws.rescaleDecoder point H answer := by
+  have hindex : ApplicationPrefix.rescalingIndex g < g.roles.length := by
+    have hlength := g.roles_length
+    have hpos := ApplicationPrefix.prime_roles_pos g
+    simp only [ApplicationPrefix.rescalingIndex,Geometry.primeStart] at *
+    omega
+  have hrole : physical = g.prime.lastRole .prime := by
+    have hr := Input.role_eq_of_rank point ⟨_,hindex⟩ last
+    have hget := RuntimeShape.prime_last_get g
+    rw [List.getElem?_eq_getElem hindex] at hget
+    rw [current] at hr
+    exact (Option.some.inj hr).trans (Option.some.inj hget)
+  have hkind : StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) physical =
+      .primeEta (FrontendSchedule.coordinates physical) := by
+    rw [hrole]
+    rcases Frontend.lastRole_cases .prime g.prime with ⟨_,he⟩ | ⟨_,stage,he⟩ <;> rw [he] <;> rfl
+  have hwidth : FrontendReplay.lastWidth prime.circuit 0 ≤ FrontendSchedule.coordinates physical := by
+    rw [shape.lastWidth_eq 0, hrole, shape.hasLayers_eq, geometry]
+    rcases Frontend.lastRole_cases .prime g.prime with ⟨hs,he⟩ | ⟨hs,stage,he⟩
+    · rw [he]; simp [hs, FrontendSchedule.coordinates]
+    · rw [he]
+      have hne : g.prime.stages.isEmpty = false := List.isEmpty_eq_false_iff.mpr hs
+      simp [hne, FrontendSchedule.coordinates]
+  have hcoords : ∀ i < FrontendReplay.lastWidth prime.circuit 0,
+      (publicCfg).primeDecode (StrandSampling.normalize
+        (factor (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) physical) fits) fallback answer) i =
+      (publicCfg).primeDecode answer i := by
+    intro i hi
+    have hside : frontendSide physical = some .prime := by
+      rw [hrole]
+      rcases Frontend.lastRole_cases .prime g.prime with ⟨_,he⟩ | ⟨_,stage,he⟩ <;> rw [he] <;> rfl
+    exact StrandRoleSampling.normalize_prime_role_read B N binary.Original prime.Original RawB RawN
+      (Fin t ↪ Fin n) binaryCapacity primeCapacity binary.degree (prime.circuit.layers+1)
+      physical fits hside fallback answer i (by omega)
+  have heta : (laws.rescaleDecoder.decode (StrandSampling.normalize
+        (factor (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) physical) fits) fallback answer)).2 =
+      (laws.rescaleDecoder.decode answer).2 := by
+    rw [laws.rescale_agrees,laws.rescale_agrees]
+    exact StrandRoleSampling.normalize_prime_role_eta B N binary.Original prime.Original RawB RawN
+      (Fin t ↪ Fin n) binaryCapacity primeCapacity binary.degree (prime.circuit.layers+1)
+      physical fits hkind fallback answer
+  unfold ApplicationViews.rescaleBad ApplicationViews.packetBad SelectionSource.test
+  apply exists_congr
+  intro w
+  apply and_congr_right
+  intro _
+  unfold RuntimeAdaptiveViews.readRescale
+  cases hp : RuntimeAdaptiveViews.publics binary prime hashPublic decodePublic point with
+  | none => rfl
+  | some values =>
+      dsimp only [Bind.bind,Option.bind]
+      unfold ApplicationViews.readRescalePacket
+      cases hc : ApplicationPrefix.readPrimeCurrent (RuntimeAdaptive.primeWithInputs prime values.2)
+          (publicCfg).primeField (publicCfg).primeDecode (publicCfg).primeNonzero (publicCfg).fallback
+          point (point.priorAnswers H) with
+      | none => rfl
+      | some primeData =>
+          dsimp only [Bind.bind, Option.bind, ApplicationViews.optionBad, RescaleData.bad]
+          rw [heta, ApplicationPrefix.readPrimeCurrent_claim _ _ _ _ _ _ _ primeData hc _ answer hcoords]
+
+/-- A prime frontend boundary's charge, fused with the rescaling test at the
+prime frontend's last boundary, reads only its physical factor. -/
+private theorem prime_charge_normalize
+    (hashPublic : Key → Option (Fin binary.nPublic → Bool))
+    (decodePublic : Base → Option (Fin prime.nPublic → N))
+    (primeShape : FrontendSchedule.Plan N prime.circuit) (primeGeometry : primeShape.frontend = g.prime)
+    (primeFits : primeShape.capacity ≤ laws.primeCapacity)
+    (binaryShape : FrontendSchedule.Plan B binary.circuit) (binaryFits : binaryShape.capacity ≤ laws.binaryCapacity)
+    (physical : Role) (point : Point) (current : point.role = some physical)
+    (side : frontendSide physical = some .prime)
+    (fits : StrandRoleSampling.Fits binaryCapacity primeCapacity
+      (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) physical))
+    (fallback answer : Answer) (H : Point → Digest × Answer) (link : Digest) :
+    let actual := concreteReaders S laws hashPublic decodePublic primeShape primeFits binaryShape binaryFits
+    primeCharge S laws actual point H (link,StrandSampling.normalize
+        (factor (StrandRoleSampling.roleKind binary.degree (prime.circuit.layers+1) physical) fits) fallback answer) =
+      primeCharge S laws actual point H (link,answer) := by
+  dsimp only
+  have hf := prime_frontend_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
+    cfg S laws hashPublic decodePublic primeShape primeGeometry primeFits physical point current side fits
+    fallback answer H
+  by_cases hlast : LastPrime (concreteReaders S laws hashPublic decodePublic primeShape primeFits binaryShape binaryFits) point H
+  · rw [primeCharge_last _ _ _ _ _ _ hlast, primeCharge_last _ _ _ _ _ _ hlast]
+    have hr := rescale_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
+      cfg S laws hashPublic decodePublic primeShape primeGeometry physical point current hlast.1 fits fallback answer H
+    congr 1
+    exact propext (or_congr hf hr)
+  · rw [primeCharge_other _ _ _ _ _ _ hlast, primeCharge_other _ _ _ _ _ _ hlast]
+    unfold ApplicationViews.frontendCharge
+    congr 1
+    exact propext hf
 
 private theorem conversion_charge_normalize (fallback answer : Answer) (point : Point)
     (H : Point → Digest × Answer) (link : Digest) :
@@ -604,8 +690,8 @@ theorem application_role_normalize
   dsimp only
   have hb := binary_frontend_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
     cfg S laws hashPublic decodePublic binaryShape binaryGeometry binaryFits
-  have hn := prime_frontend_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
-    cfg S laws hashPublic decodePublic primeShape primeGeometry primeFits
+  have hn := prime_charge_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
+    cfg S laws hashPublic decodePublic primeShape primeGeometry primeFits binaryShape binaryFits
   cases role with
   | fingerprint =>
       exact fingerprint_charge_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
@@ -626,13 +712,10 @@ theorem application_role_normalize
       cases side with
       | binary => exact hb _ point current rfl fits fallback answer H link
       | prime => exact hn _ point current rfl fits fallback answer H link
-  | combine side stage entries =>
+  | combine side stage entries fragments last =>
       cases side with
       | binary => exact hb _ point current rfl fits fallback answer H link
       | prime => exact hn _ point current rfl fits fallback answer H link
-  | rescaling =>
-      exact rescaling_charge_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
-        cfg S laws _ fallback answer point H link
   | conversion =>
       exact conversion_charge_normalize binary prime P R countBinary countPrime binaryCapacity primeCapacity
         cfg S laws _ fallback answer point H link

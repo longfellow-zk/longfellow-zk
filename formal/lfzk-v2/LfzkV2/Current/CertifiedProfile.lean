@@ -167,10 +167,10 @@ theorem round_budget_le {B : Type} [Fintype B]
   | terminal side stage =>
       cases side <;> norm_num [ApplicationCharging.roundBudget, hB,
         Adapter.Mdoc.binaryOrder, Adapter.Mdoc.primeOrder]
-  | combine side stage entries =>
+  | combine side stage entries fragments last =>
       cases side <;> norm_num [ApplicationCharging.roundBudget, hB,
         Adapter.Mdoc.binaryOrder, Adapter.Mdoc.primeOrder]
-  | rowBatching | rescaling | packing | batching | opening =>
+  | rowBatching | packing | batching | opening =>
       norm_num [ApplicationCharging.roundBudget, hB,
         Adapter.Mdoc.binaryOrder, Adapter.Mdoc.primeOrder]
   | conversion =>

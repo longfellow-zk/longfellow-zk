@@ -14,15 +14,21 @@
 
 //! Bind the public statement and masked messages, then sample sumcheck challenges.
 //!
-//! The caller binds every trusted circuit ID and the shared public inputs.
+//! The caller binds every trusted circuit ID and the shared public inputs,
+//! then draws the top weights (`top_weights`) and hands them to the sumcheck.
 //! The shared schedule treats zero outputs as assertions where they enter,
-//! including scalar outputs. Each layer samples all its assertion
-//! coefficients before any rounds; each round absorbs both masked coefficients
-//! before sampling z. Bind the cross coefficient before sampling nonzero r,
-//! then `end_layer` absorbs the two masked virtual-circuit factors before sampling
-//! alpha, which combines them into one next-layer claim.
+//! including scalar outputs. Each layer has all its assertion coefficients
+//! before any rounds; each round absorbs both masked coefficients before
+//! sampling z. Bind the cross coefficient before sampling nonzero r, then
+//! `end_layer` absorbs the two masked virtual-circuit factors before sampling
+//! alpha, which combines them into one next-layer claim. The same answer then
+//! supplies the next stage's coefficients, or the input assertions after the
+//! last stage; no stage after the top opens a boundary of its own.
 
-use super::{circuit::CircuitSource, fragments::SplitFragment};
+use super::{
+    circuit::CircuitSource,
+    fragments::{Schedule, SplitFragment},
+};
 use crate::{
     core::{
         algebra::{ElementOf, SerializableField},
@@ -32,7 +38,7 @@ use crate::{
         algebra::{blas, RuntimeField, SupportsSampling},
         v2::{
             proto::{sumcheck::RoundPoly, RoundLabel},
-            transcript::{Reading, TranscriptRef},
+            transcript::{Challenge, Reading, TranscriptRef},
         },
     },
 };
@@ -106,7 +112,7 @@ pub(super) fn end_layer<
     claims: &[F::E; 2],
     transcript: &mut TranscriptRef<'_>,
     f: &F,
-    after_alpha: impl FnOnce(&mut crate::runtime::v2::transcript::Reading<'_>),
+    after_alpha: impl FnOnce(&mut Reading<'_>),
 ) -> F::E {
     transcript.round(RoundLabel::Combine, |mut w| {
         w.write_elt_field_slice(claims, f);
@@ -138,7 +144,70 @@ pub(super) fn terminal_challenge<F: SerializableField + SupportsSampling>(
     })
 }
 
-impl super::fragments::Schedule {
+/// The coefficients a stage draws as it enters: one per circuit output that
+/// enters at this stage, then each fragment's assertion coefficients. A
+/// frontend with no layers instead draws its input assertions as `outputs`.
+pub(super) struct StageWeights<E> {
+    pub outputs: Vec<E>,
+    pub assertions: Vec<Vec<E>>,
+}
+impl<E> Default for StageWeights<E> {
+    fn default() -> Self {
+        Self {
+            outputs: Vec::new(),
+            assertions: Vec::new(),
+        }
+    }
+}
+
+/// A sumcheck's first weights: the entering outputs and assertion
+/// coefficients of its top stage, or the input assertions of a frontend with
+/// no layers. The caller draws them before the sumcheck's first message and
+/// hands them in as a `Challenge` (transcript I8); only `top_weights` builds
+/// them.
+pub struct TopWeights<E>(StageWeights<E>);
+impl<E> TopWeights<E> {
+    /// The output weights of the top stage, or the input weights of a
+    /// frontend with no layers.
+    pub fn outputs(&self) -> &[E] {
+        &self.0.outputs
+    }
+    /// Each top-stage fragment's assertion coefficients, quadratic then
+    /// linear; empty for a frontend with no layers.
+    pub fn assertions(&self) -> &[Vec<E>] {
+        &self.0.assertions
+    }
+}
+
+/// Bind the circuit list, then draw the top weights from a fresh boundary:
+/// the round writes the stage index zero, so the boundary keeps its earlier
+/// encoding. The caller has bound every circuit statement first.
+pub(crate) fn top_weights<
+    const W: usize,
+    F: RuntimeField<W> + SerializableField + SupportsSampling,
+>(
+    circuits: &[impl CircuitSource<F>],
+    t: &mut TranscriptRef<'_>,
+    f: &F,
+) -> Result<Challenge<TopWeights<F::E>>, String> {
+    let schedule = Schedule::new(circuits)?;
+    schedule.absorb(circuits, t);
+    Ok(t.challenge(RoundLabel::Assertions, |mut w| {
+        w.write_bytes(&0u64.to_le_bytes());
+        let mut r = w.begin_squeeze();
+        let top = if schedule.layers.is_empty() {
+            StageWeights {
+                outputs: schedule.input_assertions(circuits, &mut r, f),
+                assertions: Vec::new(),
+            }
+        } else {
+            schedule.draw_stage(0, &mut r, f)
+        };
+        r.end_round(TopWeights(top))
+    }))
+}
+
+impl Schedule {
     pub(super) fn absorb<F: SerializableField>(
         &self,
         circuits: &[impl CircuitSource<F>],
@@ -155,33 +224,106 @@ impl super::fragments::Schedule {
             });
         }
     }
-    /// Circuit outputs are zero assertions at the layer where they enter.
-    /// Draw their coefficients and all explicit assertion coefficients from
-    /// this one answer, after the preceding layer's claims have been bound.
-    pub(super) fn start_layer<
+    /// Accept the caller's top weights before the first message, checking
+    /// that they were drawn for this schedule.
+    pub(super) fn accept_top<E>(
+        &self,
+        top: Challenge<TopWeights<E>>,
+        t: &TranscriptRef<'_>,
+    ) -> Result<StageWeights<E>, String> {
+        let TopWeights(drawn) = t.accept(top).map_err(|e| e.to_string())?;
+        let shape = match self.layers.first() {
+            Some(layout) => {
+                drawn.outputs.len() == layout.output_assertions
+                    && drawn.assertions.len() == layout.fragments.len()
+                    && drawn
+                        .assertions
+                        .iter()
+                        .zip(&layout.fragments)
+                        .all(|(a, s)| a.len() == s.assertions.iter().sum::<usize>())
+            }
+            None => drawn.outputs.len() == self.ninput && drawn.assertions.is_empty(),
+        };
+        if shape {
+            Ok(drawn)
+        } else {
+            Err("top weights drawn for another circuit list".into())
+        }
+    }
+    /// Draw a stage's entering-output coefficients, then its explicit
+    /// assertion coefficients: quadratic markers across all fragments, then
+    /// linear markers, matching a physically concatenated quad stream. Stage
+    /// zero reads them from its own boundary; every later stage reads them
+    /// from the preceding stage's combine answer, after alpha.
+    pub(super) fn draw_stage<
         const W: usize,
         F: RuntimeField<W> + SerializableField + SupportsSampling,
     >(
         &self,
-        weights: &mut Vec<F::E>,
-        active: &mut [SplitFragment<'_, F::E>],
         stage: usize,
-        t: &mut TranscriptRef<'_>,
+        r: &mut Reading<'_>,
         f: &F,
+    ) -> StageWeights<F::E> {
+        let layout = &self.layers[stage];
+        let outputs = (0..layout.output_assertions)
+            .map(|_| r.elt_field(f))
+            .collect();
+        let mut assertions: Vec<Vec<_>> = layout
+            .fragments
+            .iter()
+            .map(|s| Vec::with_capacity(s.assertions.iter().sum()))
+            .collect();
+        for kind in 0..2 {
+            for (a, s) in assertions.iter_mut().zip(&layout.fragments) {
+                a.extend((0..s.assertions[kind]).map(|_| r.elt_field(f)));
+            }
+        }
+        StageWeights {
+            outputs,
+            assertions,
+        }
+    }
+    /// Circuit outputs are zero assertions at the stage where they enter:
+    /// extend the carried weights with their coefficients and give each
+    /// fragment its assertion coefficients.
+    pub(super) fn enter<E>(
+        &self,
+        stage: usize,
+        drawn: StageWeights<E>,
+        weights: &mut Vec<E>,
+        active: &mut [SplitFragment<'_, E>],
     ) {
         let layout = &self.layers[stage];
         assert_eq!(weights.len(), layout.nv - layout.output_assertions);
-        t.round(RoundLabel::Assertions, |mut w| {
-            w.write_bytes(&(stage as u64).to_le_bytes());
-            let mut r = w.begin_squeeze();
-            weights.extend((0..layout.output_assertions).map(|_| r.elt_field(f)));
-            assertion_weights(active, &mut r, f);
-            r.end_round(())
-        });
+        weights.extend(drawn.outputs);
+        assert_eq!(drawn.assertions.len(), active.len());
+        for (a, w) in active.iter_mut().zip(drawn.assertions) {
+            a.assertions = w;
+        }
+    }
+    /// Extend stage `stage`'s combine answer after alpha: the next stage's
+    /// weights, or the input assertions after the last stage.
+    pub(super) fn after_combine<
+        const W: usize,
+        F: RuntimeField<W> + SerializableField + SupportsSampling,
+    >(
+        &self,
+        stage: usize,
+        circuits: &[impl CircuitSource<F>],
+        r: &mut Reading<'_>,
+        f: &F,
+        next: &mut StageWeights<F::E>,
+        input_assertions: &mut Vec<F::E>,
+    ) {
+        if stage + 1 == self.layers.len() {
+            *input_assertions = self.input_assertions(circuits, r, f);
+        } else {
+            *next = self.draw_stage(stage + 1, r, f);
+        }
     }
     /// Zero-layer circuits assert directly on the common input array. For a
     /// layered proof these coefficients extend the last combine answer, after
-    /// both masked claims. No extra boundary or future coefficient is needed.
+    /// both masked claims; with no layers they are the top weights.
     pub(super) fn input_assertions<
         const W: usize,
         F: RuntimeField<W> + SerializableField + SupportsSampling,
@@ -205,49 +347,17 @@ impl super::fragments::Schedule {
         }
         weights
     }
-    /// A proof with no layers still needs one fresh assertion block on its
-    /// inputs. Otherwise the input assertions already share the last combine.
-    pub(super) fn finish_inputs<
-        const W: usize,
-        F: RuntimeField<W> + SerializableField + SupportsSampling,
-    >(
+    /// Add the last combine's input assertions to the final input weights.
+    /// With no layers the top weights already are the input weights.
+    pub(super) fn finish_inputs<const W: usize, F: RuntimeField<W> + SerializableField>(
         &self,
-        circuits: &[impl CircuitSource<F>],
-        weights: &mut Vec<F::E>,
+        weights: &mut [F::E],
         input_assertions: Vec<F::E>,
-        t: &mut TranscriptRef<'_>,
         f: &F,
     ) {
-        if self.layers.is_empty() {
-            *weights = t.round(RoundLabel::Assertions, |mut w| {
-                w.write_bytes(&0u64.to_le_bytes());
-                let mut r = w.begin_squeeze();
-                let a = self.input_assertions(circuits, &mut r, f);
-                r.end_round(a)
-            });
-        } else if !input_assertions.is_empty() {
+        if !input_assertions.is_empty() {
             blas::add(weights, &input_assertions, f);
         }
         assert_eq!(weights.len(), self.ninput);
-    }
-}
-
-/// Read quadratic markers across all fragments, then linear markers, matching
-/// a physically concatenated quad stream. The layer's entering outputs have
-/// already been read from this same answer. Local slices serve only the sparse
-/// contractions; neither a fragment nor a marker class starts another round.
-pub(super) fn assertion_weights<
-    const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
->(
-    active: &mut [SplitFragment<'_, F::E>],
-    r: &mut Reading<'_>,
-    f: &F,
-) {
-    for kind in 0..2 {
-        for a in active.iter_mut() {
-            a.assertions
-                .extend((0..a.layer.assertion_counts()[kind]).map(|_| r.elt_field(f)));
-        }
     }
 }

@@ -31,19 +31,28 @@ structure BatchSamples (g : Geometry) (F : Fields) (side : Side) where
 value. Treating their opening sets as independent would give the wrong bound. -/
 abbrev OpeningSamples (g : Geometry) := Fin g.openings ↪ Fin g.columns
 
+/-- Weights read after alpha by a combine answer: entering outputs, then quadratic
+and linear assertions of the next stage (or the input entries at the last stage). -/
+abbrev WeightSamples (F : Type) (entries : List Entry) (fragments : List Fragment) :=
+  (Fin ((entries.map (·.outputs)).sum) → F) ×
+    (Fin ((fragments.map (·.quadraticAssertions)).sum +
+      (fragments.map (·.linearAssertions)).sum) → F)
+
+/-- The prime frontend's last boundary also reads the split's nonzero `eta`. -/
 abbrev Samples (g : Geometry) (F : Fields) [∀ side, Zero (F side)] : Role → Type
   | .fingerprint => FingerprintCoins g F
-  | .inputAssertions side entries => Fin ((entries.map (·.outputs)).sum) → F side
-  | .assertions side _ entries fragments =>
-      (Fin ((entries.map (·.outputs)).sum) → F side) ×
-        (Fin ((fragments.map (·.quadraticAssertions)).sum +
-          (fragments.map (·.linearAssertions)).sum) → F side)
+  | .inputAssertions .binary entries => Fin ((entries.map (·.outputs)).sum) → F .binary
+  | .inputAssertions .prime entries =>
+      (Fin ((entries.map (·.outputs)).sum) → F .prime) × {x : F .prime // x ≠ 0}
+  | .assertions side _ entries fragments => WeightSamples (F side) entries fragments
   | .sumcheck side .. => F side
   | .terminal side .. => {x : F side // x ≠ 0}
-  | .combine side _ entries => F side × (Fin ((entries.map (·.outputs)).sum) → F side)
+  | .combine .binary _ entries fragments _ => F .binary × WeightSamples (F .binary) entries fragments
+  | .combine .prime _ entries fragments false => F .prime × WeightSamples (F .prime) entries fragments
+  | .combine .prime _ entries fragments true =>
+      (F .prime × WeightSamples (F .prime) entries fragments) × {x : F .prime // x ≠ 0}
   -- Pure-foreign storage only; absent from the mdoc schedule.
   | .rowBatching => Fin (g.prime.stages.length + 1) → F .prime
-  | .rescaling => {x : F .prime // x ≠ 0}
   | .conversion => Fin 2 → {x : F .prime // x ≠ 0}
   | .packing => Fin g.packingDegree → F .binary
   | .batching => BatchSamples g F .binary × BatchSamples g F .prime
