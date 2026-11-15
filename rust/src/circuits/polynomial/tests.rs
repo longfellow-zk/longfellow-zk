@@ -68,10 +68,8 @@ fn test_polynomial_evaluation_generic<
         let pt_wire = iologic.konst(&pt);
         let want = eval_monomial(f, &poly, &pt);
         let got = p.eval(&poly_wires, &pt_wire);
-        let goth = p.eval_horner(&poly_wires, &pt_wire);
 
         assert_eq!(want, got.value, "Mismatch at standard eval for k = {k}");
-        assert_eq!(want, goth.value, "Mismatch at horner eval for k = {k}");
     }
 }
 

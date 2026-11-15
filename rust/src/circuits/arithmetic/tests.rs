@@ -24,7 +24,6 @@ use crate::{
         logic::{AssertionScope, Eltw, EvalLogic, Logic, K_FIRST_WIRE_POSITION},
     },
     core::algebra::SerializableField,
-    util::array::init,
 };
 
 fn compile_and_dump_add<F: CompileField + SerializableField>(f: &F, name: &str) {
@@ -268,26 +267,6 @@ where Eltw<L>: PartialEq + std::fmt::Debug {
     assert_eq!(boolean.as_eltw(&res_false), logic.zero());
 }
 
-fn test_exactly_one_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
-    let boolean = Boolean::new(logic);
-    let arithmetic = Arithmetic::new(logic);
-    for len in 1..=6 {
-        let n_combinations = 1 << len;
-        for mask in 0..n_combinations {
-            let inputs: Vec<_> = init(len, |i| boolean.konst(((mask >> i) & 1) == 1));
-            let popcount = (0..len).filter(|i| ((mask >> i) & 1) == 1).count();
-
-            let assertion = arithmetic.assert_exactly_one(&inputs);
-
-            if popcount == 1 {
-                assert!(assertion.is_ok());
-            } else {
-                assert!(assertion.is_err());
-            }
-        }
-    }
-}
-
 fn test_empty_vectors_relations_for_logic<L: Logic>(logic: &L)
 where Eltw<L>: PartialEq + std::fmt::Debug {
     let boolean = Boolean::new(logic);
@@ -319,7 +298,6 @@ fn test_arithmetic_evaluation() {
     test_lt_eval_for_logic(&l_prime);
     test_leq_eval_for_logic(&l_prime);
     test_eq_eval_for_logic(&l_prime);
-    test_exactly_one_for_logic(&l_prime);
     test_empty_vectors_relations_for_logic(&l_prime);
 
     let f_bin = Gf2_128Field::new();
@@ -331,7 +309,6 @@ fn test_arithmetic_evaluation() {
     test_lt_eval_for_logic(&l_binary);
     test_leq_eval_for_logic(&l_binary);
     test_eq_eval_for_logic(&l_binary);
-    test_exactly_one_for_logic(&l_binary);
     test_empty_vectors_relations_for_logic(&l_binary);
 }
 

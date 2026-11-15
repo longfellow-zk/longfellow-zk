@@ -359,11 +359,6 @@ mod imp {
             self.logic.mul(&self.as_eltw(b), e)
         }
 
-        pub fn muxe(&self, b: &Bitw<L>, iftrue: &Eltw<L>, iffalse: &Eltw<L>) -> Eltw<L> {
-            self.logic
-                .sum(&[self.mulbe(b, iftrue), self.mulbe(&self.notb(b), iffalse)])
-        }
-
         pub fn one_hot_muxe(
             &self,
             selector: &[Bitw<L>],

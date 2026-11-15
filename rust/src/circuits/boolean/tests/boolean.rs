@@ -172,35 +172,6 @@ fn test_boolean() {
     test_boolean_for_logic(&l_bin);
 }
 
-#[test]
-fn test_muxe_binary() {
-    let field = Gf2_128Field::new();
-    let tracker = AssertionScope::new();
-    let l = LBinary::new(&field, &tracker);
-    run_test_muxe(&l);
-}
-
-fn run_test_muxe<F: CompileField + SupportsU64Conversions>(logic: &EvalLogic<'_, F>) {
-    let boolean = Boolean::new(logic);
-    let field = logic.field();
-    let bools = [false, true];
-    for &a in &bools {
-        let b = field.u64_to_element(3_u64);
-        let c = field.u64_to_element(4_u64);
-        let want = if a { b.clone() } else { c.clone() };
-        let got = boolean.muxe(&boolean.konst(a), &logic.konst(&b), &logic.konst(&c));
-        assert_eq!(got.value, want);
-    }
-}
-
-#[test]
-fn test_muxe() {
-    let field = new_f65537_field();
-    let tracker = AssertionScope::new();
-    let l = LPrime::new(&field, &tracker);
-    run_test_muxe(&l);
-}
-
 fn run_test_of_eltw<F: CompileField + SupportsU64Conversions>(logic: &EvalLogic<'_, F>) {
     let boolean = Boolean::new(logic);
     let field = logic.field();

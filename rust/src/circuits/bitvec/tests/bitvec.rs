@@ -18,30 +18,11 @@ use crate::{
         boolean::Boolean,
     },
     compile::{
-        algebra::p256::P256Field,
-        compiler::dump_stats,
         debug::evaluate::eval_circuit_fc,
         logic::{AssertionScope, K_FIRST_WIRE_POSITION},
     },
     core::proto::v2::evaluate::initial_inputs,
 };
-
-#[test]
-fn test_compile_bitvec() {
-    let f = P256Field::new();
-    let (circuit, stats, _symbols) = super::compile(&f, |iologic| {
-        let bv = BitvecLogic::new(&iologic);
-        let bitvec_io = BitvecIO::new(&bv);
-
-        let mut pos = K_FIRST_WIRE_POSITION;
-        let a: Bitvec<_, 8> = bitvec_io.next(&mut pos);
-        let b: Bitvec<_, 8> = bitvec_io.next(&mut pos);
-
-        let (sum, _carry) = bv.unchecked_add(&a, &b);
-        (bv.assert_false("sum_zero", &sum), 1, 0)
-    });
-    dump_stats("bitvec_add_compile", &circuit, &stats);
-}
 
 #[test]
 fn test_compile_bitvec_leq() {
@@ -175,60 +156,6 @@ fn bvcompare<L: Logic, const K: usize>(
     }
 }
 
-fn arithmetic<L: Logic>(
-    bv: &BitvecLogic<L>,
-    boolean: &Boolean<L>,
-    op: &dyn Fn(&Bitvec<L, BIT_WIDTH>, &Bitvec<L, BIT_WIDTH>) -> (Bitvec<L, BIT_WIDTH>, Bitw<L>),
-    ref_op: &dyn Fn(i64, i64) -> i64,
-    a: i64,
-    b: i64,
-) where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
-    let c = ref_op(a, b);
-    let want_arr: Vec<Bitw<L>> = (0..=BIT_WIDTH).map(|i| bitw(boolean, c, i)).collect();
-    let aa = mkbv(bv, boolean, a);
-    let bb = mkbv(bv, boolean, b);
-    let (got, carry) = op(&aa, &bb);
-
-    for (i, want_bit) in want_arr.iter().enumerate().take(BIT_WIDTH) {
-        compare(boolean, want_bit, got.bit(i));
-    }
-    compare(boolean, &want_arr[BIT_WIDTH], &carry);
-}
-
-fn unary<L: Logic>(
-    bv: &BitvecLogic<L>,
-    boolean: &Boolean<L>,
-    op: &dyn Fn(&Bitvec<L, BIT_WIDTH>) -> Bitvec<L, BIT_WIDTH>,
-    ref_op: &dyn Fn(i64) -> i64,
-    a: i64,
-) where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
-    let want = mkbv(bv, boolean, ref_op(a));
-    let aa = mkbv(bv, boolean, a);
-    let got = op(&aa);
-    bvcompare(boolean, &want, &got);
-}
-
-fn binary<L: Logic>(
-    bv: &BitvecLogic<L>,
-    boolean: &Boolean<L>,
-    op: &dyn Fn(&Bitvec<L, BIT_WIDTH>, &Bitvec<L, BIT_WIDTH>) -> Bitvec<L, BIT_WIDTH>,
-    ref_op: &dyn Fn(i64, i64) -> i64,
-    a: i64,
-    b: i64,
-) where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
-    let want = mkbv(bv, boolean, ref_op(a, b));
-    let aa = mkbv(bv, boolean, a);
-    let bb = mkbv(bv, boolean, b);
-    let got = op(&aa, &bb);
-    bvcompare(boolean, &want, &got);
-}
-
 fn relation<L: Logic>(
     bv: &BitvecLogic<L>,
     boolean: &Boolean<L>,
@@ -246,75 +173,16 @@ fn relation<L: Logic>(
     compare(boolean, &want, &got);
 }
 
-fn reduction<L: Logic>(
-    bv: &BitvecLogic<L>,
-    boolean: &Boolean<L>,
-    op: &dyn Fn(&Bitvec<L, BIT_WIDTH>) -> Bitw<L>,
-    ref_op: &dyn Fn(i64) -> bool,
-    a: i64,
-) where
-    Eltw<L>: PartialEq + std::fmt::Debug,
-{
-    let want = boolean.konst(ref_op(a));
-    let aa = mkbv(bv, boolean, a);
-    let got = op(&aa);
-    compare(boolean, &want, &got);
-}
-
 fn test_bitvec_for_logic<F: CompileField>(logic: &EvalLogic<F>) {
     let bv = BitvecLogic::new(logic);
     let boolean = Boolean::new(logic);
     let n = 1 << BIT_WIDTH;
     for a in 0..n {
-        unary(&bv, &boolean, &|x| bv.notb(x), &|x| !x, a);
-        reduction(
-            &bv,
-            &boolean,
-            &|x| bv.all(x, &|e| boolean.notb(e)),
-            &|x| x == 0,
-            a,
-        );
-        reduction(
-            &bv,
-            &boolean,
-            &|x| bv.any(x, &|e| boolean.b(e)),
-            &|x| x != 0,
-            a,
-        );
-
         for b in 0..n {
-            arithmetic(
-                &bv,
-                &boolean,
-                &|x, y| {
-                    let (sum, carry) = bv.unchecked_add(x, y);
-                    (sum, carry)
-                },
-                &|x, y| x + y,
-                a,
-                b,
-            );
-            arithmetic(
-                &bv,
-                &boolean,
-                &|x, y| {
-                    let (diff, borrow) = bv.unchecked_sub(x, y);
-                    (diff, borrow)
-                },
-                &|x, y| x - y,
-                a,
-                b,
-            );
-
-            binary(&bv, &boolean, &|x, y| bv.andb(x, y), &|x, y| x & y, a, b);
-            binary(&bv, &boolean, &|x, y| bv.orb(x, y), &|x, y| x | y, a, b);
-            binary(&bv, &boolean, &|x, y| bv.xorb(x, y), &|x, y| x ^ y, a, b);
-
             relation(&bv, &boolean, &|x, y| bv.eqb(x, y), &|x, y| x == y, a, b);
             relation(&bv, &boolean, &|x, y| bv.lt(x, y), &|x, y| x < y, a, b);
             relation(&bv, &boolean, &|x, y| bv.leq(x, y), &|x, y| x <= y, a, b);
             relation(&bv, &boolean, &|x, y| bv.gt(x, y), &|x, y| x > y, a, b);
-            relation(&bv, &boolean, &|x, y| bv.geq(x, y), &|x, y| x >= y, a, b);
         }
     }
 }
@@ -329,31 +197,6 @@ fn test_bitvec() {
     let tracker_bin = AssertionScope::new();
     let l_bin = LBinary::new(&field_bin, &tracker_bin);
     test_bitvec_for_logic(&l_bin);
-}
-
-fn test_assert_wrapping_add_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
-    let bv = BitvecLogic::new(logic);
-    let boolean = Boolean::new(logic);
-    let w = 4;
-    let n = 1 << w;
-    for a in 0..n {
-        for b in 0..n {
-            for c in 0..n {
-                let want = (a + b) & (n - 1);
-                let aa = bv.from_fn::<4, _>(|i| bitw(&boolean, a, i));
-                let bb = bv.from_fn::<4, _>(|i| bitw(&boolean, b, i));
-                let cc = bv.from_fn::<4, _>(|i| bitw(&boolean, c, i));
-
-                let assertion = bv.assert_wrapping_add(&cc, &aa, &bb);
-
-                if c == want {
-                    assert!(assertion.is_ok());
-                } else {
-                    assert!(assertion.is_err());
-                }
-            }
-        }
-    }
 }
 
 fn test_assert_add_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
@@ -386,12 +229,10 @@ fn test_assert_add() {
     let field = new_f65537_field();
     let tracker = AssertionScope::new();
     let l_prime = LPrime::new(&field, &tracker);
-    test_assert_wrapping_add_for_logic(&l_prime);
     test_assert_add_for_logic(&l_prime);
     let field_bin = Gf2_128Field::new();
     let tracker_bin = AssertionScope::new();
     let l_bin = LBinary::new(&field_bin, &tracker_bin);
-    test_assert_wrapping_add_for_logic(&l_bin);
     test_assert_add_for_logic(&l_bin);
 }
 
@@ -449,7 +290,7 @@ fn test_assert_neq() {
     test_assert_neq_for_logic(&l_bin);
 }
 
-fn test_checked_add_sub_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
+fn test_checked_add_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
     let bv = BitvecLogic::new(logic);
     let boolean = Boolean::new(logic);
 
@@ -461,15 +302,6 @@ fn test_checked_add_sub_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
     assert!(add_assert.is_ok());
     bvcompare(&boolean, &mkbv(&bv, &boolean, 11), &sum);
 
-    // 6 - 5 = 1 (no underflow/borrow)
-    let (diff, sub_assert) = bv.checked_sub(&six, &five);
-    assert!(sub_assert.is_ok());
-    bvcompare(&boolean, &mkbv(&bv, &boolean, 1), &diff);
-
-    // 5 - 6 underflows (borrow is true)
-    let (_diff, underflow_assert) = bv.checked_sub(&five, &six);
-    assert!(underflow_assert.is_err());
-
     // 255 + 1 overflows (width is 8, so 255 + 1 carries)
     let max_val = mkbv(&bv, &boolean, 255);
     let one = mkbv(&bv, &boolean, 1);
@@ -478,13 +310,13 @@ fn test_checked_add_sub_for_logic<F: CompileField>(logic: &EvalLogic<'_, F>) {
 }
 
 #[test]
-fn test_checked_add_sub() {
+fn test_checked_add() {
     let field = new_f65537_field();
     let tracker = AssertionScope::new();
     let l_prime = LPrime::new(&field, &tracker);
-    test_checked_add_sub_for_logic(&l_prime);
+    test_checked_add_for_logic(&l_prime);
     let field_bin = Gf2_128Field::new();
     let tracker_bin = AssertionScope::new();
     let l_bin = LBinary::new(&field_bin, &tracker_bin);
-    test_checked_add_sub_for_logic(&l_bin);
+    test_checked_add_for_logic(&l_bin);
 }

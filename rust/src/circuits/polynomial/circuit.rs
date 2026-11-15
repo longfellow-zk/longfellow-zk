@@ -44,25 +44,4 @@ impl<'a, L: Logic> Polynomial<'a, L> {
     }
 
     // parallel Horner rule
-    pub fn eval_horner(&self, cc: &[Eltw<L>], x: &Eltw<L>) -> Eltw<L> {
-        if cc.is_empty() {
-            return self.logic.zero();
-        }
-        let mut xx = x.clone();
-        let mut current_cc = cc.to_vec();
-
-        while current_cc.len() > 1 {
-            current_cc = current_cc
-                .chunks(2)
-                .map(|chunk| match chunk {
-                    [c0, c1] => self.logic.add(c0, &self.logic.mul(c1, &xx)),
-                    [c0] => c0.clone(),
-                    _ => unreachable!(),
-                })
-                .collect();
-            xx = self.logic.mul(&xx, &xx);
-        }
-
-        current_cc[0].clone()
-    }
 }

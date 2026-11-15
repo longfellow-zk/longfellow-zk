@@ -27,7 +27,6 @@ mdoc/runtime: mdoc/circuits mdoc/proto circuits/ecdsa2 circuits/sha256 circuits/
 mdoc/testcases:
 bin/verifier_only: mdoc/runtime
 circuits/analog_adder: circuits/bitvec circuits/boolean compile/algebra compile/logic core/algebra
-circuits/analog_decoder: circuits/boolean circuits/lookup compile/logic core/algebra
 circuits/arithmetic: circuits/boolean compile/algebra compile/logic util
 circuits/big_bitvec: circuits/bignum circuits/bitvec compile/algebra compile/logic core/algebra
 circuits/bignum: circuits/boolean compile/algebra compile/logic core/algebra util
@@ -35,7 +34,6 @@ circuits/bitvec: circuits/arithmetic circuits/boolean compile/algebra compile/lo
 circuits/boolean: compile/algebra compile/logic core/algebra util
 circuits/ec: compile/algebra compile/logic core/algebra
 circuits/ecdsa2: circuits/arithmetic circuits/big_bitvec circuits/bitvec circuits/boolean circuits/ec circuits/lookup compile/algebra compile/logic core/algebra
-circuits/gf2_128: circuits/bitvec circuits/boolean compile/logic
 circuits/lookup: circuits/polynomial compile/algebra compile/logic core/algebra
 circuits/memcmp: circuits/arithmetic circuits/bitvec circuits/boolean compile/logic
 circuits/polynomial: compile/logic

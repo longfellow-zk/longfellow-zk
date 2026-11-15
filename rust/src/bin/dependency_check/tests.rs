@@ -143,7 +143,6 @@ fn circuit_halves_and_their_submodules_have_phases() {
         ("src/circuits/sha256/concrete/fast.rs", Runtime),
         ("src/circuits/ecdsa2/evaluate/x.rs", Bridge),
         ("src/circuits/ec/points.rs", Shared),
-        ("src/circuits/analog_decoder/points.rs", Shared),
         ("src/circuits/sha256/constants/table.rs", Shared),
         ("src/mdoc/circuits/hash/allocate.rs", Compile),
         ("src/mdoc/circuits/hash.rs", Neutral),

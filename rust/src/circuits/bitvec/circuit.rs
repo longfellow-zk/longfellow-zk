@@ -124,22 +124,6 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
         }
     }
 
-    pub fn all<const N: usize>(
-        &self,
-        bv: &Bitvec<L, N>,
-        f: &dyn Fn(&Bitw<L>) -> Bitw<L>,
-    ) -> Bitw<L> {
-        self.arith.all(f, &bv.bits)
-    }
-
-    pub fn any<const N: usize>(
-        &self,
-        bv: &Bitvec<L, N>,
-        f: &dyn Fn(&Bitw<L>) -> Bitw<L>,
-    ) -> Bitw<L> {
-        self.arith.any(f, &bv.bits)
-    }
-
     pub fn eqb<const N: usize>(&self, a: &Bitvec<L, N>, b: &Bitvec<L, N>) -> Bitw<L> {
         self.arith.eqb(&a.bits, &b.bits)
     }
@@ -164,20 +148,6 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
         self.arith.gt(&a.bits, &b.bits)
     }
 
-    pub fn geq<const N: usize>(&self, a: &Bitvec<L, N>, b: &Bitvec<L, N>) -> Bitw<L> {
-        self.arith.geq(&a.bits, &b.bits)
-    }
-
-    #[must_use = "unchecked_add returns a carry bit that must be checked or propagated to prevent silent overflow"]
-    pub fn unchecked_add<const N: usize>(
-        &self,
-        a: &Bitvec<L, N>,
-        b: &Bitvec<L, N>,
-    ) -> (Bitvec<L, N>, Bitw<L>) {
-        let (c, carry) = self.arith.unchecked_add(&a.bits, &b.bits);
-        (Bitvec { bits: c }, carry)
-    }
-
     /// Three-word carry-save compression, including the bit shifted out of
     /// the carry word. Both returned words have the original width.
     #[must_use = "carry_save returns an overflow bit that must be checked or accounted for"]
@@ -191,16 +161,6 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
         (Bitvec { bits: sum }, Bitvec { bits: carry }, overflow)
     }
 
-    #[must_use = "unchecked_sub returns a borrow bit that must be checked or propagated to prevent silent underflow/overflow"]
-    pub fn unchecked_sub<const N: usize>(
-        &self,
-        a: &Bitvec<L, N>,
-        b: &Bitvec<L, N>,
-    ) -> (Bitvec<L, N>, Bitw<L>) {
-        let (c, borrow) = self.arith.unchecked_sub(&a.bits, &b.bits);
-        (Bitvec { bits: c }, borrow)
-    }
-
     #[must_use = "checked_add returns assertions that must be constraint-asserted to prevent silent overflow"]
     pub fn checked_add<const N: usize>(
         &self,
@@ -209,25 +169,6 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
     ) -> (Bitvec<L, N>, L::Assertions) {
         let (sum, assert) = self.arith.checked_add(&a.bits, &b.bits);
         (Bitvec { bits: sum }, assert)
-    }
-
-    #[must_use = "checked_sub returns assertions that must be constraint-asserted to prevent silent underflow/overflow"]
-    pub fn checked_sub<const N: usize>(
-        &self,
-        a: &Bitvec<L, N>,
-        b: &Bitvec<L, N>,
-    ) -> (Bitvec<L, N>, L::Assertions) {
-        let (diff, assert) = self.arith.checked_sub(&a.bits, &b.bits);
-        (Bitvec { bits: diff }, assert)
-    }
-
-    pub fn assert_wrapping_add<const N: usize>(
-        &self,
-        c: &Bitvec<L, N>,
-        a: &Bitvec<L, N>,
-        b: &Bitvec<L, N>,
-    ) -> L::Assertions {
-        self.arith.assert_wrapping_add(&c.bits, &a.bits, &b.bits)
     }
 
     pub fn assert_checked_add<const N: usize>(
@@ -286,33 +227,9 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
         }
     }
 
-    pub fn andb<const N: usize>(&self, a: &Bitvec<L, N>, b: &Bitvec<L, N>) -> Bitvec<L, N> {
-        Bitvec {
-            bits: self.arith.andb(&a.bits, &b.bits),
-        }
-    }
-
-    pub fn orb<const N: usize>(&self, a: &Bitvec<L, N>, b: &Bitvec<L, N>) -> Bitvec<L, N> {
-        Bitvec {
-            bits: self.arith.orb(&a.bits, &b.bits),
-        }
-    }
-
-    pub fn xorb<const N: usize>(&self, a: &Bitvec<L, N>, b: &Bitvec<L, N>) -> Bitvec<L, N> {
-        Bitvec {
-            bits: self.arith.xorb(&a.bits, &b.bits),
-        }
-    }
-
     pub fn eq<const N: usize>(&self, a: &Bitvec<L, N>, b: &Bitvec<L, N>) -> Bitvec<L, N> {
         Bitvec {
             bits: self.arith.eq(&a.bits, &b.bits),
-        }
-    }
-
-    pub fn notb<const N: usize>(&self, a: &Bitvec<L, N>) -> Bitvec<L, N> {
-        Bitvec {
-            bits: self.arith.notb(&a.bits),
         }
     }
 
@@ -382,10 +299,6 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
         Bitvec {
             bits: self.arith.of_u64_val(z),
         }
-    }
-
-    pub fn assert_false<const N: usize>(&self, name: &str, bv: &Bitvec<L, N>) -> L::Assertions {
-        self.arith.assert_false(name, &bv.bits)
     }
 
     pub fn assert_true<const N: usize>(&self, name: &str, bv: &Bitvec<L, N>) -> L::Assertions {

@@ -86,7 +86,6 @@ cfg_compiler! {
 }
 
 pub mod circuits {
-    pub mod analog_decoder;
     cfg_prover_or_compiler! {
         pub mod ec;
         pub mod ecdsa2;
@@ -100,7 +99,6 @@ pub mod circuits {
         pub mod bignum;
         pub mod bitvec;
         pub mod boolean;
-        pub mod gf2_128;
         pub mod lookup;
         pub mod memcmp;
         pub mod polynomial;

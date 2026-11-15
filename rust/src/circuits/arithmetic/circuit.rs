@@ -79,36 +79,6 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
         })
     }
 
-    pub fn assert_exactly_one(&self, a: &[Bitw<L>]) -> L::Assertions {
-        match a {
-            [] => panic!("assert_exactly_one of empty array"),
-            [single] => self.boolean.assert_true("single", single),
-            _ => {
-                let base_fn = |x: &Bitw<L>| (self.boolean.b(x), self.logic.ok());
-
-                let fold_fn =
-                    |(any_l, assert_l): (Bitw<L>, L::Assertions),
-                     (any_r, assert_r): (Bitw<L>, L::Assertions)| {
-                        let at_most_one = self
-                            .boolean
-                            .assert_false("at_most_one", &self.boolean.andb(&any_l, &any_r));
-                        let combined_assert = self
-                            .logic
-                            .assert_all("at_most_one_step", &[assert_l, assert_r, at_most_one]);
-                        let combined_any =
-                            self.boolean.or_assuming_at_most_one_true(&any_l, &any_r);
-                        (combined_any, combined_assert)
-                    };
-
-                let (any_root, assert_root) = tree_fold(a, &fold_fn, &base_fn);
-                self.logic.assert_all(
-                    "assert_exactly_one",
-                    &[self.boolean.assert_true("any_root", &any_root), assert_root],
-                )
-            }
-        }
-    }
-
     // Adders and Subtractors
     /// Compress three equally wide words without propagating carries.
     /// As integers, a+b+c = sum+carry+overflow*2^n. The carry word is already
