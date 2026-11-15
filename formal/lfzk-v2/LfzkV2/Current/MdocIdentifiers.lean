@@ -28,7 +28,12 @@ structure Identifiers where
   descriptor, the native storage runs as (first, count, cell) triples, the
   bit-stored runs as (first, count, start, width) quadruples, each list in
   increasing first value and both empty for a native participant, and the
-  mask's (start, width). The Polygero profile is in `JointGeometry` only. -/
+  mask's (start, width). The Polygero profile is in `JointGeometry` only.
+
+  These bytes are fixed setup bytes, equal to the Rust encoding by the
+  golden tests (`Tests/TaggedFormat`). The model does not derive them from
+  the setup, so Lean does not prove that they determine the circuits,
+  layouts and geometry the verifier uses (transcript I3). -/
   statement : Bytes
   hash : Bytes → Digest
 

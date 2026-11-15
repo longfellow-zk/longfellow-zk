@@ -2,7 +2,8 @@ import Mathlib.Algebra.BigOperators.Fin
 
 /-! The query schedule of the current MAC-free mdoc verifier. This namespace is
 separate from the retained `Layered` checkpoint, whose adapter and transcript
-are different. A query here means one `begin_squeeze()`, not one sampled field element.
+are different. A query here means one transcript boundary (the first draw after a message,
+which ends a node with `ROUND`), not one sampled field element.
 Public shape and circuit/layout correspondence are parameters of this model. -/
 namespace LfzkV2.Current
 

@@ -88,7 +88,9 @@ theorem wire_terminator (domain : Domain) : wire.terminator domain = word 0 := r
 message's tag and leading values before the session, and the values and
 messages after it up to the public inputs. The statement is the only place
 parameters are bound; the Merkle hashes use the protocol constant
-`MerkleWireCodec.hashDomain`. -/
+`MerkleWireCodec.hashDomain`. The constants are opaque here: the golden tests
+(`Tests/TaggedFormat`) tie them to the Rust encoding, and Lean does not prove
+that they determine the instance. -/
 structure Setup where
   head : Bytes
   constants : Bytes

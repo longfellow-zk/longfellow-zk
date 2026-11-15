@@ -96,7 +96,7 @@ b=\frac cq,\quad \theta=\frac bp=\frac{c(q-1)}{2q}.
 $$
 
 Let the numbered-strand runtime use the current rate-1/7 profile
-`(k,s,n,t)=(349,12,2443,84)`. Let `r<2^64` be its number of rounds, one per `begin_squeeze()` call.
+`(k,s,n,t)=(349,12,2443,84)`. Let `r<2^64` be its number of rounds, one per transcript boundary (the first draw after a message).
 For any finite classical adaptive adversary making at most `Q` distinct
 original SHA queries, with `Q<q/2`, the strengthened bound is
 
@@ -522,7 +522,7 @@ than an additional round-soundness premise of the endpoint.
 
 The generic `Survival` library depends only on transcript, finite-probability
 and local algebra libraries. Its `QueryStep` means one fresh adversarial query,
-while a protocol round remains one `begin_squeeze()` boundary. Current runtime
+while a protocol round remains one transcript boundary. Current runtime
 adapters and the exact rate-1/7 arithmetic live under
 [`Current.Soundness`](../lfzk-v2/LfzkV2/Current/Soundness/Rate7.lean).
 Generic probability bounds and statistical-distance couplings are shared in

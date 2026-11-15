@@ -32,7 +32,7 @@ checks those schedules and totals against the current Rust compiler. The
 approximation takes a supported-shape witness and derives the round bound
 internally.
 
-`r` counts rounds: one per `begin_squeeze()` call, regardless of the number of challenge draws within that round. The final seal has its own two-query
+`r` counts rounds: one per transcript boundary, the first draw after a message, which ends a node with `ROUND`, regardless of the number of challenge draws within that round. The final seal has its own two-query
 finalization. Proof bytes and public requests may be chosen adaptively.
 Repeated inputs receive the same answer. Probability covers the ideal SHA
 oracle and arbitrary finite private random choices.
@@ -151,8 +151,11 @@ The statement, before the shared root, binds a `Circuit` message per circuit
 the split participant's native storage runs as (first, count, cell) triples and
 its bit-stored runs as (first, count, start, width) quadruples (both lists
 empty for a native participant), and R's bit group. The `AdapterLayout` and
-`JointGeometry` messages follow. After the root, only prover messages are
-absorbed. Values derived per
+`JointGeometry` messages follow. In the model these statement messages after
+the combined hash are opaque setup bytes (`MdocIdentifiers.Identifiers.statement`),
+tied to Rust only by the golden tests (`Tests/TaggedFormat`): Lean does not
+derive them from the setup, so it does not prove that they determine the
+instance. After the root, only prover messages are absorbed. Values derived per
 proof, such as claim weights, virtual leaf definitions and quotients, are never
 absorbed; both roles recompute them.
 
@@ -164,7 +167,7 @@ the selected binary witness. Binary public bits are bound at the first boundary;
 prime public inputs are bound when the prime frontend starts. No future prime
 values are added to the earlier fingerprint key.
 
-One `begin_squeeze()` supplies one boundary answer, including every challenge
+One transcript boundary supplies one boundary answer, including every challenge
 read without an intervening prover message. Fragments add no boundaries or wire
 arrays. Components are ordered by decreasing depth, with original input index
 breaking ties, including duplicate circuit identifiers. Outputs are zero
@@ -180,7 +183,7 @@ ordinary boundaries (witness selection, conversion, joint Polygero batching and
 shared opening), one optional packing boundary, and the final seal. There is no row-batching boundary; it remains only for pure foreign
 storage, which mdoc does not use. The one-/two-/three-/four-attribute
 presentations have respectively 457/461/466/469 ordinary boundaries. The Rust
-`test_all_next_zk` test counts actual `begin_squeeze()` calls in both the complete prover and verifier and checks
+`test_all_next_zk` test counts the boundaries of both the complete prover's and the verifier's sessions (`round_count_for_test`) and checks
 these values independently of the geometry-derived schedule. Finalization
 then uses a strand-node query and a seal PRF query. Binding source circuit identifiers
 adds no separate query. Current sizes and timings are in the

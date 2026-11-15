@@ -15,7 +15,7 @@ linear bound (`averaged_linear_ratio_le`) and the saturated bound
 (`averaged_ratio_le`) share one stopped cost and one failure cover. No
 execution or charging certificate is added to the mdoc endpoint.
 
-`r` counts rounds, one per `begin_squeeze()` call. The rate-1/7 certificate fixes
+`r` counts rounds, one per transcript boundary (the first draw after a message). The rate-1/7 certificate fixes
 `(k,s,n,t)=(349,12,2443,84)`. Both fields share one indexed Merkle tree and
 one extracted tuple from the original commitment cut.
 

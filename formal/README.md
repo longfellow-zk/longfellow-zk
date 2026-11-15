@@ -77,7 +77,8 @@ last combine answer. From `formal/`, build and run the check with
 and `/tmp/mdoc-round-shapes`. The approximation takes a supported-shape witness
 and derives the round bound internally.
 
-Here `r` is the number of rounds: one per `begin_squeeze()` call. The final seal
+Here `r` is the number of rounds: one per transcript boundary, the first draw
+after a message, which ends a node with `ROUND`. The final seal
 is counted separately. The numerical composition bound reads its geometry,
 list capacities and field orders from the active certificate and parameter
 modules. The generic profile interface bounds local charges by the shared
@@ -326,18 +327,29 @@ establish that a cryptographic implementation satisfies their premises.
   `Handoff.product_handoff` handles arbitrary bits of R through their residue
   modulo the prime. Rust enforces prefix reads in sumcheck; the
   correspondence of the archived circuits with their Lean typed topology
-  remains an explicit premise. Rust's normal
-  `for_spec` loader recomputes each segmented circuit ID, checks it against
-  the archive entry, and checks the combined ID against the trusted spec.
+  remains an explicit premise. Rust's normal loader, `Instance::load`
+  (`rust/src/mdoc/runtime/v2/circuits.rs`), checks the archive's combined ID and
+  version against the request's trusted spec, recomputes each segmented
+  circuit ID and checks it against its archive entry, and checks both
+  circuits' public-input counts against the request.
   Trust therefore includes the circuits selected by the spec and their
   application semantics; payload IDs are verified at load time.
+- **Statement setup bytes.** The statement messages after the combined hash
+  (`Circuit`, `CommitmentLayout`, `AdapterLayout`, `JointGeometry`) are fixed
+  setup bytes in the model (`MdocIdentifiers.Identifiers.statement`), equal to
+  the Rust encoding by the golden tests (`LfzkV2.Current.Tests.TaggedFormat`).
+  The endpoints hold for that fixed deployed setup; Lean does not prove that
+  these bytes determine the circuits, layouts and geometry the verifier uses
+  (transcript I3), which the Rust tests check instead.
 - **Request encoding.** The Lean request consists of the session context, the
   binary public bits and the prime public inputs, and the theorem holds at
   whatever public vectors the request carries. How the Rust verifier derives
   those vectors from an application request lies outside the model:
   - the device-authentication digest `e2`, SHA-256 of the COSE
     `Sig_structure` over `DeviceAuthentication` (session transcript, docType,
-    empty namespaces), computed by `compute_transcript_hash`;
+    empty namespaces), computed by `compute_transcript_hash`; the session
+    transcript must be exactly one CBOR item (`Request::check`), so the
+    preimage determines the (session transcript, docType) pair;
   - the length-prefixed encoding of the time, attribute identifiers and
     values, docType and namespace into public bits (`push_input_hash`);
   - parsing of the issuer public key.
