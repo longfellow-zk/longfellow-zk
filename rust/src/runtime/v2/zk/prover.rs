@@ -15,7 +15,7 @@ use crate::{
                 polygero::{PolygeroCommitment, PolygeroConfig},
                 sumcheck::SumcheckProof,
                 witness_selection::{FingerprintResponse, FINGERPRINTS},
-                zk::{CircuitProof, ZkProof, ZkProofGeometry},
+                zk::{CircuitGeometry, CircuitProof, ZkProof, ZkProofGeometry},
             },
             sumcheck::{self, SumcheckPads, TopWeights},
             transcript::{Bound, Challenge, Transcript, ZkStatement},
@@ -24,21 +24,60 @@ use crate::{
                 joint::{top_weights, CircuitParticipant, FrontendPart, JointParam},
                 packing_commitment::{prover::PackingState, PackingCommitment},
                 split::PendingSplit,
-                storage::Storage,
-                CircuitInput, JointProver, VirtualInputs, ZkContext, ZkProofStatement,
+                storage::{Split, Storage},
+                CircuitInput, InputLayout, JointProver, VirtualInputs, ZkContext, ZkProofStatement,
             },
         },
     },
 };
+
+/// The participant a prover state was prepared by: its circuits, profile,
+/// geometry, input layout and storage. Two participants over one context
+/// have equal identities exactly when they are the same participant.
+struct Identity {
+    id: [u8; 32],
+    additional_ids: Vec<[u8; 32]>,
+    config: PolygeroConfig,
+    geometry: CircuitGeometry,
+    inputs: InputLayout,
+    storage: Option<Split>,
+}
+impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
+    fn identity(&self) -> Identity {
+        Identity {
+            id: self.id,
+            additional_ids: self.additional_ids.clone(),
+            config: self.config,
+            geometry: self.geometry.clone(),
+            inputs: self.inputs,
+            storage: self.storage.clone(),
+        }
+    }
+    /// Whether this participant prepared the state that recorded `identity`.
+    fn prepared(&self, identity: &Identity) -> bool {
+        let Identity {
+            id,
+            additional_ids,
+            config,
+            geometry,
+            inputs,
+            storage,
+        } = identity;
+        *id == self.id
+            && *additional_ids == self.additional_ids
+            && *config == self.config
+            && *geometry == self.geometry
+            && *inputs == self.inputs
+            && *storage == self.storage
+    }
+}
 
 /// Owned private inputs and masks for reduction after the shared commitment.
 pub struct CircuitState<const W: usize, F: ZkField<W> + PackingField> {
     private: Vec<CircuitInput<F>>,
     pads: SumcheckPads<W, F>,
     packing: PackingState<F::E>,
-    id: [u8; 32],
-    config: PolygeroConfig,
-    additional_ids: Vec<[u8; 32]>,
+    participant: Identity,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     /// Own, validate and pack typed inputs before sampling any masks. The returned
@@ -60,9 +99,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
                 private,
                 pads,
                 packing,
-                id: self.id,
-                config: self.config,
-                additional_ids: self.additional_ids.clone(),
+                participant: self.identity(),
             },
             witness,
         ))
@@ -92,8 +129,8 @@ pub fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W
     let part = t.part();
     let p = part.participant;
     virtual_inputs.validate(&p.inputs)?;
-    if state.id != p.id || state.config != p.config || state.additional_ids != p.additional_ids {
-        return Err("commitment belongs to another circuit or configuration".into());
+    if !p.prepared(&state.participant) {
+        return Err("commitment belongs to another participant".into());
     }
     state
         .pads
@@ -262,7 +299,7 @@ pub struct SplitState<const W: usize, F: ZkField<W>> {
     /// `[private inputs | pads]`, in value order.
     values: Vec<F::E>,
     mask: Option<F::E>,
-    id: [u8; 32],
+    participant: Identity,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     /// Sample pads and return the native witness `[native private inputs |
@@ -301,7 +338,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
                 pads,
                 values,
                 mask,
-                id: self.id,
+                participant: self.identity(),
             },
             witness,
         ))
@@ -319,8 +356,8 @@ pub fn prove_split<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDo
     let part = t.part();
     let p = part.participant;
     p.split()?;
-    if state.id != p.id {
-        return Err("split state belongs to another circuit".into());
+    if !p.prepared(&state.participant) {
+        return Err("split state belongs to another participant".into());
     }
     let f = ctx.field();
     let mut inputs = part.public.to_vec();

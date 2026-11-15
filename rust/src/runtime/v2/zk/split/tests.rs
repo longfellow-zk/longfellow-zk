@@ -334,3 +334,40 @@ fn open_and_receive_accept_eta_only_at_its_boundary() {
         "challenge drawn on another session or at another position"
     );
 }
+
+/// A split state proves only for the participant that prepared it: another
+/// participant over the same circuit with another storage map rejects it,
+/// although the circuit ID is the same.
+#[test]
+fn split_state_proves_only_for_its_own_participant() {
+    let f = P256Field::new();
+    let domain = ScalarInterpolatorFactory::new(&f, 128);
+    let ctx = ZkContext::new(&domain);
+    let c = small_circuit(&f);
+    let values = value_count(&c).unwrap();
+    let mask = Some(Group::new(20, 256).unwrap());
+    let participant = |start| {
+        let storage = StorageMap::new(values, &[(0, Group::new(start, 1).unwrap())]).unwrap();
+        CircuitParticipant::with_storage(&c, storage, mask, CONFIG, &ctx).unwrap()
+    };
+    let (own, other) = (participant(7), participant(8));
+    assert_eq!(own.geometry(), other.geometry());
+    let prove = |part: &CircuitParticipant<4, P256Field>| {
+        let (state, _) = own
+            .prepare_split(
+                vec![f.one(), f.zero()],
+                Some(f.u64_to_element(17)),
+                &mut DeterministicRng::new(42),
+            )
+            .unwrap();
+        let mut t = Transcript::for_test(b"split-identity");
+        let public = [f.one()];
+        let frontend = FrontendPart::new(part, &[&c], &public).unwrap();
+        prove_split(&mut t.bound(&frontend), state, &ctx).map(|_| ())
+    };
+    assert_eq!(
+        prove(&other).unwrap_err(),
+        "split state belongs to another participant"
+    );
+    prove(&own).unwrap();
+}

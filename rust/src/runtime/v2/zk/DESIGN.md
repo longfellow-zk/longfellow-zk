@@ -484,7 +484,10 @@ How the API carries the invariants:
   crate-private `bound()`, after the fingerprint responses (I6).
 - `CircuitState` and `SplitState` are move-only and consumed by `prove` or
   `prove_split`, together with the `SumcheckPads` they own, so one set of
-  pads masks one proof.
+  pads masks one proof. Each records the participant that prepared it: its
+  circuit IDs, profile, circuit geometry, input layout and storage map.
+  `prove` and `prove_split` reject a state that another participant
+  prepared, even one over the same circuit with another storage map.
 - `PendingSplit::open` consumes the pending split and the eta challenge, and
   returns `mu` with both outputs. No call can pair a native row with a claim
   built from another `eta` or `mu` (I9).
@@ -510,7 +513,7 @@ How the API carries the invariants:
 | Batching mixed-storage rows, so the native row depends on `rho` | I11: `SplitClaim::batch` rejects mixed storage |
 | Treating a reduced `LinearStatement` as acceptance | I7: the seal needs the transcript, which only `Authenticated` returns |
 | Dropping a coefficient or a zero row when lowering constraints | I5: the compiler keeps every term; compile tests and Lean |
-| Reusing a prover state across proofs or participants | `CircuitState` and `SplitState` are consumed; their layout is checked against the part |
+| Reusing a prover state across proofs or participants | `CircuitState` and `SplitState` are consumed; `prove` and `prove_split` compare the participant each recorded with the part's |
 
 ## Soundness and zero knowledge
 
