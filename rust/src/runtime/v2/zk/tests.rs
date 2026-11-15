@@ -445,6 +445,7 @@ fn p256_scalar_zk_comparison() {
 
 mod absorption;
 mod layouts;
+mod sensitivity;
 
 /// Prove `private` on `public` under `context`, on a transcript opened with
 /// the proof's statement. Returns the proof, its geometry and the prover's

@@ -126,3 +126,29 @@ fn reserved_suffix_rejects_advancing_past_the_end_of_memory() {
     assert!(suffix.is_empty());
     assert_eq!(suffix.group(1).unwrap().end(), usize::MAX);
 }
+
+impl super::Group {
+    /// Every field: start and width. The pattern is exhaustive, so a new
+    /// field does not compile until the statement tests cover it.
+    pub(crate) fn fields_for_test(&self) -> [usize; 2] {
+        let Self { start, width } = *self;
+        [start, width]
+    }
+}
+impl<const N: usize> super::BitGroup<N> {
+    /// Every field: the start; the width is `N`. The pattern is exhaustive,
+    /// so a new field does not compile until the statement tests cover it.
+    pub(crate) fn fields_for_test(&self) -> usize {
+        let Self { start } = *self;
+        start
+    }
+}
+impl StorageMap {
+    /// Every field: the entries and the native cell count. The pattern is
+    /// exhaustive, so a new field does not compile until the statement tests
+    /// cover it.
+    pub(crate) fn fields_for_test(&self) -> (&[super::Storage], usize) {
+        let Self { entries, native } = self;
+        (entries, *native)
+    }
+}

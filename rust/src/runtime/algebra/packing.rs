@@ -401,3 +401,6 @@ fn invert_matrix<F: AlgebraicField>(
     }
     Ok(inverse)
 }
+
+#[cfg(test)]
+mod tests;

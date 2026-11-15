@@ -141,3 +141,4 @@ fn composition_round_trip_rejects_tampering() {
 }
 
 mod absorption;
+mod sensitivity;

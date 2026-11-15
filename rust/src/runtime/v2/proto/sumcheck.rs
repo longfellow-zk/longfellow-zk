@@ -251,3 +251,6 @@ impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
         Ok(bytes)
     }
 }
+
+#[cfg(test)]
+mod tests;

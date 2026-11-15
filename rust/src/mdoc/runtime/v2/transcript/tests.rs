@@ -12,6 +12,14 @@ impl<'a> Identity<'a> {
         let Self { session, spec } = self;
         (session, spec)
     }
+    /// The identity of `session` and `spec`, for tests that build a
+    /// statement with one value of a checked request's changed.
+    pub(in crate::mdoc::runtime::v2) fn for_test(
+        session: &'a [u8],
+        spec: &'a ZkSpecStruct,
+    ) -> Self {
+        Self { session, spec }
+    }
 }
 
 /// A statement that is the mdoc identity alone.

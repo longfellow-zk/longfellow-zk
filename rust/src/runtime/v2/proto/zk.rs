@@ -302,3 +302,6 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
         Unverified::decoded(body, bytes, &mut seal)
     }
 }
+
+#[cfg(test)]
+mod tests;

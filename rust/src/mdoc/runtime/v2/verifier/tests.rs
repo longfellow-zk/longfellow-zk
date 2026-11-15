@@ -10,20 +10,34 @@ use std::cell::RefCell;
 
 use crate::{
     compile::algebra::CompileNat,
-    core::algebra::Nat,
+    core::{algebra::Nat, proto::v2::Circuit},
     mdoc::{
         circuits::cbor::test_utils::parse_test_data,
         development_provider::compile_next,
         testcases::TEST_DATA,
         v2::{
+            decompress_circuits,
+            inputs::PublicInputs,
+            link,
             provider::ProvidedCircuit,
-            req_attr, run_mdoc_verifier,
-            transcript::{MdocStatement, PROTOCOL_ID},
+            req_attr,
+            request::Request,
+            run_mdoc_verifier,
+            transcript::{Identity, MdocStatement, PROTOCOL_ID},
             MdocVerifierErrorCode, PolygeroParameters, RequestedAttribute, ZkSpecStruct,
         },
     },
     runtime::{
-        algebra::{gf2_128::Gf2_128Field, p256::P256Field, range_interpolation::EvaluationDomain},
+        algebra::{
+            fp2::Fp2Field,
+            gf2_128::Gf2_128Field,
+            p256::P256Field,
+            range_interpolation::{
+                BinaryInterpolatorFactory, EvaluationDomain,
+                QuadraticExtensionFftInterpolatorFactory,
+            },
+            SupportsFFT,
+        },
         random::DeterministicRng,
         v2::{
             proto::tests::statement::{self, Statement as Decoded},
@@ -185,4 +199,158 @@ fn mdoc_statement_round_trip() {
             task.join().unwrap();
         }
     });
+}
+
+/// The statement bytes of the session `run_mdoc_verifier` opens for
+/// `fixture`'s request, built the way it builds them, but with the identity's
+/// session transcript `session` and with `spec` for the identity and the
+/// composition. The public inputs stay the request's.
+fn mdoc_statement_bytes(
+    fixture: &Fixture,
+    (signature, hash): (&Circuit<P256Field>, &Circuit<Gf2_128Field>),
+    session: &[u8],
+    spec: &ZkSpecStruct,
+) -> Vec<u8> {
+    let p256 = P256Field::new();
+    let p256_2 = Fp2Field::new(&p256);
+    let signature_domain = QuadraticExtensionFftInterpolatorFactory::new(
+        &p256,
+        &p256_2,
+        p256_2.omega(),
+        p256_2.omega_order(),
+    );
+    let gf2 = Gf2_128Field::new();
+    let hash_domain = BinaryInterpolatorFactory::full_field(&gf2);
+    let request = Request::check(
+        fixture.provided.spec(),
+        &fixture.pkx,
+        &fixture.pky,
+        TEST_DATA.transcript,
+        &fixture.attrs,
+        fixture.now,
+        DOC_TYPE,
+        &p256,
+    )
+    .unwrap();
+    let public = PublicInputs::derive(&request, &p256);
+    let composition =
+        link::composition(spec, signature, hash, (&hash_domain, &signature_domain)).unwrap();
+    let statement = composition
+        .statement(
+            Identity::for_test(session, spec),
+            public.hash(),
+            public.signature(),
+        )
+        .unwrap();
+    Opened::new(&statement).statement_bytes_for_test().to_vec()
+}
+
+/// One-field sensitivity of the mdoc identity and spec (transcript I1): a
+/// statement built with one value changed has other bytes. The patterns
+/// are exhaustive, so a new field does not compile until it is covered.
+#[test]
+fn mdoc_identity_fields_are_absorbed() {
+    let fixture = Fixture::new(1);
+    let circuits = decompress_circuits(
+        fixture.provided.compressed(),
+        &P256Field::new(),
+        &Gf2_128Field::new(),
+    )
+    .unwrap();
+    let spec = *fixture.provided.spec();
+    let identity = Identity::for_test(TEST_DATA.transcript, &spec);
+    let (transcript, _) = identity.fields_for_test();
+    let bytes = |session: &[u8], changed: &ZkSpecStruct| {
+        mdoc_statement_bytes(&fixture, (&circuits.0, &circuits.1), session, changed)
+    };
+    let base = bytes(transcript, &spec);
+    // The builder writes the statement the verifier opens: the observer sees
+    // it before the empty proof fails to parse.
+    let (result, opened) = observed(|| fixture.verify(&[]));
+    assert_eq!(
+        result.err(),
+        Some(MdocVerifierErrorCode::HashParsingFailure)
+    );
+    assert_eq!(opened, std::slice::from_ref(&base));
+    // The session transcript, written whole: its first, middle and last
+    // bytes, and its length.
+    let n = transcript.len();
+    for i in [0, n / 2, n - 1] {
+        let mut changed = transcript.to_vec();
+        changed[i] ^= 1;
+        assert_ne!(bytes(&changed, &spec), base, "session byte {i}");
+    }
+    assert_ne!(bytes(&transcript[..n - 1], &spec), base, "session length");
+    // The spec.
+    let ZkSpecStruct {
+        combined_hash,
+        num_attributes,
+        version,
+        polygero,
+    } = spec;
+    // The combined hash, written whole: each byte.
+    for i in 0..32 {
+        let mut changed = combined_hash;
+        changed[i] ^= 1;
+        let other = ZkSpecStruct {
+            combined_hash: changed,
+            ..spec
+        };
+        assert_ne!(bytes(transcript, &other), base, "combined hash byte {i}");
+    }
+    // The attribute count and the version, written. Neither changes the
+    // composition; the request check rejects either for these circuits.
+    let more = ZkSpecStruct {
+        num_attributes: num_attributes + 1,
+        ..spec
+    };
+    assert_ne!(bytes(transcript, &more), base, "attribute count");
+    let later = ZkSpecStruct {
+        version: version + 1,
+        ..spec
+    };
+    assert_ne!(bytes(transcript, &later), base, "version");
+    // The profile, written in `JointGeometry`: each value.
+    let PolygeroParameters {
+        k,
+        n: columns,
+        s,
+        t,
+    } = polygero;
+    for (name, changed) in [
+        (
+            "k",
+            PolygeroParameters {
+                k: k + 1,
+                ..polygero
+            },
+        ),
+        (
+            "n",
+            PolygeroParameters {
+                n: columns + 1,
+                ..polygero
+            },
+        ),
+        (
+            "s",
+            PolygeroParameters {
+                s: s + 1,
+                ..polygero
+            },
+        ),
+        (
+            "t",
+            PolygeroParameters {
+                t: t + 1,
+                ..polygero
+            },
+        ),
+    ] {
+        let other = ZkSpecStruct {
+            polygero: changed,
+            ..spec
+        };
+        assert_ne!(bytes(transcript, &other), base, "profile {name}");
+    }
 }
