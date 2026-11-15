@@ -15,8 +15,9 @@
 pub use crate::runtime::algebra::arch::{Gf2_128, Gf2_128Accum};
 use crate::{
     core::algebra::{
-        AlgebraicField, BareField, FieldID, HasLookupPoints, RegisteredField, SerializableField,
-        SupportsNatConversions, SupportsU128Conversions, CANTOR_BASIS_U128, POLY_EVALUATION_POINTS,
+        AlgebraicField, BareField, FieldID, HasLookupPoints, RegisteredField, Sealed,
+        SerializableField, SupportsNatConversions, SupportsU128Conversions, CANTOR_BASIS_U128,
+        POLY_EVALUATION_POINTS,
     },
     runtime::algebra::{
         arch::{
@@ -240,8 +241,12 @@ impl InterpolationField<2> for Gf2_128Field {
     }
 }
 
+impl Sealed for Gf2_128Field {}
 /// FieldID::Gf2_128 names exactly this field, serialized in 16 bytes.
-impl RegisteredField for Gf2_128Field {}
+impl RegisteredField for Gf2_128Field {
+    const ID: FieldID = FieldID::Gf2_128;
+    const BYTES: usize = 16;
+}
 
 impl SerializableField for Gf2_128Field {
     fn field_id(&self) -> FieldID {

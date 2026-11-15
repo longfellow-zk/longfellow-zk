@@ -101,14 +101,61 @@ pub trait SerializableField: BareField {
     fn field_id(&self) -> FieldID;
 }
 
+/// The seal of `RegisteredField`. Only this crate can name it, so only this
+/// crate can register a field.
+pub trait Sealed {}
+
 /// A field with a registered `FieldID`: no other field uses its ID, and its
 /// canonical serialization has one fixed width, so the ID alone tells a
 /// reader which field an element belongs to and how to parse it. Only such
 /// a field's elements may be absorbed into a v2 transcript, whose Elements
-/// value names its field by the ID (transcript I5). `FieldID::None` is never
-/// registered. The registered fields are P-256 (`FieldID::P256`, 32 bytes)
-/// and GF(2^128) (`FieldID::Gf2_128`, 16 bytes).
-pub trait RegisteredField: SerializableField {}
+/// value names its field by `ID` (transcript I5). The registered fields are
+/// P-256 (`FieldID::P256`, 32 bytes) and GF(2^128) (`FieldID::Gf2_128`, 16
+/// bytes). The trait is sealed; test-only fields of this crate may implement
+/// it with `FieldID::None`, which is never registered and which v2
+/// participants reject. A value whose `field_id()` differs from `ID`, such
+/// as P-256 arithmetic built over another modulus, is rejected as well.
+///
+/// Another crate cannot register a field, even under a registered ID:
+///
+/// ```compile_fail,E0277
+/// use longfellow_zk::core::algebra::{BareField, FieldID, RegisteredField, SerializableField};
+/// struct Byte;
+/// impl BareField for Byte {
+///     type E = u8;
+/// }
+/// impl SerializableField for Byte {
+///     fn is_binary(&self) -> bool {
+///         false
+///     }
+///     fn serialized_size_bytes(&self) -> usize {
+///         1
+///     }
+///     fn to_bytes_into(&self, e: &u8, dst: &mut [u8]) {
+///         dst[0] = *e;
+///     }
+///     fn bytes_to_element(&self, bytes: &[u8]) -> Result<u8, String> {
+///         Ok(bytes[0])
+///     }
+///     fn serialized_mone(&self) -> Vec<u8> {
+///         vec![1]
+///     }
+///     fn field_id(&self) -> FieldID {
+///         FieldID::P256
+///     }
+/// }
+/// impl RegisteredField for Byte {
+///     const ID: FieldID = FieldID::P256;
+///     const BYTES: usize = 1;
+/// }
+/// ```
+pub trait RegisteredField: SerializableField + Sealed {
+    /// The registered ID; `field_id()` returns it.
+    const ID: FieldID;
+    /// The width of the canonical serialization; `serialized_size_bytes()`
+    /// returns it.
+    const BYTES: usize;
+}
 
 /// Identifies the field a circuit's constants and arithmetic belong to. The
 /// numeric values appear in LFC circuit files and in v2 circuit identities.

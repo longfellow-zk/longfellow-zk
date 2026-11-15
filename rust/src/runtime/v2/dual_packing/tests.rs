@@ -1,7 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::{generic::*, prover::prove_packed, verifier::reduce};
 use crate::{
-    core::algebra::{AlgebraicField, BareField, FieldID, RegisteredField, SerializableField},
+    core::algebra::{
+        AlgebraicField, BareField, FieldID, RegisteredField, Sealed, SerializableField,
+    },
     runtime::{
         algebra::{
             packing::{
@@ -153,7 +155,11 @@ impl<const P: u8> PackingField for Prime<P> {
 }
 /// Test-only: the toy fields all have `FieldID::None`, so their transcripts
 /// do not identify them; these tests check packing arithmetic, not Elements.
-impl<const P: u8> RegisteredField for Prime<P> {}
+impl<const P: u8> Sealed for Prime<P> {}
+impl<const P: u8> RegisteredField for Prime<P> {
+    const ID: FieldID = FieldID::None;
+    const BYTES: usize = 1;
+}
 impl<const P: u8> SerializableField for Prime<P> {
     fn field_id(&self) -> FieldID {
         FieldID::None
@@ -235,7 +241,11 @@ impl<const P: u8, const A: u8, const B: u8> PackingField for Quad<P, A, B> {
         vec![b'q', P, A, B]
     }
 }
-impl<const P: u8, const A: u8, const B: u8> RegisteredField for Quad<P, A, B> {}
+impl<const P: u8, const A: u8, const B: u8> Sealed for Quad<P, A, B> {}
+impl<const P: u8, const A: u8, const B: u8> RegisteredField for Quad<P, A, B> {
+    const ID: FieldID = FieldID::None;
+    const BYTES: usize = 1;
+}
 impl<const P: u8, const A: u8, const B: u8> SerializableField for Quad<P, A, B> {
     fn field_id(&self) -> FieldID {
         FieldID::None

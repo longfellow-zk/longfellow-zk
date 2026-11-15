@@ -1,10 +1,12 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::{
-    core::algebra::{AlgebraicField, SerializableField},
+    core::algebra::{AlgebraicField, FieldID, RegisteredField, Sealed, SerializableField},
     runtime::{
         algebra::{
+            fp_generic::FpGenericField,
             gf2_128::Gf2_128Field,
+            limb::LIMBS_PER_U64,
             p256::P256Field,
             packing::PackingField,
             range_interpolation::{BinaryInterpolatorFactory, ScalarInterpolatorFactory},
@@ -72,21 +74,16 @@ fn response_codec_is_canonical_and_requires_both_coordinates() {
 
 /// Test-only: this generic prime field has `FieldID::None`, so Elements of
 /// it would not identify it; the test needs only its sampling.
-impl crate::core::algebra::RegisteredField
-    for crate::runtime::algebra::fp_generic::FpGenericField<
-        1,
-        { crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        { 3 * crate::runtime::algebra::limb::LIMBS_PER_U64 },
-        (),
-    >
-{
+type SmallPrime = FpGenericField<1, { LIMBS_PER_U64 }, { 3 * LIMBS_PER_U64 }, ()>;
+impl Sealed for SmallPrime {}
+impl RegisteredField for SmallPrime {
+    const ID: FieldID = FieldID::None;
+    const BYTES: usize = 8;
 }
 
 #[test]
 fn generic_sampling_and_three_fields_need_no_packing_capability() {
-    use crate::runtime::algebra::{fp_generic::FpGenericField, limb::LIMBS_PER_U64};
-    let small =
-        FpGenericField::<1, { LIMBS_PER_U64 }, { 3 * LIMBS_PER_U64 }, ()>::new_generic([17]);
+    let small = SmallPrime::new_generic([17]);
     let sd = ScalarInterpolatorFactory::new(&small, 16);
     let small_param = PolygeroParam::try_new(
         witness_count(3).unwrap(),

@@ -2,12 +2,13 @@
 use super::*;
 use crate::{
     core::{
-        algebra::{AlgebraicField, SerializableField, SupportsU64Conversions},
+        algebra::{AlgebraicField, Sealed, SerializableField, SupportsU64Conversions},
         proto::v2::{self, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
     },
     runtime::{
         algebra::{
-            gf2_128::Gf2_128Field, range_interpolation::BinaryInterpolatorFactory, RuntimeField,
+            fp_generic::FpGenericField, gf2_128::Gf2_128Field, limb::LIMBS_PER_U64,
+            p256::P256Field, range_interpolation::BinaryInterpolatorFactory, RuntimeField,
         },
         random::DeterministicRng,
         v2::{
@@ -631,4 +632,29 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField> FrontendPart<'a, W, F> {
         } = self;
         (participant, circuits, public)
     }
+}
+
+/// A toy prime field registered under `FieldID::None`.
+type UnregisteredPrime = FpGenericField<1, { LIMBS_PER_U64 }, { 4 * LIMBS_PER_U64 }, ()>;
+impl Sealed for UnregisteredPrime {}
+impl RegisteredField for UnregisteredPrime {
+    const ID: FieldID = FieldID::None;
+    const BYTES: usize = 8;
+}
+
+/// Participants are built only over registered fields, and only over the
+/// field the registered ID names.
+#[test]
+fn participants_reject_unregistered_fields() {
+    assert!(check_registered(&P256Field::new()).is_ok());
+    assert!(check_registered(&Gf2_128Field::new()).is_ok());
+    // FieldID::None is never registered.
+    let toy = UnregisteredPrime::new_generic([0xffff_ffff_ffff_ffc5]);
+    assert_eq!(
+        check_registered(&toy).unwrap_err(),
+        "v2 participant field is not registered"
+    );
+    // P-256's type over another prime (2^256 - 189) is not P-256.
+    let other = P256Field::new_generic([0xffff_ffff_ffff_ff43, u64::MAX, u64::MAX, u64::MAX]);
+    assert!(check_registered(&other).is_err());
 }

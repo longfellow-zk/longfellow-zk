@@ -8,7 +8,10 @@ use super::{
     InputLayout, ZkContext,
 };
 use crate::{
-    core::{algebra::RegisteredField, proto::v2::Circuit},
+    core::{
+        algebra::{FieldID, RegisteredField},
+        proto::v2::Circuit,
+    },
     runtime::{
         algebra::{
             packing::{PackingExtension, PackingField},
@@ -107,6 +110,16 @@ impl<L: Fields> JointParam<L> {
     }
 }
 
+/// A participant's field must be registered (`RegisteredField`), never
+/// `FieldID::None`, and this value of it must be the field its ID names: the
+/// transcript identifies the field by `F::ID` alone.
+fn check_registered<F: RegisteredField>(f: &F) -> Result<(), String> {
+    if F::ID == FieldID::None || f.field_id() != F::ID || f.serialized_size_bytes() != F::BYTES {
+        return Err("v2 participant field is not registered".into());
+    }
+    Ok(())
+}
+
 /// A circuit's packing and commitment layout, independent of the participant list.
 /// The statement absorbs it (`CommitmentLayout`) before any prover message.
 /// Input packing stays here; the lower-level Polygero participant only knows
@@ -141,6 +154,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         config: PolygeroConfig,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<Self, String> {
+        check_registered(ctx.field())?;
         let (circuit, others) = circuits.split_first().ok_or("empty circuit list")?;
         let (geometry, param, backend) = prepare_circuit_layout(
             circuit,
@@ -177,6 +191,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         config: PolygeroConfig,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<Self, String> {
+        check_registered(ctx.field())?;
         let extension = ctx.field().packing_extension();
         if ctx.field().is_binary() || extension.degree() != 1 {
             return Err("split storage requires a degree-one prime frontend".into());

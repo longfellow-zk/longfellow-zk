@@ -13,6 +13,7 @@
 // limitations under the License.
 
 mod field;
+pub(crate) use field::Sealed;
 pub use field::{
     AlgebraicField, BareField, Comparable, ElementOf, FieldElement, FieldID, HasLookupPoints,
     NatOf, RegisteredField, SerializableField, SupportsNatConversions, SupportsU128Conversions,

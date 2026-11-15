@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    core::algebra::{RegisteredField, SerializableField},
+    core::algebra::{FieldID, RegisteredField, Sealed, SerializableField},
     runtime::algebra::{
         fp2::{Fp2Element, Fp2Field},
         fp_generic::{FpGenericElement, FpGenericField},
@@ -95,8 +95,12 @@ impl SupportsFFT<4> for Fp2Field<'_, 4, P256Field> {
     }
 }
 
+impl Sealed for P256Field {}
 /// FieldID::P256 names exactly this field, serialized in 32 bytes.
-impl RegisteredField for P256Field {}
+impl RegisteredField for P256Field {
+    const ID: FieldID = FieldID::P256;
+    const BYTES: usize = 32;
+}
 
 impl PackingField for P256Field {
     type Packing = IdentityExtension<Self>;

@@ -33,8 +33,9 @@ const BITS: u64 = Kind::Bits.value();
 
 /// The registered fields: each FieldID an Elements value may carry, with the
 /// width of its canonical serialization and its name. With this table and
-/// the tag registry a reader parses every node. `RegisteredField` is
-/// implemented exactly for these fields.
+/// the tag registry a reader parses every node. Outside tests,
+/// `RegisteredField` is implemented exactly for these fields, with this `ID`
+/// and `BYTES`; test-only fields may implement it with `FieldID::None`.
 #[cfg(test)]
 pub(crate) const REGISTERED_FIELDS: [(FieldID, usize, &str); 2] = [
     (FieldID::P256, 32, "P256"),
@@ -42,8 +43,9 @@ pub(crate) const REGISTERED_FIELDS: [(FieldID, usize, &str); 2] = [
 ];
 
 /// Serialized values are staged through a stack buffer of this many bytes,
-/// so a long vector costs few strand writes. A wider field element uses a
-/// heap buffer, so encoding accepts every field.
+/// so a long vector costs few strand writes. Every registered field's
+/// elements fit: `Encoder::elements` checks `RegisteredField::BYTES` against
+/// it at compile time.
 const STAGE_BYTES: usize = 512;
 
 /// A transcript message: a tag with a fixed schema, and its values. The
@@ -114,23 +116,22 @@ impl<'a> Encoder<'a> {
             self.payload(&stage[..8 * chunk.len()]);
         }
     }
-    /// A vector of elements of `f`, after `f`'s FieldID. Only a registered
-    /// field qualifies, so the ID identifies the field and its encoding.
+    /// A vector of elements of `f`, after its registered ID `F::ID`. Only a
+    /// registered field qualifies, so the ID identifies the field and its
+    /// encoding, `F::BYTES` bytes per element.
     pub fn elements<F: RegisteredField>(&mut self, f: &F, xs: &[F::E]) {
+        const {
+            assert!(
+                F::BYTES > 0 && F::BYTES <= STAGE_BYTES,
+                "a registered field's elements fit the stage buffer"
+            )
+        };
+        let n = F::BYTES;
         self.strand.write(&ELEMENTS.to_le_bytes());
-        self.strand.write(&(f.field_id() as u64).to_le_bytes());
+        self.strand.write(&(F::ID as u64).to_le_bytes());
         self.strand.write(&(xs.len() as u64).to_le_bytes());
         #[cfg(test)]
         self.record.schema.push((ELEMENTS, xs.len() as u64));
-        let n = f.serialized_size_bytes();
-        if n == 0 || n > STAGE_BYTES {
-            let mut buf = vec![0u8; n];
-            for x in xs {
-                f.to_bytes_into(x, &mut buf);
-                self.payload(&buf);
-            }
-            return;
-        }
         let mut stage = [0u8; STAGE_BYTES];
         for chunk in xs.chunks(STAGE_BYTES / n) {
             for (out, x) in stage.chunks_exact_mut(n).zip(chunk) {

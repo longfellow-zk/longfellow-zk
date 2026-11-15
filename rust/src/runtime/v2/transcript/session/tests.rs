@@ -2,7 +2,7 @@
 use super::*;
 use crate::{
     core::algebra::{
-        AlgebraicField, BareField, FieldID, RegisteredField, SerializableField,
+        AlgebraicField, BareField, FieldID, RegisteredField, Sealed, SerializableField,
         SupportsU64Conversions,
     },
     runtime::{
@@ -363,7 +363,10 @@ fn each_value_kind_has_its_documented_encoding() {
 fn registered_fields_have_the_registry_id_and_width() {
     use crate::runtime::algebra::gf2_128::Gf2_128Field;
     fn entry<F: RegisteredField>(f: &F) -> (FieldID, usize) {
-        (f.field_id(), f.serialized_size_bytes())
+        assert_eq!(f.field_id(), F::ID);
+        assert_eq!(f.serialized_size_bytes(), F::BYTES);
+        assert_eq!(f.serialized_mone().len(), F::BYTES);
+        (F::ID, F::BYTES)
     }
     let fields = [entry(&P256Field::new()), entry(&Gf2_128Field::new())];
     let registry: Vec<_> = REGISTERED_FIELDS
@@ -590,26 +593,29 @@ fn index_rejection_matches_the_same_prf_stream() {
     assert!(saw_rejection);
 }
 
-/// P-256 arithmetic advertised with a wider encoding: the element's 32 bytes
-/// fill the end of the buffer, after `bytes - 32` zeros.
-struct WideEncoding {
+/// P-256 arithmetic advertised with a `BYTES`-wide encoding: the element's
+/// 32 bytes fill the end of the buffer, after `BYTES - 32` zeros.
+struct WideEncoding<const BYTES: usize> {
     field: P256Field,
-    bytes: usize,
 }
-impl BareField for WideEncoding {
+impl<const BYTES: usize> BareField for WideEncoding<BYTES> {
     type E = <P256Field as BareField>::E;
 }
-/// Test-only: a wide encoding under `FieldID::None`, to reach the heap path.
-impl RegisteredField for WideEncoding {}
-impl SerializableField for WideEncoding {
+impl<const BYTES: usize> Sealed for WideEncoding<BYTES> {}
+/// Test-only: encodings of other widths under `FieldID::None`.
+impl<const BYTES: usize> RegisteredField for WideEncoding<BYTES> {
+    const ID: FieldID = FieldID::None;
+    const BYTES: usize = BYTES;
+}
+impl<const BYTES: usize> SerializableField for WideEncoding<BYTES> {
     fn is_binary(&self) -> bool {
         false
     }
     fn serialized_size_bytes(&self) -> usize {
-        self.bytes
+        BYTES
     }
     fn to_bytes_into(&self, e: &Self::E, dst: &mut [u8]) {
-        assert_eq!(dst.len(), self.bytes);
+        assert_eq!(dst.len(), BYTES);
         dst.fill(0);
         let tail = dst.len() - 32;
         self.field.to_bytes_into(e, &mut dst[tail..]);
@@ -625,37 +631,44 @@ impl SerializableField for WideEncoding {
     }
 }
 
+/// Every element is absorbed whole, in order, across the stage buffer's
+/// chunks: widths that divide the buffer and widths that do not, up to the
+/// whole buffer, with vectors longer than one chunk.
 #[test]
-fn absorption_accepts_encodings_wider_than_the_stack_buffer() {
-    let base = P256Field::new();
-    for bytes in [32, STAGE_BYTES, STAGE_BYTES + 1, 4 * STAGE_BYTES] {
-        let f = WideEncoding {
+fn absorption_stages_every_element_whole() {
+    fn check<const BYTES: usize>() {
+        let f = WideEncoding::<BYTES> {
             field: P256Field::new(),
-            bytes,
         };
-        let challenge = |e: &<WideEncoding as BareField>::E| {
-            let mut t = Transcript::for_test(b"wide field");
-            t.borrow().send(&Wide(&f, e));
-            t.u128()
-        };
-        // The element's bytes sit at the end, so differing elements show that
-        // the whole encoding is absorbed, not just a stack-sized prefix.
-        assert_ne!(
-            challenge(&base.one()),
-            challenge(&base.u64_to_element(2)),
-            "width {bytes}"
-        );
+        let count = 2 * STAGE_BYTES / BYTES + 1;
+        let xs: Vec<_> = (1..=count as u64)
+            .map(|i| f.field.u64_to_element(i))
+            .collect();
+        let mut t = Transcript::for_test(b"wide field");
+        t.borrow().send(&Wide(&f, &xs));
+        let recorded = t.trace.messages().last().unwrap().clone();
+        assert_eq!(recorded.schema, [(2, count as u64)], "width {BYTES}");
+        let expected: Vec<u8> = xs.iter().flat_map(|x| f.to_bytes(x)).collect();
+        assert_eq!(recorded.payload, expected, "width {BYTES}");
     }
+    check::<32>();
+    check::<48>();
+    check::<{ STAGE_BYTES / 2 }>();
+    check::<{ STAGE_BYTES - 1 }>();
+    check::<STAGE_BYTES>();
 }
-/// One element of a wide test encoding.
-struct Wide<'a>(&'a WideEncoding, &'a <WideEncoding as BareField>::E);
-impl Message for Wide<'_> {
+/// A vector of a wide test encoding.
+struct Wide<'a, const BYTES: usize>(
+    &'a WideEncoding<BYTES>,
+    &'a [<WideEncoding<BYTES> as BareField>::E],
+);
+impl<const BYTES: usize> Message for Wide<'_, BYTES> {
     const TAG: Tag = Tag::PublicInputs;
     fn encode(&self, e: &mut Encoder<'_>) {
-        e.elements(self.0, std::slice::from_ref(self.1));
+        e.elements(self.0, self.1);
     }
 }
-impl ProverMessage for Wide<'_> {}
+impl<const BYTES: usize> ProverMessage for Wide<'_, BYTES> {}
 /// The encoder's staging buffer size.
 const STAGE_BYTES: usize = 512;
 impl Transcript {
