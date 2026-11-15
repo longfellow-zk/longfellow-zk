@@ -41,9 +41,6 @@ noncomputable def maskIndex (kind : LinearConstraintMask) :
     Fin (rowCount nw nq) :=
   indexOf (Sum.inl (Sum.inr (0, kind)))
 
-noncomputable def blindIndex : Fin (rowCount nw nq) :=
-  indexOf (Sum.inr ())
-
 /-- The ordinary RS code on committed columns, with the larger primary
 response dimension `r+w+s`. -/
 def primaryCode (D : ReedSolomon.Domain F r w n) (hprimary : r + w + s ≤ n) :

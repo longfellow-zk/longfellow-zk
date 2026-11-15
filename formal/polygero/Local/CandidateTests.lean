@@ -15,11 +15,6 @@ variable (layout : ConstraintLayout F q w) (statement : ConstraintSystem F nw nq
 noncomputable def candidateTests (f : Fin (rowCount nw nq) → DegreeLT F (r+w)) :=
   ListSoundness.candidateTests D layout statement (extendRows f)
 
-theorem candidateTests_card (f : Fin (rowCount nw nq) → DegreeLT F (r+w))
-    (hfalse : ¬statement.Language) :
-    (candidateTests D layout statement f).card * Fintype.card F ≤ Fintype.card (Equations → F) :=
-  ListSoundness.candidateTests_card D layout statement (extendRows f) hfalse
-
 theorem candidateTests_of_checks (weights : Equations → F)
     (payload : LigeroPayload F (r+w) s)
     (f : Fin (rowCount nw nq) → DegreeLT F (r+w))

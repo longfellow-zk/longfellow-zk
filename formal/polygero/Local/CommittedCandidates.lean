@@ -56,21 +56,6 @@ theorem committedCandidates_card_le (I : Instance F) (W : I.layer.Oracle)
     exact rowAgreement_inter_card_le _ _ g h hne
   · exact hpacking
 
-/-- Johnson's symbolic certificate is one way to instantiate the fixed list;
-the same interface also accepts the fast Hahn certificates. -/
-theorem committedCandidates_card_le_johnson (I : Instance F) (W : I.layer.Oracle)
-    (cutoff : ℕ) (hk : 1 ≤ I.r+I.w) (hcutoff : I.r+I.w-1 < cutoff) (hcn : cutoff ≤ I.n)
-    (hden : 0 < CodingTheory.InterleavedJohnson.denominator I.n
-      (I.n-(I.r+I.w)+1) (I.n-cutoff)) :
-    (committedCandidates I W cutoff).card ≤ CodingTheory.InterleavedJohnson.listBound I.n
-      (I.n-(I.r+I.w)+1) (I.n-cutoff) := by
-  have hkn := I.primary_le
-  apply committedCandidates_card_le I W cutoff _ hcutoff
-  have hp := CodingTheory.InterleavedJohnson.uniformFamilyBound_of_denominator_pos
-    (n := I.n) (d := I.n-(I.r+I.w)+1) (E := I.n-cutoff)
-    (by omega) (by omega) (by omega) hden
-  convert! hp using 1 <;> omega
-
 /-- An extracted witness outside the fixed list forces a small good-column
 set. This statement is uniform in both backend response polynomials. -/
 theorem fraction_le_of_decoded_not_mem (I : Instance F) (σ : I.layer.Statement)
@@ -90,15 +75,5 @@ theorem fraction_le_of_decoded_not_mem (I : Instance F) (σ : I.layer.Statement)
   exact (NonrecursiveFS.fraction_le_columns I σ W coin payload).trans
     (div_le_div_of_nonneg_right
       (by exact_mod_cast Nat.choose_le_choose I.t hgood) (by positivity))
-
-theorem decoded_mem_of_fraction_gt (I : Instance F) (σ : I.layer.Statement)
-    (W : I.layer.Oracle) (coin : I.layer.Coin) (payload : I.layer.Payload)
-    (g : (tupleCounts I).Index) (cutoff : ℕ)
-    (hdecode : scanRecoverAt I σ W coin payload = some g)
-    (hlarge : ((cutoff+I.s-1).choose I.t : ℚ)/I.n.choose I.t <
-      NonrecursiveFS.fraction I σ W coin payload) :
-    g ∈ committedCandidates I W cutoff := by
-  by_contra hn
-  exact (not_lt_of_ge (fraction_le_of_decoded_not_mem I σ W coin payload g cutoff hdecode hn)) hlarge
 
 end RecursivePolygero.Counting

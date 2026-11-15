@@ -217,42 +217,4 @@ theorem targetCheck_eq_affineEquation
     weights B rows] at htarget
   linear_combination htarget
 
-/-- For a false statement, a canonical accepted payload places the auxiliary
-challenge in one nontrivial affine hyperplane. -/
-theorem falseLanguage_targetCheck
-    [Fintype F] [DecidableEq Equations]
-    (D : ReedSolomon.Domain F r w n) (hk : r + w ≤ n)
-    (hprimary : r + w + s ≤ n)
-    (layout : ConstraintLayout F q w)
-    (statement : ConstraintSystem F nw nq q Equations)
-    (weights : Equations → F)
-    (B : Challenge F (rowCount nw nq) s)
-    (payload : LigeroPayload F (r + w) s)
-    (rows : Fin (rowCount nw nq) → DegreeLT F (r + w))
-    (htarget : (∑ i : Fin q, (payload.arithmetic : F[X]).eval
-      (D.point (logicalWitnessPosition layout i))) =
-        statement.combinedTarget weights)
-    (hcanonical : payload.arithmetic =
-      (responseSemantics D hk hprimary layout statement weights).canonical B rows)
-    (hproduct : ∀ row : Fin nq,
-      (rows (leftIndex row) : F[X]) * (rows (rightIndex row) : F[X]) =
-        (rows (outputIndex row) : F[X]))
-    (hfalse : ¬statement.Language) :
-    (decodedLinearResidual D layout statement rows ≠ 0) ∧
-      (weights ∈ affineEquationSolutions
-        (decodedLinearResidual D layout statement rows)
-        (-decodedZRMaskSum D layout rows)) ∧
-      Fintype.card F *
-          (affineEquationSolutions
-            (decodedLinearResidual D layout statement rows)
-            (-decodedZRMaskSum D layout rows)).card ≤
-        Fintype.card (Equations → F) := by
-  have hnonzero := linearResidual_ne_zero_of_not_language D layout statement rows
-    hproduct hfalse
-  refine ⟨hnonzero, ?_, affineEquationSolutions_density _ _ hnonzero⟩
-  simp only [affineEquationSolutions, Finset.mem_filter, Finset.mem_univ,
-    true_and]
-  exact targetCheck_eq_affineEquation D hk hprimary layout statement weights B
-    payload rows htarget hcanonical
-
 end LigeroFamily.PolynomialDirect

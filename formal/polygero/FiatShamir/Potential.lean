@@ -164,66 +164,6 @@ theorem maxFailureAgreement_tail_le_of_uniformFamilyBound
     div_le_div_of_nonneg_right hcard (by positivity)
   exact (maxFailureAgreement_tail_le I p σ W hlarge).trans (add_le_add le_rfl hdiv)
 
-/-- Complete tail profile, including the levels below recovery's floor. -/
-noncomputable def failureAgreementTail (I : Instance F) (p : ProfileParameters I)
-    (listBound : ℕ → ℕ) (a : ℕ) : ℚ :=
-  if p.largeSize ≤ a then min 1 (p.rankError + listBound a/(Nat.card F : ℚ)) else 1
-
-theorem maxFailureAgreement_tail_le_profile (I : Instance F) (p : ProfileParameters I)
-    (σ : I.layer.Statement) (W : I.layer.Oracle) (listBound : ℕ → ℕ)
-    (hbound : ∀ a, p.largeSize ≤ a → a ≤ I.n →
-      CodingTheory.UniformFamilyBound I.n a p.overlapSize (listBound a))
-    (a : ℕ) (han : a ≤ I.n) :
-    mean (fun coin : I.layer.Coin => indicator (a ≤ maxFailureAgreement I σ W coin)) ≤
-      failureAgreementTail I p listBound a := by
-  have hunit : mean (fun coin : I.layer.Coin => indicator (a ≤ maxFailureAgreement I σ W coin)) ≤ 1 := by
-    have hm := mean_mono (fun coin : I.layer.Coin =>
-      (show indicator (a ≤ maxFailureAgreement I σ W coin) ≤ 1 by
-        unfold indicator
-        split_ifs <;> norm_num))
-    exact hm.trans_eq (mean_const 1)
-  unfold failureAgreementTail
-  split_ifs with hlarge
-  · exact le_min hunit (maxFailureAgreement_tail_le_of_uniformFamilyBound
-      I p σ W a (listBound a) hlarge (hbound a hlarge han))
-  · exact hunit
-
-/-- V1's layer-cake theorem transfers the complete tail to every monotone
-curve, without selecting a single agreement threshold. -/
-theorem failure_potential_mean_le (I : Instance F) (p : ProfileParameters I)
-    (σ : I.layer.Statement) (W : I.layer.Oracle) (ψ : PotentialProfile.Curve I.n)
-    (listBound : ℕ → ℕ)
-    (hbound : ∀ a, p.largeSize ≤ a → a ≤ I.n →
-      CodingTheory.UniformFamilyBound I.n a p.overlapSize (listBound a)) :
-    mean (fun coin : I.layer.Coin => ψ.value (maxFailureAgreement I σ W coin)) ≤
-      ∑ a ∈ range (I.n+1), ψ.increment a * failureAgreementTail I p listBound a := by
-  apply ψ.mean_le_tail_sum (maxFailureAgreement I σ W) (maxFailureAgreement_le I σ W)
-  intro a han
-  have ht := maxFailureAgreement_tail_le_profile I p σ W listBound hbound a han
-  rw [mean_indicator] at ht
-  convert! ht using 1
-  congr 2
-  apply congrArg Finset.card
-  ext coin
-  simp only [AgreementProfile.tailSet, mem_filter, mem_univ, true_and]
-
-/-- The challenge's raw hash-answer charge uses V1's exact decoder-balance
-lemma, retaining the role's fiber factor. -/
-theorem failure_challenge_hash_charge_le (I : Instance F) (p : ProfileParameters I)
-    (σ : I.layer.Statement) (W : I.layer.Oracle) (ψ : PotentialProfile.Curve I.n)
-    (listBound : ℕ → ℕ)
-    (hbound : ∀ a, p.largeSize ≤ a → a ≤ I.n →
-      CodingTheory.UniformFamilyBound I.n a p.overlapSize (listBound a))
-    {C : Type} [Fintype C] (decode : C → I.layer.Coin) (k : ℕ)
-    (hbalance : ∀ coin, (univ.filter fun c : C => decode c = coin).card ≤ k) :
-    (∑ c : C, ψ.value (maxFailureAgreement I σ W (decode c))) ≤
-      k * Fintype.card I.layer.Coin *
-        (∑ a ∈ range (I.n+1), ψ.increment a * failureAgreementTail I p listBound a) := by
-  exact LfzkV1.ZkPotentialBalance.decoded_mean_le decode
-    (fun coin => ψ.value (maxFailureAgreement I σ W coin))
-    (fun coin => ψ.nonneg _ (maxFailureAgreement_le I σ W coin)) k hbalance _
-    (failure_potential_mean_le I p σ W ψ listBound hbound)
-
 theorem failureQueries_card_le_maxAgreement (I : Instance F) (σ : I.layer.Statement) (W : I.layer.Oracle)
     (coin : I.layer.Coin) (response : I.layer.Payload) :
     (univ.filter fun query : I.layer.Query => I.layer.verify σ W coin response query ∧
@@ -268,23 +208,6 @@ theorem failure_query_positive_increase_le (I : Instance F) (σ : I.layer.Statem
   unfold PotentialProfile.Curve.queryCost
   rw [Finset.le_sup'_iff]
   exact ⟨a,mem_range.mpr (by omega),le_rfl⟩
-
-/-- V1's existing balance lemma transports the residual charge to the full
-hash-answer space without rounding the potential to a Boolean event. -/
-theorem failure_query_hash_charge_le (I : Instance F) (σ : I.layer.Statement) (W : I.layer.Oracle)
-    (ψ : PotentialProfile.Curve I.n) (coin : I.layer.Coin) (response : I.layer.Payload)
-    {C : Type} [Fintype C] [DecidableEq I.layer.Query]
-    (decode : C → I.layer.Query) (k : ℕ)
-    (hbalance : ∀ query, (univ.filter fun c : C => decode c = query).card ≤ k) :
-    (∑ c : C, if I.layer.verify σ W coin response (decode c) ∧ scanRecoverAt I σ W coin response = none
-      then 1-ψ.value (maxFailureAgreement I σ W coin) else 0) ≤
-      k * Fintype.card I.layer.Query * ψ.queryCost (fun a => hypergeometricRatio a I.n I.t) := by
-  apply LfzkV1.ZkPotentialBalance.decoded_query_charge_le decode
-    (fun query : I.layer.Query => I.layer.verify σ W coin response query ∧ scanRecoverAt I σ W coin response = none)
-    (1-ψ.value (maxFailureAgreement I σ W coin))
-    (sub_nonneg.mpr (ψ.le_one _ (maxFailureAgreement_le I σ W coin))) k hbalance
-  rw [show Fintype.card I.layer.Query = I.n.choose I.t from QuerySet.fintype_card _ _]
-  exact failure_query_positive_increase_le I σ W ψ coin response
 
 /-- In V1's terminal doom branch the built statement has no satisfying
 member in the committed list. A decoded response is then outside that list;
@@ -352,31 +275,5 @@ structure TerminalPotential (I : Instance F) {C : Type} [Fintype C] (cutoff : �
       ¬ I.layer.satisfies σ ((Counting.tupleCounts I).witness g)) →
     ∀ coin response, (∑ c : C, if I.layer.verify σ W coin response (decodeQuery c) then
       1-weight σ W coin else 0) ≤ queryBudget
-
-/-- The checked recovery and packing tails instantiate the same graded
-terminal data as V1, using its curve and decoder-balance lemmas. -/
-noncomputable def terminalPotential (I : Instance F) (p : ProfileParameters I)
-    (ψ : PotentialProfile.Curve I.n) (cutoff : ℕ) (listBound : ℕ → ℕ)
-    (hbound : ∀ a, p.largeSize ≤ a → a ≤ I.n →
-      CodingTheory.UniformFamilyBound I.n a p.overlapSize (listBound a))
-    {C : Type} [Fintype C] (decodeCoin : C → I.layer.Coin) (decodeQuery : C → I.layer.Query)
-    (kCoin kQuery : ℕ)
-    (hcoin : ∀ coin, (univ.filter fun c : C => decodeCoin c = coin).card ≤ kCoin)
-    (hquery : ∀ query, (univ.filter fun c : C => decodeQuery c = query).card ≤ kQuery) :
-    TerminalPotential I cutoff decodeCoin decodeQuery where
-  weight σ W coin := ψ.value (maxFailureAgreement I σ W coin)
-  nonneg σ W coin := ψ.nonneg _ (maxFailureAgreement_le I σ W coin)
-  le_one σ W coin := ψ.le_one _ (maxFailureAgreement_le I σ W coin)
-  challengeBudget := max 0 (kCoin * Fintype.card I.layer.Coin *
-    (∑ a ∈ range (I.n+1), ψ.increment a * failureAgreementTail I p listBound a))
-  queryBudget := max 0 (kQuery * Fintype.card I.layer.Query *
-    max (ψ.queryCost (fun a => hypergeometricRatio a I.n I.t))
-      (((cutoff+I.s-1).choose I.t : ℚ)/I.n.choose I.t))
-  challengeBudget_nonneg := le_max_left _ _
-  queryBudget_nonneg := le_max_left _ _
-  challenge_le σ W := (failure_challenge_hash_charge_le I p σ W ψ listBound hbound
-    decodeCoin kCoin hcoin).trans (le_max_right _ _)
-  query_le σ W hnosat coin response := (query_hash_charge_le_of_noSat
-    I σ W ψ cutoff hnosat coin response decodeQuery kQuery hquery).trans (le_max_right _ _)
 
 end RecursivePolygero.NonrecursiveFS

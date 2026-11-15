@@ -68,36 +68,6 @@ theorem associated_superset {H : Type} [Field H] {m : ℕ}
     omega
   rwa [he]
 
-theorem assign (T : Finset (Fin n)) (hsize : k+s+s+1 ≤ T.card)
-    (hlow₁ : fixedConsistencyCodimension C₁ W₁ T s ≤ s)
-    (hlow₂ : fixedConsistencyCodimension C₂ W₂ T s ≤ s)
-    (v₁ : Challenge F m₁ s × DegreeLT F (k+s))
-    (v₂ : Challenge G m₂ s × DegreeLT G (k+s))
-    (hv₁ : v₁ ∈ ConsistencyClosure.solutions (jointMap C₁ W₁) mask₁ T)
-    (hv₂ : v₂ ∈ ConsistencyClosure.solutions (jointMap C₂ W₂) mask₂ T) :
-    ∃ d : Label C₁ W₁ mask₁ C₂ W₂ mask₂,
-      T ∈ JointFamilies.associated (sets C₁ W₁ mask₁) (sets C₂ W₂ mask₂) d ∧
-      v₁ ∈ ConsistencyClosure.solutions (jointMap C₁ W₁) mask₁ d.1.1.1 ∧
-      v₂ ∈ ConsistencyClosure.solutions (jointMap C₂ W₂) mask₂ d.1.2.1 ∧
-      fixedConsistencyCodimension C₁ W₁ d.1.1.1 s + (T \ d.1.1.1).card ≤ s ∧
-      fixedConsistencyCodimension C₂ W₂ d.1.2.1 s + (T \ d.1.2.1).card ≤ s := by
-  let l : ↥(family C₁ W₁ mask₁) := ⟨closure C₁ W₁ mask₁ (canonicalCoreSet C₁ W₁ T),
-    canonical_mem_family C₁ W₁ mask₁ T hsize hlow₁ ⟨v₁,hv₁⟩⟩
-  let r : ↥(family C₂ W₂ mask₂) := ⟨closure C₂ W₂ mask₂ (canonicalCoreSet C₂ W₂ T),
-    canonical_mem_family C₂ W₂ mask₂ T hsize hlow₂ ⟨v₂,hv₂⟩⟩
-  have hl : T ∈ sets C₁ W₁ mask₁ l :=
-    mem_filter.mpr ⟨mem_univ _,hsize,hlow₁,⟨v₁,hv₁⟩,rfl⟩
-  have hr : T ∈ sets C₂ W₂ mask₂ r :=
-    mem_filter.mpr ⟨mem_univ _,hsize,hlow₂,⟨v₂,hv₂⟩,rfl⟩
-  obtain ⟨d,hd,hmem,_⟩ := JointFamilies.common_set _ _ l r T hl hr
-  have h₁ := associated_data C₁ W₁ mask₁ l.1 T hl v₁ hv₁
-  have h₂ := associated_data C₂ W₂ mask₂ r.1 T hr v₂ hv₂
-  refine ⟨d,hmem,?_,?_,?_,?_⟩ <;> rw [hd]
-  · exact h₁.1
-  · exact h₂.1
-  · exact h₁.2.le.trans hlow₁
-  · exact h₂.2.le.trans hlow₂
-
 theorem overlap (hk : 1 ≤ k) (d e : Label C₁ W₁ mask₁ C₂ W₂ mask₂)
     (T T' : Finset (Fin n))
     (hT : T ∈ JointFamilies.associated (sets C₁ W₁ mask₁) (sets C₂ W₂ mask₂) d)

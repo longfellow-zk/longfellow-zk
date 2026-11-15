@@ -10,10 +10,6 @@ variable {F : Type} {nw nq n : ℕ}
 abbrev BatchedRow (nw nq : ℕ) :=
   CoreRow nw nq ⊕ LinearConstraintMask
 abbrev rowCount (nw nq : ℕ) := Fintype.card (BatchedRow nw nq)
-/-- Every physical ordinary row gets one challenge; there is no dummy slot. -/
-theorem rowCount_eq (nw nq : ℕ) : rowCount nw nq = Fintype.card (CoreRow nw nq) + 2 := by
-  simp only [rowCount, BatchedRow, Fintype.card_sum,
-    show Fintype.card LinearConstraintMask = 2 from by decide]
 
 noncomputable def rowEquiv (nw nq : ℕ) : Fin (rowCount nw nq) ≃ BatchedRow nw nq :=
   (Fintype.equivFin _).symm
