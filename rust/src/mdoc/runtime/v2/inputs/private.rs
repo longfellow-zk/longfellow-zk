@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{
     circuits::{
         ecdsa2::{try_witness, Derived, Given},
-        sha256msg::{derived, given},
+        sha256msg::given_and_derived,
     },
     core::algebra::{
         ec::{Curve, Pt2},
@@ -73,7 +73,7 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     builder.push_nat256(&parsed.device_pk.1);
 
     // 2. preimage (MSO preimage - bytes as bits) + preimage.len
-    let mso_sha_in = given(&parsed.cbor_mso, K_MAX_SHA_BLOCKS)
+    let (mso_sha_in, mso_sha_derived) = given_and_derived(&parsed.cbor_mso, K_MAX_SHA_BLOCKS)
         .map_err(|_| MdocProverErrorCode::TaggedMsoTooBig)?;
     let requested = request
         .attributes()
@@ -95,7 +95,6 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
                 .contains(&attribute.mso_digest_offset_in_preimage)
         })
         .collect();
-    let mso_sha_derived = derived(&mso_sha_in, K_MAX_SHA_BLOCKS);
     let signed_bytes = &mso_sha_in.padded_preimage;
     let nblocks = mso_sha_in.nblocks;
     let preimage_arr: [u8; K_MSO_PREIMAGE_LEN] = signed_bytes.as_slice().try_into().unwrap();
@@ -175,8 +174,9 @@ fn push_witness_attrs(
         if pa.cbor_issuer_signed_item.len() > K_MAX_ATTR_CBOR_LEN {
             return Err(MdocProverErrorCode::AttributeTooLong);
         }
-        let attr_sha_in = given(&pa.cbor_issuer_signed_item, K_MAX_ATTR_SHA_BLOCKS)
-            .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
+        let (attr_sha_in, attr_sha_derived) =
+            given_and_derived(&pa.cbor_issuer_signed_item, K_MAX_ATTR_SHA_BLOCKS)
+                .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
         // The signed MSO holds `bstr(SHA-256(item))` at the digest offset, as
         // the hash circuit checks; an item the issuer did not sign fails here.
         let digest = signed
@@ -188,7 +188,6 @@ fn push_witness_attrs(
         if digest != Some(Sha256::digest(&pa.cbor_issuer_signed_item).as_slice()) {
             return Err(MdocProverErrorCode::GeneralFailure);
         }
-        let attr_sha_derived = derived(&attr_sha_in, K_MAX_ATTR_SHA_BLOCKS);
         let preimage_arr: [u8; K_ATTR_PREIMAGE_LEN] =
             attr_sha_in.padded_preimage.as_slice().try_into().unwrap();
 

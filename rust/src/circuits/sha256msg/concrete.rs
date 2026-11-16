@@ -31,16 +31,27 @@ pub struct ConcreteGiven {
 /// its digest `expected_hash`. The hash starts from the standard initial
 /// state `INITIAL`, as `derived` and the circuit do.
 pub fn given(preimage: &[u8], max_blocks: usize) -> Result<ConcreteGiven, String> {
+    given_and_derived(preimage, max_blocks).map(|(given, _)| given)
+}
+
+/// `given` and `derived` of `preimage` from one hash computation: the given
+/// inputs and the witness of each of the `max_blocks` blocks, idle blocks
+/// included, as `derived(&given, max_blocks)` computes them.
+pub fn given_and_derived(
+    preimage: &[u8],
+    max_blocks: usize,
+) -> Result<(ConcreteGiven, Derived<u32>), String> {
     let (nblocks, length_bytes, padded_preimage) = pad_sha256_message(preimage, max_blocks)?;
     let sha_derived = sha256_msg_derived(&padded_preimage, &INITIAL, max_blocks);
     // Padding takes at least one block.
-    let final_expected_hash = sha_derived[nblocks - 1].h1;
-    Ok(ConcreteGiven {
+    let expected_hash = sha_derived[nblocks - 1].h1;
+    let given = ConcreteGiven {
         padded_preimage,
         nblocks,
         length_bytes,
-        expected_hash: final_expected_hash,
-    })
+        expected_hash,
+    };
+    Ok((given, Derived { sha_derived }))
 }
 
 pub fn pad_sha256_message(

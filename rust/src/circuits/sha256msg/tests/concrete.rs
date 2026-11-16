@@ -2,7 +2,7 @@
 //! The native witness helpers agree with each other and with SHA-256.
 use sha2::{Digest, Sha256};
 
-use crate::circuits::sha256msg::{derived, given};
+use crate::circuits::sha256msg::{derived, given, given_and_derived};
 
 /// Message lengths around every padding boundary of up to three blocks.
 const LENGTHS: [usize; 9] = [0, 1, 55, 56, 63, 64, 119, 120, 183];
@@ -26,5 +26,27 @@ fn given_digest_is_sha256_and_ends_derived() {
             g.expected_hash,
             "length {len}"
         );
+    }
+}
+
+/// `given_and_derived` computes the same given inputs and block witnesses,
+/// idle blocks included, as `given` followed by `derived`, and rejects the
+/// same oversized messages.
+#[test]
+fn given_and_derived_matches_given_then_derived() {
+    for len in LENGTHS {
+        let message: Vec<u8> = (0..len).map(|i| (i * 31 + len) as u8).collect();
+        for max_blocks in 1..=4 {
+            let separate = given(&message, max_blocks).map(|g| {
+                let d = derived(&g, max_blocks);
+                (g, d)
+            });
+            let once = given_and_derived(&message, max_blocks);
+            assert_eq!(
+                format!("{once:?}"),
+                format!("{separate:?}"),
+                "length {len}, {max_blocks} blocks"
+            );
+        }
     }
 }

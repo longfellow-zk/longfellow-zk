@@ -15,7 +15,9 @@
 mod concrete;
 mod shape;
 
-pub use concrete::{derived, given, pad_sha256_message, sha256_msg_derived, ConcreteGiven};
+pub use concrete::{
+    derived, given, given_and_derived, pad_sha256_message, sha256_msg_derived, ConcreteGiven,
+};
 pub use shape::Derived;
 
 cfg_compiler! {
