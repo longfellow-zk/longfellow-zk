@@ -382,7 +382,7 @@ impl ZkProof<F> {
 }
 
 // a frontend draws its top weights on entry (I8); runtime::v2::zk, crate-private
-pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, F>>, state: CircuitState<F>,
+pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, F>>, state: CircuitState<'_, F>,
     virtual_inputs: &VirtualInputs<F::E>) -> Result<(CircuitProof<F>, LinearStatement<F::E>), String>;
 ```
 

@@ -291,8 +291,9 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
 }
 
 /// `prove` takes a commitment state only from the participant that prepared
-/// it: a state prepared for a circuit with another ID, but the same shape,
-/// is rejected before any message.
+/// it, compared by value: a state prepared for a circuit with another ID,
+/// but the same shape, is rejected before any message, and one prepared by
+/// a distinct participant equal in every value is accepted.
 #[test]
 fn prove_rejects_a_state_of_another_participant() {
     let f = Gf2_128Field::new();
@@ -346,7 +347,7 @@ fn prove_rejects_a_state_of_another_participant() {
         .commit(witness.clone(), &statement, &domain, &mut rng)
         .unwrap();
     let foreign = other
-        .commit(witness, &other_statement, &domain, &mut rng)
+        .commit(witness.clone(), &other_statement, &domain, &mut rng)
         .unwrap();
     let mut t = committed.joint.bound(&statement.part);
     let result = prove(&mut t, foreign.state, &VirtualInputs::none());
@@ -354,4 +355,10 @@ fn prove_rejects_a_state_of_another_participant() {
         result.err().unwrap(),
         "commitment belongs to another participant"
     );
+    let twin = ZkProver::new(fixture(), config, &domain).unwrap();
+    let twin_statement = twin.statement(b"state", &public).unwrap();
+    let twin_committed = twin
+        .commit(witness, &twin_statement, &domain, &mut rng)
+        .unwrap();
+    assert!(prove(&mut t, twin_committed.state, &VirtualInputs::none()).is_ok());
 }

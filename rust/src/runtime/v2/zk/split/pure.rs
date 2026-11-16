@@ -69,7 +69,7 @@ impl<F: ZkField + PackingField> PureSplit<F> {
         &self,
         private: Vec<CircuitInput<F>>,
         rng: &mut impl PrivateRandom,
-    ) -> Result<PureState<F>, String> {
+    ) -> Result<PureState<'_, F>, String> {
         if private.len() != self.frontend.inputs.committed() {
             return Err("split witness shape".into());
         }
@@ -81,7 +81,7 @@ impl<F: ZkField + PackingField> PureSplit<F> {
         Ok(PureState {
             pads,
             values,
-            participant: self.frontend.identity(self.map.clone()),
+            participant: self.frontend.identity(&self.map),
         })
     }
     /// The whole claim of this participant, whose target is public: the
@@ -119,12 +119,12 @@ impl<F: ZkField + PackingField> Participant<F> for PureSplit<F> {
     }
 }
 
-/// Prover state of a pure-foreign participant before its frontend.
-pub(crate) struct PureState<F: ZkField> {
+/// Prover state of a pure-foreign participant `'p` before its frontend.
+pub(crate) struct PureState<'p, F: ZkField + PackingField> {
     pads: SumcheckPads<F>,
     /// `[private inputs | pads]`, in value order.
     values: Vec<F::E>,
-    participant: Identity<StorageMap>,
+    participant: Identity<'p, F, StorageMap>,
 }
 
 /// A pure-foreign participant's frontend claim over `[private inputs |
@@ -159,7 +159,7 @@ fn frontend_claim<F: ZkField + PackingField>(
 /// its unbatched rows.
 pub(crate) fn prove<F: ZkField + PackingField>(
     t: &mut Bound<'_, FrontendPart<'_, F, PureSplit<F>>>,
-    state: PureState<F>,
+    state: PureState<'_, F>,
 ) -> Result<(SumcheckProof<F>, PurePending<F::E>), String> {
     let p = t.part().participant;
     if !p.frontend.prepared(&state.participant, &p.map) {

@@ -432,12 +432,12 @@ impl<L: Fields> JointParam<L> {
 // crate-private steps; their states are crate-private
 impl CircuitParticipant<F> {
     pub(crate) fn prepare(&self, private: Vec<CircuitInput<F>>, rng: &mut impl PrivateRandom)
-        -> Result<(CircuitState<F>, Vec<F::E>), String>;
+        -> Result<(CircuitState<'_, F>, Vec<F::E>), String>;  // borrows self
 }
 impl MixedSplit<F> {
     // mask is R; the witness is [native private inputs | pads | R]
     pub(crate) fn prepare(&self, private: Vec<CircuitInput<F>>, mask: F::E,
-                          rng: &mut impl PrivateRandom) -> Result<(SplitState<F>, Vec<F::E>), String>;
+                          rng: &mut impl PrivateRandom) -> Result<(SplitState<'_, F>, Vec<F::E>), String>;
     pub(crate) fn foreign_values(&self, pending: &PendingSplit<F::E>) -> Vec<F::E>;  // claim term order, R last
 }
 impl<L: ProverFields> JointParam<L> {
@@ -452,10 +452,10 @@ impl<S, C, R> JointProver<S, C, R> {
         equations: Statements<L>)
         -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>;
 }
-pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, F>>, state: CircuitState<F>,
+pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, F>>, state: CircuitState<'_, F>,
                     virtual_inputs: &VirtualInputs<F::E>)    // I4: fixed before the top weights
     -> Result<(CircuitProof<F>, LinearStatement<F::E>), String>;
-pub(crate) fn prove_split(t: &mut Bound<'_, FrontendPart<'_, F, MixedSplit<F>>>, state: SplitState<F>)
+pub(crate) fn prove_split(t: &mut Bound<'_, FrontendPart<'_, F, MixedSplit<F>>>, state: SplitState<'_, F>)
     -> Result<(SumcheckProof<F>, PendingSplit<F::E>), String>;
 pub(crate) struct PendingSplit<E> { pub(crate) claim: SplitClaim<E>, .. }
 impl<E> PendingSplit<E> {
@@ -542,10 +542,13 @@ How the API carries the invariants:
   crate-private `bound()`, after the fingerprint responses (I6).
 - `CircuitState` and `SplitState` are move-only and consumed by `prove` or
   `prove_split`, together with the `SumcheckPads` they own, so one set of
-  pads masks one proof. Each records the participant that prepared it: its
-  circuit IDs, profile, circuit geometry, input layout and storage map.
-  `prove` and `prove_split` reject a state that another participant
-  prepared, even one over the same circuit with another storage map.
+  pads masks one proof. Each borrows the participant that prepared it, so
+  it cannot outlive it, and records its circuit IDs, profile, circuit
+  geometry, input layout and storage map by reference, never by copy.
+  `prove` and `prove_split` compare these values with the part's
+  participant's: they reject a state that another participant prepared,
+  even one over the same circuit with another storage map, and accept one
+  from an equal-valued participant.
 - `PendingSplit::open` consumes the pending split, draws eta, and returns
   `mu` with both outputs. No call can pair a native row with a claim
   built from another `eta` or `mu` (I9).
