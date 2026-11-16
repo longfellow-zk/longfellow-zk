@@ -40,9 +40,10 @@
 //!   role or the compile phase ([`item_gates`]); items that need a role live in a file of that
 //!   role. The modules of [`ITEM_GATES_PENDING`] are exempt until they are converted;
 //! - a reference breaks a `[symbol rules]` line, which says which files may (`only`) or may not
-//!   (`never`) reference a symbol, or a symbol pattern names no symbol of the crate. Symbol rules
-//!   see references within a file too; they keep transcript framing, sealing and private coins
-//!   where the protocol design puts them.
+//!   (`never`) reference a symbol, a symbol pattern names no symbol of the crate, or a file pattern
+//!   names no library source file of the index (unless it is marked optional with a leading `?`).
+//!   Symbol rules see references within a file too; they keep transcript framing, sealing and
+//!   private coins where the protocol design puts them.
 //!
 //! `--dot <directory>` also writes `files.dot` and `components.dot` there;
 //! `--current` prints the current graph in the rules format instead of checking.
@@ -786,7 +787,32 @@ struct SymbolRule {
     text: String,
     symbol: String,
     only: bool,
-    files: Vec<String>,
+    files: Vec<FilePattern>,
+}
+
+/// A file pattern of a symbol rule. It must match a library source file that
+/// the index lists, so that a rule cannot go stale silently when a file
+/// moves; a pattern written with a leading `?` is deliberately optional and
+/// may match none.
+struct FilePattern {
+    glob: String,
+    optional: bool,
+}
+
+impl SymbolRule {
+    /// Whether the rule's file patterns list `file`.
+    fn lists(&self, file: &str) -> bool {
+        self.files.iter().any(|pattern| glob(&pattern.glob, file))
+    }
+
+    /// The required file patterns that match none of `sources`.
+    fn stale_patterns<'a>(&'a self, sources: &[&str]) -> Vec<&'a str> {
+        self.files
+            .iter()
+            .filter(|p| !p.optional && !sources.iter().any(|file| glob(&p.glob, file)))
+            .map(|p| p.glob.as_str())
+            .collect()
+    }
 }
 
 fn glob(pattern: &str, text: &str) -> bool {
@@ -813,7 +839,10 @@ struct Rules {
 }
 
 fn rules(path: &Path) -> Rules {
-    let text = std::fs::read_to_string(path).expect("read the dependency rules.txt");
+    parse_rules(&std::fs::read_to_string(path).expect("read the dependency rules.txt"))
+}
+
+fn parse_rules(text: &str) -> Rules {
     let mut allowed = Graph::new();
     let mut symbols = Vec::new();
     let mut section = "";
@@ -836,7 +865,13 @@ fn rules(path: &Path) -> Rules {
                 text: line.to_owned(),
                 symbol: words[0].to_owned(),
                 only: words[1] == "only",
-                files: words[2..].iter().map(|word| (*word).to_owned()).collect(),
+                files: words[2..]
+                    .iter()
+                    .map(|word| FilePattern {
+                        glob: word.trim_start_matches('?').to_owned(),
+                        optional: word.starts_with('?'),
+                    })
+                    .collect(),
             });
             continue;
         }
@@ -1043,13 +1078,23 @@ fn main() {
             }
         }
     }
+    let sources: Vec<&str> = files.keys().map(String::as_str).collect();
     for rule in &rules.symbols {
         // A pattern that names no crate symbol is a typo, not a passing rule.
         if !symbols.iter().any(|symbol| glob(&rule.symbol, symbol)) {
             failures.push(format!("symbol rule names no symbol: `{}`", rule.text));
         }
+        // So is a file pattern that names no library source file, unless it
+        // is marked optional.
+        for pattern in rule.stale_patterns(&sources) {
+            failures.push(format!(
+                "symbol rule file pattern {pattern} names no library source file \
+                 (mark it `?{pattern}` if it may): `{}`",
+                rule.text
+            ));
+        }
         for r in references.iter().filter(|r| glob(&rule.symbol, &r.symbol)) {
-            let listed = rule.files.iter().any(|pattern| glob(pattern, &r.from));
+            let listed = rule.lists(&r.from);
             if listed != rule.only {
                 failures.push(format!(
                     "{}:{} references {} (defined in {}), against `{}`",

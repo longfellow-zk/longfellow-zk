@@ -330,3 +330,24 @@ fn applications_mirror_the_library_layering() {
         assert_eq!(is_facade(path), facade, "{path}");
     }
 }
+
+#[test]
+fn symbol_rule_file_patterns_must_name_a_source_unless_optional() {
+    let rules = parse_rules(
+        "util:\n[symbol rules]\n\
+         a/X# only src/a.rs src/b/* src/moved.rs ?src/arch/arm.rs\n\
+         a/Y# never src/old/*\n",
+    );
+    let sources = ["src/a.rs", "src/b/c.rs", "src/b/d.rs"];
+    let [only, never] = &rules.symbols[..] else {
+        panic!("two symbol rules");
+    };
+    assert_eq!(only.stale_patterns(&sources), ["src/moved.rs"]);
+    assert_eq!(never.stale_patterns(&sources), ["src/old/*"]);
+    // The optional pattern still lists its file when the index has it.
+    assert!(only.files[3].optional && only.lists("src/arch/arm.rs"));
+    assert!(only.lists("src/b/c.rs") && !only.lists("src/c.rs"));
+    let moved = ["src/a.rs", "src/b/c.rs", "src/moved.rs", "src/old/e.rs"];
+    assert!(only.stale_patterns(&moved).is_empty());
+    assert!(never.stale_patterns(&moved).is_empty());
+}

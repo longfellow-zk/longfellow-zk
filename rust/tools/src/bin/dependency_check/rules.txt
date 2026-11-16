@@ -89,7 +89,9 @@ util:
 # Which files may (`only`) or may not (`never`) reference a symbol. Symbols are
 # rust-analyzer paths without package and version (`module/path/Type#`,
 # `module/impl#[Type]method().`); `*` matches any run of characters in symbol
-# and file patterns. A pattern that names no symbol fails the check.
+# and file patterns. A symbol pattern that names no symbol fails the check, and
+# so does a file pattern that names no library source file (one the index lists,
+# not a test), unless a leading `?` marks it optional: `?src/optional.rs`.
 [symbol rules]
 # Messages are sent, challenges drawn and values encoded only in each
 # protocol's transcript.rs; statement messages are written only there and in
