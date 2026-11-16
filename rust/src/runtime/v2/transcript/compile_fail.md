@@ -59,9 +59,11 @@ fn bad(mut proof: Unverified<'_, u8>) { *proof = 42; }
 Positive control: a statement opens a session.
 
 ```
+# #[cfg(feature = "testonly")] {
 use longfellow_zk::runtime::v2::transcript::{Opened, ZkStatement};
 let statement = ZkStatement { context: b"context" };
 let session = Opened::new(&statement);
+# }
 ```
 
 Outside the crate a session opens only with the statement it keeps
