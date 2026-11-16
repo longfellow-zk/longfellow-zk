@@ -113,6 +113,12 @@ profiles an application chose (for example in `mdoc::proto`).
   the double mount of `runtime/algebra/arch/generic.rs` from `arm.rs`, and
   the benches' `#[path = "support/memory.rs"]`, which shares the allocation
   tracker between bench targets.
+- Tests that use only a component's crate-visible API (with what its
+  submodules share with the component, such as `pub(super)` items) live in
+  that component's tests: `<component>/tests.rs` and
+  `<component>/tests/*.rs`, where a component is a module with a rule in
+  `rules.txt`. A nested `<module>/tests.rs` exists only when its tests need
+  that submodule's private items.
 - Every public item has exactly one public path. Implementation splits
   (`circuit`, `concrete`, `field`, `prover`, ...) are private modules behind
   their parent's `pub use`. Do not re-export another module's items, and do not
