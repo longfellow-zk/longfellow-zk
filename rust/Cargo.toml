@@ -18,9 +18,11 @@ exclude = [
 default = ["verifier", "prover", "compiler", "mdoc", "v1"]
 # The deployed v1 protocol: its runtime, transcript (AES-256 challenges) and mdoc entry points.
 v1 = ["dep:aes"]
-verifier = []
+verifier = ["_role"]
 # OS randomness for private coins is needed only to prove.
-prover = ["dep:getrandom"]
+prover = ["dep:getrandom", "_role"]
+# Any proof role (`cfg_role!`): enabled by `prover` and `verifier`; do not enable it alone.
+_role = []
 compiler = ["dep:bumpalo", "dep:num-bigint", "dep:num-traits", "dep:rustc-hash"]
 mdoc = ["dep:zstd"]
 testonly = ["verifier", "prover", "compiler", "v1"]

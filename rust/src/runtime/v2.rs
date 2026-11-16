@@ -20,12 +20,13 @@
 //! let _: longfellow_zk::runtime::v2::proto::Digest = old;
 //! ```
 
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) mod dual_packing;
+cfg_role! {
+    pub(crate) mod dual_packing;
+    pub(super) mod merkle;
+    pub(crate) mod witness_selection;
+}
 
 pub(crate) mod foreign;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(super) mod merkle;
 
 pub mod polygero;
 
@@ -34,7 +35,5 @@ pub mod proto;
 pub mod sumcheck;
 
 pub mod transcript;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) mod witness_selection;
 
 pub mod zk;

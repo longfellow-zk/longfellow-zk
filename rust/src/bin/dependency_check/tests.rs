@@ -228,3 +228,39 @@ fn contracts_reject_other_layers_of_their_version() {
         "src/runtime/algebra/field.rs"
     ));
 }
+
+#[test]
+fn role_gates_sit_only_on_module_lines() {
+    let lines =
+        |text: &str| -> Vec<usize> { item_gates(text).into_iter().map(|(l, _)| l).collect() };
+    // Module declarations and their re-exports may be gated.
+    assert!(lines(
+        "cfg_prover! {\n    mod prover;\n    pub use prover::X;\n}\n#[cfg(any(test, feature = \
+         \"verifier\"))]\npub(crate) mod verifier;\ncfg_role! { mod codec; }\n"
+    )
+    .is_empty());
+    // Test and test-only gates are not role gates.
+    assert!(lines(
+        "#[cfg(test)]\nfn f() {}\n#[cfg(any(test, feature = \"testonly\"))]\nfn g() {}\n"
+    )
+    .is_empty());
+    // Items, impl blocks, trait members and statements may not be.
+    assert_eq!(
+        lines(
+            "#[cfg(any(test, feature = \"prover\"))]\n#[derive(Clone)]\nstruct S;\nimpl T {\n    \
+             #[cfg(feature = \"verifier\")] fn f() {}\n}\ncfg_role! {\n    mod a;\n    fn g() {}\n}\n\
+             #[cfg(any(\n    test,\n    feature = \"compiler\",\n))]\nimpl U {}\n"
+        ),
+        [1, 5, 7, 11]
+    );
+    // Comments do not gate.
+    assert!(lines("// #[cfg(feature = \"prover\")]\nfn f() {}\n").is_empty());
+}
+
+#[test]
+fn only_role_files_and_pending_modules_may_gate_items() {
+    assert!(may_gate_items("src/runtime/v2/polygero/prover.rs"));
+    assert!(may_gate_items("src/runtime/v2/sumcheck/quad.rs"));
+    assert!(may_gate_items("src/bin/zk_tool/generate.rs"));
+    assert!(!may_gate_items("src/core/algebra/field.rs"));
+}

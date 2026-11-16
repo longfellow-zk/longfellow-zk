@@ -34,6 +34,9 @@
 //!   loosening it takes a reviewed code change;
 //! - a prover/verifier contract (`runtime::vN::proto`) uses anything but core, `util`, the run-time
 //!   algebra and its framing (the v1 subfield or the v2 transcript), fixed by [`proto_allows`];
+//! - a library file without a role gates anything but a module declaration or a `use` on a proof
+//!   role or the compile phase ([`item_gates`]); items that need a role live in a file of that
+//!   role. The modules of [`ITEM_GATES_PENDING`] are exempt until they are converted;
 //! - a reference breaks a `[symbol rules]` line, which says which files may (`only`) or may not
 //!   (`never`) reference a symbol, or a symbol pattern names no symbol of the crate. Symbol rules
 //!   see references within a file too; they keep transcript framing, sealing and private coins
@@ -246,6 +249,163 @@ fn facade_item(text: &str) -> Option<String> {
         }
     }
     None
+}
+
+/// The features whose gates select a proof role (`_role` is any role) or the
+/// compile phase.
+const GATE_FEATURES: [&str; 4] = ["prover", "verifier", "_role", "compiler"];
+
+/// The `cfg_*!` wrappers of those gates.
+const GATE_MACROS: [&str; 5] = [
+    "cfg_prover!",
+    "cfg_verifier!",
+    "cfg_role!",
+    "cfg_compiler!",
+    "cfg_prover_or_compiler!",
+];
+
+/// The modules whose item-level role gates are converted when they are next
+/// edited (AGENTS.md), and the frozen v1 run time, converted only on request.
+/// Remove an entry once its files gate only module lines; add none.
+const ITEM_GATES_PENDING: [&str; 12] = [
+    "mdoc/cbor",
+    "mdoc/runtime",
+    "runtime/v1",
+    "runtime/v2/dual_packing",
+    "runtime/v2/foreign",
+    "runtime/v2/merkle",
+    "runtime/v2/polygero",
+    "runtime/v2/proto",
+    "runtime/v2/sumcheck",
+    "runtime/v2/transcript",
+    "runtime/v2/witness_selection",
+    "runtime/v2/zk",
+];
+
+/// Whether `path` may gate items on a role: a binary, a file that [`role`]
+/// gives a role, or one under a module of [`ITEM_GATES_PENDING`].
+fn may_gate_items(path: &str) -> bool {
+    let m = module_path(path);
+    m.starts_with("bin/")
+        || role(path).is_some()
+        || ITEM_GATES_PENDING
+            .iter()
+            .any(|root| m == *root || m.starts_with(&format!("{root}/")))
+}
+
+/// The role and phase gates on anything but a module declaration or a `use`:
+/// for each, its line (from 1) and the gated item's first line. Such a gate
+/// belongs on the module line of a file of that role (AGENTS.md).
+fn item_gates(text: &str) -> Vec<(usize, String)> {
+    let lines: Vec<&str> = text.lines().collect();
+    let gates = |attribute: &str| {
+        attribute.starts_with("#[cfg(")
+            && GATE_FEATURES
+                .iter()
+                .any(|f| attribute.contains(&format!("feature = \"{f}\"")))
+    };
+    // A module declaration or a `use`, after its visibility.
+    let declares = |statement: &str| {
+        let unqualified = match statement.strip_prefix("pub") {
+            Some(after) => match after.trim_start().strip_prefix('(') {
+                Some(scope) => scope.split_once(')').map_or(scope, |(_, rest)| rest),
+                None => after,
+            },
+            None => statement,
+        }
+        .trim_start();
+        unqualified.starts_with("mod ") || unqualified.starts_with("use ")
+    };
+    let mut found = Vec::new();
+    // The line of a gate whose item is still to come.
+    let mut gate: Option<usize> = None;
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i].trim();
+        if line.is_empty() || line.starts_with("//") {
+            i += 1;
+            continue;
+        }
+        if line.starts_with("#[") {
+            // An attribute, possibly over several lines, possibly followed
+            // by its item on the same line.
+            let mut attribute = String::new();
+            let mut depth = 0isize;
+            let mut rest = String::new();
+            let start = i;
+            'attribute: while i < lines.len() {
+                for (at, c) in lines[i].trim().char_indices() {
+                    match c {
+                        '[' => depth += 1,
+                        ']' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                let last = lines[i].trim();
+                                attribute.push_str(&last[..=at]);
+                                rest = last[at + 1..].trim().to_owned();
+                                break 'attribute;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                attribute.push_str(lines[i].trim());
+                attribute.push(' ');
+                i += 1;
+            }
+            i += 1;
+            if gates(&attribute) && gate.is_none() {
+                gate = Some(start);
+            }
+            if rest.is_empty() {
+                continue;
+            }
+            if let Some(at) = gate.take() {
+                if !declares(&rest) {
+                    found.push((at + 1, rest));
+                }
+            }
+            continue;
+        }
+        if let Some(at) = gate.take() {
+            if !declares(line) {
+                found.push((at + 1, line.to_owned()));
+            }
+        }
+        if GATE_MACROS.iter().any(|m| line.starts_with(m)) && line.contains('{') {
+            // A wrapper block: everything up to its closing brace.
+            let start = i;
+            let mut block = String::new();
+            let mut depth = 0isize;
+            'block: while i < lines.len() {
+                for c in lines[i].chars() {
+                    match c {
+                        '{' => depth += 1,
+                        '}' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                block.push_str(lines[i]);
+                                break 'block;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                block.push_str(lines[i]);
+                block.push('\n');
+                i += 1;
+            }
+            let inner = block
+                .split_once('{')
+                .and_then(|(_, r)| r.rsplit_once('}'))
+                .map_or("", |(inner, _)| inner);
+            if let Some(item) = facade_item(inner) {
+                found.push((start + 1, item));
+            }
+        }
+        i += 1;
+    }
+    found
 }
 
 /// Source without `//` and `/* */` comments (string literals do not occur in
@@ -788,6 +948,15 @@ fn main() {
             let text = std::fs::read_to_string(root.join(from)).unwrap_or_default();
             if let Some(item) = facade_item(&text) {
                 failures.push(format!("facade {from} defines an item: {item}"));
+            }
+        }
+        if !may_gate_items(from) {
+            let text = std::fs::read_to_string(root.join(from)).unwrap_or_default();
+            for (line, item) in item_gates(&text) {
+                failures.push(format!(
+                    "{from}:{line} gates an item on a role or phase; move it to a file of \
+                     that role: {item}"
+                ));
             }
         }
     }

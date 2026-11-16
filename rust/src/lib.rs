@@ -45,6 +45,17 @@ macro_rules! cfg_verifier {
     };
 }
 
+/// Conditionally includes items in every proof role: when `feature = "prover"` or
+/// `feature = "verifier"` (both enable `_role`), or `test`, is active.
+macro_rules! cfg_role {
+    ($($item:item)*) => {
+        $(
+            #[cfg(any(test, feature = "_role"))]
+            $item
+        )*
+    };
+}
+
 /// Conditionally includes items when `feature = "prover"` or `feature = "compiler"` (or `test`) is
 /// active.
 macro_rules! cfg_prover_or_compiler {

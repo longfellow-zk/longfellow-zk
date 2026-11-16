@@ -57,6 +57,17 @@ rules in `rust/src/bin/dependency_check/rules.txt` consistent with what follows.
   only `core`, `util`, `runtime::algebra` and the transcript framing (v2) or
   subfield (v1), never a protocol implementation.
 - Prover and verifier code stay separate; neither uses the other's files.
+- Role and phase gates appear only on module declarations (and on the `use`s
+  that re-export from the gated modules): `cfg_prover!`, `cfg_verifier!`,
+  `cfg_role!` (any proof role), `cfg_compiler!`, `cfg_prover_or_compiler!`,
+  and any `#[cfg]` on the `prover`, `verifier`, `_role` or `compiler`
+  features. An item that needs a role lives in a file of that role (a file
+  whose name has a `prover` or `verifier` word), with its own `impl` block or
+  role trait; an item that every role needs and no other build uses lives in
+  a module mounted with `cfg_role!`. The dependency checker reports
+  item-level gates elsewhere; the modules it still exempts
+  (`ITEM_GATES_PENDING` in `rust/src/bin/dependency_check/main.rs`) are
+  converted when they are next edited, and v1 only when the maintainer asks.
 - The standalone prover and verifier build independently, with no compiler
   dependencies: `--no-default-features` with `prover` or `verifier` (plus
   `mdoc`, and `v1` for the deployed system), including the `prover_only` and
