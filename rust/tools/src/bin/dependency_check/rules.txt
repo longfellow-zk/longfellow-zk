@@ -21,12 +21,16 @@ mdoc/artifacts:
 mdoc/cbor: core/algebra mdoc/proto mdoc/testcases
 mdoc/circuits: mdoc/cbor mdoc/proto circuits/analog_adder circuits/bitvec circuits/boolean circuits/memcmp circuits/routing circuits/sha256 circuits/sha256msg compile/algebra compile/logic core/algebra
 mdoc/compile: core/algebra mdoc/circuits mdoc/proto circuits/arithmetic circuits/bitvec circuits/boolean circuits/ecdsa2 compile/algebra compile/compiler compile/logic core/proto
-mdoc/development_provider: mdoc/compile mdoc/proto mdoc/runtime core/proto runtime/algebra runtime/v2/polygero runtime/v2/proto/polygero
+mdoc/development_provider: mdoc/compile mdoc/proto mdoc/runtime/v1 mdoc/runtime/v2 core/proto runtime/algebra runtime/v2/polygero runtime/v2/proto/polygero
 mdoc/proto:
-bin/prover_only: mdoc/runtime
-mdoc/runtime: mdoc/cbor mdoc/proto circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v1/ligero runtime/v1/proto runtime/v1/subfield runtime/v1/transcript runtime/v1/zk runtime/v2/foreign runtime/v2/transcript runtime/v2/zk runtime/v2/proto/composed runtime/v2/proto/polygero runtime/v2/proto/tags
+bin/prover_only: mdoc/runtime/v1
+mdoc/runtime: mdoc/runtime/zk_spec
+mdoc/runtime/fields: core/algebra runtime/algebra
+mdoc/runtime/v1: mdoc/cbor mdoc/proto mdoc/runtime/fields circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v1/ligero runtime/v1/proto runtime/v1/subfield runtime/v1/transcript runtime/v1/zk
+mdoc/runtime/v2: mdoc/cbor mdoc/proto mdoc/runtime/fields circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v2/foreign runtime/v2/transcript runtime/v2/zk runtime/v2/proto/composed runtime/v2/proto/polygero runtime/v2/proto/tags
+mdoc/runtime/zk_spec: mdoc/runtime/v1 mdoc/runtime/v2
 mdoc/testcases:
-bin/verifier_only: mdoc/runtime
+bin/verifier_only: mdoc/runtime/v1
 circuits/analog_adder: circuits/bitvec circuits/boolean compile/algebra compile/logic core/algebra
 circuits/arithmetic: circuits/boolean compile/algebra compile/logic util
 circuits/big_bitvec: circuits/bignum circuits/bitvec compile/algebra compile/logic core/algebra
