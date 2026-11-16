@@ -242,7 +242,6 @@ pub(in crate::runtime::v2) enum MerkleError {             // heap.rs: both roles
     DuplicateLeafIndex { index: usize },
     LeafIndexOutOfBounds { index: usize, num_leaves: usize },
     EmptyLeaves,
-    LeafIndexNotOnPath,
 }
 pub(in crate::runtime::v2) enum OpeningError {             // verifier.rs
     Paths(MerkleError),

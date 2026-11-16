@@ -41,11 +41,10 @@ pub(super) fn mark_paths_to_root(
         }
         is_node_on_path[heap_idx] = true;
     }
+    // At least one leaf is marked, so its ancestors, the root among them,
+    // are marked too.
     for i in (1..num_leaves).rev() {
         is_node_on_path[i] = is_node_on_path[2 * i] || is_node_on_path[2 * i + 1];
-    }
-    if !is_node_on_path[1] {
-        return Err(MerkleError::LeafIndexNotOnPath);
     }
     Ok(is_node_on_path)
 }
@@ -55,7 +54,6 @@ pub(in crate::runtime::v2) enum MerkleError {
     DuplicateLeafIndex { index: usize },
     LeafIndexOutOfBounds { index: usize, num_leaves: usize },
     EmptyLeaves,
-    LeafIndexNotOnPath,
 }
 
 impl fmt::Display for MerkleError {
@@ -70,9 +68,6 @@ impl fmt::Display for MerkleError {
             ),
             Self::EmptyLeaves => {
                 write!(f, "empty leaves requested for verification")
-            }
-            Self::LeafIndexNotOnPath => {
-                write!(f, "leaf index is not on the path to the root")
             }
         }
     }
