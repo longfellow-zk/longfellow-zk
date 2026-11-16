@@ -264,3 +264,68 @@ fn only_role_files_and_pending_modules_may_gate_items() {
     assert!(may_gate_items("src/bin/verifier_only.rs"));
     assert!(!may_gate_items("src/core/algebra/field.rs"));
 }
+
+#[test]
+fn roles_follow_directory_and_name_words() {
+    for (path, expected) in [
+        ("src/runtime/v2/zk/prover/state.rs", Some("prover")),
+        ("src/mdoc/runtime/v2/verifier/requests.rs", Some("verifier")),
+        (
+            "src/runtime/v2/polygero/prover_commitment.rs",
+            Some("prover"),
+        ),
+        (
+            "src/runtime/v2/proto/composed/verifier.rs",
+            Some("verifier"),
+        ),
+        ("src/bin/verifier_only.rs", Some("verifier")),
+        ("src/runtime/v2/zk/prover/verifier_view.rs", None),
+        ("src/runtime/v2/zk/joint.rs", None),
+        ("src/runtime/v2/proverbs.rs", None),
+    ] {
+        assert_eq!(role(path), expected, "{path}");
+    }
+}
+
+#[test]
+fn applications_mirror_the_library_layering() {
+    use Phase::*;
+    assert_eq!(
+        application("mdoc/runtime/v2/link"),
+        Some(("runtime/v2/link", &["cbor"][..]))
+    );
+    assert_eq!(application("mdocs/runtime"), None);
+    assert_eq!(application("runtime/v2/zk"), None);
+    for (path, expected) in [
+        ("src/mdoc/cbor/parse.rs", Runtime),
+        ("src/mdoc/cbor/mdoc/prover.rs", Runtime),
+        ("src/mdoc/runtime.rs", Runtime),
+        ("src/mdoc/proto/hash.rs", Shared),
+        ("src/mdoc/compile/circuits.rs", Compile),
+        ("src/mdoc/development_provider/next_v2.rs", Neutral),
+    ] {
+        assert_eq!(phase(path), expected, "{path}");
+    }
+    // The library's own layers do not apply inside an application, nor an
+    // application's parsers outside it.
+    for path in [
+        "src/mdoc/core/x.rs",
+        "src/mdoc/util.rs",
+        "src/cbor/parse.rs",
+    ] {
+        assert!(
+            std::panic::catch_unwind(|| phase(path)).is_err(),
+            "{path} should have no phase"
+        );
+    }
+    for (path, facade) in [
+        ("src/mdoc/circuits.rs", true),
+        ("src/mdoc/circuits/hash.rs", true),
+        ("src/circuits/sha256.rs", true),
+        ("src/runtime.rs", true),
+        ("src/mdoc/runtime.rs", false),
+        ("src/mdoc/circuits/hash/circuit.rs", false),
+    ] {
+        assert_eq!(is_facade(path), facade, "{path}");
+    }
+}

@@ -28,8 +28,9 @@
 //!   path, or a `_`-separated word of its name, is `vN` (`runtime/v2/...`, `core/proto/v1/...`,
 //!   `v2_segment.rs`);
 //! - the file graph has a cycle: no file may depend on itself through others;
-//! - a file whose name marks one proof role (`prover`, `verifier`, or a name containing exactly one
-//!   of them as a `_`-separated word) uses a file of the other role;
+//! - a file of one proof role uses a file of the other. A file belongs to a role when a directory
+//!   on its path, or a `_`-separated word of its name, is `prover` or `verifier` and nothing names
+//!   the other (`zk/prover/...`, `prover_commitment.rs`);
 //! - a compile-time file uses a run-time file or the reverse, or a shared file uses either. The
 //!   phase of every file is fixed by [`phase`] in this source, not by the editable rules, so
 //!   loosening it takes a reviewed code change;
@@ -132,35 +133,77 @@ enum Phase {
     Neutral,
 }
 
+/// The applications, each with its native parsers. An application module
+/// (`mdoc`) mirrors the library's layering below it: see
+/// [`application_phase`].
+const APPLICATIONS: [(&str, &[&str]); 1] = [("mdoc", &["cbor"])];
+
+/// The application a module path belongs to: its module path below the
+/// application, and the application's native parsers.
+fn application(module: &str) -> Option<(&str, &'static [&'static str])> {
+    APPLICATIONS.iter().find_map(|&(name, parsers)| {
+        module
+            .strip_prefix(name)
+            .and_then(|rest| rest.strip_prefix('/'))
+            .map(|rest| (rest, parsers))
+    })
+}
+
 /// The phase of a library file. A first-match table: listing a file in the
 /// wrong class, or adding a class, is a design change to review here.
 fn phase(path: &str) -> Phase {
     use Phase::*;
     let m = module_path(path);
+    if let Some((rest, parsers)) = application(m) {
+        return application_phase(path, rest, parsers);
+    }
     let under = |root: &str| m == root || m.starts_with(&format!("{root}/"));
-    if under("bin") || under("mdoc/development_provider") || m == "mdoc/artifacts" {
-        // Drivers, tools and the development provider compile and run.
+    if under("bin") {
+        // Drivers that compile and run.
         Neutral
-    } else if m == "runtime" || m == "mdoc/circuits" {
-        // Module facades that only mount and re-export.
+    } else if m == "runtime" {
+        // A module facade that only mounts and re-exports.
         Neutral
-    } else if under("core") || under("mdoc/proto") || under("mdoc/testcases") || under("util") {
-        // Contracts, test vectors, and dependency-free helpers.
+    } else if under("core") || under("util") {
+        // Contracts and dependency-free helpers.
         Shared
-    } else if under("compile") || under("mdoc/compile") {
+    } else if under("compile") {
         Compile
-    } else if under("runtime") || under("mdoc/runtime") {
+    } else if under("runtime") {
         Runtime
-    } else if under("mdoc/cbor") {
-        // Native CBOR and mdoc parsing.
-        Runtime
-    } else if let Some(rest) = m
-        .strip_prefix("circuits/")
-        .or_else(|| m.strip_prefix("mdoc/circuits/"))
-    {
+    } else if let Some(rest) = m.strip_prefix("circuits/") {
         circuit_phase(path, rest)
     } else {
         panic!("{path} has no phase; classify it in `phase`");
+    }
+}
+
+/// The phase of a file of an application, by its module path `rest` below
+/// the application: the same layering as the library's, with the
+/// application's own contract, test vectors, stored artifacts, development
+/// provider and native `parsers`.
+fn application_phase(path: &str, rest: &str, parsers: &[&str]) -> Phase {
+    use Phase::*;
+    let under = |root: &str| rest == root || rest.starts_with(&format!("{root}/"));
+    if under("development_provider") || rest == "artifacts" {
+        // The development provider compiles and runs; the artifacts are
+        // the stored circuits and proofs.
+        Neutral
+    } else if rest == "circuits" {
+        // A module facade that only mounts and re-exports.
+        Neutral
+    } else if under("proto") || under("testcases") {
+        // The application's contract and test vectors.
+        Shared
+    } else if under("compile") {
+        Compile
+    } else if under("runtime") || parsers.iter().any(|parser| under(parser)) {
+        // The application's run time and its native parsers.
+        Runtime
+    } else if let Some(circuit) = rest.strip_prefix("circuits/") {
+        circuit_phase(path, circuit)
+    } else {
+        panic!("{path} has no phase; classify it in `application_phase`");
     }
 }
 
@@ -188,13 +231,17 @@ fn circuit_phase(path: &str, rest: &str) -> Phase {
 }
 
 /// Whether a file is a facade, whose only content may be module declarations
-/// and re-exports: a neutral circuit root, or a listed module facade.
+/// and re-exports: a neutral circuit root (of the library or of an
+/// application), `runtime`, or an application's `circuits`.
 fn is_facade(path: &str) -> bool {
     let m = module_path(path);
-    let circuit_root = ["circuits/", "mdoc/circuits/"]
-        .iter()
-        .any(|area| m.strip_prefix(area).is_some_and(|rest| !rest.contains('/')));
-    phase(path) == Phase::Neutral && (circuit_root || m == "runtime" || m == "mdoc/circuits")
+    // The module path within its application, if it has one.
+    let local = application(m).map_or(m, |(rest, _)| rest);
+    let circuit_root = local
+        .strip_prefix("circuits/")
+        .is_some_and(|rest| !rest.contains('/'));
+    let facade = m == "runtime" || (local != m && local == "circuits");
+    phase(path) == Phase::Neutral && (circuit_root || facade)
 }
 
 /// The first statement in a facade's source that is not a module
@@ -501,10 +548,17 @@ fn proto_allows(from: &str, to: &str) -> bool {
         || under(used, framing)
 }
 
+/// The proof role a path belongs to, if any: as for [`version`], a directory on
+/// its path or a `_`-separated word of its name is `prover` or `verifier`, and
+/// no word names the other role (`zk/prover/...`, `prover_commitment.rs`).
 fn role(path: &str) -> Option<&'static str> {
-    let stem = Path::new(path).file_stem()?.to_str()?;
-    let words: Vec<_> = stem.split('_').collect();
-    match (words.contains(&"prover"), words.contains(&"verifier")) {
+    let (dirs, file) = path.rsplit_once('/').unwrap_or(("", path));
+    let stem = file.strip_suffix(".rs").unwrap_or(file);
+    let mut words = dirs.split('/').chain(stem.split('_'));
+    match (
+        words.clone().any(|w| w == "prover"),
+        words.any(|w| w == "verifier"),
+    ) {
         (true, false) => Some("prover"),
         (false, true) => Some("verifier"),
         _ => None,

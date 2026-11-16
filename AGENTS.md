@@ -20,14 +20,19 @@ layering is enforced by the dependency checker
 
 - Compile-time code never uses run-time code, and run-time code never uses
   compile-time code. Shared code uses neither. The dependency checker fixes
-  each file's phase in its source (`phase` and `circuit_phase` in
+  each file's phase in its source (`phase`, `application_phase` and
+  `circuit_phase` in
   `rust/tools/src/bin/dependency_check/main.rs`), not in `rules.txt`; a file it
   cannot classify fails the check, so classify a new kind of file there, in a
-  reviewed change. The classes are:
+  reviewed change. An application (today `mdoc`, listed in `APPLICATIONS`
+  there) mirrors the library's layering below its module, with its own
+  contract, test vectors, artifacts, development provider and native parsers.
+  The classes are:
   - compile time: `compile`, `mdoc::compile`, and the `circuit`, `allocate` and
     `fields` halves of each circuit in `circuits` and `mdoc::circuits`;
-  - run time: `runtime`, `mdoc::runtime`, `mdoc::cbor` (native CBOR and mdoc
-    parsing), and the `concrete` native-witness halves of circuits;
+  - run time: `runtime`, `mdoc::runtime`, an application's native parsers
+    (`mdoc::cbor`, CBOR and mdoc parsing), and the `concrete` native-witness
+    halves of circuits;
   - shared: `core`, `mdoc::proto`, `mdoc::testcases`, `util`, and the
     `constants`, `points` and `shape` halves of circuits (a `shape` is the
     witness layout: generic structs the circuit holds wires in and the native
@@ -62,15 +67,17 @@ layering is enforced by the dependency checker
   contracts: proof formats and the public metadata both sides use. They may use
   only `core`, `util`, `runtime::algebra` and the transcript framing (v2) or
   subfield (v1), never a protocol implementation.
-- Prover and verifier code stay separate; neither uses the other's files.
+- Prover and verifier code stay separate; neither uses the other's files. A
+  file belongs to a role when its name, or a directory on its path, has a
+  `prover` or `verifier` word, and nothing names the other role.
 - Role and phase gates appear only on module declarations (and on the `use`s
   that re-export from the gated modules): `cfg_prover!`, `cfg_verifier!`,
   `cfg_role!` (any proof role), `cfg_compiler!`, `cfg_prover_or_compiler!`,
   and any `#[cfg]` on the `prover`, `verifier`, `_role` or `compiler`
-  features. An item that needs a role lives in a file of that role (a file
-  whose name has a `prover` or `verifier` word), with its own `impl` block or
-  role trait; an item that every role needs and no other build uses lives in
-  a module mounted with `cfg_role!`. The dependency checker reports
+  features. An item that needs a role lives in a file of that role (a
+  `prover` or `verifier` word in its name or a directory on its path), with
+  its own `impl` block or role trait; an item that every role needs and no
+  other build uses lives in a module mounted with `cfg_role!`. The dependency checker reports
   item-level gates elsewhere; the modules it still exempts
   (`ITEM_GATES_PENDING` in `rust/tools/src/bin/dependency_check/main.rs`) are
   converted when they are next edited, and v1 only when the maintainer asks.
