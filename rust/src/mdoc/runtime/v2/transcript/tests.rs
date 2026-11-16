@@ -1,7 +1,10 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use crate::{
-    mdoc::v2::{transcript::*, PolygeroParameters, ZkSpecStruct},
-    runtime::v2::transcript::{Header, Statement, Transcript},
+    mdoc::v2::{transcript::*, ZkSpecStruct},
+    runtime::v2::{
+        proto::polygero::PolygeroConfig,
+        transcript::{Header, Statement, Transcript},
+    },
 };
 
 impl<'a> Identity<'a> {
@@ -33,10 +36,10 @@ impl<'a> Statement for IdentityOnly<'a> {
 }
 
 fn spec(hash: [u8; 32]) -> ZkSpecStruct {
-    let p = PolygeroParameters {
+    let p = PolygeroConfig {
         k: 8,
-        n: 64,
         s: 2,
+        n: 64,
         t: 2,
     };
     ZkSpecStruct {

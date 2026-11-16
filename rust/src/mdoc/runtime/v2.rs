@@ -45,7 +45,7 @@ pub use proto::proof_sizes;
 pub(crate) use proto::MdocProof;
 pub use proto::MdocProofGeometry;
 pub use zk_spec::{
-    find_zk_spec, find_zk_spec_by_hex, is_supported_version, PolygeroParameters, ZkSpecStruct,
+    find_zk_spec, find_zk_spec_by_hex, is_supported_version, ZkSpecStruct, MDOC_JOINT_PROFILE,
     NUM_ZK_SPECS, SUPPORTED_CIRCUIT_VERSIONS, SYSTEM_ID, ZK_SPECS,
 };
 

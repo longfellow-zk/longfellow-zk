@@ -18,32 +18,21 @@ use crate::{
     core::proto::{archive::CircuitArchive, v2::CircuitReader},
     mdoc::{
         compile,
-        proto::{K_ZSTD_LEVEL, MDOC_JOINT_PROFILE, NEXT_MAX_ATTRIBUTES, NEXT_VERSION},
+        proto::{K_ZSTD_LEVEL, NEXT_MAX_ATTRIBUTES, NEXT_VERSION},
         v2::{
             provider::{self, ProvidedCircuit},
-            PolygeroParameters, ZkSpecStruct,
+            ZkSpecStruct, MDOC_JOINT_PROFILE,
         },
     },
-    runtime::{
-        algebra::{
-            fp2::Fp2Field,
-            gf2_128::Gf2_128Field,
-            p256::P256Field,
-            range_interpolation::{
-                BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
-            },
-            SupportsFFT,
+    runtime::algebra::{
+        fp2::Fp2Field,
+        gf2_128::Gf2_128Field,
+        p256::P256Field,
+        range_interpolation::{
+            BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
         },
-        v2::proto::polygero::PolygeroConfig,
+        SupportsFFT,
     },
-};
-
-// One geometry serves both fields and all supported attribute counts, at an
-// ordinary code rate of 1/7. The checked Hahn bounds keep the shared opening
-// and parent charges within the same query budget as the frontend.
-const NEXT_PARAMETERS: PolygeroConfig = {
-    let (k, s, n, t) = MDOC_JOINT_PROFILE;
-    PolygeroConfig { k, s, n, t }
 };
 
 /// Compile the development circuit and return its matching specification.
@@ -85,23 +74,19 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
             .ok_or("Missing signature circuit")?
             .payload,
     )?;
-    // Both fields share one column/query geometry. Validate the fixed profile
-    // against each interpolation domain.
-    let config = NEXT_PARAMETERS;
+    // One profile serves both fields and all supported attribute counts, at an
+    // ordinary code rate of 1/7. The checked Hahn bounds keep the shared
+    // opening and parent charges within the same query budget as the frontend.
+    // Validate it against each interpolation domain.
+    let config = MDOC_JOINT_PROFILE;
     if !config.can_interpolate(&d) || !config.can_interpolate(&pd) {
         return Err("unsupported fixed Polygero profile".into());
     }
-    let parameters = PolygeroParameters {
-        k: config.k,
-        n: config.n,
-        s: config.s,
-        t: config.t,
-    };
     Ok(ZkSpecStruct {
         combined_hash: archive.combined_id,
         num_attributes,
         version: NEXT_VERSION,
-        polygero: parameters,
+        polygero: config,
     })
 }
 

@@ -4,7 +4,7 @@
 //! geometry and complete shared-query budgets aligned with the provider.
 use num_bigint::BigUint;
 
-use super::NEXT_PARAMETERS;
+use super::MDOC_JOINT_PROFILE;
 
 fn choose(n: usize, k: usize) -> BigUint {
     if k > n {
@@ -19,7 +19,7 @@ fn natural(decimal: &[u8]) -> BigUint {
 
 #[test]
 fn shared_profile_fits_one_query_budget() {
-    let p = NEXT_PARAMETERS;
+    let p = MDOC_JOINT_PROFILE;
     assert_eq!((p.k, p.s, p.n, p.t), (349, 12, 2443, 84));
     assert_eq!(p.n, 7 * p.k);
     let (hash_cutoff, prime_cutoff, threshold) = (865, 863, 867);

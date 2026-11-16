@@ -107,7 +107,7 @@ of the first node:
 | `Circuit` x 3 | circuit ID, which binds the circuit's layer widths and its output, input and public input counts | hash circuit, adapter fragment, signature circuit |
 | `CommitmentLayout` x 2 | per field: (FieldID, committed private inputs before packing, pad cells, fingerprint mask cells); packing descriptor; native runs; bit-stored runs; (mask start, mask width) | binary participant (packing degree 128), then prime participant (degree one) |
 | `AdapterLayout` x 1 | adapter mode ID `longfellow/v2/foreign/p256/two-full-field-trees/v1`; (Q = `QUOTIENT_BITS` = 10, 2 trees, virtual leaf count: 768 + 256 + 10 = 1034 per tree); start and width of the two 10-bit quotient pads among the binary private inputs (R's 256 bits are in the split `CommitmentLayout`) | the `P256Mode<QUOTIENT_BITS>` of `link::composition` |
-| `JointGeometry` | (k, s, n, t): the spec's one profile (`ZkSpecStruct::config`); each field's cell count follows from its `CommitmentLayout` | `ComposedGeometry::config` |
+| `JointGeometry` | (k, s, n, t): the spec's one profile (`ZkSpecStruct::polygero`); each field's cell count follows from its `CommitmentLayout` | `ComposedGeometry::config` |
 | `PublicInputs` | Elements(GF2_128, 901 + 788A) | `PublicInputs::derive` (`push_input_hash`) |
 | `PublicInputs` | Elements(P256, 258) | `PublicInputs::derive` (`push_input_sig`) |
 
@@ -163,7 +163,7 @@ its bits are taken from the least significant.
 |---|---|---|
 | Circuit ID | SHA-256 of the circuit's canonical encoding (`core::proto::v2::compute_id`) | `CircuitReader` recomputes it for every payload |
 | Combined hash | SHA-256(signature circuit ID \|\| hash circuit ID), the archive's entry order | `core::proto::v2::archive::from_stream` recomputes it |
-| `ZkSpecStruct` | `combined_hash`, `num_attributes`, `version`, `polygero`: one profile for both fields, which the joint commitment shares (`ZkSpecStruct::config`) | `Instance::load`: archive combined ID and version equal the spec's, and both public-input counts match it |
+| `ZkSpecStruct` | `combined_hash`, `num_attributes`, `version`, `polygero`: one profile for both fields, which the joint commitment shares | `Instance::load`: archive combined ID and version equal the spec's, and both public-input counts match it |
 | Adapter fragment ID | the ID of the product-tree fragment that `foreign::adapter` rebuilds from the hash circuit's shape | absorbed in its `Circuit` message |
 
 A spec names its circuits through the combined hash, and the statement
@@ -449,8 +449,8 @@ A bundle with any other marker is rejected as not a NEXT bundle.
 
 `read_next` accepts only version 12, 1 to 4 attributes and a valid Polygero
 geometry, then checks the archive against the spec as `from_compressed`
-does. `compile_next` sets the profile to `MDOC_JOINT_PROFILE` =
-(349, 12, 2443, 84).
+does. `compile_next` sets the profile to `MDOC_JOINT_PROFILE`,
+`(k, s, n, t) = (349, 12, 2443, 84)`.
 
 ## Rust API
 
@@ -464,12 +464,12 @@ pub struct ZkSpecStruct {
     pub combined_hash: [u8; 32],
     pub num_attributes: usize,
     pub version: usize,
-    pub polygero: PolygeroParameters,        // k, n, s, t; shared by both fields
+    pub polygero: PolygeroConfig,            // the one profile, shared by both fields
 }
 impl ZkSpecStruct {
     pub fn supports_version(&self) -> bool;
-    pub const fn config(&self) -> PolygeroConfig;   // the one profile
 }
+pub const MDOC_JOINT_PROFILE: PolygeroConfig;               // NEXT's profile
 pub const SYSTEM_ID: &str = "longfellow-libzk-v2";
 pub const ZK_SPECS: [ZkSpecStruct; NUM_ZK_SPECS];           // published, frozen (I9)
 pub fn find_zk_spec(system: &str, hash: &[u8; 32]) -> Option<&'static ZkSpecStruct>;

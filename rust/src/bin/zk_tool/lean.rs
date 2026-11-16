@@ -21,12 +21,13 @@ use std::{
     time::{Duration, Instant},
 };
 
+use longfellow_zk::{mdoc::v2::MDOC_JOINT_PROFILE, runtime::v2::proto::polygero::PolygeroConfig};
 use serde_json::json;
 
 use crate::{
     cache,
     exact::choose,
-    profiles::{self, Audit, Profile, Protocol},
+    profiles::{self, Audit, Protocol},
     require, root, Args, Result,
 };
 
@@ -325,7 +326,7 @@ pub(crate) fn certify(args: &Args) -> Result<()> {
         numeric_source(
             Protocol::Polygero,
             &production,
-            &[profiles::joint_profile()],
+            &[MDOC_JOINT_PROFILE],
             &formal,
         )?,
     )?;
@@ -339,8 +340,8 @@ pub(crate) fn certify(args: &Args) -> Result<()> {
     Ok(())
 }
 
-fn choices(p: Profile) -> BTreeSet<(usize, usize)> {
-    let Profile { k, s, n, t } = p;
+fn choices(p: PolygeroConfig) -> BTreeSet<(usize, usize)> {
+    let PolygeroConfig { k, s, n, t } = p;
     BTreeSet::from([
         (n, k + 2 * s + 1),
         (usize::max(k + 2 * s + 1, 2 * k + s) - 1, t),
@@ -355,7 +356,7 @@ const PROFILES_PER_LEAN_RUN: usize = 16;
 fn numeric_source(
     protocol: Protocol,
     audit: &Audit,
-    selected: &[Profile],
+    selected: &[PolygeroConfig],
     project: &Path,
 ) -> Result<String> {
     use std::fmt::Write;
@@ -369,7 +370,7 @@ fn numeric_source(
     );
     let mut facts = BTreeSet::new();
     for &p in selected {
-        if !audit.hahn.contains_key(&p) && p != profiles::joint_profile() {
+        if !audit.hahn.contains_key(&p) && p != MDOC_JOINT_PROFILE {
             facts.extend(choices(p));
         }
     }
@@ -380,9 +381,9 @@ fn numeric_source(
         writeln!(&mut body,"private theorem choose_{n}_{r} : Nat.choose {n} {r} = {} := by\n  rw [Nat.choose_eq_fast_choose]; decide +kernel",choose(n,r))?;
     }
     for &p in selected {
-        let Profile { k, s, n, t } = p;
-        let label = p.label();
-        if p == profiles::joint_profile() {
+        let PolygeroConfig { k, s, n, t } = p;
+        let label = profiles::label(p);
+        if p == MDOC_JOINT_PROFILE {
             writeln!(
                 &mut body,
                 "def profile_{label} : LfzkV2.Current.CertifiedProfile := MdocJointProfile.profile"
@@ -425,7 +426,7 @@ fn numeric_source(
     )?;
     let names = selected
         .iter()
-        .map(|p| format!("``{namespace}.RustProfiles.profile_{}", p.label()))
+        .map(|p| format!("``{namespace}.RustProfiles.profile_{}", profiles::label(*p)))
         .collect::<Vec<_>>()
         .join(",");
     writeln!(&mut body,"  for endpoint in #[{names}] do\n    for ax in ← collectAxioms endpoint do\n      unless #[``propext,``Classical.choice,``Quot.sound].contains ax do\n        throwError \"Unexpected axiom in numeric verifier endpoint {{endpoint}}: {{ax}}\"")?;
@@ -448,7 +449,7 @@ pub(crate) fn check_profiles(
                     .map(str::parse)
                     .collect::<std::result::Result<_, _>>()?;
                 require(v.len() == 4, "profile must be k,s,n,t")?;
-                Ok(Profile {
+                Ok(PolygeroConfig {
                     k: v[0],
                     s: v[1],
                     n: v[2],

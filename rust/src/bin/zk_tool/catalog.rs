@@ -18,7 +18,7 @@
 //! `check-profiles` audits exactly and, with `--check-lean`, in Lean. Tuning
 //! picks the profile with the smallest estimated proof for a witness size and
 //! field width; applications record the profile they chose in their
-//! specification (for mdoc, `mdoc::proto::MDOC_JOINT_PROFILE`).
+//! specification (for mdoc, `mdoc::v2::MDOC_JOINT_PROFILE`).
 
 use longfellow_zk::runtime::v2::proto::{
     polygero::{PolygeroConfig, PolygeroGeometry},

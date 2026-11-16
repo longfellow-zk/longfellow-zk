@@ -19,7 +19,7 @@ use crate::{
         runtime::{v1, v2},
         *,
     },
-    runtime::random::DeterministicRng,
+    runtime::{random::DeterministicRng, v2::proto::polygero::PolygeroConfig},
 };
 #[test]
 fn systems_own_disjoint_specifications() {
@@ -73,7 +73,7 @@ fn v1_registry_matches_original_records_exactly() {
 }
 #[test]
 fn v2_conversion_preserves_k_dimension_and_s_degree() {
-    let c = v2_spec().config();
+    let c = v2_spec().polygero;
     assert_eq!((c.k, c.n, c.s, c.t), (512, 3584, 18, 87));
 }
 #[test]
@@ -128,10 +128,10 @@ pub(in super::super) fn v2_spec() -> v2::ZkSpecStruct {
         combined_hash: [0; 32],
         num_attributes: 1,
         version: NEXT_VERSION,
-        polygero: v2::PolygeroParameters {
+        polygero: PolygeroConfig {
             k: 512,
-            n: 3584,
             s: 18,
+            n: 3584,
             t: 87,
         },
     }

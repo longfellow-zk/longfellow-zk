@@ -49,8 +49,10 @@ fn frontier_capacity(t: usize, n: usize) -> Option<usize> {
         .filter(|&cap| cap <= MAX_FRONTIER)
 }
 
-/// Public dimensions of a nonrecursive invocation, selected by the caller.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Public dimensions of a nonrecursive invocation, selected by the caller:
+/// the one profile type of every application and tool. Profiles order
+/// lexicographically by `(k, s, n, t)`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PolygeroConfig {
     /// Dimension of ordinary row polynomials.
     pub k: usize,

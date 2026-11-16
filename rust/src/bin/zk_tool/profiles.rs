@@ -19,6 +19,7 @@ use std::{
     str::FromStr,
 };
 
+use longfellow_zk::{mdoc::v2::MDOC_JOINT_PROFILE, runtime::v2::proto::polygero::PolygeroConfig};
 use num_bigint::BigInt;
 use num_traits::{One, Zero};
 use serde_json::Value;
@@ -47,21 +48,13 @@ impl Protocol {
         "Polygero"
     }
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct Profile {
-    pub k: usize,
-    pub s: usize,
-    pub n: usize,
-    pub t: usize,
-}
-impl Profile {
-    pub(crate) fn label(self) -> String {
-        format!("{}_{}_{}_{}", self.k, self.s, self.n, self.t)
-    }
+/// The Lean name suffix of a profile: `k_s_n_t`.
+pub(crate) fn label(p: PolygeroConfig) -> String {
+    format!("{}_{}_{}_{}", p.k, p.s, p.n, p.t)
 }
 pub(crate) struct Audit {
-    pub profiles: Vec<Profile>,
-    pub hahn: BTreeMap<Profile, Value>,
+    pub profiles: Vec<PolygeroConfig>,
+    pub hahn: BTreeMap<PolygeroConfig, Value>,
     pub joint: Value,
 }
 
@@ -185,7 +178,7 @@ fn verify_polynomial(row: &Value, n: usize, w: usize, lambda: usize, count: &Big
 }
 
 /// Verify all finite hypotheses before accepting a manifest's list-size cap.
-pub(crate) fn check_hahn(row: &Value) -> Result<Profile> {
+pub(crate) fn check_hahn(row: &Value) -> Result<PolygeroConfig> {
     require(
         row.get("field_min").is_none(),
         "field-specific profiles are unsupported",
@@ -245,7 +238,7 @@ pub(crate) fn check_hahn(row: &Value) -> Result<Profile> {
     let excess = Q::new(&u - 1, BigInt::from(2) * (&count - 1))
         .add(&Q::new(count, BigInt::from(2) * u).mul(&Q::new(choose(overlap, t), denominator)));
     require(excess <= theta, "opening excess failed")?;
-    Ok(Profile { k, s, n, t })
+    Ok(PolygeroConfig { k, s, n, t })
 }
 pub(crate) fn manifest() -> Result<Vec<Value>> {
     let value: Value = serde_json::from_slice(&fs::read(
@@ -267,28 +260,23 @@ pub(crate) fn joint_manifest() -> Result<Value> {
         .ok_or_else(|| "missing joint mdoc profile".into())
 }
 
-pub(crate) fn joint_profile() -> Profile {
-    let (k, s, n, t) = longfellow_zk::mdoc::proto::MDOC_JOINT_PROFILE;
-    Profile { k, s, n, t }
-}
-
 /// Audit the production two-field composition using its certified list caps.
 /// These are joint-query charges, not the universal tuning profile's 2^-130
 /// opening contract. `--check-lean` additionally binds these caps to Lean's
 /// production certificate; `certify-hahn` checks its three Hahn proofs.
-pub(crate) fn check_joint(row: &Value) -> Result<Profile> {
+pub(crate) fn check_joint(row: &Value) -> Result<PolygeroConfig> {
     require(
         row["name"] == "MdocJoint" && row["certificate"] == "MdocJointProfile.profile",
         "unexpected production mdoc certificate reference",
     )?;
-    let p = Profile {
+    let p = PolygeroConfig {
         k: small(row, "k")?,
         s: small(row, "s")?,
         n: small(row, "n")?,
         t: small(row, "t")?,
     };
     require(
-        p == joint_profile(),
+        p == MDOC_JOINT_PROFILE,
         "joint mdoc geometry differs from production",
     )?;
     let active = small(row, "active_cutoff")?;
@@ -348,7 +336,7 @@ pub(crate) fn check_joint(row: &Value) -> Result<Profile> {
     require(fingerprint <= ordinary, "joint fingerprint budget failed")?;
     Ok(p)
 }
-pub(crate) fn catalog(protocol: Protocol) -> Vec<Profile> {
+pub(crate) fn catalog(protocol: Protocol) -> Vec<PolygeroConfig> {
     let (queries, fixed, r7, r4) = match protocol {
         Protocol::Polygero => (
             gero::TUNING_QUERIES,
@@ -359,7 +347,7 @@ pub(crate) fn catalog(protocol: Protocol) -> Vec<Profile> {
     };
     let mut out: Vec<_> = fixed
         .iter()
-        .map(|&(k, s, n)| Profile {
+        .map(|&(k, s, n)| PolygeroConfig {
             k,
             s,
             n,
@@ -367,17 +355,17 @@ pub(crate) fn catalog(protocol: Protocol) -> Vec<Profile> {
         })
         .collect();
     for (rate, rows) in [(7, r7), (4, r4)] {
-        out.extend(rows.iter().map(|&(k, s, t)| Profile {
+        out.extend(rows.iter().map(|&(k, s, t)| PolygeroConfig {
             k,
             s,
             n: rate * k,
             t,
         }));
     }
-    out.push(joint_profile());
+    out.push(MDOC_JOINT_PROFILE);
     out
 }
-fn baseline_budget(p: Profile) -> bool {
+fn baseline_budget(p: PolygeroConfig) -> bool {
     let theta = Q::new(1.into(), pow2(130));
     let denominator = choose(p.n, p.t);
     Q::new(
@@ -412,7 +400,7 @@ pub(crate) fn audit(protocol: Protocol) -> Result<Audit> {
         if p == joint_geometry {
             continue;
         }
-        let Profile { k, s, n, t } = p;
+        let PolygeroConfig { k, s, n, t } = p;
         require(
             k > 2 * t && t > 0 && usize::max(k + 2 * s + 1, 2 * k + s) <= n,
             "profile geometry failed",
@@ -433,7 +421,7 @@ pub(crate) fn audit(protocol: Protocol) -> Result<Audit> {
             )?;
             if !hahn.contains_key(&p) {
                 require(
-                    (1..t).all(|j| !baseline_budget(Profile { t: j, ..p })),
+                    (1..t).all(|j| !baseline_budget(PolygeroConfig { t: j, ..p })),
                     "opening count is not minimal",
                 )?;
             }

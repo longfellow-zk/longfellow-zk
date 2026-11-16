@@ -5,7 +5,7 @@ fn all_manifests_and_catalog() {
     let a = audit(Protocol::Polygero).unwrap();
     assert_eq!(a.profiles.len(), 64);
     assert_eq!(a.hahn.len(), 2);
-    assert_eq!(check_joint(&a.joint).unwrap(), joint_profile());
+    assert_eq!(check_joint(&a.joint).unwrap(), MDOC_JOINT_PROFILE);
 }
 #[test]
 fn joint_profile_budget_changes_reject() {
@@ -13,7 +13,7 @@ fn joint_profile_budget_changes_reject() {
     row["active_list"] = serde_json::from_str(&pow2(128).to_string()).unwrap();
     assert!(check_joint(&row).is_err());
     let mut row = joint_manifest().unwrap();
-    row["t"] = Value::from(joint_profile().t - 1);
+    row["t"] = Value::from(MDOC_JOINT_PROFILE.t - 1);
     assert!(check_joint(&row).is_err());
 }
 #[test]

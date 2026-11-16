@@ -1433,7 +1433,7 @@ fn check_mdoc_trace(
         .collect();
     let c = geometry.body.config();
     assert_eq!(nats, [c.k as u64, c.s as u64, c.n as u64, c.t as u64]);
-    assert_eq!(provided.spec().config(), c);
+    assert_eq!(provided.spec().polygero, c);
     if count == 1 {
         let node = &trace.nodes[0];
         export_vectors(&format!(
@@ -1553,7 +1553,7 @@ fn assert_v2_parameters(spec: &ZkSpecStruct, compressed: &[u8]) {
         n: 2443,
         t: 84,
     };
-    assert_eq!(spec.config(), expected);
+    assert_eq!(spec.polygero, expected);
     assert!(expected.can_interpolate(&d));
     assert!(expected.can_interpolate(&pd));
     let geometry = proof_geometry(spec, &sig, &hash).unwrap();

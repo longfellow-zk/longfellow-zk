@@ -125,12 +125,7 @@ fn circuit_identifier_enforcement_is_unconditional() {
         combined_hash: archive.combined_id,
         num_attributes: 1,
         version: NEXT_VERSION,
-        polygero: super::super::zk_spec::PolygeroParameters {
-            k: 349,
-            n: 2443,
-            s: 12,
-            t: 84,
-        },
+        polygero: super::super::MDOC_JOINT_PROFILE,
     };
     assert!(load_for(&spec, &compressed(&archive), &p, &f).is_err());
 }
@@ -144,12 +139,7 @@ fn instance_load_binds_archive_and_entry_identifiers() {
         combined_hash,
         num_attributes: 1,
         version: NEXT_VERSION,
-        polygero: super::super::zk_spec::PolygeroParameters {
-            k: 349,
-            n: 2443,
-            s: 12,
-            t: 84,
-        },
+        polygero: super::super::MDOC_JOINT_PROFILE,
     };
     let archive = fixture(&p, &f);
     assert!(load_for(
@@ -199,12 +189,7 @@ fn instance_load_checks_public_input_counts() {
         combined_hash,
         num_attributes: 1,
         version: NEXT_VERSION,
-        polygero: super::super::zk_spec::PolygeroParameters {
-            k: 349,
-            n: 2443,
-            s: 12,
-            t: 84,
-        },
+        polygero: super::super::MDOC_JOINT_PROFILE,
     };
     let attrs = [req_attr("namespace", "a", [0xf5])];
     let spec = spec_for([0; 32]);

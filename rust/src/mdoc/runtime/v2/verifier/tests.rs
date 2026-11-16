@@ -28,7 +28,7 @@ use crate::{
             request::Request,
             run_mdoc_verifier,
             transcript::{Identity, MdocStatement, PROTOCOL_ID},
-            MdocProof, MdocVerifierErrorCode, PolygeroParameters, RequestedAttribute, ZkSpecStruct,
+            MdocProof, MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
         },
     },
     runtime::{
@@ -45,6 +45,7 @@ use crate::{
         random::DeterministicRng,
         v2::{
             proto::{
+                polygero::PolygeroConfig,
                 tags::Tag,
                 tests::{
                     messages::{check_absorbed, sent},
@@ -88,7 +89,7 @@ where
         version,
         polygero,
     } = spec;
-    let PolygeroParameters { k, n, s, t } = *polygero;
+    let PolygeroConfig { k, n, s, t } = *polygero;
     let identity = statement::Identity::Mdoc {
         protocol: PROTOCOL_ID.to_vec(),
         session: transcript.to_vec(),
@@ -324,7 +325,7 @@ fn mdoc_identity_fields_are_absorbed() {
     };
     assert_ne!(bytes(transcript, &later), base, "version");
     // The profile, written in `JointGeometry`: each value.
-    let PolygeroParameters {
+    let PolygeroConfig {
         k,
         n: columns,
         s,
@@ -333,28 +334,28 @@ fn mdoc_identity_fields_are_absorbed() {
     for (name, changed) in [
         (
             "k",
-            PolygeroParameters {
+            PolygeroConfig {
                 k: k + 1,
                 ..polygero
             },
         ),
         (
             "n",
-            PolygeroParameters {
+            PolygeroConfig {
                 n: columns + 1,
                 ..polygero
             },
         ),
         (
             "s",
-            PolygeroParameters {
+            PolygeroConfig {
                 s: s + 1,
                 ..polygero
             },
         ),
         (
             "t",
-            PolygeroParameters {
+            PolygeroConfig {
                 t: t + 1,
                 ..polygero
             },

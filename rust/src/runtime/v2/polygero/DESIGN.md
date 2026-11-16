@@ -68,8 +68,8 @@ stored as its evaluations on the oracle.
 All masks are uniform in the participant's field, also for rows that carry
 base-field values such as bits.
 
-**mdoc profile.** `MDOC_JOINT_PROFILE = (349, 12, 2443, 84)`
-(`mdoc/proto/config.rs`), certified by `zk_tool check-profiles`. It gives
+**mdoc profile.** `MDOC_JOINT_PROFILE`, `(k, s, n, t) = (349, 12, 2443, 84)`
+(`mdoc/runtime/v2/zk_spec.rs`), certified by `zk_tool check-profiles`. It gives
 row width 265, `|H| = 361`, `|Z| = 698` and a Merkle heap of depth 12.
 
 ## Statement

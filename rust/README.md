@@ -502,7 +502,7 @@ For v2, the hash and signature circuits share the same
 | `T` | Number of opened columns and random prefix samples per row |
 
 The audited Polygero catalog and its tuning live in `zk_tool`. The mdoc
-development provider uses one profile, `mdoc::proto::MDOC_JOINT_PROFILE`,
+development provider uses one profile, `mdoc::v2::MDOC_JOINT_PROFILE`,
 checked against both fields' backend budgets. Specifications save these
 choices. Provers and verifiers derive the remaining geometry
 deterministically; they do not tune parameters.
@@ -679,7 +679,7 @@ normally `../formal`. Normal Rust builds, parameter selection, proving,
 and verification do not require the Lean toolchain.
 
 The catalog includes the production joint mdoc profile `(349, 12, 2443, 84)`.
-The development provider takes it from `mdoc::proto::MDOC_JOINT_PROFILE`.
+The development provider takes it from `mdoc::v2::MDOC_JOINT_PROFILE`.
 The exact checker checks its shared two-field parent,
 opening and fingerprint charges separately from the universal tuning profiles.
 `certify-hahn` checks the three mdoc Hahn bounds and binds the manifest's

@@ -71,7 +71,7 @@ fn next_compilation_is_reproducible_and_unregistered() {
 
 #[test]
 fn next_cache_preserves_the_complete_spec() {
-    use crate::mdoc::v2::{PolygeroParameters, ZkSpecStruct};
+    use crate::{mdoc::v2::ZkSpecStruct, runtime::v2::proto::polygero::PolygeroConfig};
     let mut builder = CircuitArchiveBuilder::new();
     builder.circuit_version = Some(NEXT_VERSION as u32);
     builder.add_entry("sig", [1; 32], vec![1]);
@@ -82,10 +82,10 @@ fn next_cache_preserves_the_complete_spec() {
         combined_hash: archive.combined_id,
         version: NEXT_VERSION,
         num_attributes: 3,
-        polygero: PolygeroParameters {
+        polygero: PolygeroConfig {
             k: 512,
-            n: 3584,
             s: 19,
+            n: 3584,
             t: 90,
         },
     };
@@ -123,17 +123,17 @@ fn next_cache_preserves_the_complete_spec() {
 
 #[test]
 fn next_cache_rejects_invalid_parameter_dimensions_without_retuning() {
-    use crate::mdoc::v2::PolygeroParameters;
+    use crate::runtime::v2::proto::polygero::PolygeroConfig;
     let mut builder = CircuitArchiveBuilder::new();
     builder.circuit_version = Some(NEXT_VERSION as u32);
     builder.add_entry("sig", [1; 32], vec![1]);
     builder.add_entry("hash", [2; 32], vec![2]);
     let archive = builder.build();
     // Small research/test parameters remain valid; geometry is not a certificate.
-    let parameters = PolygeroParameters {
+    let parameters = PolygeroConfig {
         k: 8,
-        n: 64,
         s: 0,
+        n: 64,
         t: 1,
     };
     let spec = v2::ZkSpecStruct {

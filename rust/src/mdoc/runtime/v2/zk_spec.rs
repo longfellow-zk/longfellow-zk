@@ -21,30 +21,15 @@ use crate::{mdoc::proto::NEXT_VERSION, runtime::v2::proto::polygero::PolygeroCon
 pub const SYSTEM_ID: &str = "longfellow-libzk-v2";
 pub const SUPPORTED_CIRCUIT_VERSIONS: &[usize] = &[NEXT_VERSION];
 
-/// Independent Polygero choices, fixed for the circuit supplied with this spec.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PolygeroParameters {
-    /// Polynomial dimension: K samples represent degree strictly below K.
-    pub k: usize,
-    /// Number of committed oracle columns.
-    pub n: usize,
-    /// Batching-polynomial degree bound, represented by s+1 samples.
-    pub s: usize,
-    /// Number of distinct columns opened by the verifier.
-    pub t: usize,
-}
-impl PolygeroParameters {
-    /// Longfellow v2 uses exactly one private prefix sample per opened column.
-    #[must_use]
-    const fn config(self) -> PolygeroConfig {
-        PolygeroConfig {
-            k: self.k,
-            n: self.n,
-            s: self.s,
-            t: self.t,
-        }
-    }
-}
+/// The Polygero profile of the mdoc v2 joint commitment, shared by both
+/// fields. `zk_tool check-profiles` certifies its shared two-field budget
+/// separately from the universal tuning catalog.
+pub const MDOC_JOINT_PROFILE: PolygeroConfig = PolygeroConfig {
+    k: 349,
+    s: 12,
+    n: 2443,
+    t: 84,
+};
 /// A v2 spec cannot be supplied to the v1 application entry points.
 ///
 /// ```compile_fail
@@ -57,17 +42,13 @@ pub struct ZkSpecStruct {
     pub num_attributes: usize,
     pub version: usize,
     /// The one Polygero profile of both fields, which the joint commitment shares.
-    pub polygero: PolygeroParameters,
+    pub polygero: PolygeroConfig,
 }
 impl ZkSpecStruct {
     /// Whether this runtime can execute the circuit version, independently of publication.
     #[must_use]
     pub fn supports_version(&self) -> bool {
         is_supported_version(self.version)
-    }
-    #[must_use]
-    pub const fn config(&self) -> PolygeroConfig {
-        self.polygero.config()
     }
     #[must_use]
     pub fn combined_hash_hex(&self) -> String {

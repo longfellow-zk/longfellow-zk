@@ -25,10 +25,10 @@ use crate::{
         v2::{
             archive::read_compressed,
             provider::{self, ProvidedCircuit},
-            PolygeroParameters, ZkSpecStruct,
+            ZkSpecStruct,
         },
     },
-    runtime::v2::proto::polygero::PolygeroGeometry,
+    runtime::v2::proto::polygero::{PolygeroConfig, PolygeroGeometry},
 };
 
 /// Version 2 stores the one joint profile; version 1 stored a profile per field.
@@ -79,7 +79,7 @@ pub fn read_next(mut reader: impl Read) -> Result<ProvidedCircuit, String> {
         combined_hash,
         num_attributes,
         version,
-        polygero: PolygeroParameters { k, n, s, t },
+        polygero: PolygeroConfig { k, s, n, t },
     };
     validate(&spec)?;
     let compressed = read_compressed(reader)?;
@@ -91,6 +91,6 @@ fn validate(spec: &ZkSpecStruct) -> Result<(), String> {
     if spec.version != NEXT_VERSION || !(1..=NEXT_MAX_ATTRIBUTES).contains(&spec.num_attributes) {
         return Err("Cache does not describe a supported NEXT circuit".into());
     }
-    PolygeroGeometry::new(0, spec.config()).map_err(|e| e.to_string())?;
+    PolygeroGeometry::new(0, spec.polygero).map_err(|e| e.to_string())?;
     Ok(())
 }
