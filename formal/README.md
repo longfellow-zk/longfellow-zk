@@ -367,8 +367,8 @@ establish that a cryptographic implementation satisfies their premises.
   sampler projections, advice decoding, adapter leaf definitions,
   authenticated row layouts and failure coverage are constructed and
   proved; no caller-supplied execution or soundness certificate replaces
-  those proofs. The schedule covers a binary host participant whose packing
-  degree exceeds one, which the deployed setup requires
+  those proofs. The geometry requires a binary host participant whose packing degree
+  exceeds one (`Geometry.packingNontrivial`), as the deployed setup does
   (`ApplicationSetup` `degree_gt`). At degree one Rust reads the Polygero
   batching draw from the preceding node (transcript I7), where the Lean
   schedule would end an empty node, so a host of packing degree one is

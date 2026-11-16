@@ -79,7 +79,7 @@ private def geometry : Geometry where
   binaryCells := 0
   primeCells := 0
   packingDegree := 128
-  packingPositive := by decide
+  packingNontrivial := by decide
   rowDimension := 8
   maskingDegree := 2
   columns := 64
@@ -697,7 +697,7 @@ private def bodyGeometry : Geometry where
   binaryCells := 0
   primeCells := 0
   packingDegree := 2
-  packingPositive := by decide
+  packingNontrivial := by decide
   rowDimension := 3
   maskingDegree := 1
   columns := 8

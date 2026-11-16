@@ -120,7 +120,7 @@ def geometry (binaryFrontend primeFrontend : Frontend) : Geometry where
   binaryCells := binary.cells
   primeCells := CellLayout.Prime.cells prime.remaining prime.pads
   packingDegree := binary.degree
-  packingPositive := by have := binary.degree_gt; omega
+  packingNontrivial := binary.degree_gt
   rowDimension := 349
   maskingDegree := 12
   columns := 2443

@@ -115,7 +115,7 @@ def geometry : Geometry where
   binaryCells := 3
   primeCells := 2
   packingDegree := 2
-  packingPositive := by decide
+  packingNontrivial := by decide
   rowDimension := 4
   maskingDegree := 1
   columns := 8
@@ -156,8 +156,6 @@ example : geometry.roles.length + 1 = 13 := by decide
 example : geometry.actions.take 4 =
     [.bind .setup, .query .fingerprint, .bind .fingerprints, .bind (.frontend .prime)] := by decide
 
-example : ({geometry with packingDegree := 1, packingPositive := by decide}.roles).length = 11 :=
-  by decide
 example : packingActions 1 = [] := rfl
 -- The prime statement has its unbatched layer row, the native split row and
 -- the two fingerprint rows.

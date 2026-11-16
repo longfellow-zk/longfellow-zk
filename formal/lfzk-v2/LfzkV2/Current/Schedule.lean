@@ -227,7 +227,11 @@ structure Geometry where
   binaryCells : ℕ
   primeCells : ℕ
   packingDegree : ℕ
-  packingPositive : 0 < packingDegree
+  /-- The binary host packs more than one cell per element, as the deployed
+  setup requires (`ApplicationSetup` `degree_gt`). At degree one Rust reads
+  the Polygero batching draw from the preceding node (transcript I7), where
+  this schedule would end an empty node. -/
+  packingNontrivial : 1 < packingDegree
   rowDimension : ℕ
   maskingDegree : ℕ
   columns : ℕ
@@ -269,11 +273,11 @@ def packingActions (degree : ℕ) : List Action :=
 prime frontend runs before the binary frontend even though the joint typed
 participant list, fingerprint vectors and backend samples are binary first.
 
-The schedule models a binary (host) participant whose packing degree exceeds
-one, which the deployed setup requires (`ApplicationSetup` `degree_gt`). At
-degree one no message precedes the `batching` query, and Rust reads its draw
-from the preceding node instead of ending a node (transcript I7), so a host of
-packing degree one is outside the model. -/
+The binary (host) participant packs more than one cell per element
+(`Geometry.packingNontrivial`), as the deployed setup requires
+(`ApplicationSetup` `degree_gt`). At degree one no message would precede the
+`batching` query, and Rust reads its draw from the preceding node instead of
+ending a node (transcript I7); no geometry has that degree. -/
 def Geometry.actions (g : Geometry) : List Action :=
   [.bind .setup, .query .fingerprint, .bind .fingerprints, .bind (.frontend .prime)] ++
   (g.prime.roles .prime).map Action.query ++
