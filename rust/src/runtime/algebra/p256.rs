@@ -17,7 +17,7 @@ use crate::{
     runtime::algebra::{
         fp2::{Fp2Element, Fp2Field},
         fp_generic::{FpGenericElement, FpGenericField},
-        limb::LIMBS_PER_U64,
+        limb::{words64_to_limbs, Limb, LIMBS_PER_U64},
         packing::{IdentityExtension, PackingField},
         RuntimeSerializableField, SupportsFFT, SupportsQuadraticExtension,
     },
@@ -39,6 +39,12 @@ const P256_MODULUS: [u64; 4] = [
     0x0000000000000000,
     0xffffffff00000001,
 ];
+
+/// Whether `modulo` is the P-256 prime, the only modulus whose reduction
+/// `P256Strategy` implements.
+fn is_p256_modulus(modulo: &[Limb; 4 * LIMBS_PER_U64]) -> bool {
+    *modulo == words64_to_limbs::<4, { 4 * LIMBS_PER_U64 }>(&P256_MODULUS)
+}
 
 #[cfg(all(target_pointer_width = "64", not(feature = "force-32bit-limbs")))]
 mod p256_64;

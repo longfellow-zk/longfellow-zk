@@ -15,7 +15,7 @@
 use crate::runtime::algebra::{
     fp_generic::MontgomeryStrategy,
     limb::{accum, maybe_minus_m, mul_accum, mul_accum_zero, sub_limb, Limb, LIMBS_PER_U64},
-    p256::P256Strategy,
+    p256::{is_p256_modulus, P256Strategy},
 };
 
 #[inline(always)]
@@ -30,6 +30,10 @@ fn p256_reduction_step(a: &mut [Limb; 6]) {
 }
 
 impl MontgomeryStrategy<{ 4 * LIMBS_PER_U64 }> for P256Strategy {
+    fn supports(modulo: &[Limb; 4 * LIMBS_PER_U64]) -> bool {
+        is_p256_modulus(modulo)
+    }
+
     #[inline(always)]
     fn montgomery_mul(
         a: &mut [Limb; 4],

@@ -55,6 +55,15 @@ pub trait MontgomeryStrategy<const L: usize>:
         negm: &[Limb; L],
         m_prime: Limb,
     );
+
+    /// Whether this strategy's arithmetic is correct modulo `modulo`, checked
+    /// once when a field is constructed. A strategy whose reduction is
+    /// specialized to one prime accepts only that prime; the default accepts
+    /// every modulus `FpGenericField::new_generic` otherwise admits.
+    #[must_use]
+    fn supports(_modulo: &[Limb; L]) -> bool {
+        true
+    }
 }
 
 /// The generic interleaved Montgomery multiplication strategy.
@@ -150,8 +159,10 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
     /// # Panics
     ///
     /// Panics if the word, limb, accumulator, or modulus representation is
-    /// incompatible with this implementation, or if the field needs more than
-    /// 16 limbs.
+    /// incompatible with this implementation, if the field needs more than
+    /// 16 limbs, or if the strategy `S` does not support the modulus (a
+    /// strategy specialized to one prime, such as `P256Strategy`, supports
+    /// only that prime).
     #[must_use]
     pub fn new_generic(modulo_words: [u64; W]) -> Self {
         assert!(W > 0, "field width must contain at least one word");
@@ -185,6 +196,10 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
         assert!(
             modulo[0] & 1 == 1 && !is_one_slice(&modulo),
             "Montgomery modulus must be odd and greater than one"
+        );
+        assert!(
+            S::supports(&modulo),
+            "the field's arithmetic strategy does not support this modulus"
         );
         let mut neg_modulo = [0 as Limb; L];
         crate::runtime::algebra::limb::sub_limb(&mut neg_modulo, &modulo);

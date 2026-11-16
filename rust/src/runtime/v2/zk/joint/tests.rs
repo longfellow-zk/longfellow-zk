@@ -635,8 +635,9 @@ impl RegisteredField for UnregisteredPrime {
     const BYTES: usize = 8;
 }
 
-/// Participants are built only over registered fields, and only over the
-/// field the registered ID names.
+/// Participants are built only over registered fields. A registered type
+/// names one field: `P256Field` cannot be built over another prime
+/// (`runtime::algebra::tests::p256`).
 #[test]
 fn participants_reject_unregistered_fields() {
     assert!(check_registered(&P256Field::new()).is_ok());
@@ -647,9 +648,6 @@ fn participants_reject_unregistered_fields() {
         check_registered(&toy).unwrap_err(),
         "v2 participant field is not registered"
     );
-    // P-256's type over another prime (2^256 - 189) is not P-256.
-    let other = P256Field::new_generic([0xffff_ffff_ffff_ff43, u64::MAX, u64::MAX, u64::MAX]);
-    assert!(check_registered(&other).is_err());
 }
 
 pub(crate) mod soundness_fuzz;

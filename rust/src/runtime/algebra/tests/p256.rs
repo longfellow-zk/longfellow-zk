@@ -21,7 +21,10 @@ use crate::{
         AlgebraicField, Nat, SerializableField, SupportsNatConversions, SupportsU64Conversions,
     },
     runtime::algebra::{
-        fp_generic::FpGenericElement, limb::words64_to_limbs, p256::*, secp256r1::Secp256r1,
+        fp_generic::{FpGenericElement, FpGenericField},
+        limb::{words64_to_limbs, LIMBS_PER_U64},
+        p256::*,
+        secp256r1::Secp256r1,
         InterpolationField, RuntimeField, RuntimeNat, RuntimeSerializableField,
     },
 };
@@ -326,4 +329,39 @@ fn test_p256_random_mul_robust() {
             );
         }
     }
+}
+
+/// The P-256 prime, little-endian words.
+const P256_PRIME: [u64; 4] = [
+    0xffff_ffff_ffff_ffff,
+    0x0000_0000_ffff_ffff,
+    0,
+    0xffff_ffff_0000_0001,
+];
+
+/// The prime 2^256 - 189, which `P256Strategy`'s reduction does not compute.
+const OTHER_PRIME: [u64; 4] = [0xffff_ffff_ffff_ff43, u64::MAX, u64::MAX, u64::MAX];
+
+/// `P256Field` reduces with `P256Strategy`, which is specialized to the P-256
+/// prime, so its constructor rejects any other modulus.
+#[test]
+#[should_panic(expected = "the field's arithmetic strategy does not support this modulus")]
+fn p256_field_rejects_another_prime() {
+    let _ = P256Field::new_generic(OTHER_PRIME);
+}
+
+/// The P-256 prime itself is accepted, by `new` and by `new_generic`, and the
+/// generic strategy still accepts the prime `P256Strategy` rejects.
+#[test]
+fn p256_field_accepts_its_prime() {
+    let p = P256Field::new();
+    let one = p.one();
+    assert_eq!(p.mulf(&one, &one), one);
+    assert_eq!(P256Field::new_generic(P256_PRIME), p);
+
+    let generic =
+        FpGenericField::<4, { 4 * LIMBS_PER_U64 }, { 9 * LIMBS_PER_U64 }>::new_generic(OTHER_PRIME);
+    let generic_one = generic.one();
+    assert_eq!(generic.mulf(&generic_one, &generic_one), generic_one);
+    assert_eq!(generic.to_bytes(&generic_one)[0], 1);
 }
