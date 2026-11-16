@@ -6,7 +6,7 @@ use crate::runtime::{
     v2::{
         proto::composed::ComposedProof,
         transcript::{Opened, SetupMessage, Transcript},
-        zk::{self, joint, split},
+        zk,
     },
 };
 
@@ -49,27 +49,21 @@ where
         let (mut joint, commitment, fingerprints) =
             param.commit((w_host, (w_split, ())), transcript, rng)?;
 
-        // Split frontend from the top weights after the fingerprint
-        // responses, then the split of its input equation. eta extends the
+        // Split frontend, whose top weights follow the fingerprint responses,
+        // then the split of its input equation, whose eta extends the
         // frontend's last combine answer.
         let mut ts = joint.bound(&this.split);
-        let top_split = joint::top_weights(&mut ts)?;
-        let (split_sumcheck, pending) =
-            zk::prove_split(&mut ts, state_split, top_split, &c.split_ctx)?;
+        let (split_sumcheck, pending) = zk::prove_split(&mut ts, state_split, &c.split_ctx)?;
         let values = c.split.foreign_values(&pending)?;
-        let eta = split::transcript::eta(&mut ts, fs);
-        let (mu, split) = pending.open(&mut ts, eta, fs)?;
+        let (mu, split) = pending.open(&mut ts, fs)?;
 
-        // Adapter rounds, then the host frontend with the mode's fragment,
-        // from the top weights after the adapter's masked quotients.
+        // Adapter rounds, whose conversion pair follows the split message,
+        // then the host frontend with the mode's fragment, whose top weights
+        // follow the adapter's masked quotients.
         let mut ta = joint.bound(&c.mode);
-        let conversion = M::draw_conversion(&mut ta, fs);
-        let (message, leaves) =
-            M::prove(&mut ta, &split.foreign, &values, pads, conversion, fs, fh)?;
+        let (message, leaves) = M::prove(&mut ta, &split.foreign, &values, pads, fs, fh)?;
         let mut th = joint.bound(&this.host);
-        let top_host = joint::top_weights(&mut th)?;
-        let (host, statement_host) =
-            zk::prove(&mut th, state_host, top_host, &leaves, &c.host_ctx)?;
+        let (host, statement_host) = zk::prove(&mut th, state_host, &leaves, &c.host_ctx)?;
         // The opening follows the host frontend's last message.
         let equations = (statement_host, (split.statement, ()));
         let (polygero, transcript) = joint.finish(&param, equations)?;

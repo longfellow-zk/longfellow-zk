@@ -23,18 +23,15 @@
 //! the commitment received before sumcheck.
 use super::{
     circuit::CircuitSource,
-    fragments::{self, SplitFragment},
+    fragments::{self, Schedule, SplitFragment},
     symbolic::{build_constraints, Constraints, LayerChallenges},
-    transcript::{accept_top, end_layer, round_challenge, terminal_challenge, TopWeights},
+    transcript::{end_layer, round_challenge, terminal_challenge},
 };
 use crate::{
     core::algebra::RegisteredField,
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
-        v2::{
-            proto::sumcheck::SumcheckProof,
-            transcript::{Challenge, TranscriptRef},
-        },
+        v2::{proto::sumcheck::SumcheckProof, transcript::TranscriptRef},
     },
 };
 
@@ -49,44 +46,28 @@ pub(crate) fn derive_constraints<
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<Constraints<F::E>, String> {
-    top_and_derive(&[circuit], proof, t, f)
-}
-
-/// Test convenience: draw the top weights from `t`, after the caller has
-/// bound every circuit statement, then derive the constraints.
-#[cfg(test)]
-pub(crate) fn top_and_derive<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
-    circuits: &[impl CircuitSource<F>],
-    proof: &SumcheckProof<W, F>,
-    t: &mut TranscriptRef<'_>,
-    f: &F,
-) -> Result<Constraints<F::E>, String> {
-    let top = super::transcript::top_weights(circuits, t, f)?;
-    derive_constraints_for_circuits(circuits, proof, top, t, f)
+    derive_constraints_for_circuits(&[circuit], proof, t, f)
 }
 
 /// Validate all message counts before advancing the transcript. Circuit metadata
 /// is trusted, as in the single-circuit entry point; shared public inputs must
-/// already have been bound by the caller, and `top` drawn after them.
+/// already have been bound by the caller. The top weights are drawn here,
+/// before the first message.
 pub(crate) fn derive_constraints_for_circuits<
     const W: usize,
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     circuits: &[impl CircuitSource<F>],
     proof: &SumcheckProof<W, F>,
-    top: Challenge<TopWeights<F::E>>,
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<Constraints<F::E>, String> {
-    // Accept the top weights before the first message (transcript I8), with
-    // the schedule they were drawn with.
-    let (schedule, mut entering) = accept_top(top, circuits, t)?;
+    let schedule = Schedule::new(circuits, f)?;
     proof
         .validate(&schedule.geometry)
         .map_err(|e| e.to_string())?;
+    // Draw the top weights before the first message (transcript I8).
+    let mut entering = schedule.draw_top(circuits, t, f);
     let mut input_assertions = Vec::new();
     let mut weights = Vec::new();
     if schedule.layers.is_empty() {

@@ -30,7 +30,7 @@ use crate::{
         },
         v2::{
             foreign::word::MaskedWord,
-            transcript::{Bound, Challenge, Header},
+            transcript::{Bound, Header},
             zk::{
                 storage::{BitGroup, ModularClaim, ReservedSuffix},
                 VirtualInputs,
@@ -110,7 +110,7 @@ impl<const Q: usize> P256Plan<Q> {
     /// Both challenges must be independent, nonzero, uniform full prime-field
     /// samples drawn after the claim is fixed. This checks only that they are
     /// nonzero, so it is crate-private: outside tests, only `P256Mode` calls
-    /// it, with the transcript's `Challenge<Conversion>`.
+    /// it, with the `Conversion` it draws on entry.
     // Verifier-only builds omit the prover's quotient accumulation, which is
     // the only user of `values` and of some loop indices.
     #[cfg_attr(not(any(test, feature = "prover")), allow(unused_variables))]
@@ -275,8 +275,8 @@ impl<const Q: usize> P256Encoded<Q> {
 /// `Word<Q>` quotient published as `MaskedWord<Q>` over a committed `Otp<Q>`.
 ///
 /// The adapter's conversion pair and masked quotients enter the transcript
-/// only through the mode: `draw_conversion` stamps the pair as the mode's
-/// input challenge and `prove` and `verify` send the quotients. The raw
+/// only through the mode: `prove` and `verify` draw the pair on entry and
+/// then send the quotients. The raw
 /// steps are private to its transcript module.
 pub(crate) struct P256Mode<const Q: usize> {
     plan: P256Plan<Q>,
@@ -290,7 +290,6 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
     const MASK_BITS: usize = 256;
     type Pads = [crate::runtime::v2::foreign::word::Otp<Q>; 2];
     type Message = [MaskedWord<Q>; 2];
-    type Conversion = Conversion;
     fn new(
         widths: Vec<usize>,
         npublic: usize,
@@ -334,21 +333,17 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         }
         Ok(())
     }
-    fn draw_conversion(t: &mut Bound<'_, Self>, p: &P256Field) -> Challenge<Conversion> {
-        transcript::draw_conversion(t, p)
-    }
     #[cfg(any(test, feature = "prover"))]
     fn prove(
         t: &mut Bound<'_, Self>,
         claim: &ModularClaim<P256Element>,
         values: &[P256Element],
         pads: Self::Pads,
-        conversion: Challenge<Conversion>,
         p: &P256Field,
         f: &Gf2_128Field,
     ) -> Result<(Self::Message, VirtualInputs<Gf2_128>), String> {
         let mode = t.part();
-        let Conversion(alpha) = t.accept(conversion).map_err(|e| e.to_string())?;
+        let Conversion(alpha) = transcript::draw_conversion(&mut t.transcript(), p);
         let encoded = mode.plan.encode(claim, &alpha, Some(values), p, f)?;
         let k = encoded.quotients.ok_or("P256 adapter quotients")?;
         let [o0, o1] = pads;
@@ -363,12 +358,11 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
         t: &mut Bound<'_, Self>,
         claim: &ModularClaim<P256Element>,
         masked: &Self::Message,
-        conversion: Challenge<Conversion>,
         p: &P256Field,
         f: &Gf2_128Field,
     ) -> Result<VirtualInputs<Gf2_128>, String> {
         let mode = t.part();
-        let Conversion(alpha) = t.accept(conversion).map_err(|e| e.to_string())?;
+        let Conversion(alpha) = transcript::draw_conversion(&mut t.transcript(), p);
         let encoded = mode.plan.encode(claim, &alpha, None, p, f)?;
         transcript::send_quotients(&mut t.transcript(), masked);
         super::virtual_inputs(mode.shape, encoded.trees(claim, &mode.otp, masked, f), f)

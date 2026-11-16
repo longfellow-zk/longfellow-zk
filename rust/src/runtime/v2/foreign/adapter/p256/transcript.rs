@@ -8,8 +8,7 @@ use crate::runtime::{
         foreign::{adapter::TreeShape, word::MaskedWord},
         proto::tags::Tag,
         transcript::{
-            Bound, Challenge, Encoder, Header, Message, ProverMessage, Reading, SetupMessage,
-            TranscriptRef,
+            Encoder, Header, Message, ProverMessage, Reading, SetupMessage, TranscriptRef,
         },
         zk::storage::Group,
     },
@@ -17,7 +16,7 @@ use crate::runtime::{
 
 /// The P-256 adapter's conversion pair, each nonzero. Only its draw
 /// (`draw_conversion`) builds it.
-pub(crate) struct Conversion(pub(super) [P256Element; 2]);
+pub(super) struct Conversion(pub(super) [P256Element; 2]);
 
 /// `P256AdapterQuotients` (65): Bits(Q), Bits(Q), the two masked quotient
 /// words, each least significant bit first.
@@ -38,9 +37,9 @@ fn draw_pair(r: &mut Reading<'_>, p: &P256Field) -> [P256Element; 2] {
 
 /// Two independent nonzero full-field conversion challenges. Wrapping mode
 /// needs both: one rescaling leaves a false claim about 2^-117 to survive.
-/// They are drawn from the boundary after the split message. Protocol code
-/// draws them as the adapter's input challenge (`draw_conversion`); this
-/// raw draw is for the tests that check that both are the same.
+/// They are drawn from the boundary after the split message. The mode
+/// draws them on entry (`draw_conversion`); this raw draw is for the tests
+/// that check that both are the same.
 #[cfg(test)]
 pub(in crate::runtime::v2::foreign) fn conversion(
     t: &mut TranscriptRef<'_>,
@@ -49,12 +48,10 @@ pub(in crate::runtime::v2::foreign) fn conversion(
     t.draw(|r| draw_pair(r, p))
 }
 
-/// The same draw as `conversion`, as the adapter's input challenge.
-pub(super) fn draw_conversion<P: ?Sized>(
-    t: &mut Bound<'_, P>,
-    p: &P256Field,
-) -> Challenge<Conversion> {
-    t.challenge(|r| Conversion(draw_pair(r, p)))
+/// The same draw as `conversion`, which the mode's `prove` and `verify`
+/// make on entry, before they send.
+pub(super) fn draw_conversion(t: &mut TranscriptRef<'_>, p: &P256Field) -> Conversion {
+    t.draw(|r| Conversion(draw_pair(r, p)))
 }
 
 /// Send both masked quotients before the binary sumcheck. Their width is

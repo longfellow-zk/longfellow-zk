@@ -16,8 +16,9 @@
 //!
 //! The statement already holds every circuit ID, layer width and public
 //! input (transcript I1, I3), so a sumcheck absorbs only its own messages.
-//! The caller draws the top weights (`top_weights`) after the message that
-//! precedes the frontend and hands them to the sumcheck. The shared schedule
+//! Each entry point draws its own top weights (`Schedule::draw_top`) before
+//! its first message, from the boundary that the message preceding the
+//! frontend closed. The shared schedule
 //! treats zero outputs as assertions where they enter, including scalar
 //! outputs. Each layer has all its assertion coefficients before any rounds;
 //! each round sends both masked coefficients (`SumcheckRound`) before
@@ -38,7 +39,7 @@ use crate::{
         algebra::{blas, RuntimeField, SupportsSampling},
         v2::{
             proto::{sumcheck::RoundPoly, tags::Tag},
-            transcript::{Challenge, Encoder, Message, ProverMessage, Reading, TranscriptRef},
+            transcript::{Encoder, Message, ProverMessage, Reading, TranscriptRef},
         },
     },
 };
@@ -146,66 +147,33 @@ impl<E> Default for StageWeights<E> {
     }
 }
 
-/// A sumcheck's first weights: the entering outputs and assertion
-/// coefficients of its top stage, or the input assertions of a frontend with
-/// no layers. The caller draws them before the sumcheck's first message and
-/// hands them in as a `Challenge` (transcript I8); only `top_weights` builds
-/// them. They carry the schedule they were drawn with, so the sumcheck that
-/// accepts them reuses it rather than deriving it again.
-pub(crate) struct TopWeights<E> {
-    weights: StageWeights<E>,
-    schedule: Schedule,
-}
-#[cfg(test)]
-impl<E> TopWeights<E> {
-    /// The output weights of the top stage, or the input weights of a
-    /// frontend with no layers.
-    pub(crate) fn outputs(&self) -> &[E] {
-        &self.weights.outputs
-    }
-}
-
-/// Draw the top weights. The statement holds the circuit list, so this sends
-/// nothing: the draw ends the node of the message that precedes the
-/// frontend, or reads further from its stream (transcript I7).
-pub(crate) fn top_weights<
-    const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
->(
-    circuits: &[impl CircuitSource<F>],
-    t: &mut TranscriptRef<'_>,
-    f: &F,
-) -> Result<Challenge<TopWeights<F::E>>, String> {
-    let schedule = Schedule::new(circuits, f)?;
-    Ok(t.challenge(|r| {
-        let weights = if schedule.layers.is_empty() {
-            StageWeights {
-                outputs: schedule.input_assertions(circuits, r, f),
-                assertions: Vec::new(),
-            }
-        } else {
-            schedule.draw_stage(0, r, f)
-        };
-        TopWeights { weights, schedule }
-    }))
-}
-
-/// Accept the caller's top weights before the first message and return the
-/// schedule they were drawn with, checking that it was built for `circuits`.
-pub(super) fn accept_top<E, F: SerializableField>(
-    top: Challenge<TopWeights<E>>,
-    circuits: &[impl CircuitSource<F>],
-    t: &TranscriptRef<'_>,
-) -> Result<(Schedule, StageWeights<E>), String> {
-    let TopWeights { weights, schedule } = t.accept(top).map_err(|e| e.to_string())?;
-    if schedule.is_for(circuits) {
-        Ok((schedule, weights))
-    } else {
-        Err("top weights drawn for another circuit list".into())
-    }
-}
-
 impl Schedule {
+    /// Draw the sumcheck's first weights: the entering outputs and assertion
+    /// coefficients of its top stage, or the input assertions of a frontend
+    /// with no layers. Each entry point draws them itself, before its first
+    /// message (transcript I8). The statement holds the circuit list, so this
+    /// sends nothing: the draw ends the node of the message that precedes the
+    /// frontend, or reads further from its stream (transcript I7).
+    pub(super) fn draw_top<
+        const W: usize,
+        F: RuntimeField<W> + SerializableField + SupportsSampling,
+    >(
+        &self,
+        circuits: &[impl CircuitSource<F>],
+        t: &mut TranscriptRef<'_>,
+        f: &F,
+    ) -> StageWeights<F::E> {
+        t.draw(|r| {
+            if self.layers.is_empty() {
+                StageWeights {
+                    outputs: self.input_assertions(circuits, r, f),
+                    assertions: Vec::new(),
+                }
+            } else {
+                self.draw_stage(0, r, f)
+            }
+        })
+    }
     /// Draw a stage's entering-output coefficients, then its explicit
     /// assertion coefficients: quadratic markers across all fragments, then
     /// linear markers, matching a physically concatenated quad stream. Stage

@@ -88,30 +88,36 @@ The host sumcheck proves those assertions.
 Code comments and the rest of this document cite these as "foreign I1" and
 so on.
 
-**I1. The driver owns every cross-protocol hand-off.** Four challenges cross
-a sub-protocol boundary inside the composition: the prime top weights, eta
-(mixed storage), the conversion pair and the host top weights. The driver
-draws each one as a `Challenge<T>`, right after the message that closes the
-previous sub-protocol, and hands it to the next. No sub-protocol draws its
-own leading challenge; each takes it as an input and `accept`s it
-(transcript I8). Two weight vectors cross no boundary, because the step that
-draws them uses them in the same call: the pure-foreign row weights
-(`SplitClaim::batch`) and the Polygero batching weights (the joint opening,
-`JointProver::finish` or `JointVerifier::finish`, on both fields'
-statements).
-*Enforced by:* the sumcheck, split and adapter entry points take
-`Challenge<T>` parameters (type); the stamp check in `accept` rejects a
-challenge drawn at the wrong boundary in both roles (runtime); the
+**I1. Each sub-protocol draws its own leading challenge.** Four challenges
+open a sub-protocol inside the composition: the prime top weights, eta
+(mixed storage), the conversion pair and the host top weights. Each is drawn
+by the sub-protocol it opens, on entry, right after the message that closes
+the previous one (transcript I8): the prime top weights by `zk::prove_split`
+and `zk::reduce_split`, eta by `PendingSplit::open` and
+`SplitClaim::receive`, the conversion pair by `AdapterMode::prove` and
+`AdapterMode::verify`, and the host top weights by `zk::prove` and
+`zk::reduce`. The driver owns the order of these calls and every value
+handed from one to the next: the split's foreign claim (and, for the
+prover, its values) to the adapter, the adapter's leaves to the host
+frontend. Each value is an argument of the call that draws the next
+challenge, so it is fixed before that challenge. Two weight vectors open no
+sub-protocol, because the step that draws them uses them in the same call:
+the pure-foreign row weights (`SplitClaim::batch`) and the Polygero batching
+weights (the joint opening, `JointProver::finish` or `JointVerifier::finish`,
+on both fields' statements).
+*Enforced by:* the draws are inside these entry points, none of which takes
+a challenge as a parameter (type); the driver's fixed call order and the
 role-trace test of I2.
 
 **I2. Both roles run one hand-off schedule, for mixed storage.**
 `ComposedStatement::prove` (`compose/prover.rs`) and
 `ComposedStatement::reduce_and_authenticate` (`compose/verifier.rs`) make the
-same draw calls in the same order: `joint::top_weights` for the prime
-frontend, `split::transcript::eta`, `AdapterMode::draw_conversion`,
-`joint::top_weights` for the host, then `JointProver::finish` or
-`JointVerifier::finish` on both fields' statements. Each draw call only
-draws; the sub-protocols send.
+same calls in the same order: `zk::prove_split` or `zk::reduce_split`,
+`PendingSplit::open` or `SplitClaim::receive`, `AdapterMode::prove` or
+`AdapterMode::verify`, `zk::prove` or `zk::reduce`, then
+`JointProver::finish` or `JointVerifier::finish` on both fields'
+statements. Each call draws its own leading challenge, then sends or
+absorbs its messages.
 The driver always supplies the split mask R, so it composes mixed storage
 only. Pure-foreign storage is specified (the zk layer implements its row
 batching, and Lean models it as `RowBatching`, `PureHandoff` and
@@ -131,8 +137,8 @@ leaves are a function of the claim, the conversion pair and the masked
 quotients. The host top weights are drawn after `P256AdapterQuotients`.
 Nothing the host sumcheck sends can change a leaf.
 *Enforced by:* the claim and leaf functions take only these values
-(type); the stamps of the conversion and host top-weight challenges
-(runtime); `VirtualInputs::validate` (runtime).
+(type); the conversion pair and the host top weights are drawn inside the
+calls that take the claim and the leaves (type); `VirtualInputs::validate` (runtime).
 
 **I4. Two independent full-field rescalings, two trees.** Each conversion
 challenge is a uniform nonzero element of `F_p`. Both are read from one
@@ -141,7 +147,7 @@ survives one tree with probability about `2^(Q+1-128)`, too much on its own.
 *Enforced by:* `Conversion` holds `[P256Element; 2]` and is built only by the
 nonzero draw, and the raw encoder `P256Plan::encode`, which takes plain
 field elements, is crate-private, so outside tests only `P256Mode` calls it,
-with an accepted `Challenge<Conversion>` (type); `P256Plan::TREES = 2` fixes
+with the `Conversion` it draws on entry (type); `P256Plan::TREES = 2` fixes
 the fragment's `TreeShape` (constant); `Adapter.two_bad_probability_le` (Lean).
 
 **I5. Quotients are words, published only masked.** The honest quotient
@@ -220,17 +226,18 @@ payloads, in send order, are the interactive section byte for byte.
 ## Protocol
 
 The composition's part of the challenge schedule. Each row ends with the
-draws that follow its messages; *input* draws are made by the driver (I1).
+draws that follow its messages; *leading* draws are made by the sub-protocol
+they open, on entry (I1).
 
 ### Mixed storage
 
 | Step | Sub-protocol | Sends | Then draws | Drawn by | Consumer |
 |---|---|---|---|---|---|
 | 1 | witness selection (opening message) | `Commitment`: Bytes(32) | witness-selection coefficients | witness selection | witness selection |
-| 2 | witness selection | `FingerprintResponse` x 2: Elements(GF2_128, 2), Elements(P256, 2) | prime top weights (*input*) | driver | prime sumcheck |
-| 3 | prime frontend over `C_S` | per layer: `SumcheckRound` x logw, `SumcheckCross`, `SumcheckClaims` | the sumcheck's own draws; after the last `SumcheckClaims` also eta = `nonzero(P256)` (*input*) | sumcheck; driver | sumcheck; split |
-| 4 | split | `SplitOpening`: Elements(P256, 1) mu | conversion pair = `nonzero(P256)` x 2 (*input*) | driver | adapter |
-| 5 | adapter | `P256AdapterQuotients`: Bits(Q) m_0, Bits(Q) m_1 | host top weights (*input*) | driver | host sumcheck |
+| 2 | witness selection | `FingerprintResponse` x 2: Elements(GF2_128, 2), Elements(P256, 2) | prime top weights (*leading*) | prime sumcheck | prime sumcheck |
+| 3 | prime frontend over `C_S` | per layer: `SumcheckRound` x logw, `SumcheckCross`, `SumcheckClaims` | the sumcheck's own draws; after the last `SumcheckClaims` also eta = `nonzero(P256)` (*leading*) | sumcheck; split | sumcheck; split |
+| 4 | split | `SplitOpening`: Elements(P256, 1) mu | conversion pair = `nonzero(P256)` x 2 (*leading*) | adapter | adapter |
+| 5 | adapter | `P256AdapterQuotients`: Bits(Q) m_0, Bits(Q) m_1 | host top weights (*leading*) | host sumcheck | host sumcheck |
 | 6 | host frontend over `[C_H, fragment]`, then binary dual packing | sumcheck messages, `PackingU`, `PackingA` | sumcheck and packing draws; after `PackingA` the Polygero batching weights | host; joint opening | host; joint opening |
 | 7 | joint opening | `PolygeroResponse` x 2 | t column indices | joint | Polygero |
 
@@ -251,9 +258,9 @@ runs it (I2).
 | Step | Sub-protocol | Sends | Then draws | Drawn by | Consumer |
 |---|---|---|---|---|---|
 | 1 | witness selection (opening message) | `Commitment`: Bytes(32) | witness-selection coefficients, binary only | witness selection | witness selection |
-| 2 | witness selection | `FingerprintResponse`: Elements(GF2_128, 2) | prime top weights (*input*) | driver | prime sumcheck |
-| 3 | prime frontend over `C_S` | per layer: `SumcheckRound` x logw, `SumcheckCross`, `SumcheckClaims` | the sumcheck's own draws; after the last `SumcheckClaims` the row weights = `elements(P256, L+1)`, then the conversion pair = `nonzero(P256)` x 2 (*input*) | sumcheck; split; driver | sumcheck; split; adapter |
-| 4 | adapter | `P256AdapterQuotients`: Bits(Q) m_0, Bits(Q) m_1 | host top weights (*input*) | driver | host sumcheck |
+| 2 | witness selection | `FingerprintResponse`: Elements(GF2_128, 2) | prime top weights (*leading*) | prime sumcheck | prime sumcheck |
+| 3 | prime frontend over `C_S` | per layer: `SumcheckRound` x logw, `SumcheckCross`, `SumcheckClaims` | the sumcheck's own draws; after the last `SumcheckClaims` the row weights = `elements(P256, L+1)`, then the conversion pair = `nonzero(P256)` x 2 (*leading*) | sumcheck; split; adapter | sumcheck; split; adapter |
+| 4 | adapter | `P256AdapterQuotients`: Bits(Q) m_0, Bits(Q) m_1 | host top weights (*leading*) | host sumcheck | host sumcheck |
 | 5 | host frontend over `[C_H, fragment]`, then binary dual packing | sumcheck messages, `PackingU`, `PackingA` | sumcheck and packing draws; after `PackingA` the Polygero batching weights | host; joint opening | host; joint opening |
 | 6 | joint opening | `PolygeroResponse` | t column indices | joint | Polygero |
 
@@ -479,24 +486,22 @@ pub(crate) trait AdapterMode<F: SerializableField>: Sized {
     const MASK_BITS: usize;                 // width of R's group, mixed storage
     type Pads;                              // committed one-time pads, prover only
     type Message: AdapterMessage;           // P256Mode: [MaskedWord<Q>; 2], tag P256AdapterQuotients
-    type Conversion;                        // the input challenge, nonzero by construction
     fn new(widths: Vec<usize>, npublic: usize, suffix: &mut ReservedSuffix) -> Result<Self, String>;
     fn fragment(&self) -> &Circuit<Gf2_128Field>;
     fn virtual_inputs(&self) -> usize;
     fn write_layout(&self, h: &mut Header<'_>);   // AdapterLayout, from the mode's own geometry (I6)
-    fn draw_conversion(t: &mut Bound<'_, Self>, f: &F) -> Challenge<Self::Conversion>;  // called by compose
     #[cfg(any(test, feature = "prover"))]
     fn sample_pads(&self, rng: &mut impl PrivateRandom) -> Self::Pads;
     #[cfg(any(test, feature = "prover"))]
     fn write_pads(&self, pads: &Self::Pads, reserved: &mut ReservedWitness<'_>) -> Result<(), String>;
-    // Accepts the conversion, sends Message, returns the leaves (I3).
+    // Draws its conversion challenge, sends Message, returns the leaves (I1, I3).
     #[cfg(any(test, feature = "prover"))]
     fn prove(t: &mut Bound<'_, Self>, claim: &ModularClaim<F::E>, values: &[F::E],
-             pads: Self::Pads, conversion: Challenge<Self::Conversion>, f: &F, gf2: &Gf2_128Field)
+             pads: Self::Pads, f: &F, gf2: &Gf2_128Field)
         -> Result<(Self::Message, VirtualInputs<Gf2_128>), String>;
     #[cfg(any(test, feature = "verifier"))]
     fn verify(t: &mut Bound<'_, Self>, claim: &ModularClaim<F::E>, message: &Self::Message,
-              conversion: Challenge<Self::Conversion>, f: &F, gf2: &Gf2_128Field)
+              f: &F, gf2: &Gf2_128Field)
         -> Result<VirtualInputs<Gf2_128>, String>;
 }
 pub(crate) struct TreeShape { pub(crate) trees: usize, pub(crate) leaves: usize }
@@ -508,15 +513,16 @@ pub(crate) fn fragment(npublic: usize, virtual_start: usize, shape: TreeShape)
     -> Result<Circuit<Gf2_128Field>, String>;            // no challenge parameter (I7)
 
 // runtime::v2::foreign::adapter::p256::transcript
-pub(crate) struct Conversion(/* [P256Element; 2], crate-private */);  // only the nonzero draw builds it (I4)
-impl Conversion { pub(crate) fn values(&self) -> &[P256Element; 2]; }
+// private to the P-256 mode; only its nonzero draw builds it (I4)
+struct Conversion([P256Element; 2]);
+fn draw_conversion(t: &mut TranscriptRef<'_>, p: &P256Field) -> Conversion;
 
 // runtime::v2::foreign::adapter::p256
 pub(crate) struct P256Plan<const Q: usize> { .. }              // TREES = 2; new rejects bits > 2^Q (I5)
 impl<const Q: usize> P256Plan<Q> {
     pub(crate) fn new(widths: Vec<usize>) -> Result<Self, String>;
     pub(crate) fn shape(&self) -> TreeShape;
-    // crate-private: plain challenges; P256Mode passes the accepted Conversion (I4)
+    // crate-private: plain challenges; P256Mode passes the Conversion it drew (I4)
     pub(crate) fn encode(&self, claim: &ModularClaim<P256Element>, alpha: &[P256Element; 2],
         values: Option<&[P256Element]>, p: &P256Field, f: &Gf2_128Field)
         -> Result<P256Encoded<Q>, String>;
@@ -546,24 +552,22 @@ impl<const N: usize> MaskedWord<N> {
 ```
 
 The split's side is owned by `zk::split` and called by the driver. For mixed
-storage, the prover's `PendingSplit::open` accepts `Challenge<Eta<F::E>>`,
-sends `SplitOpening` and returns `mu`, the `ModularClaim` and the prime
-statement; the verifier's `SplitClaim::receive` accepts the same challenge
-and sends the proof's `mu`. For pure-foreign storage, `SplitClaim::batch`
+storage, the prover's `PendingSplit::open` draws eta, sends `SplitOpening`
+and returns `mu`, the `ModularClaim` and the prime statement; the
+verifier's `SplitClaim::receive` draws the same eta and sends the proof's
+`mu`. For pure-foreign storage, `SplitClaim::batch`
 draws the row weights (`elements(F, L+1)`) and uses them, sends nothing and
-returns the `ModularClaim` with its public target. `Eta<E>` has no public
-constructor; `zk::split::transcript::eta` (a `nonzero(F)` draw) builds it.
-The
-driver draws both top weights with `zk::joint::top_weights` on the receiving
-frontend's `Bound`.
+returns the `ModularClaim` with its public target. `Eta<E>` is private to
+`zk::split`; `zk::split::transcript::eta` (a `nonzero(F)` draw) builds it.
+The frontends draw their top weights themselves, on their `Bound`.
 
 ## Mistakes the design prevents
 
 | Mistake | What stops it |
 |---|---|
-| Drawing the conversion pair before `mu` is sent | I1: `accept` sees a message sent since the stamp and fails in both roles |
-| Drawing the host top weights before the masked quotients | I1: the same stamp check |
-| A sub-protocol drawing its own leading challenge | I1, I2: entry points take `Challenge<T>`; the role-trace test compares both roles' traces |
+| Drawing the conversion pair before `mu` is sent | I1: the adapter draws it on entry and takes the claim that `open` or `receive` returns after sending `mu` |
+| Drawing the host top weights before the masked quotients | I1: the host frontend draws them on entry and takes the leaves the adapter returns after sending its quotients |
+| The driver drawing a challenge for a sub-protocol, or handing it to another | I1, I2: no entry point takes a challenge; the role-trace test compares both roles' traces |
 | Batching mixed-storage rows, or splitting pure-foreign storage with eta | I2: the driver composes mixed storage only; `SplitClaim::batch` rejects mixed storage, and only `open` and `receive` take `Eta` |
 | Leaves that depend on the host sumcheck's challenges | I3: leaves are computed before the host top weights are drawn, from the claim, conversion and message only |
 | A zero conversion challenge or eta | I4: `Conversion` and `Eta` exist only from `nonzero` draws |

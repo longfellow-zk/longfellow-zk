@@ -219,7 +219,7 @@ live within their layer; only the final combined input weights survive.
 Polygero continues on the advanced main transcript without replay.
 
 Each entering circuit gets one weight per output: the first stage's are the
-top weights, a `Challenge<TopWeights>` the caller draws (DESIGN.md I1), and a
+top weights, which the sumcheck draws on entry (DESIGN.md I1), and a
 later stage's are read from the previous stage's combine answer, after
 `alpha`. Each global layer samples exactly `ceil(log2(nw))` round challenges. The codec independently caps
 serialized layers at 40 rounds, regardless of host index width; circuit

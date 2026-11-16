@@ -23,7 +23,6 @@ impl Transcript {
     pub(crate) fn fork_for_test(&self) -> Self {
         Self {
             strand: self.strand.clone_for_test(),
-            position: self.position,
             session: SessionStamp::fresh(),
             stream: self.stream.as_ref().map(Reader::clone_for_test),
             trace: self.trace.clone(),
@@ -31,6 +30,16 @@ impl Transcript {
     }
     pub(crate) fn round_count_for_test(&self) -> u64 {
         self.trace.boundaries()
+    }
+    /// Where the session stands: its boundary count and its message count.
+    fn position(&self) -> (u64, usize) {
+        let messages = self
+            .trace
+            .events
+            .iter()
+            .filter(|e| matches!(e, Event::Message(_)))
+            .count();
+        (self.round_count_for_test(), messages)
     }
     /// This session's identity, for test systems derived on it.
     pub(crate) fn session_for_test(&self) -> SessionStamp {
@@ -410,7 +419,7 @@ fn every_message_counts_and_only_a_draw_after_one_ends_a_node() {
     t.bytes(1);
     t.send_for_test(b"a");
     t.send_for_test(b"b");
-    assert_eq!(t.position.messages, start.messages + 2);
+    assert_eq!(t.position().1, start.1 + 2);
     t.bytes(1);
     assert_eq!(t.round_count_for_test(), 2);
     let kinds: Vec<_> = t

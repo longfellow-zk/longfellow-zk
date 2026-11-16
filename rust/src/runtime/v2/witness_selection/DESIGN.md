@@ -106,9 +106,8 @@ stream segmentation; the role-trace test (transcript I9).
 **I4. All responses are sent before any frontend challenge.** `commit` and
 `receive` send one `FingerprintResponse` per field, in participant order,
 before they return. They draw nothing after the responses. The next draw is
-the caller's: in mdoc the prime top weights, drawn with `joint::top_weights`
-in P-256 as a `Challenge<TopWeights<F::E>>` input to the prime sumcheck
-(transcript I8). That draw closes the node that holds both
+the next sub-protocol's: in mdoc the prime top weights, which the prime
+sumcheck draws in P-256 on entry (transcript I8). That draw closes the node that holds both
 responses.
 *Enforced by:* the frontends need the transcript, which `commit` and
 `receive` hold mutably until they have sent every response (type); the

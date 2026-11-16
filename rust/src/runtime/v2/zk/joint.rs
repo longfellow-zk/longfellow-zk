@@ -24,8 +24,7 @@ use crate::{
                 polygero::{PolygeroConfig, PolygeroGeometry},
                 zk::CircuitProofGeometry,
             },
-            sumcheck::{self, circuit_geometry, TopWeights},
-            transcript::{Bound, Challenge},
+            sumcheck::circuit_geometry,
             witness_selection,
         },
     },
@@ -318,19 +317,6 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField> FrontendPart<'a, W, F> {
                 .input_elements(parameters.field(), public),
         })
     }
-}
-
-/// Draw the sumcheck top weights of `t`'s frontend; the statement already
-/// holds its circuits and public inputs (transcript I1). The driver draws them where the frontend
-/// starts, after the last message the frontend depends on (its virtual-input definitions
-/// included), and hands them to `prove`, `prove_split`, `reduce` or
-/// `reduce_split` before any other message (transcript I8).
-pub(crate) fn top_weights<const W: usize, F: ZkField<W> + PackingField>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
-) -> Result<Challenge<TopWeights<F::E>>, String> {
-    let part = t.part();
-    let f = part.participant.backend.parameters.field();
-    sumcheck::top_weights(&part.circuits, &mut t.transcript(), f)
 }
 
 #[cfg(test)]

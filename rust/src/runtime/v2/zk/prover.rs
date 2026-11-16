@@ -17,11 +17,11 @@ use crate::{
                 witness_selection::{FingerprintResponse, FINGERPRINTS},
                 zk::{CircuitProof, CircuitProofGeometry, ZkProof},
             },
-            sumcheck::{self, SumcheckPads, TopWeights},
-            transcript::{Bound, Challenge, EncodedProof, Transcript},
+            sumcheck::{self, SumcheckPads},
+            transcript::{Bound, EncodedProof, Transcript},
             zk::{
                 context::private_input_count,
-                joint::{top_weights, CircuitParticipant, FrontendPart, JointParam},
+                joint::{CircuitParticipant, FrontendPart, JointParam},
                 packing_commitment::{prover::PackingState, PackingCommitment},
                 split::PendingSplit,
                 storage::{Split, Storage},
@@ -108,13 +108,13 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     }
 }
 /// Prove the circuits of `t`'s frontend part as one layered sumcheck on its
-/// public inputs, then reduce its input claim through packing. `top` is the
-/// frontend's top weights, drawn by the caller (`joint::top_weights`).
+/// public inputs, then reduce its input claim through packing. The sumcheck
+/// draws the frontend's top weights on entry, before its first message.
 ///
-/// `virtual_inputs` defines this proof's virtual input suffix. Its
-/// definitions must be fixed before the caller draws `top`: derive
-/// them only from data the transcript already binds, never from this
-/// proof's own messages. Use `VirtualInputs::none()` when the participant
+/// `virtual_inputs` defines this proof's virtual input suffix. As an
+/// argument of the call that draws the top weights, it is fixed before
+/// them; derive it only from data the transcript already binds, never from
+/// this proof's own messages. Use `VirtualInputs::none()` when the participant
 /// has no virtual inputs.
 ///
 /// The resulting affine statement is authenticated only when the caller
@@ -124,7 +124,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
 pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
     state: CircuitState<W, F>,
-    top: Challenge<TopWeights<F::E>>,
     virtual_inputs: &VirtualInputs<F::E>,
     ctx: &ZkContext<'_, W, F, D>,
 ) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
@@ -153,7 +152,6 @@ pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationD
         &part.circuits,
         inputs,
         state.pads,
-        top,
         &mut t.transcript(),
         f,
     )?;
@@ -260,8 +258,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
             return Err("statement belongs to another prover".into());
         }
         let mut t = committed.joint.bound(&statement.part);
-        let top = top_weights(&mut t)?;
-        let (circuit, linear) = prove(&mut t, committed.state, top, &VirtualInputs::none(), ctx)?;
+        let (circuit, linear) = prove(&mut t, committed.state, &VirtualInputs::none(), ctx)?;
         let param = JointParam::new((self.participant.participant(ctx)?, ()))?;
         // The opening follows the frontend's last message.
         let (com_proof, transcript) = committed.joint.finish(&param, (linear, ()))?;
@@ -340,8 +337,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         ))
     }
 }
-/// Run the split frontend of `t`'s part from its top weights `top` and reduce
-/// its constraints to the claim its storage discharges (`split_claim`),
+/// Run the split frontend of `t`'s part, which draws its top weights on
+/// entry, and reduce its constraints to the claim its storage discharges (`split_claim`),
 /// before the split challenge.
 pub(crate) fn prove_split<
     const W: usize,
@@ -350,7 +347,6 @@ pub(crate) fn prove_split<
 >(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
     state: SplitState<W, F>,
-    top: Challenge<TopWeights<F::E>>,
     ctx: &ZkContext<'_, W, F, D>,
 ) -> Result<(SumcheckProof<W, F>, PendingSplit<F::E>), String> {
     let part = t.part();
@@ -366,7 +362,6 @@ pub(crate) fn prove_split<
         &part.circuits,
         inputs,
         state.pads,
-        top,
         &mut t.transcript(),
         f,
     )?;

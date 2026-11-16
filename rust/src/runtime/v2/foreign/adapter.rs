@@ -26,7 +26,7 @@ use crate::{
         algebra::gf2_128::{Gf2_128, Gf2_128Field},
         v2::{
             proto::composed::AdapterMessage,
-            transcript::{Bound, Challenge, Header},
+            transcript::{Bound, Header},
             zk::{
                 storage::{ModularClaim, ReservedSuffix},
                 VirtualInput, VirtualInputs,
@@ -233,13 +233,8 @@ pub(crate) trait AdapterMode<F: SerializableField>: Sized {
         pads: &Self::Pads,
         reserved: &mut ReservedWitness<'_>,
     ) -> Result<(), String>;
-    /// The input challenge of the mode's rounds, nonzero by construction.
-    type Conversion;
-    /// Draw the conversion challenge on the mode's session. The driver calls
-    /// it after the split message and hands the challenge to `prove` or
-    /// `verify`, which accept it before sending (transcript I8).
-    fn draw_conversion(t: &mut Bound<'_, Self>, f: &F) -> Challenge<Self::Conversion>;
-    /// Prover rounds: `values` are the claim's term values, in term order.
+    /// Prover rounds, which draw the mode's input challenge on entry, before
+    /// they send (transcript I8): `values` are the claim's term values, in term order.
     /// They consume the proof's fresh `pads`, so a pad masks one message.
     #[cfg(any(test, feature = "prover"))]
     fn prove(
@@ -247,17 +242,16 @@ pub(crate) trait AdapterMode<F: SerializableField>: Sized {
         claim: &ModularClaim<F::E>,
         values: &[F::E],
         pads: Self::Pads,
-        conversion: Challenge<Self::Conversion>,
         f: &F,
         gf2: &Gf2_128Field,
     ) -> Result<(Self::Message, VirtualInputs<Gf2_128>), String>;
-    /// Verifier rounds from the published message.
+    /// Verifier rounds from the published message, which draw the same input
+    /// challenge on entry.
     #[cfg(any(test, feature = "verifier"))]
     fn verify(
         t: &mut Bound<'_, Self>,
         claim: &ModularClaim<F::E>,
         message: &Self::Message,
-        conversion: Challenge<Self::Conversion>,
         f: &F,
         gf2: &Gf2_128Field,
     ) -> Result<VirtualInputs<Gf2_128>, String>;

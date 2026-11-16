@@ -11,8 +11,8 @@ use crate::{
         v2::{
             proto::sumcheck::SumcheckProof,
             sumcheck::{
-                sample_pads_for_test, split::split_layers, top_and_derive as derive,
-                top_and_prove as prove,
+                derive_constraints_for_circuits as derive, prove_circuits as prove,
+                sample_pads_for_test, split::split_layers,
             },
             transcript::Transcript,
         },

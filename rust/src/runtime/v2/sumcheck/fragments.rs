@@ -24,10 +24,7 @@ use crate::core::proto::v2::Circuit;
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::{
-            v2::{classify_constants, CoefficientClass},
-            DigestBytes,
-        },
+        proto::v2::{classify_constants, CoefficientClass},
     },
     runtime::{
         algebra::{blas, RuntimeField},
@@ -53,15 +50,13 @@ pub(super) struct LayerLayout {
 }
 /// The shared layout of a circuit list and what the run time derives from
 /// each circuit's coefficients: its classes (`classify_constants`) and, for
-/// each layer, its quadratic and linear assertion counts. A role builds it
-/// once, when it draws the top weights (`top_weights`), and carries it in
-/// them to the sumcheck; nothing rebuilds or recounts it. `ids` names the
-/// circuits it was built for, in list order.
+/// each layer, its quadratic and linear assertion counts. Each sumcheck
+/// entry point builds it once, before it draws the top weights
+/// (`Schedule::draw_top`); nothing rebuilds or recounts it.
 pub(super) struct Schedule {
     pub geometry: SumcheckProofGeometry,
     pub layers: Vec<LayerLayout>,
     pub ninput: usize,
-    ids: Vec<DigestBytes>,
     classes: Vec<Vec<CoefficientClass>>,
     assertions: Vec<Vec<[usize; 2]>>,
 }
@@ -90,15 +85,9 @@ impl Schedule {
             geometry,
             layers,
             ninput,
-            ids: circuits.iter().map(|c| *c.id()).collect(),
             classes,
             assertions,
         })
-    }
-    /// Whether this schedule was built for `circuits`, in this order.
-    pub(super) fn is_for<F: SerializableField>(&self, circuits: &[impl CircuitSource<F>]) -> bool {
-        self.ids.len() == circuits.len()
-            && self.ids.iter().zip(circuits).all(|(id, c)| id == c.id())
     }
     /// A fragment's quadratic and linear assertion counts.
     pub(super) fn assertion_counts(&self, fragment: &QuadFragment) -> [usize; 2] {

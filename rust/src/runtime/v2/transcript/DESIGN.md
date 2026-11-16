@@ -105,41 +105,41 @@ to its tag's schema (`Tag::admits`), and cover every tag.
 
 **I7. A boundary is a message followed by a challenge.** A strand node ends
 exactly when a challenge is drawn after at least one message. Draws with no
-message in between read further from the same stream. No node lacks a
-message, and rounds carry no labels.
+message in between read further from the same stream, whichever step makes
+them: a sub-protocol's leading draw reads the stream of the boundary that
+the previous step's last message closed, after whatever that step itself
+drew from it. No node lacks a message, and rounds carry no labels.
 *Enforced by:* the transcript state machine, which has no other way to end a
 node; the Lean round schedule.
 
-**I8. Sub-protocols start with a prover message.** Every sub-protocol that
+**I8. Each sub-protocol draws its own challenges.** Every sub-protocol that
 draws a challenge (sumcheck, the split, the adapter, witness selection, dual
-packing, Polygero) begins by sending. A sumcheck whose circuits all have zero
-layers sends and draws nothing; its top weights are its input assertions.
-A challenge that one component draws and another consumes before its first
-message is an input: the sumcheck top weights, eta and the adapter's
-conversion pair. The caller draws it
-as a `Challenge<T>`, stamped with the session and the boundary it came from.
-The consumer rejects it if it was drawn on another session, even one with an
-equal history, if the transcript has moved past that boundary, or if any
-message was sent since. A `Challenge` is not `Clone` and is consumed on use.
-A challenge drawn and consumed by the same step is internal to that step and
-never a value: the Polygero batching weights are drawn by the joint opening
-(`JointProver::finish`, `JointVerifier::finish`, through Polygero's `prove`
-and `reduce`), and the row weights of pure-foreign storage by the pure split
-step (`SplitClaim::batch`), each used in the same call, so no caller holds
-them between the draw and the use. The stamp proves only that no message boundary was crossed
-between the draw and its use: it does not record which values the consumer
-derives from earlier messages. Those derivations are deterministic functions
-of the absorbed messages and challenges. A derived system that a challenge
-batches is the argument of the call that draws its weights: the joint
-opening takes each field's equations, typed per field, and the weights it
-draws batch exactly those, so no other system can be substituted. Each
-`LinearStatement` also carries the stamp of the session that derived it, and
-the joint opening rejects equations from another session.
-*Enforced by:* the stamp check in both roles (runtime); move-only
-`Challenge` (type); the batching weights are drawn inside the call that
-takes the statements, and no public item returns or accepts them (type);
-the equations' session stamp check (runtime); the drivers' fixed order of
-derivations, checked by the role-trace test.
+packing, Polygero) either begins by sending, or draws its leading challenge
+on entry, before its first message, from the boundary the preceding message
+closed (I7): the sumcheck top weights, eta and the adapter's conversion pair.
+A sumcheck whose circuits all have zero layers sends nothing; its top
+weights are its input assertions. No challenge crosses a call: each step
+draws its challenges and uses them in the same call, so no caller holds one
+between the draw and the use, hands one to two consumers, or sends a message
+in between. What a challenge depends on is fixed by the messages already
+absorbed and by the arguments of the call that draws it, which exist before
+the draw: the host frontend's virtual-input definitions are an argument of
+the call that draws its top weights, and the split's foreign claim of the
+adapter call that draws the conversion pair. Likewise the Polygero batching
+weights are drawn by the joint opening (`JointProver::finish`,
+`JointVerifier::finish`, through Polygero's `prove` and `reduce`), which
+takes each field's equations, typed per field, and the row weights of
+pure-foreign storage by the pure split step (`SplitClaim::batch`), which
+takes the frontend's claim; so the weights batch exactly the system the call
+was given, and no other can be substituted. Each `LinearStatement` also
+carries the stamp of the session that derived it, and the joint opening
+rejects equations from another session.
+*Enforced by:* the leading draws are inside the sumcheck, split and adapter
+entry points, and no entry point takes a challenge as a parameter (type);
+the batching weights are drawn inside the call that takes the statements,
+and no item returns or accepts them (type); the equations' session stamp
+check (runtime); the drivers' fixed order of calls, checked by the
+role-trace test (I9) and the golden vectors.
 
 **I9. Prover and verifier run one schedule.** The send and draw sequence
 lives in shared code called by both roles. A test records the trace of tags
@@ -259,18 +259,18 @@ Merkle nonces, the frontier count and the Merkle frontier.
 ## Challenge schedule
 
 Each row is one boundary: the messages that close the node, then the draws
-read from its stream, in read order. Draws marked *input* are `Challenge<T>`
-values handed to the next sub-protocol (I8).
+read from its stream, in read order. Draws marked *leading* are made by the
+next sub-protocol on entry, before its first message (I8).
 
 | Node closes after | Draws, in order | Consumer |
 |---|---|---|
 | Statement messages, `Commitment` | 2 x Elements(GF2_128, cells), 2 x Elements(P256, cells) | witness selection |
-| `FingerprintResponse` x 2 | prime top weights (*input*) | prime sumcheck |
+| `FingerprintResponse` x 2 | prime top weights (*leading*) | prime sumcheck |
 | `SumcheckRound` | z | sumcheck |
 | `SumcheckCross` | r != 0 | sumcheck |
-| `SumcheckClaims` | alpha; then the next stage's weights (entering outputs, then quadratic assertions, then linear assertions), or the input assertions at the last stage; after the prime frontend's last layer also eta != 0 (*input*) | sumcheck; split |
-| `SplitOpening` | conversion pair, each != 0 (*input*) | adapter |
-| `P256AdapterQuotients` | host top weights (*input*) | host sumcheck |
+| `SumcheckClaims` | alpha; then the next stage's weights (entering outputs, then quadratic assertions, then linear assertions), or the input assertions at the last stage; after the prime frontend's last layer also eta != 0 (*leading*) | sumcheck; split |
+| `SplitOpening` | conversion pair, each != 0 (*leading*) | adapter |
+| `P256AdapterQuotients` | host top weights (*leading*) | host sumcheck |
 | `PackingU` | m independent `elements(F)`, m the packing degree | dual packing |
 | `PackingA` | Polygero batching weights (drawn and used by the joint opening): per field, one weight per equation, then s+1 samples per batched row | Polygero |
 | `PolygeroResponse` x 2 | t distinct column indices out of n | Polygero |
@@ -344,13 +344,9 @@ pub struct Bound<'a, P: ?Sized> { part: &'a P, owner: &'a mut Transcript }
 impl<'a, P: ?Sized> Bound<'a, P> {
     pub fn part(&self) -> &'a P;
     pub fn session(&self) -> SessionStamp;
-    pub fn accept<T>(&self, c: Challenge<T>) -> Result<T, StaleChallenge>; // I8
     pub(crate) fn project<Q: ?Sized + 'a>(&mut self, f: impl FnOnce(&'a P) -> &'a Q) -> Bound<'_, Q>;
     pub(crate) fn transcript(&mut self) -> TranscriptRef<'_>;
-    pub(crate) fn challenge<T>(&mut self, f: impl FnOnce(&mut Reading<'_>) -> T) -> Challenge<T>;
 }
-// move-only; its value leaves only through accept
-pub struct Challenge<T> { value: T, at: Position, session: SessionStamp }
 impl TranscriptRef<'_> {
     pub(crate) fn send<M: ProverMessage + ?Sized>(&mut self, m: &M);           // I4
     pub(crate) fn draw<T>(&mut self, f: impl FnOnce(&mut Reading<'_>) -> T) -> T; // I7
@@ -383,21 +379,17 @@ impl ZkProof<W, F> {
         -> std::io::Result<Unverified<'a, Self>>;
 }
 
-// a frontend takes its top weights as an input (I8); runtime::v2::zk, crate-private
-pub(crate) fn top_weights(t: &mut Bound<'_, FrontendPart<'_, W, F>>)
-    -> Result<Challenge<TopWeights<F::E>>, String>;
+// a frontend draws its top weights on entry (I8); runtime::v2::zk, crate-private
 pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: CircuitState<W, F>,
-    top: Challenge<TopWeights<F::E>>, ..) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String>;
+    virtual_inputs: &VirtualInputs<F::E>) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String>;
 ```
 
-A `Challenge` records the session's stamp, the node index of its boundary, a
-private copy of that node's digest, and the session's message count.
-`accept` succeeds only on the session that drew it, and only if the other
-three still match the consumer's transcript. That rejects a challenge drawn
-too early (for example host top weights drawn before the adapter's
-quotients), drawn from another transcript (even one with an equal history),
-or reused. The transcript itself decides whether a draw opens a node (I7),
-so callers never manage rounds.
+A leading challenge is drawn inside the call that consumes it, after the
+calls whose messages it follows have returned. It cannot be drawn too early
+(the host frontend call, which draws the host top weights, takes the leaves
+that the adapter call returns after sending its quotients), drawn from
+another transcript, or reused. The transcript itself decides whether a draw
+opens a node (I7), so callers never manage rounds.
 
 `Opened::new` is the only way to open a transcript outside the crate. Prove
 and verify entry points take an `Opened` session or the statement itself
@@ -413,10 +405,10 @@ than the one its transcript absorbed.
 | Choosing part of the statement after a challenge | I1: the statement exists before the transcript does |
 | Absorbing a circuit ID or geometry value a second time | I3: setup messages (`SetupMessage`) can only be written by the statement |
 | Verifying against a geometry other than the one absorbed | I2: the proof reader and every component take geometry from a `Bound` that only the statement's accessors build |
-| Drawing a sub-protocol's first challenge before the message it depends on | I8: the stamp check fails in both roles, so honest proofs fail too and tests catch it; derivations follow the drivers' fixed order |
-| Reusing one challenge for two frontends | I8: `Challenge` is move-only |
+| Drawing a sub-protocol's first challenge before the message it depends on | I8: the sub-protocol draws it on entry, and takes what it depends on as arguments; the role-trace test and the golden vectors pin the drivers' order |
+| Reusing one challenge for two frontends | I8: each frontend draws its own on entry |
 | Batching a system other than the one the weights were drawn for | I8: the batching weights are internal to the joint opening, which draws them for the equations it takes |
-| Holding a step's own challenge across a message | I8: a challenge drawn and consumed by one step is never a value |
+| Holding a challenge across a message | I8: no challenge leaves the call that draws it |
 | A round with no prover message | I7: cannot be expressed |
 | Interleaving one field's statement with another field's batching challenges | Statements are derived (I3); batching draws follow `PackingA`, after every frontend message |
 | An element absorbed as the wrong field | I5: Elements carry the FieldID of a `RegisteredField`, which names one field and one width |

@@ -11,47 +11,18 @@ use crate::{
         random::DeterministicRng,
         v2::{
             polygero::LinearStatement,
-            proto::{polygero::PolygeroConfig, sumcheck::SumcheckProof},
-            transcript::{Bound, TestMessage, Transcript},
+            proto::polygero::PolygeroConfig,
+            transcript::Transcript,
             zk::{
                 self,
-                joint::{top_weights, CircuitParticipant, FrontendPart},
-                prover::SplitState,
-                split::{transcript, value_count, PendingSplit, SplitClaim},
+                joint::{CircuitParticipant, FrontendPart},
+                split::value_count,
                 storage::{Group, StorageMap},
                 ZkContext,
             },
         },
     },
 };
-
-type Part<'a> = FrontendPart<'a, 4, P256Field>;
-
-/// Draw `t`'s top weights, then prove its split frontend.
-fn prove_split<D: crate::runtime::algebra::range_interpolation::EvaluationDomain<4, P256Field>>(
-    t: &mut Bound<'_, Part<'_>>,
-    state: SplitState<4, P256Field>,
-    ctx: &ZkContext<'_, 4, P256Field, D>,
-) -> Result<
-    (
-        SumcheckProof<4, P256Field>,
-        PendingSplit<<P256Field as crate::core::algebra::BareField>::E>,
-    ),
-    String,
-> {
-    let top = top_weights(t)?;
-    zk::prove_split(t, state, top, ctx)
-}
-
-/// Draw `t`'s top weights, then reduce its split frontend.
-fn reduce_split<D: crate::runtime::algebra::range_interpolation::EvaluationDomain<4, P256Field>>(
-    t: &mut Bound<'_, Part<'_>>,
-    proof: &SumcheckProof<4, P256Field>,
-    ctx: &ZkContext<'_, 4, P256Field, D>,
-) -> Result<SplitClaim<<P256Field as crate::core::algebra::BareField>::E>, String> {
-    let top = top_weights(t)?;
-    zk::reduce_split(t, proof, top, ctx)
-}
 
 fn small_circuit(f: &P256Field) -> Circuit<P256Field> {
     let raw = RawCircuitBuilder {
@@ -137,13 +108,13 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     assert_eq!(witness.len(), 2 + part.geometry().sumcheck().pad_count());
     let mut tp = Transcript::for_test(b"mixed-rows");
     let mut tv = tp.fork_for_test();
-    let (proof, reduction) = prove_split(
+    let (proof, reduction) = zk::prove_split(
         &mut tp.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
         state,
         &ctx,
     )
     .unwrap();
-    let checked = reduce_split(
+    let checked = zk::reduce_split(
         &mut tv.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
         &proof,
         &ctx,
@@ -190,7 +161,7 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     let mut forged = proof;
     f.add(&mut forged.layers[0].cross, &f.one());
     let mut t = Transcript::for_test(b"mixed-rows");
-    let claim = reduce_split(
+    let claim = zk::reduce_split(
         &mut t.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
         &forged,
         &ctx,
@@ -245,9 +216,9 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
         let mut tp = Transcript::for_test(b"pure");
         let mut tv = tp.fork_for_test();
         let mut prover = tp.bound(&frontend);
-        let (proof, pending) = prove_split(&mut prover, state, &ctx).unwrap();
+        let (proof, pending) = zk::prove_split(&mut prover, state, &ctx).unwrap();
         let mut verifier = tv.bound(&frontend);
-        let claim = reduce_split(&mut verifier, &proof, &ctx).unwrap();
+        let claim = zk::reduce_split(&mut verifier, &proof, &ctx).unwrap();
         assert_eq!(pending.claim.claim.weights, claim.claim.weights);
         assert_eq!(pending.claim.claim.target, claim.claim.target);
         // No mask: the mixed split's message and native row do not apply.
@@ -285,7 +256,7 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
 }
 
 #[test]
-fn open_and_receive_accept_eta_only_at_its_boundary() {
+fn open_and_receive_draw_eta_and_agree() {
     let f = P256Field::new();
     let domain = ScalarInterpolatorFactory::new(&f, 128);
     let ctx = ZkContext::new(&domain);
@@ -299,8 +270,8 @@ fn open_and_receive_accept_eta_only_at_its_boundary() {
     assert!(std::ptr::eq(frontend.participant, &part));
     assert!(std::ptr::eq(frontend.circuits[0], &c));
     assert_eq!(&*frontend.public, &public);
-    // `late` sends a message between the draw of eta and its use.
-    let run = |late: bool| {
+    // Both roles draw eta on entry to the split, right after the frontend.
+    let run = || {
         let (state, _) = part
             .prepare_split(
                 vec![f.one(), f.zero()],
@@ -311,22 +282,17 @@ fn open_and_receive_accept_eta_only_at_its_boundary() {
         let mut tp = Transcript::for_test(b"split/eta");
         let mut tv = tp.fork_for_test();
         let mut prover = tp.bound(&frontend);
-        let (proof, pending) = prove_split(&mut prover, state, &ctx).unwrap();
-        let prover_eta = transcript::eta(&mut prover, &f);
-        if late {
-            prover.transcript().send(&TestMessage(b"late"));
-        }
-        let opened = pending.open(&mut prover, prover_eta, &f);
+        let (proof, pending) = zk::prove_split(&mut prover, state, &ctx).unwrap();
+        let opened = pending.open(&mut prover, &f);
         let mut verifier = tv.bound(&frontend);
-        let claim = reduce_split(&mut verifier, &proof, &ctx).unwrap();
-        let verifier_eta = transcript::eta(&mut verifier, &f);
+        let claim = zk::reduce_split(&mut verifier, &proof, &ctx).unwrap();
         let received = match &opened {
-            Ok((mu, _)) => Some(claim.receive(&mut verifier, verifier_eta, mu, &f)),
+            Ok((mu, _)) => Some(claim.receive(&mut verifier, mu, &f)),
             Err(_) => None,
         };
         (opened, received, tp.bytes(32), tv.bytes(32))
     };
-    let (honest, received, after_p, after_v) = run(false);
+    let (honest, received, after_p, after_v) = run();
     let (_, split) = honest.unwrap();
     let checked = received.unwrap().unwrap();
     assert_eq!(split.statement.a, checked.statement.a);
@@ -334,11 +300,6 @@ fn open_and_receive_accept_eta_only_at_its_boundary() {
     assert_eq!(split.foreign.terms, checked.foreign.terms);
     assert_eq!(split.foreign.target, checked.foreign.target);
     assert_eq!(after_p, after_v);
-    let (stale, _, _, _) = run(true);
-    assert_eq!(
-        stale.err().unwrap(),
-        "challenge drawn on another session or at another position"
-    );
 }
 
 /// A split state proves only for the participant that prepared it: another
@@ -369,7 +330,7 @@ fn split_state_proves_only_for_its_own_participant() {
         let mut t = Transcript::for_test(b"split-identity");
         let public = [f.one()];
         let frontend = FrontendPart::new(part, &[&c], &public).unwrap();
-        prove_split(&mut t.bound(&frontend), state, &ctx).map(|_| ())
+        zk::prove_split(&mut t.bound(&frontend), state, &ctx).map(|_| ())
     };
     assert_eq!(
         prove(&other).unwrap_err(),

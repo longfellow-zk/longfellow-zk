@@ -24,10 +24,10 @@ use crate::{
         algebra::{blas, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField, SupportsSampling},
         v2::{
             sumcheck::{
+                fragments::Schedule,
                 monomial,
                 quad::{bind_l, bind_r},
                 split::SplitLayer,
-                transcript::{accept_top, top_weights},
             },
             transcript::Transcript,
         },
@@ -241,8 +241,10 @@ fn check_output_sampling<
         );
         // A zero-layer circuit's top weights are its input assertions.
         let mut actual = Transcript::for_test(b"v2-output-challenges");
-        let top = top_weights(&[&circuit], &mut actual.borrow(), f).unwrap();
-        let weights = actual.borrow().accept(top).unwrap().outputs().to_vec();
+        let schedule = Schedule::new(&[&circuit], f).unwrap();
+        let weights = schedule
+            .draw_top(&[&circuit], &mut actual.borrow(), f)
+            .outputs;
         let mut expected = Transcript::for_test(b"v2-output-challenges");
         let expected_weights = expected
             .borrow()
@@ -260,38 +262,4 @@ fn output_sampling_uses_independent_weights_prime() {
 #[test]
 fn output_sampling_uses_independent_weights_binary() {
     check_output_sampling(&Gf2_128Field::new());
-}
-
-/// The top weights carry the schedule they were drawn with, and the
-/// sumcheck accepts them only for the circuits that schedule was built for:
-/// by circuit ID, in order, so a list with another ID (here with the same
-/// shape) or another length is rejected.
-#[test]
-fn top_weights_are_accepted_only_for_their_circuits() {
-    use crate::core::proto::v2::{Circuit, RawCircuitBuilder};
-    let f = Gf2_128Field::new();
-    let circuit = |id| {
-        Circuit::with_test_id(
-            [id; 32],
-            RawCircuitBuilder {
-                ninput: 2,
-                npublic_input: 0,
-                noutput: 2,
-                logv: 1,
-                constants: vec![],
-                layers: vec![],
-            }
-            .build(),
-        )
-    };
-    let (a, b) = (circuit(0), circuit(1));
-    for accepted in [vec![&b], vec![&a, &a]] {
-        let mut t = Transcript::for_test(b"v2-top-weights");
-        let top = top_weights(&[&a], &mut t.borrow(), &f).unwrap();
-        let error = accept_top(top, &accepted, &t.borrow()).err().unwrap();
-        assert_eq!(error, "top weights drawn for another circuit list");
-    }
-    let mut t = Transcript::for_test(b"v2-top-weights");
-    let top = top_weights(&[&a], &mut t.borrow(), &f).unwrap();
-    assert!(accept_top(top, &[&a], &t.borrow()).is_ok());
 }

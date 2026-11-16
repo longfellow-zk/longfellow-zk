@@ -5,17 +5,17 @@
 use crate::{
     core::algebra::RegisteredField,
     runtime::{
-        algebra::{RuntimeField, SupportsSampling},
+        algebra::SupportsSampling,
         v2::{
             proto::tags::Tag,
-            transcript::{Bound, Challenge, Encoder, Message, ProverMessage, TranscriptRef},
+            transcript::{Encoder, Message, ProverMessage, TranscriptRef},
         },
     },
 };
 
 /// The mixed split's nonzero rescaling challenge `eta`. Only its draw
-/// (`eta`) builds it.
-pub(crate) struct Eta<E>(pub(super) E);
+/// (`eta`) builds it, so a zero eta cannot be represented.
+pub(super) struct Eta<E>(pub(super) E);
 
 /// `SplitOpening` (64): Elements(F, 1), the split message mu (F is P-256 in
 /// mdoc).
@@ -31,15 +31,12 @@ impl<F: RegisteredField> Message for OpeningMessage<'_, F> {
 }
 impl<F: RegisteredField> ProverMessage for OpeningMessage<'_, F> {}
 
-/// The mixed split's nonzero rescaling challenge, drawn by the driver right
-/// after the split frontend: it reads further from the frontend's last answer
-/// (its last combine, after alpha and the input assertions; transcript I7),
-/// with no message or boundary of its own, and the split accepts it.
-pub(crate) fn eta<const W: usize, F: RuntimeField<W> + SupportsSampling, P: ?Sized>(
-    t: &mut Bound<'_, P>,
-    f: &F,
-) -> Challenge<Eta<F::E>> {
-    t.challenge(|r| Eta(r.nonzero(f)))
+/// The mixed split's nonzero rescaling challenge. The split draws it on
+/// entry (`open`, `receive`), right after the split frontend: it reads further
+/// from the frontend's last answer (its last combine, after alpha and the
+/// input assertions; transcript I7), with no message or boundary of its own.
+pub(super) fn eta<F: SupportsSampling>(t: &mut TranscriptRef<'_>, f: &F) -> Eta<F::E> {
+    t.draw(|r| Eta(r.nonzero(f)))
 }
 
 /// The `count` pure-foreign row weights rho_0..rho_L: one per layer row,

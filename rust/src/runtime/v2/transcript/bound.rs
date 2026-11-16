@@ -1,15 +1,12 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Statement-bound transcript capabilities and stamped challenges.
+//! Statement-bound transcript capabilities.
 //!
 //! A `Bound` pairs a session with the statement part a component reads, so
 //! the component uses the values its caller holds next to the transcript
 //! (transcript I2). Outside the crate a `Bound` comes only from a named
 //! accessor of an `Opened` session, which binds a part of the statement the
-//! session opened with; binding an arbitrary value is crate-private. A
-//! `Challenge` is a value drawn at one boundary of one session for the next
-//! component. Its consumer accepts it only on that session while it still
-//! stands at that boundary, with no message sent since (transcript I8).
-use super::session::{Position, Reading, SessionStamp, Statement, Transcript, TranscriptRef};
+//! session opened with; binding an arbitrary value is crate-private.
+use super::session::{SessionStamp, Statement, Transcript, TranscriptRef};
 
 impl Transcript {
     /// Bind `part`, the statement part a component reads, to this session.
@@ -65,6 +62,7 @@ impl<'s, S: ?Sized> Opened<'s, S> {
 
 /// A transcript capability bundled with the statement part it refers to.
 /// It cannot replace, clone or finalize its owner's session.
+#[doc = include_str!("bound_compile_fail.md")]
 pub struct Bound<'a, P: ?Sized> {
     part: &'a P,
     owner: &'a mut Transcript,
@@ -89,70 +87,11 @@ impl<'a, P: ?Sized> Bound<'a, P> {
     pub fn session(&self) -> SessionStamp {
         self.owner.session()
     }
-    /// Consume `c` if it was drawn on this session and the session still
-    /// stands where it was drawn.
-    pub fn accept<T>(&self, c: Challenge<T>) -> Result<T, StaleChallenge> {
-        c.accept(self.owner)
-    }
     /// The session's message and round operations.
     pub(crate) fn transcript(&mut self) -> TranscriptRef<'_> {
         self.owner.borrow()
     }
-    /// Draw a value a later component consumes.
-    pub(crate) fn challenge<T>(&mut self, f: impl FnOnce(&mut Reading<'_>) -> T) -> Challenge<T> {
-        self.transcript().challenge(f)
-    }
 }
-impl TranscriptRef<'_> {
-    /// Draw a value a later component consumes, stamped with the boundary
-    /// it reads from (transcript I7, I8).
-    pub(crate) fn challenge<T>(&mut self, f: impl FnOnce(&mut Reading<'_>) -> T) -> Challenge<T> {
-        let value = self.draw(f);
-        Challenge {
-            value,
-            at: self.session.position(),
-            session: self.session.session(),
-        }
-    }
-    /// Consume `c` if it was drawn on this session and the session still
-    /// stands where it was drawn.
-    pub(crate) fn accept<T>(&self, c: Challenge<T>) -> Result<T, StaleChallenge> {
-        c.accept(self.session)
-    }
-}
-
-#[doc = include_str!("bound_compile_fail.md")]
-/// A value drawn from a transcript, stamped with the session and the
-/// boundary it came from: the session's identity, the node index, a private
-/// copy of that node's digest, and the session's message count. Two sessions
-/// with equal histories have equal positions, so the identity is what tells
-/// them apart. It is not `Clone`, and accepting it consumes it.
-#[must_use = "a challenge is drawn for a consumer that must accept it"]
-pub struct Challenge<T> {
-    value: T,
-    at: Position,
-    session: SessionStamp,
-}
-impl<T> Challenge<T> {
-    fn accept(self, now: &Transcript) -> Result<T, StaleChallenge> {
-        if now.is_session(&self.session) && self.at == now.position() {
-            Ok(self.value)
-        } else {
-            Err(StaleChallenge)
-        }
-    }
-}
-
-/// A challenge was drawn on another session or at another boundary, or a
-/// message was sent after it was drawn.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct StaleChallenge;
-impl std::fmt::Display for StaleChallenge {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("challenge drawn on another session or at another position")
-    }
-}
-impl std::error::Error for StaleChallenge {}
 
 #[cfg(test)]
 mod tests;

@@ -96,28 +96,32 @@ writes, which comes from the same participant (`Opened::geometry`).
 *Enforced by:* function signatures (type); `FrontendPart::new` (runtime,
 before `Opened::new`).
 
-**I4. Every leading challenge another component consumes is an input; a
-step's own weights are not.** The sumcheck top weights and eta are
-`Challenge<T>` values (transcript I8). The caller draws each from the
-boundary closed by the previous message; the consumer accepts it. The
-pure-foreign row weights are drawn by the pure split step itself
-(`SplitClaim::batch`), at the frontend's last boundary, and used in the same
-call. The Polygero batching weights are drawn and consumed by the opening
-itself: `JointProver::finish` and `JointVerifier::finish` take each
-field's frontend equations (`Statements<L>`, typed per field, in participant
-order) after the last frontend message of every participant (`PackingA`, or
-the last `SumcheckClaims` when every participant has degree one), consume
-the session, reject equations derived on another session (the stamp each
+**I4. Every step draws its own leading challenge.** The sumcheck top
+weights are drawn by the sumcheck that `prove`, `prove_split`, `reduce` and
+`reduce_split` run, on entry, from the boundary closed by the previous
+message (transcript I8); eta is drawn by `PendingSplit::open` and
+`SplitClaim::receive` on entry, right after the frontend's last answer. A
+frontend's virtual-input definitions are an argument of the call that draws
+its top weights, so they are fixed before them. The pure-foreign row weights
+are drawn by the pure split step itself (`SplitClaim::batch`), at the
+frontend's last boundary, and used in the same call. The Polygero batching
+weights are drawn and consumed by the opening itself: `JointProver::finish`
+and `JointVerifier::finish` take each field's frontend equations
+(`Statements<L>`, typed per field, in participant order) after the last
+frontend message of every participant (`PackingA`, or the last
+`SumcheckClaims` when every participant has degree one), consume the
+session, reject equations derived on another session (the stamp each
 `LinearStatement` carries), attach the fingerprint equations and run joint
 Polygero, which draws the weights at that boundary and uses them in the same
-call. No caller holds the weights, so none can pair them with another system.
-Eta has type `Eta<E>`, whose only constructor is its `nonzero(F)` draw
-(`split::transcript::eta`), so a zero eta cannot be represented.
-*Enforced by:* `Bound::accept` (runtime, both roles); `Challenge` is
-move-only, `Eta` is built only by its draw, `LinearStatement` has no public
-constructor outside tests and tools, and `finish` takes every field's
-equations in their types (type; a `compile_fail` doctest on
-`LinearStatement`); the stamp check (runtime; test
+call. No caller holds a challenge, so none can pair one with another system.
+Eta has the private type `Eta<E>`, whose only constructor is its
+`nonzero(F)` draw (`split::transcript::eta`), so a zero eta cannot be
+represented.
+*Enforced by:* the draws are inside these entry points, none of which takes
+a challenge as a parameter; `Eta` is private to the split and built only by
+its draw; `LinearStatement` has no public constructor outside tests and
+tools, and `finish` takes every field's equations in their types (type; a
+`compile_fail` doctest on `LinearStatement`); the stamp check (runtime; test
 `finish_rejects_equations_derived_on_another_session`).
 
 **I5. One constraint form, compiled by shared code.** Every row is
@@ -299,7 +303,7 @@ Both roles run the same arithmetic after the frontend's messages.
 | Virtual definitions: count and source range | `VirtualInputs::validate` |
 | Constraint shape: layer count, input weight count `committed_end + virtual` | `compile_packed`, `split_claim`, `batch` |
 | Packing rows: count 1 or 2, word, mask and pad ranges | `PackingCommitment::append_equations` |
-| Eta stamp and freshness | `Bound::accept` |
+| Eta drawn at the frontend's last boundary | `PendingSplit::open`, `SplitClaim::receive` draw it on entry |
 | All rows and claims hold | joint Polygero (`JointVerifier::finish`) and the foreign adapter |
 
 ## Formats
@@ -396,8 +400,6 @@ impl<L: Fields> JointParam<L> {
     pub(crate) fn new(fields: L) -> Result<Self, String>;
     pub(crate) fn config(&self) -> PolygeroConfig;
 }
-pub(crate) fn top_weights(t: &mut Bound<'_, FrontendPart<'_, W, F>>)
-    -> Result<Challenge<TopWeights<F::E>>, String>;     // I4
 
 // zk, prover: the drivers (`ZkProver`, the composition driver) run these
 // crate-private steps; their states are crate-private
@@ -421,16 +423,17 @@ impl<S, C, R> JointProver<S, C, R> {
         -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>;
 }
 pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: CircuitState<W, F>,
-                    top: Challenge<TopWeights<F::E>>, virtual_inputs: &VirtualInputs<F::E>,
+                    virtual_inputs: &VirtualInputs<F::E>,    // I4: fixed before the top weights
                     ctx: &ZkContext<'_, W, F, D>)
     -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String>;
 pub(crate) fn prove_split(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: SplitState<W, F>,
-                          top: Challenge<TopWeights<F::E>>, ctx: &ZkContext<'_, W, F, D>)
+                          ctx: &ZkContext<'_, W, F, D>)
     -> Result<(SumcheckProof<W, F>, PendingSplit<F::E>), String>;
 pub(crate) struct PendingSplit<E> { pub(crate) claim: SplitClaim<E>, .. }
 impl<E> PendingSplit<E> {
-    pub(crate) fn open(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>, eta: Challenge<Eta<E>>,
-                       f: &F) -> Result<(E, SplitOutput<E>), String>;  // sends SplitOpening (I9)
+    // draws eta (I4), then sends SplitOpening (I9)
+    pub(crate) fn open(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>, f: &F)
+        -> Result<(E, SplitOutput<E>), String>;
 }
 
 // zk, verifier: crate-private steps of the composed and standalone verifiers
@@ -449,14 +452,15 @@ impl Authenticated {
     pub(crate) fn check_seal<P>(self, proof: Unverified<'_, P>) -> Result<VerifiedProof, &'static str>;
 }
 pub(crate) fn reduce(t: &mut Bound<'_, FrontendPart<'_, W, F>>, proof: &CircuitProof<W, F>,
-                     top: Challenge<TopWeights<F::E>>, virtual_inputs: &VirtualInputs<F::E>,
+                     virtual_inputs: &VirtualInputs<F::E>,
                      ctx: &ZkContext<'_, W, F, D>) -> Result<LinearStatement<F::E>, String>;
 pub(crate) fn reduce_split(t: &mut Bound<'_, FrontendPart<'_, W, F>>, proof: &SumcheckProof<W, F>,
-                           top: Challenge<TopWeights<F::E>>, ctx: &ZkContext<'_, W, F, D>)
+                           ctx: &ZkContext<'_, W, F, D>)
     -> Result<SplitClaim<F::E>, String>;
 impl<E> SplitClaim<E> {
-    pub(crate) fn receive(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>, eta: Challenge<Eta<E>>,
-                          mu: &E, f: &F) -> Result<SplitOutput<E>, String>; // absorbs SplitOpening (I9)
+    // draws eta (I4), then absorbs SplitOpening (I9)
+    pub(crate) fn receive(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>, mu: &E, f: &F)
+        -> Result<SplitOutput<E>, String>;
 }
 
 // zk::split (crate-private), both roles; the draws live in zk::split::transcript (transcript I9)
@@ -468,8 +472,9 @@ impl<E> SplitClaim<E> {
     pub(crate) fn batch(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>, f: &F)
         -> Result<ModularClaim<E>, String>;
 }
-pub(crate) struct Eta<E>(..);                             // nonzero; built only by eta
-pub(crate) fn eta(t: &mut Bound<'_, P>, f: &F) -> Challenge<Eta<F::E>>;  // nonzero(F)
+// private to zk::split: nonzero, built only by eta, which open and receive call
+struct Eta<E>(..);
+fn eta(t: &mut TranscriptRef<'_>, f: &F) -> Eta<F::E>;  // nonzero(F)
 #[must_use] pub(crate) struct SplitOutput<E> { pub(crate) statement: LinearStatement<E>,
                                                pub(crate) foreign: ModularClaim<E> }
 pub(crate) struct LinearClaim<E> { pub(crate) weights: Vec<E>, pub(crate) target: E }  // zk::batching
@@ -512,8 +517,8 @@ How the API carries the invariants:
   circuit IDs, profile, circuit geometry, input layout and storage map.
   `prove` and `prove_split` reject a state that another participant
   prepared, even one over the same circuit with another storage map.
-- `PendingSplit::open` consumes the pending split and the eta challenge, and
-  returns `mu` with both outputs. No call can pair a native row with a claim
+- `PendingSplit::open` consumes the pending split, draws eta, and returns
+  `mu` with both outputs. No call can pair a native row with a claim
   built from another `eta` or `mu` (I9).
 - `LinearStatement` has crate-private fields and no digest: only the
   compiler builds frontend rows (I2, I5).
@@ -525,7 +530,7 @@ How the API carries the invariants:
 | Absorbing a circuit ID, layout, storage run or public input after the statement | I2: no zk function can write except `send` of its own message |
 | Proving one circuit list and committing the layout of another | I3: the layout and circuits come from one `FrontendPart` in the statement |
 | Drawing a frontend challenge before the witness is selected | I6: the frontend's `Bound` exists only after commit or receive |
-| Drawing eta before the frontend's last message, or reusing it | I4: stamp check and move-only `Challenge` |
+| Drawing eta before the frontend's last message, or reusing it | I4: `open` and `receive` draw it on entry and use it in the same call |
 | Drawing the Polygero batching weights before some participant's last frontend message | I4: `finish` draws them, and it takes every field's equations, which exist only after that field's frontend |
 | Authenticating a system other than the one the batching weights were drawn for | I4: the weights are drawn inside `finish` for the equations it takes; no caller holds them |
 | Opening with equations derived on another session, or a static system | I4: `finish` compares each statement's session stamp with its own |
@@ -587,5 +592,5 @@ Zero knowledge:
 1. **Provenance of virtual inputs.** `VirtualInputs` are plain crate-private
    data; I8 rests on the in-crate caller deriving them from bound values.
    Recommendation: give `VirtualInputs` a constructor that only
-   `foreign::adapter` can call, which derives the leaves from the accepted conversion
+   `foreign::adapter` can call, which derives the leaves from the drawn conversion
    pair and the sent `P256AdapterQuotients`.

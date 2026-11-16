@@ -46,7 +46,7 @@ use super::{
     fragments::{self, Schedule, SplitFragment},
     split::SplitLayer,
     symbolic::{build_constraints, Constraints, LayerChallenges},
-    transcript::{accept_top, end_layer, round_challenge, StageWeights, TopWeights},
+    transcript::{end_layer, round_challenge, StageWeights},
 };
 #[cfg(test)]
 use crate::runtime::v2::transcript::cheat;
@@ -57,13 +57,13 @@ use crate::{
         random::PrivateRandom,
         v2::{
             proto::sumcheck::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
-            transcript::{Challenge, Reading, TranscriptRef},
+            transcript::{Reading, TranscriptRef},
         },
     },
 };
 
-/// Single-circuit convenience for tests: draw the top weights from `t`,
-/// after the caller has bound the circuit statement, then prove.
+/// Single-circuit convenience for tests: prove after the caller has bound
+/// the circuit statement.
 #[cfg(test)]
 pub(crate) fn evaluate_and_prove<
     const W: usize,
@@ -75,13 +75,13 @@ pub(crate) fn evaluate_and_prove<
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
-    top_and_prove(&[circuit], inputs, pads, t, f)
+    prove_circuits(&[circuit], inputs, pads, t, f)
 }
 
-/// Test convenience: draw the top weights from `t`, after the caller has
-/// bound every circuit statement, then prove.
+/// Test convenience: prove after the caller has bound every circuit
+/// statement, with a proof as the pads.
 #[cfg(test)]
-pub(crate) fn top_and_prove<
+pub(crate) fn prove_circuits<
     const W: usize,
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
@@ -91,9 +91,8 @@ pub(crate) fn top_and_prove<
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
-    let top = super::transcript::top_weights(circuits, t, f)?;
     let owned = SumcheckPads::from_proof(pads.clone());
-    evaluate_and_prove_circuits(circuits, inputs, owned, top, t, f)
+    evaluate_and_prove_circuits(circuits, inputs, owned, t, f)
 }
 
 /// One proof's additive sumcheck pads, laid out as the proof's round and
@@ -118,8 +117,8 @@ impl<const W: usize, F: SerializableField> SumcheckPads<W, F> {
     }
 }
 
-/// The caller binds all circuit statements and shared public inputs, then
-/// draws `top` (`top_weights`). Split each circuit once for both evaluation
+/// The caller binds all circuit statements and shared public inputs; the top
+/// weights are drawn here, before the first message. Split each circuit once for both evaluation
 /// and proving; consume its split layers and witnesses as the shared schedule
 /// advances toward the inputs, and the pads.
 pub(crate) fn evaluate_and_prove_circuits<
@@ -129,18 +128,17 @@ pub(crate) fn evaluate_and_prove_circuits<
     circuits: &[impl CircuitSource<F>],
     inputs: Vec<F::E>,
     pads: SumcheckPads<W, F>,
-    top: Challenge<TopWeights<F::E>>,
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
-    // Accept the top weights before the first message (transcript I8), with
-    // the schedule they were drawn with.
-    let (schedule, entering) = accept_top(top, circuits, t)?;
+    let schedule = Schedule::new(circuits, f)?;
     pads.validate(&schedule.geometry)
         .map_err(|e| e.to_string())?;
     if inputs.len() != schedule.ninput {
         return Err("shared input width mismatch".into());
     }
+    // Draw the top weights before the first message (transcript I8).
+    let entering = schedule.draw_top(circuits, t, f);
     let layers = schedule.split_layers(circuits);
     let witnesses = super::eval::eval_circuits(inputs, circuits, &layers, &schedule, f)
         .map_err(|e| format!("eval_circuit failed: {e}"))?;

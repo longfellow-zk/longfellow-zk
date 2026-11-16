@@ -20,34 +20,6 @@ use crate::{
     },
 };
 
-/// Draw `t`'s top weights, then prove its frontend.
-fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
-    state: crate::runtime::v2::zk::prover::CircuitState<W, F>,
-    virtual_inputs: &VirtualInputs<F::E>,
-    ctx: &ZkContext<'_, W, F, D>,
-) -> Result<
-    (
-        CircuitProof<W, F>,
-        crate::runtime::v2::polygero::LinearStatement<F::E>,
-    ),
-    String,
-> {
-    let top = top_weights(t)?;
-    zk::prove(t, state, top, virtual_inputs, ctx)
-}
-
-/// Draw `t`'s top weights, then reduce its frontend.
-fn reduce<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
-    proof: &CircuitProof<W, F>,
-    virtual_inputs: &VirtualInputs<F::E>,
-    ctx: &ZkContext<'_, W, F, D>,
-) -> Result<crate::runtime::v2::polygero::LinearStatement<F::E>, String> {
-    let top = top_weights(t)?;
-    zk::reduce(t, proof, top, virtual_inputs, ctx)
-}
-
 #[test]
 fn selected_joint_wrapper_supports_three_typed_fields() {
     use crate::runtime::{
@@ -326,7 +298,7 @@ fn binary_circuits_authenticate_one_shared_input() {
                 .unwrap();
         let t = Transcript::for_test(b"fragmented-pcs-test");
         let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
-        let (proof, statement) = prove(
+        let (proof, statement) = zk::prove(
             &mut joint.bound(&FrontendPart::new(&p, &components, &[true]).unwrap()),
             state,
             &VirtualInputs::none(),
@@ -337,7 +309,7 @@ fn binary_circuits_authenticate_one_shared_input() {
         let verify = |candidate: &CircuitProof<2, Gf2_128Field>, public: bool| {
             let t = Transcript::for_test(b"fragmented-pcs-test");
             let mut v = param.clone().receive(&root, responses.clone(), t);
-            let statement = reduce(
+            let statement = zk::reduce(
                 &mut v.bound(&FrontendPart::new(&p, &components, &[public])?),
                 candidate,
                 &VirtualInputs::none(),
@@ -407,7 +379,7 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
         crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ())).unwrap();
     let t = Transcript::for_test(b"prime-fragmented-pcs-test");
     let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
-    let (proof, statement) = prove(
+    let (proof, statement) = zk::prove(
         &mut joint.bound(&FrontendPart::new(&p, &components, &public).unwrap()),
         state,
         &VirtualInputs::none(),
@@ -418,7 +390,7 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     let (opening, mut tp) = joint.finish(&param, (statement, ())).unwrap();
     let t = Transcript::for_test(b"prime-fragmented-pcs-test");
     let mut v = param.receive(&root, responses, t);
-    let statement = reduce(
+    let statement = zk::reduce(
         &mut v.bound(&FrontendPart::new(&p, &components, &public).unwrap()),
         &proof,
         &VirtualInputs::none(),
@@ -557,7 +529,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     let (state, w) = p.prepare(vec![true, true, false], &mut rng).unwrap();
     let t = Transcript::for_test(b"virtual-inputs-test");
     let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
-    let (proof, statement) = prove(
+    let (proof, statement) = zk::prove(
         &mut joint.bound(&FrontendPart::new(&p, &[&main, &fragment], &[true]).unwrap()),
         state,
         &honest,
@@ -568,7 +540,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     let verify = |definition: &VirtualInputs<_>| {
         let t = Transcript::for_test(b"virtual-inputs-test");
         let mut v = param.clone().receive(&root, responses.clone(), t);
-        let statement = reduce(
+        let statement = zk::reduce(
             &mut v.bound(&FrontendPart::new(&p, &[&main, &fragment], &[true])?),
             &proof,
             definition,
@@ -602,7 +574,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
             &mut rng,
         )
         .unwrap();
-    assert!(prove(
+    assert!(zk::prove(
         &mut joint.bound(&FrontendPart::new(&p, &[&main, &fragment], &[true]).unwrap()),
         state,
         &tampered,

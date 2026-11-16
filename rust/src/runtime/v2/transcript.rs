@@ -17,7 +17,7 @@ mod trace;
 mod verifier;
 
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub use bound::{Bound, Challenge, Opened, StaleChallenge};
+pub use bound::{Bound, Opened};
 #[cfg(test)]
 pub(crate) use message::REGISTERED_FIELDS;
 pub use message::{Encoder, Message, ProverMessage, SetupMessage, ZkStatement, ZK_PROTOCOL_ID};

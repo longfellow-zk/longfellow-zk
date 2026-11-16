@@ -330,7 +330,7 @@ where
                 let (mut joint, root, responses) = param.commit((w, ()), t, &mut prover_rng)?;
                 let part = FrontendPart::new(&p, &components, &public)?;
                 let (proof, statement) =
-                    prove(&mut joint.bound(&part), state, &VirtualInputs::none(), ctx)?;
+                    zk::prove(&mut joint.bound(&part), state, &VirtualInputs::none(), ctx)?;
                 let (opening, _) = joint.finish(&param, (statement, ()))?;
                 Ok((param, root, responses, proof, opening))
             };
@@ -343,7 +343,7 @@ where
             let t = Transcript::for_test(label.as_bytes());
             let mut v = param.receive(&root, responses, t);
             let part = FrontendPart::new(&p, &components, &public)?;
-            let statement = reduce(&mut v.bound(&part), &proof, &VirtualInputs::none(), ctx)?;
+            let statement = zk::reduce(&mut v.bound(&part), &proof, &VirtualInputs::none(), ctx)?;
             v.finish((statement, ()), &opening).map(|_| ())
         };
         if let Err(e) = attempt(&inputs, false, 1000 + case as u64) {

@@ -77,8 +77,6 @@ impl<'a> Statement for ZkStatement<'a> {
 pub struct Transcript {
     strand: Strand,
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    position: Position,
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     session: SessionStamp,
     /// The last boundary's PRF stream while no message has been written
     /// since; the next draw continues it (transcript I7).
@@ -87,17 +85,6 @@ pub struct Transcript {
     /// Schedule instrumentation; it has no storage in production builds.
     #[cfg(test)]
     pub(super) trace: super::trace::Trace,
-}
-
-/// Where a session stands: the index and digest of its last finalized node
-/// (zero before the first boundary) and the number of messages written so
-/// far. Challenges carry a copy; the digest never leaves this module tree.
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) struct Position {
-    node: u64,
-    digest: [u8; super::strand::BLOCK_BYTES],
-    messages: u64,
 }
 
 /// The identity of one transcript session. The session owns a fresh
@@ -159,12 +146,6 @@ impl Transcript {
         let mut t = Self {
             strand: Strand::new(),
             #[cfg(any(test, feature = "prover", feature = "verifier"))]
-            position: Position {
-                node: 0,
-                digest: [0; super::strand::BLOCK_BYTES],
-                messages: 0,
-            },
-            #[cfg(any(test, feature = "prover", feature = "verifier"))]
             session: SessionStamp::fresh(),
             #[cfg(any(test, feature = "prover", feature = "verifier"))]
             stream: None,
@@ -186,24 +167,14 @@ impl Transcript {
         TranscriptRef { session: self }
     }
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    pub(super) fn position(&self) -> Position {
-        self.position
-    }
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(super) fn session(&self) -> SessionStamp {
         self.session.clone()
-    }
-    /// Whether `stamp` is this session's identity.
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    pub(super) fn is_session(&self, stamp: &SessionStamp) -> bool {
-        self.session == *stamp
     }
     /// Write one message: its tag, then its values. A message ends the
     /// current stream: the next draw ends the node.
     pub(super) fn send_message<M: Message + ?Sized>(&mut self, m: &M) {
         #[cfg(any(test, feature = "prover", feature = "verifier"))]
         {
-            self.position.messages += 1;
             self.stream = None;
         }
         self.strand.write(&M::TAG.value().to_le_bytes());
@@ -246,11 +217,7 @@ impl Transcript {
         #[cfg(test)]
         self.trace
             .boundary(std::mem::take(&mut self.strand.preimage));
-        let prf = self.strand.continue_in_place();
-        let (node, digest) = prf.boundary();
-        self.position.node = node;
-        self.position.digest = *digest;
-        Reader::new(prf)
+        Reader::new(self.strand.continue_in_place())
     }
     /// The seal block over `body`: the Seal message, the SEAL terminator,
     /// then the first PRF block of the sealed node (transcript I10).

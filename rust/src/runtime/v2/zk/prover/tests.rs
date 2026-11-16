@@ -353,8 +353,7 @@ fn prove_rejects_a_state_of_another_participant() {
         .commit(witness, &other_statement, &context, &mut rng)
         .unwrap();
     let mut t = committed.joint.bound(&statement.part);
-    let top = top_weights(&mut t).unwrap();
-    let result = prove(&mut t, foreign.state, top, &VirtualInputs::none(), &context);
+    let result = prove(&mut t, foreign.state, &VirtualInputs::none(), &context);
     assert_eq!(
         result.err().unwrap(),
         "commitment belongs to another participant"

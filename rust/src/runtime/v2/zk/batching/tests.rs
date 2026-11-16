@@ -60,7 +60,7 @@ fn batching_uses_widths_instead_of_cached_logw() {
         let mut tp = Transcript::for_test(b"prime-width-geometry");
         let mut tv = tp.fork_for_test();
         let (proof, constraints) =
-            sumcheck::top_and_prove(&[&circuit], inputs, &pads, &mut tp.borrow(), &f).unwrap();
+            sumcheck::prove_circuits(&[&circuit], inputs, &pads, &mut tp.borrow(), &f).unwrap();
         // The row weights follow the frontend's last answer in both roles.
         let draw = |rows: Rows<_>, t: &mut Transcript| {
             let rho = t
@@ -69,7 +69,9 @@ fn batching_uses_widths_instead_of_cached_logw() {
             batch(rows, &rho, &f).unwrap()
         };
         let claim = draw(rows(&circuit, &public, constraints, &f).unwrap(), &mut tp);
-        let derived = sumcheck::top_and_derive(&[&circuit], &proof, &mut tv.borrow(), &f).unwrap();
+        let derived =
+            sumcheck::derive_constraints_for_circuits(&[&circuit], &proof, &mut tv.borrow(), &f)
+                .unwrap();
         let checked = draw(rows(&circuit, &public, derived, &f).unwrap(), &mut tv);
         assert_eq!(claim.weights, checked.weights);
         assert_eq!(claim.target, checked.target);

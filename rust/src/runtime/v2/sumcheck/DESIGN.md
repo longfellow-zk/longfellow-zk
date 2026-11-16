@@ -117,16 +117,16 @@ on.
 their order and public inputs come from the frontend's
 `Bound<'_, FrontendPart>` (transcript I2), and the schedule is derived from
 those circuits. Committed inputs, virtual input definitions and pads are
-fixed by earlier messages. The top weights are an input
-`Challenge<TopWeights>`, drawn at the boundary that follows the last message
-fixing the instance. Sumcheck absorbs nothing but its own three message
-kinds.
+fixed by earlier messages or are arguments of the call. Each entry point
+draws the top weights itself, on entry (`Schedule::draw_top`), from the
+boundary that follows the last message fixing the instance. Sumcheck absorbs
+nothing but its own three message kinds.
 *Enforced by:* the sumcheck entry points are crate-private and called only
 by the zk frontends, which read the circuits from their `Bound`, so no
 public prove or verify function takes a circuit, public-input or geometry
-parameter (type); `Schedule::accept_top` rejects a stale or foreign top
-weights challenge, and top weights of another shape (runtime, transcript
-I8).
+parameter (type); each entry point builds its schedule from the circuits
+it takes and draws the top weights from that schedule, so no top weights of
+another schedule, boundary or session reach it (type, transcript I8).
 
 **I2. Both roles run one stage schedule.** Each stage sends
 `logw_s` x `SumcheckRound`, then `SumcheckCross`, then `SumcheckClaims`; it
@@ -139,7 +139,7 @@ with a prover message (transcript I7).
 in `sumcheck/verifier.rs`), and both loops make every send and draw
 through the same shared steps: `round_challenge`, `terminal_challenge` and
 `end_layer` in `sumcheck/transcript.rs`, and the `Schedule` methods
-`accept_top`, `enter`, `after_combine` and `finish_inputs`; the role-trace
+`draw_top`, `enter`, `after_combine` and `finish_inputs`; the role-trace
 test (transcript I9);
 `terminal_transcript_fixes_cross_before_scale_and_claims_before_combination`
 (test); `LfzkV2.Current.Schedule` (Lean).
@@ -159,7 +159,7 @@ quadratic records across fragments, then linear records. Each zero-layer
 circuit receives `ninput_c` fresh weights on its prefix. Every weight is
 drawn after the values it weights are committed and before the stage that
 uses it sends its first message.
-*Enforced by:* `top_weights` and `Schedule::after_combine`, through
+*Enforced by:* `Schedule::draw_top` and `Schedule::after_combine`, through
 `Schedule::draw_stage` and `Schedule::input_assertions`, are the only
 producers (type); `output_sampling_uses_independent_weights_*`,
 `functional_transition_and_independent_assertions_*`,
@@ -266,7 +266,7 @@ circuits.
 
 | Step | Prover sends (tag) | Values | Then draws |
 |---|---|---|---|
-| entry (`s = 0`) | none | | accepts `Challenge<TopWeights>`: `e_0 + aq_0 + al_0` elements |
+| entry (`s = 0`) | none | | top weights: `e_0 + aq_0 + al_0` elements, from the boundary before the frontend |
 | round `j < logw_s` | `SumcheckRound` (48) | Elements(F, 2): `c0-s0`, `c1-s1` | `z_j`: `element(F)` |
 | cross | `SumcheckCross` (49) | Elements(F, 1): `d` | `r`: `nonzero(F)` |
 | claims | `SumcheckClaims` (50) | Elements(F, 2): `m_A`, `m_B` | `alpha`: `element(F)`; then, if `s+1 < L`, `elements(F, e_{s+1} + aq_{s+1} + al_{s+1})`; if `s+1 = L` and `z_in > 0`, `elements(F, z_in)` |
@@ -290,7 +290,7 @@ participant the split's `eta != 0` follows the input weights in the last
 
 | Check | Where |
 |---|---|
-| Top weights come from the current boundary, unused | `Bound::accept` |
+| Top weights come from the current boundary | drawn on entry (`Schedule::draw_top`) |
 | Proof has `L` layers with `logw_s` rounds each | `SumcheckProof::read` against the bound geometry; `SumcheckProof::validate` against the schedule |
 | Every stage row and the input equation hold | Polygero, after `constraint_compiler` substitutes `x` and the virtual definitions and maps pads to committed coordinates |
 
@@ -344,12 +344,6 @@ per stage:
 ```rust
 // runtime::v2::sumcheck, shared by both roles
 pub(super) struct Schedule { pub geometry: SumcheckProofGeometry, .. }  // stage layouts and fragment ranges
-pub(crate) struct TopWeights<E>(..); // private field; only top_weights builds it
-pub(crate) fn top_weights<const W: usize, F>(
-    circuits: &[impl CircuitSource<F>],
-    t: &mut TranscriptRef<'_>,
-    f: &F,
-) -> Result<Challenge<TopWeights<F::E>>, String>;  // I4; sends nothing
 
 // prover feature
 pub(crate) struct SumcheckPads<const W: usize, F: SerializableField>(..); // not Clone
@@ -360,8 +354,7 @@ pub(crate) fn evaluate_and_prove_circuits<const W: usize, F>(
     circuits: &[impl CircuitSource<F>],      // I1: from the frontend's Bound
     inputs: Vec<F::E>,                       // [public | private | virtual]
     pads: SumcheckPads<W, F>,                // I6: consumed
-    top: Challenge<TopWeights<F::E>>,        // I1: accepted first
-    t: &mut TranscriptRef<'_>,
+    t: &mut TranscriptRef<'_>,                // I1: top weights drawn on entry
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String>;
 
@@ -369,8 +362,7 @@ pub(crate) fn evaluate_and_prove_circuits<const W: usize, F>(
 pub(crate) fn derive_constraints_for_circuits<const W: usize, F>(
     circuits: &[impl CircuitSource<F>],
     proof: &SumcheckProof<W, F>,             // I8: parsed against the bound geometry
-    top: Challenge<TopWeights<F::E>>,
-    t: &mut TranscriptRef<'_>,
+    t: &mut TranscriptRef<'_>,                // I1: top weights drawn on entry
     f: &F,
 ) -> Result<Constraints<F::E>, String>;      // I7: equations, not a verdict
 
@@ -390,13 +382,12 @@ impl<const W: usize, F> SumcheckProof<W, F> {
 // round counts: core::proto::{MAX_LOGW, sane_logw}, shared with v1
 ```
 
-The zk frontends call these entry points: `joint::top_weights` draws the top
-weights from the frontend's `Bound`, and `zk::prove`, `zk::prove_split`,
+The zk frontends call these entry points: `zk::prove`, `zk::prove_split`,
 `zk::reduce` and `zk::reduce_split` pass the circuits of their bound part.
 Both `evaluate_and_prove_circuits` and `derive_constraints_for_circuits`
-accept the top weights (`Schedule::accept_top`) before the first message
-(both validate their inputs first, and the prover evaluates the circuits
-first). Each role then runs its own stage loop (I2): the prover computes
+build the schedule, validate their inputs against it and then draw the top
+weights (`Schedule::draw_top`) before the first message; the prover then
+evaluates the circuits. Each role then runs its own stage loop (I2): the prover computes
 each stage's messages from `W` and the pads, the verifier takes them from
 the proof, and both loops send and draw only through the shared steps of
 `sumcheck/transcript.rs` and the shared `Schedule` methods. The prover's
@@ -410,10 +401,10 @@ constraint compiler consumes them.
 
 | Mistake | What stops it |
 |---|---|
-| Drawing the top weights before the instance is fixed (for the host, before `P256AdapterQuotients` defines the virtual leaves) | I1: the stamp check in `accept` fails in both roles |
-| Top weights drawn for another schedule | I1: `TopWeights` is built only by `top_weights`; `Schedule::accept_top` checks its shape against the schedule |
+| Drawing the top weights before the instance is fixed (for the host, before `P256AdapterQuotients` defines the virtual leaves) | I1: the entry point draws them, and the virtual leaves are an argument of the zk frontend call that runs it |
+| Top weights drawn for another schedule | I1: the entry point draws them from the schedule it builds |
 | Absorbing circuit IDs, depths, public inputs or a constant zero output in sumcheck | I1: sumcheck has no setup message type and no parameter for those values |
-| A stage whose weights are drawn with no prover message before them | I2: stage weights follow `SumcheckClaims` of the previous stage; stage 0 weights are an input |
+| A stage whose weights are drawn with no prover message before them | I2: stage weights follow `SumcheckClaims` of the previous stage; stage 0 weights follow the message before the frontend |
 | The cross message chosen after `r`, or the claims after `alpha` | I2: the shared transcript steps send before they draw |
 | `r = 0`, which unmasks both claims | I6: `nonzero(F)` |
 | Prover and verifier disagreeing on circuit order or fragment offsets | I3: one `Schedule` from the bound statement |
@@ -483,10 +474,10 @@ committed cells they constrain are hidden by Polygero. The joint statement is
 1. **Schedules with no layers.** A participant whose circuits all have zero
    layers sends no sumcheck message; its top weights are the input weights.
    No mdoc participant has this shape. Recommendation: keep it, because it
-   needs no special code once top weights are an input, and Lean models it
+   needs no special code (`Schedule::draw_top` draws the input weights), and Lean models it
    (`Frontend.roles` with no stages); state in the transcript design that a
    sub-protocol with no draws may also send nothing.
-2. **Where `Schedule` lives.** `top_weights`, each sumcheck entry point and
+2. **Where `Schedule` lives.** Each sumcheck entry point and
    `circuit_geometry` build the `Schedule` from the circuits again.
    Recommendation: build it once with the frontend's statement part
    (`FrontendPart`), so both roles and the proof reader share one value.

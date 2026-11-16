@@ -188,7 +188,7 @@ Frobenius differences have trace zero, so honest U_k have trace zero.
 | 4 | caller | joint batching draws close the node | Polygero's draws | |
 
 Degree one runs no step. Packing needs no challenge before its first message,
-so it takes no `Challenge<T>` input (transcript I8). It closes one boundary of
+so it begins by sending (transcript I8). It closes one boundary of
 its own, after `PackingU`; `PackingA` belongs to the node that the joint
 batching draws close. For binary128 the draw reads 128 x 16 = 2048 bytes, 64
 PRF blocks.
@@ -440,8 +440,9 @@ themselves are hidden by the joint Polygero commitment's zero knowledge.
 
 1. **Stamp the source claim?** I9 rests on visibility: `SourceClaim` is
    built only by `compile_packed`. The sumcheck could instead return its
-   final constraints stamped like a `Challenge` (boundary and message count),
-   and `prove`/`reduce` would accept them before sending `PackingU`.
-   Recommendation: yes, since no message separates the last sumcheck draw
-   from `PackingU` and the check is free; for degree one, accept the stamp
-   before building the direct equation.
+   final constraints stamped with their boundary and message count, and
+   `prove`/`reduce` would check the stamp before sending `PackingU`.
+   Recommendation: no. The zk frontend (`zk::prove`, `zk::reduce`) runs the
+   sumcheck, `compile_packed` and the packing step in one call, so the
+   source claim never leaves the call that derives it, the same argument as
+   for the leading challenges (transcript I8), which carry no stamp either.

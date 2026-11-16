@@ -47,10 +47,6 @@ mod transcript;
 
 #[cfg(test)]
 pub(crate) use symbolic::LayerChallenges;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) use transcript::top_weights;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) use transcript::TopWeights;
 
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::core::proto::sane_logw;
@@ -65,7 +61,7 @@ cfg_prover! {
     pub use dense::bind;
     pub(crate) use prover::{evaluate_and_prove_circuits, sample_pads, SumcheckPads};
     #[cfg(test)]
-    pub(crate) use prover::{evaluate_and_prove, sample_pads_for_test, top_and_prove};
+    pub(crate) use prover::{evaluate_and_prove, prove_circuits, sample_pads_for_test};
 }
 
 #[cfg(test)]
@@ -77,7 +73,7 @@ cfg_verifier! {
     mod verifier;
     pub(crate) use verifier::derive_constraints_for_circuits;
     #[cfg(test)]
-    pub(crate) use verifier::{derive_constraints, top_and_derive};
+    pub(crate) use verifier::derive_constraints;
 }
 
 #[cfg(test)]

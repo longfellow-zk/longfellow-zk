@@ -33,7 +33,7 @@ use crate::{
         v2::{
             polygero::{LinearStatement, PolygeroLinearTerm},
             sumcheck::{circuit_geometry, symbolic::Constraints},
-            transcript::{Bound, Challenge, SessionStamp},
+            transcript::{Bound, SessionStamp},
         },
     },
 };
@@ -244,18 +244,17 @@ pub(crate) struct SplitOutput<E> {
 
 #[cfg(any(test, feature = "prover"))]
 impl<E> PendingSplit<E> {
-    /// Accept `eta`, send the split message `mu` on the frontend's session,
+    /// Draw `eta`, send the split message `mu` on the frontend's session,
     /// and return `mu` with both outputs, all built from this `eta` and `mu`.
     pub(crate) fn open<const W: usize, F>(
         self,
         t: &mut Bound<'_, FrontendPart<'_, W, F>>,
-        eta: Challenge<Eta<E>>,
         f: &F,
     ) -> Result<(E, SplitOutput<E>), String>
     where
         F: ZkField<W> + PackingField + BareField<E = E>,
     {
-        let Eta(scale) = t.accept(eta).map_err(|e| e.to_string())?;
+        let Eta(scale) = transcript::eta(&mut t.transcript(), f);
         let p = t.part().participant;
         let mu = p.split_message(&self, &scale, f)?;
         transcript::send_mu(&mut t.transcript(), &mu, f);
@@ -266,19 +265,18 @@ impl<E> PendingSplit<E> {
 }
 #[cfg(any(test, feature = "verifier"))]
 impl<E> SplitClaim<E> {
-    /// Accept `eta`, absorb the proof's split message `mu` on the frontend's
+    /// Draw `eta`, absorb the proof's split message `mu` on the frontend's
     /// session, and return both outputs, built from this `eta` and `mu`.
     pub(crate) fn receive<const W: usize, F>(
         self,
         t: &mut Bound<'_, FrontendPart<'_, W, F>>,
-        eta: Challenge<Eta<E>>,
         mu: &E,
         f: &F,
     ) -> Result<SplitOutput<E>, String>
     where
         F: ZkField<W> + PackingField + BareField<E = E>,
     {
-        let Eta(scale) = t.accept(eta).map_err(|e| e.to_string())?;
+        let Eta(scale) = transcript::eta(&mut t.transcript(), f);
         let p = t.part().participant;
         transcript::send_mu(&mut t.transcript(), mu, f);
         let foreign = p.foreign_claim(&self, &scale, mu, f)?;
