@@ -14,12 +14,12 @@
 
 use super::test_support;
 use crate::{
-    circuits::ecdsa2::{derived, evaluate_derived, evaluate_given, given, EcdsaCircuit},
+    circuits::ecdsa2::{derived, given, EcdsaCircuit},
     compile::{
         algebra::{
             p256::P256Field, q256::Q256Field, secp256r1::Secp256r1, CompileField, CompilePrimeField,
         },
-        logic::{AssertionScope, EvalLogic},
+        logic::{AssertionScope, EvalLogic, Logic},
     },
     core::algebra::{
         ec::Curve, HasLookupPoints, Nat, SupportsNatConversions, SupportsU64Conversions,
@@ -78,8 +78,8 @@ fn test_ecdsa_secp256r1_generic<
     let tracker = AssertionScope::new();
     let logic = L::new(f, &tracker);
 
-    let circuit_given = evaluate_given(&concrete_given, &logic);
-    let circuit_derived = evaluate_derived(&concrete_derived, &logic);
+    let circuit_given = concrete_given.map(|x| logic.konst(x));
+    let circuit_derived = concrete_derived.map(|x| logic.konst(x));
 
     let ecdsa = EcdsaCircuit::new(&logic, curve);
 
@@ -127,8 +127,8 @@ fn test_ecdsa_signature_tampering_generic<
         let mut g = concrete_given.clone();
         let mut cd = concrete_derived.clone();
         (c.corrupt)(&mut g, &mut cd);
-        let circuit_given = evaluate_given(&g, &logic);
-        let circuit_derived = evaluate_derived(&cd, &logic);
+        let circuit_given = g.map(|x| logic.konst(x));
+        let circuit_derived = cd.map(|x| logic.konst(x));
         let assertion = ecdsa.assert_signature(&circuit_given, &circuit_derived);
         let failed = assertion.failed_paths();
         assert!(
@@ -170,8 +170,8 @@ fn test_sign_and_verify_ecdsa_generic<
     let (concrete_given, concrete_derived) =
         test_support::sign_and_generate_given_derived::<W, _, _, _>(curve, f, fn_field, &d, &k, &e);
 
-    let circuit_given = evaluate_given(&concrete_given, &logic);
-    let circuit_derived = evaluate_derived(&concrete_derived, &logic);
+    let circuit_given = concrete_given.map(|x| logic.konst(x));
+    let circuit_derived = concrete_derived.map(|x| logic.konst(x));
 
     let ecdsa = EcdsaCircuit::new(&logic, curve);
     let assertion = ecdsa.assert_signature(&circuit_given, &circuit_derived);
@@ -207,8 +207,8 @@ fn exact_digest_rejects_a_coordinate_field_alias() {
     );
     let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
-    let given = evaluate_given::<4, _, _>(&given, &logic);
-    let derived = evaluate_derived::<4, _, _>(&derived, &logic);
+    let given = given.map(|x| logic.konst(x));
+    let derived = derived.map(|x| logic.konst(x));
     let ecdsa = EcdsaCircuit::new(&logic, &curve);
     let bigint = BigBitvec::new(&logic);
     let exact = bigint.of_nat::<4, 256, P256Field>(&digest);

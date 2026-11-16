@@ -15,7 +15,7 @@
 #![allow(dead_code)]
 
 use crate::{
-    circuits::ecdsa2::concrete::{derived, given, ConcreteDerived, ConcreteGiven},
+    circuits::ecdsa2::{derived, given, Derived, Given},
     core::algebra::{
         ec::{affine, projective, scalar_mul, Curve},
         AlgebraicField, BareField, HasLookupPoints, SupportsNatConversions,
@@ -34,7 +34,7 @@ pub(in crate::circuits::ecdsa2) fn sign_and_generate_given_derived<
     d: &C::N,
     k: &C::N,
     e: &C::N,
-) -> (ConcreteGiven<F>, ConcreteDerived<F>) {
+) -> (Given<F::E>, Derived<F::E>) {
     let g_val = curve.g().clone();
     let g_proj = projective(curve, field, &g_val);
 
@@ -71,7 +71,7 @@ pub(in crate::circuits::ecdsa2) fn sign_and_generate_given_derived<
 pub(super) struct EcdsaCorruptor<F: BareField> {
     pub name: &'static str,
     pub expected_path: &'static str,
-    pub corrupt: Box<dyn Fn(&mut ConcreteGiven<F>, &mut ConcreteDerived<F>)>,
+    pub corrupt: Box<dyn Fn(&mut Given<F::E>, &mut Derived<F::E>)>,
 }
 
 pub(super) fn all_ecdsa_corruptors<

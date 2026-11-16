@@ -12,42 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::shape::{Derived, Given, Slicing};
 use crate::{
     circuits::ec::{Pt2, Pt3},
     core::algebra::{
-        ec as ec_concrete, ec::Curve, AlgebraicField, BareField, HasLookupPoints, Nat, NatOf,
+        ec as ec_concrete, ec::Curve, AlgebraicField, HasLookupPoints, Nat, NatOf,
         SupportsNatConversions,
     },
 };
 
 #[cfg(test)]
 mod tests;
-
-#[derive(Clone, Debug)]
-pub struct ConcreteSlicing<F: BareField> {
-    pub g_pk: Pt2<F::E>,
-    pub g_r: Pt2<F::E>,
-    pub pk_r: Pt2<F::E>,
-    pub g_pk_r: Pt2<F::E>,
-    pub round: [Pt3<F::E>; 256],
-}
-
-#[derive(Clone, Debug)]
-pub struct ConcreteGiven<F: BareField> {
-    pub pkxy: Pt2<F::E>,
-    pub e: F::E,
-    pub rxy: Pt2<F::E>,
-    pub ers: [F::E; 256],
-}
-
-#[derive(Clone, Debug)]
-pub struct ConcreteDerived<F: BareField> {
-    pub pkxinv: F::E,
-    pub rxinv: F::E,
-    pub nmsinv: F::E,
-    pub yinv: F::E,
-    pub slicing: ConcreteSlicing<F>,
-}
 
 pub fn given<
     const W: usize,
@@ -62,7 +37,7 @@ pub fn given<
     s: &NatOf<W, F>,
     f: &F,
     fn_field: &Fn,
-) -> ConcreteGiven<F> {
+) -> Given<F::E> {
     // Legacy callers retain their infallible API and witness representation.
     try_given(curve, pkxy, e, r, s, f, fn_field).expect("Cannot invert zero")
 }
@@ -82,7 +57,7 @@ pub(super) fn try_given<
     s: &NatOf<W, F>,
     f: &F,
     fn_field: &Fn,
-) -> Result<ConcreteGiven<F>, &'static str> {
+) -> Result<Given<F::E>, &'static str> {
     let s_fn = fn_field.reduce_nat(s);
     let s_inv = checked_inverse(fn_field, &s_fn)?;
     let e_fn = fn_field.reduce_nat(e);
@@ -116,7 +91,7 @@ pub(super) fn try_given<
         f.lookup_point(9, idx)
     });
 
-    Ok(ConcreteGiven {
+    Ok(Given {
         pkxy: pkxy.clone(),
         e: f.reduce_nat(e),
         rxy: (rx, ry),
@@ -137,7 +112,7 @@ pub fn derived<
     s: &NatOf<W, F>,
     f: &F,
     fn_field: &Fn,
-) -> ConcreteDerived<F> {
+) -> Derived<F::E> {
     try_derived(curve, pkxy, e, r, s, f, fn_field).expect("Cannot invert zero")
 }
 
@@ -156,7 +131,7 @@ pub(super) fn try_derived<
     s: &NatOf<W, F>,
     f: &F,
     fn_field: &Fn,
-) -> Result<ConcreteDerived<F>, &'static str> {
+) -> Result<Derived<F::E>, &'static str> {
     let given = try_given(curve, pkxy, e, r, s, f, fn_field)?;
     derived_from_given(curve, &given, e, r, s, f, fn_field)
 }
@@ -176,7 +151,7 @@ pub fn try_witness<
     s: &NatOf<W, F>,
     f: &F,
     fn_field: &Fn,
-) -> Result<(ConcreteGiven<F>, ConcreteDerived<F>), &'static str> {
+) -> Result<(Given<F::E>, Derived<F::E>), &'static str> {
     let given = try_given(curve, pkxy, e, r, s, f, fn_field)?;
     let derived = derived_from_given(curve, &given, e, r, s, f, fn_field)?;
     Ok((given, derived))
@@ -189,13 +164,13 @@ fn derived_from_given<
     C: Curve<W, F = F, N = F::N>,
 >(
     curve: &C,
-    given: &ConcreteGiven<F>,
+    given: &Given<F::E>,
     e: &NatOf<W, F>,
     r: &NatOf<W, F>,
     s: &NatOf<W, F>,
     f: &F,
     fn_field: &Fn,
-) -> Result<ConcreteDerived<F>, &'static str> {
+) -> Result<Derived<F::E>, &'static str> {
     let g = ec_concrete::projective(curve, f, curve.g());
     let pk = ec_concrete::projective(curve, f, &given.pkxy);
     let r_pt = ec_concrete::projective(curve, f, &given.rxy);
@@ -247,12 +222,12 @@ fn derived_from_given<
     let nmsinv = checked_inverse(f, &nms_val)?;
     let yinv = checked_inverse(f, &p.1)?;
 
-    Ok(ConcreteDerived {
+    Ok(Derived {
         pkxinv,
         rxinv,
         nmsinv,
         yinv,
-        slicing: ConcreteSlicing {
+        slicing: Slicing {
             g_pk,
             g_r,
             pk_r,
@@ -273,39 +248,4 @@ fn checked_inverse<F: AlgebraicField>(f: &F, value: &F::E) -> Result<F::E, &'sta
 fn checked_affine<F: AlgebraicField>(f: &F, point: &Pt3<F::E>) -> Result<Pt2<F::E>, &'static str> {
     let inverse = checked_inverse(f, &point.2)?;
     Ok((f.mulf(&point.0, &inverse), f.mulf(&point.1, &inverse)))
-}
-
-impl<F: BareField> ConcreteGiven<F> {
-    pub fn push_elements(&self, mut push: impl FnMut(&F::E)) {
-        push(&self.pkxy.0);
-        push(&self.pkxy.1);
-        push(&self.e);
-        push(&self.rxy.0);
-        push(&self.rxy.1);
-        for elt in &self.ers {
-            push(elt);
-        }
-    }
-}
-
-impl<F: BareField> ConcreteDerived<F> {
-    pub fn push_elements(&self, mut push: impl FnMut(&F::E)) {
-        push(&self.pkxinv);
-        push(&self.rxinv);
-        push(&self.nmsinv);
-        push(&self.yinv);
-        push(&self.slicing.g_pk.0);
-        push(&self.slicing.g_pk.1);
-        push(&self.slicing.g_r.0);
-        push(&self.slicing.g_r.1);
-        push(&self.slicing.pk_r.0);
-        push(&self.slicing.pk_r.1);
-        push(&self.slicing.g_pk_r.0);
-        push(&self.slicing.g_pk_r.1);
-        for pt in &self.slicing.round {
-            push(&pt.0);
-            push(&pt.1);
-            push(&pt.2);
-        }
-    }
 }

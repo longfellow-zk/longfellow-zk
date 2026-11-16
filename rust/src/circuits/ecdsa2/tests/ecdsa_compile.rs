@@ -14,16 +14,12 @@
 
 use super::{compile, test_support};
 use crate::{
-    circuits::ecdsa2::{
-        allocate_derived_wires, allocate_given_wires,
-        concrete::{ConcreteDerived, ConcreteGiven},
-        derived, given, EcdsaCircuit,
-    },
+    circuits::ecdsa2::{derived, given, Derived, EcdsaCircuit, Given},
     compile::{
         algebra::{p256::P256Field, secp256r1::Secp256r1, CompilePrimeField},
         compiler::dump_stats,
         debug::evaluate::eval_circuit_fc,
-        logic::K_FIRST_WIRE_POSITION,
+        logic::{LogicIO, K_FIRST_WIRE_POSITION},
     },
     core::{
         algebra::{
@@ -58,36 +54,13 @@ fn char_to_digit(c: u8) -> u8 {
 }
 
 fn make_inputs<const W: usize, FR: RuntimeField<W> + SerializableField>(
-    given: &ConcreteGiven<FR>,
-    derived: &ConcreteDerived<FR>,
+    given: &Given<FR::E>,
+    derived: &Derived<FR::E>,
     fr: &FR,
 ) -> Vec<FR::E> {
     let mut inputs = initial_inputs(fr);
-    inputs.push(given.pkxy.0.clone());
-    inputs.push(given.pkxy.1.clone());
-    inputs.push(given.e.clone());
-    inputs.push(given.rxy.0.clone());
-    inputs.push(given.rxy.1.clone());
-    for elt in &given.ers {
-        inputs.push(elt.clone());
-    }
-    inputs.push(derived.pkxinv.clone());
-    inputs.push(derived.rxinv.clone());
-    inputs.push(derived.nmsinv.clone());
-    inputs.push(derived.yinv.clone());
-    inputs.push(derived.slicing.g_pk.0.clone());
-    inputs.push(derived.slicing.g_pk.1.clone());
-    inputs.push(derived.slicing.g_r.0.clone());
-    inputs.push(derived.slicing.g_r.1.clone());
-    inputs.push(derived.slicing.pk_r.0.clone());
-    inputs.push(derived.slicing.pk_r.1.clone());
-    inputs.push(derived.slicing.g_pk_r.0.clone());
-    inputs.push(derived.slicing.g_pk_r.1.clone());
-    for pt in &derived.slicing.round {
-        inputs.push(pt.0.clone());
-        inputs.push(pt.1.clone());
-        inputs.push(pt.2.clone());
-    }
+    given.for_each(|elt| inputs.push(elt.clone()));
+    derived.for_each(|elt| inputs.push(elt.clone()));
     inputs
 }
 
@@ -129,8 +102,8 @@ fn test_compile_ecdsa_generic<
         let mut pos = K_FIRST_WIRE_POSITION;
 
         let ecdsa = EcdsaCircuit::new(&iologic, curve_c);
-        let circuit_given = allocate_given_wires(&iologic, &mut pos);
-        let circuit_derived = allocate_derived_wires(&iologic, &mut pos);
+        let circuit_given = Given::from_fn(|| iologic.next(&mut pos));
+        let circuit_derived = Derived::from_fn(|| iologic.next(&mut pos));
 
         (
             ecdsa.assert_signature(&circuit_given, &circuit_derived),
@@ -196,8 +169,8 @@ fn test_compile_ecdsa_signature_tampering_generic<
         let mut pos = K_FIRST_WIRE_POSITION;
 
         let ecdsa = EcdsaCircuit::new(&iologic, curve_c);
-        let circuit_given = allocate_given_wires(&iologic, &mut pos);
-        let circuit_derived = allocate_derived_wires(&iologic, &mut pos);
+        let circuit_given = Given::from_fn(|| iologic.next(&mut pos));
+        let circuit_derived = Derived::from_fn(|| iologic.next(&mut pos));
 
         (
             ecdsa.assert_signature(&circuit_given, &circuit_derived),

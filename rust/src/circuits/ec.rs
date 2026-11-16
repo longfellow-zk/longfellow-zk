@@ -22,7 +22,7 @@ cfg_compiler! {
 
 cfg_testonly! {
     mod evaluate;
-    pub use evaluate::{evaluate_pt2, evaluate_pt3, push_pt2};
+    pub use evaluate::push_pt2;
 }
 
 #[cfg(test)]

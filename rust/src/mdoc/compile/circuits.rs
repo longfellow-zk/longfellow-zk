@@ -7,7 +7,7 @@ use crate::{
         arithmetic::Arithmetic,
         bitvec::V256,
         boolean::Boolean,
-        ecdsa2::{allocate_derived_wires, EcdsaCircuit, Given},
+        ecdsa2::{Derived, EcdsaCircuit, Given},
     },
     compile::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field, secp256r1::Secp256r1},
@@ -52,11 +52,7 @@ pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
             "end of shared inputs",
         );
         let arithmetic = Arithmetic::new(&logic);
-        let mut given = |pkxy, e| {
-            let rxy = (logic.next(&mut pos), logic.next(&mut pos));
-            let ers = std::array::from_fn(|_| logic.next(&mut pos));
-            Given { pkxy, e, rxy, ers }
-        };
+        let mut given = |pkxy, e| Given::from_fn_with_key(pkxy, e, || logic.next(&mut pos));
         let issuer = given(issuer_pk, arithmetic.as_eltw_unsafe(issuer_e.as_array()));
         let device = given(
             (
@@ -65,8 +61,8 @@ pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
             ),
             arithmetic.as_eltw_unsafe(device_e.as_array()),
         );
-        let issuer_derived = allocate_derived_wires(&logic, &mut pos);
-        let device_derived = allocate_derived_wires(&logic, &mut pos);
+        let issuer_derived = Derived::from_fn(|| logic.next(&mut pos));
+        let device_derived = Derived::from_fn(|| logic.next(&mut pos));
         let curve = Secp256r1::new(f);
         let ecdsa = EcdsaCircuit::new(&logic, &curve);
         (

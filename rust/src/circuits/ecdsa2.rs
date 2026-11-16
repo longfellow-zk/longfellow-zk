@@ -13,21 +13,13 @@
 // limitations under the License.
 
 mod concrete;
-pub use concrete::{derived, given, try_witness, ConcreteDerived, ConcreteGiven, ConcreteSlicing};
+mod shape;
+pub use concrete::{derived, given, try_witness};
+pub use shape::{Derived, Given, Slicing};
 
 cfg_compiler! {
-    mod allocate;
     mod circuit;
-
-    pub use self::{
-        allocate::{allocate_derived_wires, allocate_given_wires},
-        circuit::{Derived, EcdsaCircuit, Given, Slicing},
-    };
-}
-
-cfg_testonly! {
-    mod evaluate;
-    pub use evaluate::{evaluate_derived, evaluate_given};
+    pub use circuit::EcdsaCircuit;
 }
 
 #[cfg(test)]

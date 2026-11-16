@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     circuits::{
-        ecdsa2::{try_witness, ConcreteDerived, ConcreteGiven},
+        ecdsa2::{try_witness, Derived, Given},
         sha256::constants::INITIAL,
         sha256msg::{derived, given},
     },
@@ -305,8 +305,8 @@ where
 fn signature_accepted<F, C>(
     f: &F,
     curve: &C,
-    given: &ConcreteGiven<F>,
-    derived: &ConcreteDerived<F>,
+    given: &Given<F::E>,
+    derived: &Derived<F::E>,
     r: &F::N,
 ) -> bool
 where

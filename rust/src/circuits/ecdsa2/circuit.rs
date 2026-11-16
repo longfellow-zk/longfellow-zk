@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::shape::{Derived, Given};
 use crate::{
     circuits::{
         arithmetic::Arithmetic,
         big_bitvec::BigBitvec,
         bitvec::{BitvecLogic, V256},
         boolean::Boolean,
-        ec::{EcCircuit, Pt2, Pt3},
+        ec::EcCircuit,
         lookup::Lookup,
     },
     compile::{
@@ -27,32 +28,6 @@ use crate::{
     },
     core::algebra::{ec::Curve, SupportsNatConversions, SupportsU64Conversions},
 };
-
-#[derive(Clone)]
-pub struct Slicing<L: Logic> {
-    pub g_pk: Pt2<Eltw<L>>,
-    pub g_r: Pt2<Eltw<L>>,
-    pub pk_r: Pt2<Eltw<L>>,
-    pub g_pk_r: Pt2<Eltw<L>>,
-    pub round: [Pt3<Eltw<L>>; 256],
-}
-
-#[derive(Clone)]
-pub struct Given<L: Logic> {
-    pub pkxy: Pt2<Eltw<L>>,
-    pub e: Eltw<L>,
-    pub rxy: Pt2<Eltw<L>>,
-    pub ers: [Eltw<L>; 256],
-}
-
-#[derive(Clone)]
-pub struct Derived<L: Logic> {
-    pub pkxinv: Eltw<L>,
-    pub rxinv: Eltw<L>,
-    pub nmsinv: Eltw<L>,
-    pub yinv: Eltw<L>,
-    pub slicing: Slicing<L>,
-}
 
 pub struct EcdsaCircuit<'a, const W: usize, C: Curve<W>, L: Logic<F = C::F>> {
     ec: EcCircuit<'a, W, C, L>,
@@ -112,8 +87,8 @@ where
     /// Tie every ECDSA exponent bit to the actual digest, including digests >= p.
     pub fn assert_signature_on_digest(
         &self,
-        given: &Given<L>,
-        derived: &Derived<L>,
+        given: &Given<Eltw<L>>,
+        derived: &Derived<Eltw<L>>,
         digest: &V256<L>,
     ) -> L::Assertions {
         let signature = self.assert_signature(given, derived);
@@ -129,7 +104,11 @@ where
         self.logic
             .assert_all("ecdsa_exact_digest", &[signature, exact])
     }
-    pub fn assert_signature(&self, given: &Given<L>, derived: &Derived<L>) -> L::Assertions {
+    pub fn assert_signature(
+        &self,
+        given: &Given<Eltw<L>>,
+        derived: &Derived<Eltw<L>>,
+    ) -> L::Assertions {
         assert_eq!(given.ers.len(), 256);
 
         let order_bits = BigBitvec::new(self.logic).of_nat::<W, 256, F>(&self.curve.order());

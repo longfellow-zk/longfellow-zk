@@ -71,19 +71,17 @@ cfg_prover! {
     {
         pub(super) fn push_ecdsa_signature(
             &mut self,
-            given: &crate::circuits::ecdsa2::ConcreteGiven<F>,
+            given: &crate::circuits::ecdsa2::Given<F::E>,
         ) {
             // Key coordinates and digest bits already occupy the shared prefix.
-            self.push_elt(&given.rxy.0);
-            self.push_elt(&given.rxy.1);
-            for elt in &given.ers { self.push_elt(elt); }
+            given.for_each_signature(|elt| self.push_elt(elt));
         }
 
         pub(super) fn push_ecdsa_derived(
             &mut self,
-            derived: &crate::circuits::ecdsa2::ConcreteDerived<F>,
+            derived: &crate::circuits::ecdsa2::Derived<F::E>,
         ) {
-            derived.push_elements(|elt| self.push_elt(elt));
+            derived.for_each(|elt| self.push_elt(elt));
         }
     }
 

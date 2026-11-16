@@ -25,15 +25,15 @@ fn checked_constructors_preserve_existing_witness_bytes() {
     let new_derived = try_derived(&curve, &pk, e, r, s, &f, &q).unwrap();
     let mut old = Vec::new();
     let mut new = Vec::new();
-    old_given.push_elements(|value| old.extend(f.to_bytes(value)));
-    old_derived.push_elements(|value| old.extend(f.to_bytes(value)));
-    new_given.push_elements(|value| new.extend(f.to_bytes(value)));
-    new_derived.push_elements(|value| new.extend(f.to_bytes(value)));
+    old_given.for_each(|value| old.extend(f.to_bytes(value)));
+    old_derived.for_each(|value| old.extend(f.to_bytes(value)));
+    new_given.for_each(|value| new.extend(f.to_bytes(value)));
+    new_derived.for_each(|value| new.extend(f.to_bytes(value)));
     assert_eq!(old, new);
     let (combined_given, combined_derived) = try_witness(&curve, &pk, e, r, s, &f, &q).unwrap();
     let mut combined = Vec::new();
-    combined_given.push_elements(|value| combined.extend(f.to_bytes(value)));
-    combined_derived.push_elements(|value| combined.extend(f.to_bytes(value)));
+    combined_given.for_each(|value| combined.extend(f.to_bytes(value)));
+    combined_derived.for_each(|value| combined.extend(f.to_bytes(value)));
     assert_eq!(old, combined);
 }
 
