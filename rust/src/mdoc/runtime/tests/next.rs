@@ -1231,11 +1231,25 @@ fn run_next_error_table(test_circuits: &TestCircuits) {
     );
 }
 
+/// The combined circuit IDs of NEXT for one to four attributes. Any change
+/// to a NEXT circuit changes them; update them in the same, reviewed commit.
+const NEXT_COMBINED_IDS: [&str; 4] = [
+    "a1089c0983f5677a791e1caaebf95ec1d0e3e35009e06252075351e38c631524",
+    "bf7566217de331d29041e53e9fe5791c176b8dc6bcc536c2addc6a292613f2e1",
+    "dc36044fc724656a826fcd9b834664188d0cb1a1c5cf88d645197cf7ac7a8ef9",
+    "b25d818a80895127d7e147851666106ba79e86b7f4b8eab32499f648b793815c",
+];
+
 fn run_next_circuit_hashes(test_circuits: &TestCircuits) {
     for nattrs in 1..=4 {
         let p = test_circuits.get(nattrs).expect("circuit missing");
         assert_eq!(p.spec().version, NEXT_VERSION);
         assert_eq!(p.spec().num_attributes, nattrs);
+        assert_eq!(
+            hex::encode(p.spec().combined_hash),
+            NEXT_COMBINED_IDS[nattrs - 1],
+            "{nattrs}-attribute NEXT combined circuit ID"
+        );
         let bytes = zstd::decode_all(p.compressed()).unwrap();
         let archive = CircuitArchive::from_bytes(&bytes).unwrap();
         assert_eq!(archive.combined_id, p.spec().combined_hash);
