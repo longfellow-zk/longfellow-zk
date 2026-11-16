@@ -39,16 +39,8 @@ pub(crate) fn reduce<F: ZkField + PackingField>(
     proof: &CircuitProof<F>,
     virtual_inputs: &VirtualInputs<F::E>,
 ) -> Result<LinearStatement<F::E>, String> {
-    reduce_parts(t, &proof.sumcheck_proof, &proof.packing, virtual_inputs)
-}
-fn reduce_parts<F: ZkField + PackingField>(
-    t: &mut Bound<'_, FrontendPart<'_, F>>,
-    sumcheck: &SumcheckProof<F>,
-    packing: &PackingProof<F::E>,
-    virtual_inputs: &VirtualInputs<F::E>,
-) -> Result<LinearStatement<F::E>, String> {
-    let constraints = sumcheck_constraints(t, sumcheck, virtual_inputs)?;
-    pack_constraints(t, constraints, packing, virtual_inputs)
+    let constraints = sumcheck_constraints(t, &proof.sumcheck_proof, virtual_inputs)?;
+    pack_constraints(t, constraints, &proof.packing, virtual_inputs)
 }
 /// The sumcheck step: check the frontend's sumcheck proof, drawing its top
 /// weights, and derive its constraints on the committed cells.
