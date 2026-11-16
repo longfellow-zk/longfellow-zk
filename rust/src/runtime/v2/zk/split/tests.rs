@@ -77,8 +77,9 @@ fn pure_foreign_participant_cannot_join_the_joint_backend() {
     let mixed = StorageMap::new(n, &[(0, Group::new(7, 1).unwrap())]).unwrap();
     let mask = Group::new(20, 256).unwrap();
     let joined = MixedSplit::new(&c, mixed, mask, CONFIG, &domain).unwrap();
+    let committed = joined.param_for_test().unwrap().geometry();
+    assert_eq!(committed.nw, joined.geometry().nw());
     let selected = joined.participant(&domain).unwrap();
-    assert_eq!(selected.geometry().nw, joined.geometry().nw());
     assert!(zk::joint::JointParam::new((selected, ())).is_ok());
 }
 

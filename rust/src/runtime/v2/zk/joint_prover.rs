@@ -1,13 +1,13 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Prover ownership of the selected joint commitment and its final equations.
-use super::joint::{Bodies, Coefficients, Fields, JointParam, Responses, Statements, Witnesses};
+use super::joint::JointParam;
 use crate::runtime::{
     random::PrivateRandom,
     v2::{
         polygero::ProverParticipants,
         proto::polygero::{JointPolygeroProof, PolygeroCommitment},
         transcript::{Bound, Transcript},
-        witness_selection,
+        witness_selection::{self, Bodies, Fields, ProverFields, Statements, Witnesses},
     },
 };
 
@@ -17,7 +17,7 @@ pub(crate) struct JointProver<S, C, R> {
     transcript: Transcript,
     selection: witness_selection::Prover<S, C, R>,
 }
-impl<L: Fields> JointParam<L> {
+impl<L: ProverFields> JointParam<L> {
     pub(crate) fn commit(
         &self,
         witnesses: Witnesses<L>,
@@ -25,20 +25,15 @@ impl<L: Fields> JointParam<L> {
         rng: &mut impl PrivateRandom,
     ) -> Result<
         (
-            JointProver<
-                <<L::Selection as witness_selection::Fields>::Backend as ProverParticipants>::States,
-                Coefficients<L>,
-                Responses<L>,
-            >,
+            JointProver<<L::Backend as ProverParticipants>::States, L::Coefficients, L::Responses>,
             PolygeroCommitment,
-            Responses<L>,
+            L::Responses,
         ),
         String,
     >
     where
-        L::Selection: witness_selection::ProverFields,
         Witnesses<L>: Clone,
-{
+    {
         let (selection, root, responses) =
             witness_selection::commit(&mut transcript.bound(&self.selection), witnesses, rng)?;
         Ok((
@@ -69,14 +64,13 @@ impl<S, C, R> JointProver<S, C, R> {
     /// fingerprint equations, draws the Polygero batching weights at the
     /// current boundary (transcript I8), sends each field's response, draws
     /// the columns and returns the opening with the transcript.
-    pub(crate) fn finish<L: Fields>(
+    pub(crate) fn finish<L: Fields<Coefficients = C, Responses = R>>(
         mut self,
         param: &JointParam<L>,
         equations: Statements<L>,
     ) -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>
     where
-        L::Selection: witness_selection::Fields<Coefficients = C, Responses = R>,
-        <L::Selection as witness_selection::Fields>::Backend: ProverParticipants<States = S>,
+        L::Backend: ProverParticipants<States = S>,
     {
         let proof = self
             .selection

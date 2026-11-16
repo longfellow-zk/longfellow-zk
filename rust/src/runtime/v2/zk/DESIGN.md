@@ -394,7 +394,7 @@ impl CircuitParticipant<F> {
                config: PolygeroConfig, domain: &D) -> Result<Self, String>; // the proof's one profile (I12)
     pub fn geometry(&self) -> CircuitProofGeometry;           // written as Circuit/CommitmentLayout (I1)
     pub(crate) fn field(&self) -> &F;                    // the domain's field at construction
-    pub(crate) fn participant(&'a self, domain: &'a D) -> Result<SelectedField<'a, F, D>, String>;
+    pub(crate) fn participant(&'a self, domain: &'a D) -> Result<witness_selection::Field<'a, F, D>, String>;
 }
 // the statement writes every storage mode alike, from its Frontend and StorageLayout
 pub(crate) enum StorageLayout<'a> { Native, Mixed(&'a MixedStorage), #[cfg(test)] Pure(&'a StorageMap) }
@@ -416,13 +416,12 @@ impl MixedSplit<F> {
     pub(crate) fn new(circuit: &Circuit<F>, map: StorageMap, mask: Group,
                       config: PolygeroConfig, domain: &D) -> Result<Self, String>;
     pub(crate) fn geometry(&self) -> CircuitProofGeometry;
-    pub(crate) fn participant(&'a self, domain: &'a D) -> Result<SelectedField<'a, F, D>, String>;
+    pub(crate) fn participant(&'a self, domain: &'a D) -> Result<witness_selection::Field<'a, F, D>, String>;
 }
 // zk::split::pure, tests only until a driver uses it (I11): no parameter, no participant()
 pub(crate) struct PureSplit<F> { .. }    // a Frontend and its all-foreign StorageMap
-// the joint commitment, crate-private: witness selection, below it, is too
-pub(crate) struct SelectedField<'a, F, D> { .. }
-pub(crate) trait Fields: Clone { .. }                     // (SelectedField, Tail) ... ()
+// the joint commitment, crate-private: witness selection, below it, is too;
+// L is its field list, (witness_selection::Field, Tail) ... (), witness_selection::Fields
 pub(crate) struct JointParam<L: Fields> { .. }
 impl<L: Fields> JointParam<L> {
     pub(crate) fn new(fields: L) -> Result<Self, String>;
@@ -441,15 +440,16 @@ impl MixedSplit<F> {
                           rng: &mut impl PrivateRandom) -> Result<(SplitState<F>, Vec<F::E>), String>;
     pub(crate) fn foreign_values(&self, pending: &PendingSplit<F::E>) -> Vec<F::E>;  // claim term order, R last
 }
-impl<L: Fields> JointParam<L> {
+impl<L: ProverFields> JointParam<L> {
     pub(crate) fn commit(&self, witnesses: Witnesses<L>, transcript: Transcript,
                          rng: &mut impl PrivateRandom)
-        -> Result<(JointProver<..>, PolygeroCommitment, Responses<L>), String>;  // I6
+        -> Result<(JointProver<..>, PolygeroCommitment, L::Responses), String>;  // I6
 }
 impl<S, C, R> JointProver<S, C, R> {
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P>;
     // I4: each field's equations, derived on this session; draws the batching weights
-    pub(crate) fn finish<L: Fields>(self, param: &JointParam<L>, equations: Statements<L>)
+    pub(crate) fn finish<L: Fields<Coefficients = C, Responses = R>>(self, param: &JointParam<L>,
+        equations: Statements<L>)
         -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>;
 }
 pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, F>>, state: CircuitState<F>,
@@ -466,7 +466,7 @@ impl<E> PendingSplit<E> {
 
 // zk, verifier: crate-private steps of the composed and standalone verifiers
 impl<L: Fields> JointParam<L> {
-    pub(crate) fn receive(self, root: &PolygeroCommitment, responses: Responses<L>,
+    pub(crate) fn receive(self, root: &PolygeroCommitment, responses: L::Responses,
                           transcript: Transcript) -> JointVerifier<L>;    // I6
 }
 impl<L: Fields> JointVerifier<L> {

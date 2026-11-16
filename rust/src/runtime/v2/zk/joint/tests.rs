@@ -15,20 +15,28 @@ use crate::{
             proto::{dual_packing::PackingProof, zk::CircuitProof},
             sumcheck::eval_circuit,
             transcript::{SessionStamp, Transcript, Unverified},
-            zk::{self, VirtualInputs},
+            zk::{self, context::prepare_parameter, VirtualInputs},
         },
     },
 };
+
+/// The selected field of `cells` frontend cells, plus the fingerprint masks,
+/// under `config` over `domain`.
+pub(crate) fn selected_field<F: ZkField + RegisteredField, D: EvaluationDomain<F>>(
+    cells: usize,
+    config: PolygeroConfig,
+    domain: &D,
+) -> Field<'_, F, D> {
+    Field::new(prepare_parameter(cells, config, domain).unwrap(), domain).unwrap()
+}
 
 #[test]
 fn selected_joint_wrapper_supports_three_typed_fields() {
     use crate::runtime::{
         algebra::{p256::P256Field, range_interpolation::ScalarInterpolatorFactory},
         v2::{
-            polygero::LinearStatement,
-            proto::polygero::PolygeroConfig,
-            transcript::Transcript,
-            zk::joint::{JointParam, SelectedField},
+            polygero::LinearStatement, proto::polygero::PolygeroConfig, transcript::Transcript,
+            zk::joint::JointParam,
         },
     };
     let f = Gf2_128Field::new();
@@ -41,13 +49,13 @@ fn selected_joint_wrapper_supports_three_typed_fields() {
         n: 64,
         t: 2,
     };
-    let a = SelectedField::new(2, config, &d).unwrap();
-    assert_eq!(a.geometry().nw, 4);
+    // Two frontend cells and the two fingerprint masks.
+    assert_eq!(prepare_parameter(2, config, &d).unwrap().geometry().nw, 4);
     let param = JointParam::new((
-        a,
+        selected_field(2, config, &d),
         (
-            SelectedField::new(1, config, &pd).unwrap(),
-            (SelectedField::new(0, config, &d).unwrap(), ()),
+            selected_field(1, config, &pd),
+            (selected_field(0, config, &d), ()),
         ),
     ))
     .unwrap();
@@ -93,9 +101,7 @@ fn selected_joint_wrapper_supports_three_typed_fields() {
 #[test]
 fn finish_rejects_equations_derived_on_another_session() {
     use crate::runtime::v2::{
-        polygero::LinearStatement,
-        proto::polygero::PolygeroConfig,
-        zk::joint::{JointParam, SelectedField},
+        polygero::LinearStatement, proto::polygero::PolygeroConfig, zk::joint::JointParam,
     };
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
@@ -105,7 +111,7 @@ fn finish_rejects_equations_derived_on_another_session() {
         n: 64,
         t: 2,
     };
-    let param = JointParam::new((SelectedField::new(2, config, &d).unwrap(), ())).unwrap();
+    let param = JointParam::new((selected_field(2, config, &d), ())).unwrap();
     let derived = |session| {
         (
             LinearStatement {

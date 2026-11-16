@@ -27,89 +27,25 @@ use crate::{
                 polygero::{PolygeroConfig, PolygeroGeometry},
                 zk::CircuitProofGeometry,
             },
-            witness_selection,
+            witness_selection::{self, Field, Fields},
         },
     },
 };
 
-/// One frontend's full committed cell vector. The sibling selection protocol
-/// owns the two extra masks; they are never logical circuit inputs.
-pub(crate) struct SelectedField<'a, F: ZkField + RegisteredField, D> {
-    selection: witness_selection::Field<'a, F, D>,
-    geometry: PolygeroGeometry,
-}
-impl<F: ZkField + RegisteredField, D> Clone for SelectedField<'_, F, D> {
-    fn clone(&self) -> Self {
-        Self {
-            selection: self.selection.clone(),
-            geometry: self.geometry,
-        }
-    }
-}
-impl<'a, F: ZkField + RegisteredField, D: EvaluationDomain<F>> SelectedField<'a, F, D> {
-    /// Derive the augmented backend geometry from the original frontend cells.
-    #[cfg(test)]
-    pub(crate) fn new(cells: usize, config: PolygeroConfig, domain: &'a D) -> Result<Self, String> {
-        Self::from_parameter(
-            super::context::prepare_parameter(cells, config, domain)?,
-            domain,
-        )
-    }
-    pub(super) fn from_parameter(param: PolygeroParam, domain: &'a D) -> Result<Self, String> {
-        let geometry = param.geometry();
-        Ok(Self {
-            selection: witness_selection::Field::new(param, domain)?,
-            geometry,
-        })
-    }
-}
-
-#[cfg(test)]
-impl<F: ZkField + RegisteredField, D> SelectedField<'_, F, D> {
-    pub(crate) fn geometry(&self) -> PolygeroGeometry {
-        self.geometry
-    }
-}
-
-/// A typed list `(SelectedField, Tail)` ending in `()`. This conversion only
-/// supplies frontend metadata; all fingerprint arithmetic stays in its sibling.
-/// The statement holds every layout (transcript I3), so the list absorbs
-/// nothing.
-pub(crate) trait Fields: Clone {
-    type Selection: witness_selection::Fields;
-    fn selection(&self) -> Self::Selection;
-}
-impl Fields for () {
-    type Selection = ();
-    fn selection(&self) {}
-}
-impl<'a, F: ZkField + RegisteredField, D: EvaluationDomain<F>, T: Fields> Fields
-    for (SelectedField<'a, F, D>, T)
-{
-    type Selection = (witness_selection::Field<'a, F, D>, T::Selection);
-    fn selection(&self) -> Self::Selection {
-        (self.0.selection.clone(), self.1.selection())
-    }
-}
-#[cfg(any(test, feature = "prover"))]
-pub(crate) type Witnesses<L> = witness_selection::Witnesses<<L as Fields>::Selection>;
-pub(crate) type Statements<L> = witness_selection::Statements<<L as Fields>::Selection>;
-pub(crate) type Bodies<L> = witness_selection::Bodies<<L as Fields>::Selection>;
-#[cfg(any(test, feature = "prover"))]
-pub(crate) type Coefficients<L> =
-    <<L as Fields>::Selection as witness_selection::Fields>::Coefficients;
-pub(crate) type Responses<L> = <<L as Fields>::Selection as witness_selection::Fields>::Responses;
-
 /// Zk-v2 owns the composition: receipt and commitment select the witness before
 /// any frontend challenge, and completion necessarily authenticates those rows.
+///
+/// `L` is the joint field list, a `(witness_selection::Field, Tail)` list
+/// ending in `()`; each field's fingerprint arithmetic stays in witness
+/// selection.
 #[derive(Clone)]
 pub(crate) struct JointParam<L: Fields> {
-    pub(super) selection: witness_selection::Param<L::Selection>,
+    pub(super) selection: witness_selection::Param<L>,
 }
 impl<L: Fields> JointParam<L> {
     pub(crate) fn new(fields: L) -> Result<Self, String> {
         Ok(Self {
-            selection: witness_selection::Param::new(fields.selection())?,
+            selection: witness_selection::Param::new(fields)?,
         })
     }
     pub(crate) fn config(&self) -> PolygeroConfig {
@@ -206,7 +142,7 @@ impl<F: ZkField + PackingField> CircuitParticipant<F> {
         )?;
         // Keep the selected field's mask-cell and backend/domain checks even
         // when this circuit will join a larger participant list.
-        SelectedField::from_parameter(param.clone(), domain)?;
+        Field::new(param.clone(), domain)?;
         Ok(Self {
             frontend: Frontend {
                 geometry,
@@ -237,8 +173,8 @@ impl<F: ZkField + PackingField> CircuitParticipant<F> {
     pub(crate) fn participant<'a, D: EvaluationDomain<F>>(
         &'a self,
         domain: &'a D,
-    ) -> Result<SelectedField<'a, F, D>, String> {
-        SelectedField::from_parameter(self.param.clone(), domain)
+    ) -> Result<Field<'a, F, D>, String> {
+        Field::new(self.param.clone(), domain)
     }
 }
 

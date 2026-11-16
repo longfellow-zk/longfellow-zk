@@ -41,8 +41,8 @@ application envelopes supply their own joint geometry. Preparing a circuit
 still validates its selected field.
 
 Each participant binds its packing interpretation and circuit-composition layout
-before the shared root. `JointParam` accepts recursive `(SelectedField, Tail)`
-tuples ending in `()`, preserving each field's types. It uses the sibling
+before the shared root. `JointParam` accepts witness selection's recursive
+`(Field, Tail)` tuples ending in `()`, preserving each field's types. It uses the sibling
 witness-selection protocol to append two fresh private masks per field,
 commit the augmented vectors, and bind all masked fingerprints before any
 frontend challenges. Circuit geometry includes those backend cells automatically;

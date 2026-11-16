@@ -33,7 +33,7 @@ use crate::{
             proto::polygero::PolygeroConfig,
             zk::{
                 constraint_compiler,
-                joint::{JointParam, SelectedField},
+                joint::{tests::selected_field, JointParam},
                 packing_commitment::PackingCommitment,
             },
         },
@@ -168,12 +168,11 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let actual = prover.prove(committed, &domain).unwrap().into_bytes();
 
     let independent_param = JointParam::new((
-        SelectedField::new(
+        selected_field(
             prover.participant.frontend.backend.layout.witness_count,
             geometry.config(),
             &domain,
-        )
-        .unwrap(),
+        ),
         (),
     ))
     .unwrap();

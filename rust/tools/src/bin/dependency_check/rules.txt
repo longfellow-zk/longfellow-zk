@@ -16,6 +16,9 @@
 #   message tag registry without depending on the rest of the proof contract
 #   (transcript I6, proto I7). Its parent then owns only `proto.rs`, so every
 #   proto module has its own line.
+# - runtime/v2/foreign -> runtime/v2/witness_selection: the composition names
+#   its joint field list with witness selection's `Field`, the type its
+#   participants return; it calls no witness-selection operation.
 
 mdoc/artifacts:
 mdoc/cbor: core/algebra mdoc/proto mdoc/testcases
@@ -66,7 +69,7 @@ runtime/v1/transcript: core/algebra runtime/random
 runtime/v1/zk: core/algebra core/proto runtime/algebra runtime/random runtime/v1/ligero runtime/v1/proto runtime/v1/subfield runtime/v1/sumcheck runtime/v1/transcript
 runtime/v2:
 runtime/v2/dual_packing: core/algebra runtime/algebra runtime/v2/transcript runtime/v2/proto/dual_packing runtime/v2/proto/tags
-runtime/v2/foreign: core/algebra core/proto runtime/algebra runtime/random runtime/v2/transcript runtime/v2/zk util runtime/v2/proto/composed runtime/v2/proto/polygero runtime/v2/proto/tags
+runtime/v2/foreign: core/algebra core/proto runtime/algebra runtime/random runtime/v2/transcript runtime/v2/witness_selection runtime/v2/zk util runtime/v2/proto/composed runtime/v2/proto/polygero runtime/v2/proto/tags
 runtime/v2/merkle: runtime/v2/proto/merkle
 runtime/v2/polygero: core/algebra runtime/algebra runtime/random runtime/v2/merkle runtime/v2/transcript runtime/v2/proto/merkle runtime/v2/proto/polygero runtime/v2/proto/tags
 runtime/v2/proto: runtime/v2/proto/field runtime/v2/proto/merkle

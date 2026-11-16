@@ -28,8 +28,9 @@ use crate::{
         v2::{
             proto::{composed::ComposedGeometry, polygero::PolygeroConfig},
             transcript::{Header, SetupMessage, Statement},
+            witness_selection::Field,
             zk::{
-                joint::{CircuitParticipant, FrontendPart, JointParam, SelectedField},
+                joint::{CircuitParticipant, FrontendPart, JointParam},
                 split::MixedSplit,
                 storage::{Group, Storage, StorageMap},
                 write_joint_geometry, CircuitInput,
@@ -44,7 +45,7 @@ cfg_verifier! { mod verifier; }
 type Host = Gf2_128Field;
 
 /// The joint field list of a composition: the host, then the split participant.
-type Fields<'s, F, DH, DS> = (SelectedField<'s, Host, DH>, (SelectedField<'s, F, DS>, ()));
+type Fields<'s, F, DH, DS> = (Field<'s, Host, DH>, (Field<'s, F, DS>, ()));
 
 /// A composition's fixed layout, derived from its two circuits and the split
 /// participant's storage map.

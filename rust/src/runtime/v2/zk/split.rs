@@ -22,7 +22,7 @@
 use super::{
     batching::{rows, LinearClaim},
     context::prepare_parameter,
-    joint::{check_registered, Frontend, FrontendPart, Participant, SelectedField, StorageLayout},
+    joint::{check_registered, Frontend, FrontendPart, Participant, StorageLayout},
     packing_commitment::{PackingCommitment, PackingLayout},
     storage::{Group, MixedStorage, ModularClaim, Storage, StorageMap},
     InputLayout,
@@ -45,6 +45,7 @@ use crate::{
             },
             sumcheck::{circuit_geometry, symbolic::Constraints},
             transcript::{Bound, SessionStamp},
+            witness_selection::Field,
         },
     },
 };
@@ -138,7 +139,7 @@ impl<F: ZkField + PackingField> MixedSplit<F> {
         let pads = shape.sumcheck.pad_count();
         let layout = PackingLayout::new(storage.map.native_cells() - pads, pads, 1)?;
         let param = prepare_parameter(layout.witness_count + 1, config, domain)?;
-        SelectedField::from_parameter(param.clone(), domain)?;
+        Field::new(param.clone(), domain)?;
         let nw = param.geometry().nw;
         Ok(Self {
             frontend: shape.frontend(circuit, layout, nw, config, domain)?,
@@ -159,8 +160,8 @@ impl<F: ZkField + PackingField> MixedSplit<F> {
     pub(crate) fn participant<'a, D: EvaluationDomain<F>>(
         &'a self,
         domain: &'a D,
-    ) -> Result<SelectedField<'a, F, D>, String> {
-        SelectedField::from_parameter(self.param.clone(), domain)
+    ) -> Result<Field<'a, F, D>, String> {
+        Field::new(self.param.clone(), domain)
     }
 }
 impl<F: ZkField + PackingField> MixedSplit<F> {

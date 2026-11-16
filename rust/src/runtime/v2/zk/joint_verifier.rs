@@ -1,10 +1,10 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Verifier ownership of early selection and final joint authentication.
-use super::joint::{Bodies, Fields, JointParam, Responses, Statements};
+use super::joint::JointParam;
 use crate::runtime::v2::{
     proto::polygero::{JointPolygeroProof, PolygeroCommitment},
     transcript::{Bound, Transcript, Unverified, VerifiedProof},
-    witness_selection,
+    witness_selection::{self, Bodies, Fields, Statements, VerifierFields},
 };
 
 /// Evidence that a joint opening authenticated every frontend equation on
@@ -55,17 +55,17 @@ impl<B, P: JointOpening<B>> JointOpening<B> for &P {
 pub(crate) struct JointVerifier<L: Fields> {
     param: JointParam<L>,
     transcript: Transcript,
-    selection: witness_selection::Verifier<L::Selection>,
+    selection: witness_selection::Verifier<L>,
 }
 impl<L: Fields> JointParam<L> {
     pub(crate) fn receive(
         self,
         root: &PolygeroCommitment,
-        responses: Responses<L>,
+        responses: L::Responses,
         mut transcript: Transcript,
     ) -> JointVerifier<L>
     where
-        L::Selection: witness_selection::VerifierFields,
+        L: VerifierFields,
     {
         let selection = witness_selection::Verifier::receive(
             &mut transcript.bound(&self.selection),
@@ -109,7 +109,7 @@ impl<L: Fields> JointVerifier<L> {
         proof: Unverified<'a, P>,
     ) -> Result<Authenticated<'a, P>, String>
     where
-        L::Selection: witness_selection::VerifierFields,
+        L: VerifierFields,
     {
         let selection = self.selection.finish(
             &mut self.transcript.bound(&self.param.selection),
