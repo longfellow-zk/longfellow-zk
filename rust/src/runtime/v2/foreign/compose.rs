@@ -17,7 +17,7 @@
 //! prime participant with mixed storage. `CircuitParticipant` also supports
 //! pure-foreign storage, but this driver always supplies the split mask R and
 //! so rejects it. Other shapes need a new driver.
-use super::adapter::AdapterMode;
+use super::{adapter::AdapterMode, reserved::ReservedSuffix};
 use crate::{
     core::proto::v2::Circuit,
     runtime::{
@@ -30,7 +30,7 @@ use crate::{
             transcript::{Header, SetupMessage, Statement},
             zk::{
                 joint::{CircuitParticipant, FrontendPart, JointParam, SelectedField},
-                storage::{Group, ReservedSuffix, Storage, StorageMap},
+                storage::{Group, Storage, StorageMap},
                 write_joint_geometry, CircuitInput,
             },
         },

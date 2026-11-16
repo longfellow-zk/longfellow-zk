@@ -8,6 +8,8 @@
 //!
 //! - `adapter`: the fixed product-tree fragment, the P-256 encoder and the `AdapterMode` trait.
 //! - `compose`: the driver for a binary host and one mixed split participant.
+//! - `reserved`: the reserved suffix of the host's inputs, which holds R and the adapter's pads,
+//!   and its typed words.
 //! - `word`: quotient words, their pads and the masked words in proofs.
 //!
 //! Its one driver is the mdoc application's, so builds without `mdoc` compile
@@ -17,6 +19,8 @@
 pub(crate) mod adapter;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod compose;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) mod reserved;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod word;
 

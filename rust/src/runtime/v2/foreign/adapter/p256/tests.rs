@@ -9,10 +9,13 @@ use crate::{
     runtime::{
         algebra::gf2_128::Gf2_128Field,
         v2::{
-            foreign::adapter::{fragment, TreeShape},
+            foreign::{
+                adapter::{fragment, TreeShape},
+                reserved::BitGroup,
+            },
             proto::tests::statement::Statement as Decoded,
             transcript::{Header, Opened, Statement, ZkStatement},
-            zk::storage::{BitGroup, Group},
+            zk::storage::Group,
         },
     },
 };

@@ -13,7 +13,10 @@ pub(crate) mod transcript;
 use integer::Int256;
 use transcript::Conversion;
 
-use super::{Leaf, TreeInstance, TreeShape};
+use super::{
+    super::reserved::{BitGroup, ReservedSuffix},
+    Leaf, TreeInstance, TreeShape,
+};
 #[cfg(test)]
 use crate::runtime::v2::transcript::cheat;
 #[cfg(any(test, feature = "prover"))]
@@ -31,10 +34,7 @@ use crate::{
         v2::{
             foreign::word::MaskedWord,
             transcript::{Bound, Header},
-            zk::{
-                storage::{BitGroup, ModularClaim, ReservedSuffix},
-                VirtualInputs,
-            },
+            zk::{storage::ModularClaim, VirtualInputs},
         },
     },
 };
@@ -326,7 +326,7 @@ impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
     fn write_pads(
         &self,
         pads: &Self::Pads,
-        reserved: &mut crate::runtime::v2::zk::storage::ReservedWitness<'_>,
+        reserved: &mut super::super::reserved::ReservedWitness<'_>,
     ) -> Result<(), String> {
         for (group, pad) in self.otp.iter().zip(pads) {
             reserved.set(group.group(), pad.bits())?;

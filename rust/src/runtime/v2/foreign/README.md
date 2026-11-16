@@ -25,10 +25,7 @@ Storage maps and the split of a frontend's claim belong to the zk layer (see [St
   - `StorageMap`: each value is `Native(cell)` or `Foreign(group)`, a
     prime-field value held as a bit group in the binary commitment.
   - `Run`: the map's layout parameters as the statement absorbs them.
-  - `BitGroup<N>` and `Group`: typed and untyped positions of bits in the
-    binary input array.
-  - `ReservedSuffix`: an allocator for the bits after the format circuit's
-    inputs.
+  - `Group`: an untyped position of bits in the binary input array.
   - `ModularClaim`: a linear claim over foreign bit groups, modulo the
     claim field's order.
 - `zk::split` handles a participant whose values are partly native and partly
@@ -45,6 +42,9 @@ Storage maps and the split of a frontend's claim belong to the zk layer (see [St
 
 This module discharges the modular claims:
 
+- `reserved`: `ReservedSuffix`, the allocator for the bits after the format
+  circuit's inputs (R and the adapter's pads), its prover-side
+  `ReservedWitness`, and `BitGroup<N>`, a typed position of an N-bit word.
 - `adapter`: the fixed product-tree fragment, the definitions of its virtual
   leaves, and the P-256 encoder (`p256`). `AdapterMode` packages an encoder
   with its rounds, pads and published message; `P256Mode` is the wrapping

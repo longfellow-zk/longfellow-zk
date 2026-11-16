@@ -1,22 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Storage map unit tests: typed bit groups, dense native cells and runs.
-use super::{ReservedSuffix, StorageMap};
-
-#[test]
-fn reserved_suffix_allocates_typed_groups_in_order() {
-    let mut suffix = ReservedSuffix::new(100);
-    let r = suffix.group(256).unwrap();
-    let o = [suffix.word::<10>().unwrap(), suffix.word::<10>().unwrap()];
-    assert_eq!((r.start, r.width), (100, 256));
-    assert_eq!(o[0].group().start, 356);
-    assert_eq!(o[1].group().start, 366);
-    assert_eq!(suffix.len(), 276);
-    let mut w = suffix.witness();
-    w.set(o[1].group(), (0..10).map(|j| j == 3)).unwrap();
-    assert!(w.set(o[1].group(), (0..9).map(|_| true)).is_err());
-    let bits = w.into_bits();
-    assert!(bits[266 + 3] && bits.iter().filter(|&&b| b).count() == 1);
-}
+use super::StorageMap;
 
 #[test]
 fn storage_map_numbers_native_cells_densely() {
@@ -103,26 +87,9 @@ fn storage_runs_are_maximal_and_canonical() {
 #[test]
 fn groups_reject_ends_that_overflow() {
     use super::Group;
-    // A group whose end wraps would pass a naive `end <= suffix.end` check.
+    // A group whose end wraps would pass a naive range check of its end.
     assert!(Group::new(usize::MAX - 2, 4).is_err());
     assert_eq!(Group::new(usize::MAX - 4, 4).unwrap().end(), usize::MAX);
-    // A valid group outside the suffix is still rejected by the witness.
-    let mut suffix = ReservedSuffix::new(100);
-    suffix.group(8).unwrap();
-    let mut w = suffix.witness();
-    let far = Group::new(usize::MAX - 4, 4).unwrap();
-    assert!(w.set(far, [true; 4]).is_err());
-}
-
-#[test]
-fn reserved_suffix_rejects_advancing_past_the_end_of_memory() {
-    let mut suffix = ReservedSuffix::new(usize::MAX - 1);
-    assert!(suffix.group(4).is_err());
-    assert!(suffix.word::<4>().is_err());
-    // A rejected allocation leaves the suffix unchanged.
-    assert_eq!(suffix.end(), usize::MAX - 1);
-    assert!(suffix.is_empty());
-    assert_eq!(suffix.group(1).unwrap().end(), usize::MAX);
 }
 
 impl super::Group {
@@ -131,14 +98,6 @@ impl super::Group {
     pub(crate) fn fields_for_test(&self) -> [usize; 2] {
         let Self { start, width } = *self;
         [start, width]
-    }
-}
-impl<const N: usize> super::BitGroup<N> {
-    /// Every field: the start; the width is `N`. The pattern is exhaustive,
-    /// so a new field does not compile until the statement tests cover it.
-    pub(crate) fn fields_for_test(&self) -> usize {
-        let Self { start } = *self;
-        start
     }
 }
 impl StorageMap {

@@ -10,6 +10,7 @@ use super::super::{
         },
         virtual_inputs,
     },
+    reserved::ReservedSuffix,
     word::{MaskedWord, Otp},
 };
 use crate::{
@@ -23,7 +24,7 @@ use crate::{
             transcript::Transcript,
             zk::{
                 split::transcript::send_mu,
-                storage::{Group, ModularClaim, ReservedSuffix},
+                storage::{Group, ModularClaim},
             },
         },
     },

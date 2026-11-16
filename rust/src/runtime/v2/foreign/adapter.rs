@@ -15,8 +15,11 @@
 //! encoder with its rounds, pads and message for the composition driver.
 pub(crate) mod p256;
 
+use super::reserved::ReservedSuffix;
 #[cfg(any(test, feature = "prover"))]
-use crate::runtime::{random::PrivateRandom, v2::zk::storage::ReservedWitness};
+use super::reserved::ReservedWitness;
+#[cfg(any(test, feature = "prover"))]
+use crate::runtime::random::PrivateRandom;
 use crate::{
     core::{
         algebra::{AlgebraicField, SerializableField},
@@ -27,10 +30,7 @@ use crate::{
         v2::{
             proto::composed::AdapterMessage,
             transcript::{Bound, Header},
-            zk::{
-                storage::{ModularClaim, ReservedSuffix},
-                VirtualInput, VirtualInputs,
-            },
+            zk::{storage::ModularClaim, VirtualInput, VirtualInputs},
         },
     },
 };

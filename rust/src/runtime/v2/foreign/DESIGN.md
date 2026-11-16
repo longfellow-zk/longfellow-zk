@@ -481,6 +481,16 @@ impl Opened<'_, ComposedStatement<'_, ..>> {
     pub(crate) fn geometry(&mut self) -> Bound<'_, ComposedGeometry>;   // for MdocProof::read
 }
 
+// runtime::v2::foreign::reserved: the bits after the host circuit's inputs (I6)
+pub(crate) struct ReservedSuffix { .. }                 // allocation order is witness order
+impl ReservedSuffix {
+    pub(crate) fn new(format_width: usize) -> Self;      // starts at the host circuit's ninput
+    pub(crate) fn group(&mut self, width: usize) -> Result<Group, String>;
+    pub(crate) fn word<const N: usize>(&mut self) -> Result<BitGroup<N>, String>;
+    pub(crate) fn witness(&self) -> ReservedWitness<'_>;  // prover; set(group, bits), into_bits()
+}
+pub(crate) struct BitGroup<const N: usize>(Group);      // a typed N-bit word
+
 // runtime::v2::foreign::adapter
 pub(crate) trait AdapterMode<F: SerializableField>: Sized {
     const MASK_BITS: usize;                 // width of R's group, mixed storage
