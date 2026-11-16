@@ -502,12 +502,14 @@ pub fn proof_sizes(bytes: &[u8], geometry: &MdocProofGeometry) -> Result<BodySiz
 
 // Internal: mdoc::runtime::v2
 pub(crate) type MaskedQuotient = MaskedWord<{ QUOTIENT_BITS }>;
-pub(crate) struct MdocProof<F1, F2> { pub(crate) body: ComposedProof<F1, F2, [MaskedQuotient; 2]> }
-impl MdocProof<F1, F2> {
-    pub(crate) fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ComposedGeometry>, f1: &F1, f2: &F2)
+type Body = ComposedProof<Gf2_128Field, P256Field, [MaskedQuotient; 2]>;
+pub(crate) struct MdocProof { pub(crate) body: Body }
+impl MdocProof {
+    pub(crate) fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ComposedGeometry>,
+        f1: &Gf2_128Field, f2: &P256Field)
         -> Result<Unverified<'a, Self>, String>;              // I6, I7, I8; verifier
-    pub(crate) fn write(&self, g: &ComposedGeometry, f1: &F1, f2: &F2, transcript: Transcript)
-        -> Result<EncodedProof, String>;                      // seals (transcript I10); prover
+    pub(crate) fn write(&self, g: &ComposedGeometry, f1: &Gf2_128Field, f2: &P256Field,
+        transcript: Transcript) -> Result<EncodedProof, String>; // seals (transcript I10); prover
 }
 pub(super) struct Request<'a> { /* spec, parsed issuer key, checked strings and attributes */ }
 impl<'a> Request<'a> {

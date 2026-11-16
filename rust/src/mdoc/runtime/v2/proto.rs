@@ -1,5 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! The mdoc envelope: version `MDA7`, a composed proof body, the final seal.
+#[cfg(feature = "testonly")]
+use crate::runtime::v2::proto::composed::BodySizes;
 use crate::runtime::v2::proto::composed::ComposedGeometry;
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::v2::transcript::EncodedProof;
@@ -10,17 +12,11 @@ use crate::runtime::v2::{
     proto::polygero::codec::checked_body,
     transcript::{Bound, Unverified, SEAL_BYTES},
 };
-#[cfg(feature = "testonly")]
-use crate::runtime::{
-    algebra::{gf2_128::Gf2_128Field, p256::P256Field},
-    v2::proto::composed::BodySizes,
-};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::{
-    core::algebra::SerializableField,
     mdoc::proto::adapter::QUOTIENT_BITS,
     runtime::{
-        algebra::RuntimeField,
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field},
         v2::{foreign::word::MaskedWord, proto::composed::ComposedProof},
     },
 };
@@ -31,15 +27,19 @@ pub(crate) type MaskedQuotient = MaskedWord<{ QUOTIENT_BITS }>;
 pub struct MdocProofGeometry {
     pub body: ComposedGeometry,
 }
+/// The composed body over the hash circuit's binary field and the signature
+/// circuit's P-256 field.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+type Body = ComposedProof<Gf2_128Field, P256Field, [MaskedQuotient; 2]>;
 /// The hash circuit hosts the signature circuit's shared values; the body's
 /// adapter message is the two masked quotients.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) struct MdocProof<F1: SerializableField, F2: SerializableField> {
-    pub(crate) body: ComposedProof<F1, F2, [MaskedQuotient; 2]>,
+pub(crate) struct MdocProof {
+    pub(crate) body: Body,
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-impl<F1: RuntimeField + SerializableField, F2: RuntimeField + SerializableField> MdocProof<F1, F2> {
+impl MdocProof {
     /// The one version magic, outermost (proto I1).
     pub(crate) const MAGIC: [u8; 4] = *b"MDA7";
     /// The complete proof: `MAGIC`, the body, sealed with `transcript`
@@ -49,8 +49,8 @@ impl<F1: RuntimeField + SerializableField, F2: RuntimeField + SerializableField>
     pub(crate) fn write(
         &self,
         g: &ComposedGeometry,
-        f1: &F1,
-        f2: &F2,
+        f1: &Gf2_128Field,
+        f2: &P256Field,
         transcript: Transcript,
     ) -> Result<EncodedProof, String> {
         let mut out = Vec::new();
@@ -65,19 +65,18 @@ impl<F1: RuntimeField + SerializableField, F2: RuntimeField + SerializableField>
     pub(crate) fn read<'a>(
         bytes: &'a [u8],
         g: &Bound<'_, ComposedGeometry>,
-        f1: &F1,
-        f2: &F2,
+        f1: &Gf2_128Field,
+        f2: &P256Field,
     ) -> Result<Unverified<'a, Self>, String> {
         let geometry = g.part();
-        let fixed = ComposedProof::<F1, F2, [MaskedQuotient; 2]>::fixed_len(geometry, f1, f2)
-            .ok_or("mdoc proof geometry")?;
+        let fixed = Body::fixed_len(geometry, f1, f2).ok_or("mdoc proof geometry")?;
         let (t, n) = (geometry.config().t, geometry.config().n);
         let encoded =
             checked_body(bytes, Self::MAGIC.len(), fixed, t, n).map_err(|e| e.to_string())?;
         if bytes[..4] != Self::MAGIC {
             return Err("mdoc adapter proof version".into());
         }
-        let body = ComposedProof::read(encoded, geometry, f1, f2)?;
+        let body = Body::read(encoded, geometry, f1, f2)?;
         let mut seal = &bytes[bytes.len() - SEAL_BYTES..];
         Unverified::decoded(Self { body }, bytes, &mut seal).map_err(|e| e.to_string())
     }

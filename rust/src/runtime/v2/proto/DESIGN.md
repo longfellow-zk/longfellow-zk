@@ -481,13 +481,14 @@ pub struct BodySizes { pub host: usize, pub split: usize, pub host_payload: usiz
     pub split_payload: usize, pub nonces: usize, pub frontier: usize, pub message: usize }
 
 // mdoc::runtime::v2 envelope, crate-private
-pub(crate) struct MdocProof<F1, F2> { pub(crate) body: ComposedProof<F1, F2, [MaskedQuotient; 2]> }
-impl MdocProof<F1, F2> {
+type Body = ComposedProof<Gf2_128Field, P256Field, [MaskedQuotient; 2]>;
+pub(crate) struct MdocProof { pub(crate) body: Body }
+impl MdocProof {
     pub(crate) const MAGIC: [u8; 4] = *b"MDA7";
-    pub(crate) fn write(&self, g: &ComposedGeometry, f1: &F1, f2: &F2, transcript: Transcript)
-        -> Result<EncodedProof, String>;             // the mdoc prover only
-    pub(crate) fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ComposedGeometry>, f1: &F1, f2: &F2)
-        -> Result<Unverified<'a, Self>, String>;
+    pub(crate) fn write(&self, g: &ComposedGeometry, f1: &Gf2_128Field, f2: &P256Field,
+        transcript: Transcript) -> Result<EncodedProof, String>; // the mdoc prover only
+    pub(crate) fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ComposedGeometry>,
+        f1: &Gf2_128Field, f2: &P256Field) -> Result<Unverified<'a, Self>, String>;
 }
 ```
 
