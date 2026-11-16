@@ -42,6 +42,11 @@ fn bytes<R: BufRead>(input: &mut R, n: usize) -> Result<Vec<u8>, String> {
     }
     Ok(out)
 }
+/// The metadata charge of each entry against `MAX_METADATA_BYTES`, for its
+/// directory record and its final `ArchiveEntry`: twice the in-memory size of
+/// an entry on 64-bit targets, which no target exceeds (`archive` tests). It
+/// is fixed, so an archive is accepted or rejected alike on every target.
+const ENTRY_METADATA_BYTES: usize = 160;
 fn text<R: BufRead>(input: &mut R, total: &mut usize) -> Result<String, String> {
     let n = count(input, MAX_METADATA_BYTES, "metadata length")?;
     *total = total
@@ -82,7 +87,7 @@ pub fn from_stream<R: BufRead>(input: &mut R) -> Result<CircuitArchive, String> 
     let n = count(input, MAX_ARCHIVE_ENTRIES, "entry count")?;
     // Conservatively include both the entry directory and final entries.
     metadata_bytes = n
-        .checked_mul(2 * std::mem::size_of::<ArchiveEntry>())
+        .checked_mul(ENTRY_METADATA_BYTES)
         .and_then(|size| size.checked_add(metadata_bytes))
         .filter(|&size| size <= MAX_METADATA_BYTES)
         .ok_or("V2 archive excessive metadata")?;

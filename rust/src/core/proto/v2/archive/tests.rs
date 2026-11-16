@@ -89,3 +89,35 @@ fn truncated_declared_payloads_do_not_require_the_declared_memory() {
     let mut tiny = std::io::BufReader::with_capacity(1, data.as_slice());
     assert!(from_stream(&mut tiny).unwrap_err().contains("Incomplete"));
 }
+
+/// The fixed entry charge covers what the reader holds per entry on this
+/// target: a directory record and the final entry.
+#[test]
+fn entry_metadata_charge_covers_the_host_layout() {
+    use std::mem::size_of;
+    assert!(2 * size_of::<ArchiveEntry>() <= ENTRY_METADATA_BYTES);
+    assert!(
+        size_of::<(String, [u8; 32], usize)>() + size_of::<ArchiveEntry>() <= ENTRY_METADATA_BYTES
+    );
+}
+
+/// The metadata limit admits the same archives on every target: three
+/// one-byte names, a fixed charge per entry and the header strings.
+#[test]
+fn metadata_limit_does_not_depend_on_the_target() {
+    let archive = |description: usize| {
+        let mut builder = CircuitArchiveBuilder::new();
+        builder.circuit_version = Some(12);
+        builder.created_at = Some("".into());
+        builder.author = Some("".into());
+        builder.generator_tool = Some("".into());
+        builder.description = Some("x".repeat(description));
+        for (name, id) in [("a", 1), ("b", 2), ("c", 3)] {
+            builder.add_entry(name, [id; 32], vec![id]);
+        }
+        from_bytes(&builder.build().to_bytes())
+    };
+    let max = MAX_METADATA_BYTES - 3 * ENTRY_METADATA_BYTES - 3;
+    assert!(archive(max).is_ok());
+    assert!(archive(max + 1).unwrap_err().contains("metadata"));
+}

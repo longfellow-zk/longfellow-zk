@@ -81,7 +81,11 @@ is 16,777,216 for expanded terms and for stored coefficients/deltas/indices
 combined, so unused dictionary data remains bounded. A caller may lower the
 expanded-term ceiling.
 Container/file I/O also has a coarse 64 MiB ceiling; v2 archives contain at
-most three entries. The zstd window is bounded by the metadata limit.
+most three entries. The zstd window is bounded by the metadata limit. The
+LFA2 reader charges its four header strings, every entry name and a fixed
+160 bytes per entry (the entry directory and the final entry, their in-memory
+size on 64-bit targets) against the same 10 MiB metadata limit, so an archive
+loads or fails alike on every target.
 
 Structural validation and circuit-ID verification always run. The reader
 hashes the validated stored representation and rejects a mismatching ID.
