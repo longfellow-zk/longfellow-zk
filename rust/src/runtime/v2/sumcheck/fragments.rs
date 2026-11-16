@@ -308,6 +308,3 @@ pub(super) fn transition<F: RuntimeField + SerializableField>(
     blas::axpy(&mut m, alpha, &q, f);
     (m, linear)
 }
-
-#[cfg(test)]
-mod tests;

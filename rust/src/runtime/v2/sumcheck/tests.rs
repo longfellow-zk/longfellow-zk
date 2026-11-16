@@ -13,7 +13,9 @@
 // limitations under the License.
 
 mod dense;
+mod fragments;
 mod poly;
+mod prover;
 mod sumcheck;
 mod wiring;
 
@@ -21,5 +23,4 @@ mod circuit;
 mod explicit;
 
 pub(super) mod diagnostic;
-
 pub(super) mod lfc3_mutations;

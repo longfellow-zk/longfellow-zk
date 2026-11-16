@@ -1,12 +1,12 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use super::*;
+use super::super::fragments::*;
 use crate::{
     core::{
-        algebra::RegisteredField,
-        proto::v2::{Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
+        algebra::{RegisteredField, SerializableField},
+        proto::v2::{Circuit, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
     },
     runtime::{
-        algebra::{p256::P256Field, SupportsSampling},
+        algebra::{p256::P256Field, RuntimeField, SupportsSampling},
         random::{DeterministicRng, RandomEngine},
         v2::{
             proto::sumcheck::SumcheckProof,
@@ -514,7 +514,9 @@ fn compare_merged<F: RuntimeField + RegisteredField + SupportsSampling>(f: &F) {
             f,
         );
         assert_eq!(q, reference);
-        let transition = super::transition(&circuits, &a, &active, layout.nw, &point, &alpha, f);
+        let transition = super::super::fragments::transition(
+            &circuits, &a, &active, layout.nw, &point, &alpha, f,
+        );
         let expected = super::super::quad::weights_next_affine(
             &merged_splits[stage],
             &merged.raw.constants,

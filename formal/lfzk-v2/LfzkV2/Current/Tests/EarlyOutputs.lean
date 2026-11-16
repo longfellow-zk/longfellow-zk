@@ -1,7 +1,7 @@
 import LfzkV2.Linear.Constraints
 
 /-! The scalar counterexample exercised by the Rust tests in
-`rust/src/runtime/v2/sumcheck/fragments/tests.rs`. All committed pads are zero. The
+`rust/src/runtime/v2/sumcheck/tests/fragments.rs`. All committed pads are zero. The
 future output coefficient is `gamma`; if known early, it can be included in
 the first masked claim. Both terminal equations and the final input equation
 then pass for every later scale and combine challenge, despite input `1`.
