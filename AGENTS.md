@@ -176,7 +176,9 @@ profiles an application chose (for example in `mdoc::proto`).
   the formal sources cite, run from `formal/` `lake build` and
   `lake build SecurityAudit`; from `rust/`
   `cargo run --release -p longfellow-zk-tools --bin zk_tool -- certify-hahn --formal ../formal`
-  and `... -- check-profiles --protocol polygero --check-lean ../formal`; and
+  and `... -- check-profiles --protocol polygero --check-lean ../formal`
+  (both `lake build` the certificate modules they import and check the
+  generated numeric files against `lake env`); and
   `formal/scripts/check_mdoc_round_shapes.rs` and the formal source audit
   `formal/scripts/audit.rs` (both built with `rustc --edition 2024 -O`);
   `precommit --formal` runs them all. Lean comments that name Rust files must
@@ -240,5 +242,5 @@ It prints one line per step and stops at the first failing step
 8. The code outside `rust/` that builds against the crate (see "Workflow"):
    the `formal/lfzk-v1/scripts` inspectors and `check_mdoc_round_shapes`.
 9. With `--formal`, the formal checks of "Formal development": `lake build`,
-   `lake build SecurityAudit`, `formal/scripts/audit.rs`, `certify-hahn` with
-   a fresh cache, and `check-profiles`.
+   `lake build SecurityAudit`, `formal/scripts/audit.rs`, `certify-hahn`, and
+   `check-profiles`.

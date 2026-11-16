@@ -694,12 +694,13 @@ The development provider takes it from `mdoc::v2::MDOC_JOINT_PROFILE`.
 The exact checker checks its shared two-field parent,
 opening and fingerprint charges separately from the universal tuning profiles.
 `certify-hahn` checks the three mdoc Hahn bounds and binds the manifest's
-cutoffs and list caps to `MdocJointProfile.profile`. It checks every staged
-module in dependency order, using two workers by default, two Lean threads,
-a 4,096 MiB limit and a 60-second deadline per module. Source-identical cache
-reuse also requires reusable staged dependencies.
+cutoffs and list caps to `MdocJointProfile.profile`. The certificate modules
+are targets of the formal project: `certify-hahn` and `check-profiles
+--check-lean` run `lake build` on them, which checks only what changed, and
+then check their generated numeric files against `lake env`, with two Lean
+threads, a 4,096 MiB limit and a 60-second deadline per file.
 
-After certification, select that profile for the Lean cross-check with
+Select that profile for the Lean cross-check with
 `check-profiles --protocol polygero --check-lean ../formal --profile 349,12,2443,84`.
 
 Parameter certificates establish mathematical bounds under their stated

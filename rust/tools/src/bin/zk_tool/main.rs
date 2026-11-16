@@ -13,7 +13,6 @@
 // limitations under the License.
 
 //! Offline exact audits, Lean certification, and specification generation.
-mod cache;
 mod catalog;
 mod cli;
 mod exact;
@@ -26,11 +25,11 @@ fn run() -> Result<()> {
     let (command, args) = Args::parse()?;
     match command.as_str() {
         "help" => {
-            println!("zk_tool commands:\n  check-profiles --protocol polygero [--check-lean PROJECT] [--hahn-cache CACHE] [--profile k,s,n,t]\n  certify-hahn --formal PROJECT [--cache CACHE] [--jobs N] [--reuse-checked-cache MODULES]\n  tune-polygero --witnesses N --field-bytes B [--rate 4|7] [--max-n N]\n  generate-v2-specs (requires compiler,mdoc features)");
+            println!("zk_tool commands:\n  check-profiles --protocol polygero [--check-lean PROJECT] [--profile k,s,n,t]\n  certify-hahn --formal PROJECT\n  tune-polygero --witnesses N --field-bytes B [--rate 4|7] [--max-n N]\n  generate-v2-specs (requires compiler,mdoc features)");
             Ok(())
         }
         "check-profiles" => {
-            args.validate(&["--protocol", "--check-lean", "--hahn-cache", "--profile"])?;
+            args.validate(&["--protocol", "--check-lean", "--profile"])?;
             let protocol =
                 profiles::Protocol::parse(args.one("--protocol")?.ok_or("missing --protocol")?)?;
             let checked = profiles::audit(protocol)?;
@@ -46,7 +45,7 @@ fn run() -> Result<()> {
             Ok(())
         }
         "certify-hahn" => {
-            args.validate(&["--formal", "--cache", "--jobs", "--reuse-checked-cache"])?;
+            args.validate(&["--formal"])?;
             lean::certify(&args)
         }
         "tune-polygero" => {

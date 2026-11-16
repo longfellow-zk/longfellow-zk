@@ -13,29 +13,66 @@
 // limitations under the License.
 
 //! Reproducible Lean checks for generic packing bounds and the v2 verifier.
+//!
+//! The certificate modules are ordinary targets of the formal project: `lake
+//! build` checks them, and the generated numeric files import them through
+//! `lake env`.
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::Command,
     time::{Duration, Instant},
 };
 
 use longfellow_zk::{mdoc::v2::MDOC_JOINT_PROFILE, runtime::v2::proto::polygero::PolygeroConfig};
-use serde_json::json;
 
 use crate::{
-    cache,
     exact::choose,
     profiles::{self, Audit, Protocol},
-    require, root, Args, Result,
+    require, Args, Result,
 };
 
+/// The lake targets the numeric checks import: the universal Hahn
+/// certificates, the Polygero bridge and mdoc joint profile, and the rate-7
+/// certificate behind the joint profile.
+const CERTIFICATE_TARGETS: &[&str] = &[
+    "RuntimeHahn",
+    "RustPolygeroProfiles",
+    "+LfzkV2.Current.ParameterBounds",
+    "+LfzkV2.Current.CertifiedProfile",
+    "+LfzkV2.Current.Parameters.Rate7",
+    "+LfzkV2.Current.Parameters.Rate7.Active",
+    "+LfzkV2.Current.Parameters.Rate7.Binary",
+    "+LfzkV2.Current.Parameters.Rate7.Prime",
+];
+
 type Environment = BTreeMap<String, String>;
-fn library_environment(project: &Path) -> Result<Environment> {
-    let toolchain = fs::read_to_string(project.join("lean-toolchain"))?
+
+/// The project's toolchain, pinned for every `lake` and `lean` this tool runs.
+fn toolchain(project: &Path) -> Result<String> {
+    Ok(fs::read_to_string(project.join("lean-toolchain"))?
         .trim()
-        .to_owned();
+        .to_owned())
+}
+
+/// Build the certificate targets with `lake build`; Lean checks each module
+/// with the project's options, and up-to-date modules are not rebuilt.
+fn build_certificates(project: &Path) -> Result<()> {
+    let status = Command::new("lake")
+        .arg("-d")
+        .arg(project)
+        .arg("build")
+        .args(CERTIFICATE_TARGETS)
+        .env("ELAN_TOOLCHAIN", toolchain(project)?)
+        .status()?;
+    require(status.success(), "lake build of the certificates failed")
+}
+
+/// The `lake env` search path of the project, so that a generated file
+/// imports the modules `lake build` checked.
+fn library_environment(project: &Path) -> Result<Environment> {
+    let toolchain = toolchain(project)?;
     let out = Command::new("lake")
         .args(["-d"])
         .arg(project)
@@ -63,19 +100,7 @@ fn library_environment(project: &Path) -> Result<Environment> {
         ),
     ]))
 }
-fn prepend(env: &mut Environment, paths: impl IntoIterator<Item = PathBuf>) -> Result<()> {
-    let mut all: Vec<_> = paths.into_iter().collect();
-    all.extend(std::env::split_paths(
-        env.get("LEAN_PATH").ok_or("missing LEAN_PATH")?,
-    ));
-    env.insert(
-        "LEAN_PATH".into(),
-        std::env::join_paths(all)?
-            .into_string()
-            .map_err(|_| "non-UTF8 Lean path")?,
-    );
-    Ok(())
-}
+
 fn run_lean(mut command: Command, description: &str) -> Result<std::process::ExitStatus> {
     let mut process = command.spawn()?;
     let started = Instant::now();
@@ -92,15 +117,9 @@ fn run_lean(mut command: Command, description: &str) -> Result<std::process::Exi
     }
 }
 
-fn compile(cache: &Path, relative: &Path, env: &Environment) -> Result<()> {
-    let source = cache.join("modules").join(relative);
-    let target = source.with_extension("olean");
-    if fs::symlink_metadata(&target).is_ok_and(|m| m.file_type().is_symlink()) {
-        fs::remove_file(&target)?;
-    }
-    let log = cache.join("logs").join(relative).with_extension("log");
-    fs::create_dir_all(log.parent().unwrap())?;
-    let stream = fs::File::create(&log)?;
+/// Elaborate a generated file against the project's environment, with the
+/// options the certificate libraries use.
+fn check_generated(file: &Path, env: &Environment, description: &str) -> Result<()> {
     let mut command = Command::new("lean");
     command
         .args([
@@ -109,220 +128,53 @@ fn compile(cache: &Path, relative: &Path, env: &Environment) -> Result<()> {
             "-DwarningAsError=true",
             "-DautoImplicit=false",
             "-DrelaxedAutoImplicit=false",
-            "-R",
         ])
-        .arg(cache.join("modules"))
-        .arg("-o")
-        .arg(target)
-        .arg(&source)
-        .envs(env)
-        .stdout(Stdio::from(stream.try_clone()?))
-        .stderr(Stdio::from(stream));
-    let status = run_lean(
-        command,
-        &format!("{}; inspect {}", relative.display(), log.display()),
-    )?;
-    require(
-        status.success(),
-        format!(
-            "Lean rejected {}; inspect {}",
-            relative.display(),
-            log.display()
-        ),
-    )?;
-    println!("Checked {}", relative.display());
-    Ok(())
+        .arg(file)
+        .envs(env);
+    let status = run_lean(command, description)?;
+    require(status.success(), format!("Lean rejected {description}"))
 }
 
-/// Invalidate completed status before staging; retain prior hashes for safe leaf reuse.
-fn stage_modules(
-    cache: &Path,
-    files: &BTreeMap<PathBuf, PathBuf>,
-    reuse: Option<&Path>,
-) -> Result<(BTreeMap<String, String>, BTreeSet<String>)> {
-    let state_path = cache.join("build-state.json");
-    let previous = if state_path.is_file() {
-        cache::read_json(&state_path)?
-    } else {
-        json!({})
-    };
-    // Preserve only previously checked hashes for expensive leaf reuse after a failed rebuild.
-    let previous_hashes = previous["source_sha256"]
-        .as_object()
-        .cloned()
-        .unwrap_or_default();
-    cache::write_json(
-        &state_path,
-        &json!({"status":"building","source_sha256":previous_hashes}),
-    )?;
-    let modules = cache.join("modules");
-    let mut hashes = BTreeMap::new();
-    let mut ready = BTreeSet::new();
-    for (relative, source) in files {
-        let key = relative.to_string_lossy().into_owned();
-        let candidate = reuse.map(|p| p.join(relative));
-        let (hash, checked) = cache::stage(
-            source,
-            &modules.join(relative),
-            &modules,
-            previous_hashes.get(&key).and_then(|v| v.as_str()),
-            candidate.as_deref(),
-        )?;
-        hashes.insert(key.clone(), hash);
-        if checked {
-            ready.insert(key);
-        }
-    }
-    Ok((hashes, ready))
+/// A directory of generated Lean files, removed when dropped.
+struct TempDir {
+    path: PathBuf,
 }
-
-/// Keep all generated modules in a private overlay of the formal library.
-fn environment(cache: &Path, formal: &Path) -> Result<Environment> {
-    let mut env = library_environment(formal)?;
-    // Production mdoc certificates share the LfzkV2 module root with their
-    // application dependencies. Complete the private overlay before compiling
-    // staged leaves, without overwriting their owned source or object files.
-    for dependency in std::env::split_paths(env.get("LEAN_PATH").ok_or("missing LEAN_PATH")?) {
-        if dependency.is_dir() {
-            cache::overlay(&dependency, &cache.join("modules"))?;
+impl TempDir {
+    /// Create `<temp>/<prefix>-<pid>-<n>` for the first `n` whose directory
+    /// does not exist yet. `create_dir` is atomic, so two directories alive at
+    /// once, in this process or another, never share a path.
+    fn new(prefix: &str) -> Result<Self> {
+        for attempt in 0..100 {
+            let path =
+                std::env::temp_dir().join(format!("{prefix}-{}-{attempt}", std::process::id()));
+            match fs::create_dir(&path) {
+                Ok(()) => return Ok(Self { path }),
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(e) => return Err(e.into()),
+            }
         }
+        Err("could not create a private temporary directory".into())
     }
-    prepend(&mut env, [cache.join("modules")])?;
-    cache::write_json(&cache.join("environment.json"), &json!(env))?;
-    Ok(env)
 }
-
-/// Compile every staged module in dependency order. Reuse is closed under
-/// staged dependencies, so a source change cannot retain a stale dependent.
-fn compile_inventory(
-    cache: &Path,
-    env: &Environment,
-    files: &BTreeMap<PathBuf, PathBuf>,
-    ready: &BTreeSet<String>,
-    jobs: usize,
-) -> Result<()> {
-    let names: BTreeMap<_, _> = files
-        .keys()
-        .map(|p| {
-            (
-                p.with_extension("").to_string_lossy().replace('/', "."),
-                p.clone(),
-            )
-        })
-        .collect();
-    let mut dependencies = BTreeMap::new();
-    for (relative, source) in files {
-        let text = fs::read_to_string(source)?;
-        // All staged files put their imports before the first declaration.
-        // Strip nested block and line comments before finding those imports.
-        let mut clean = String::new();
-        let mut bytes = text.bytes().peekable();
-        let mut depth = 0usize;
-        while let Some(byte) = bytes.next() {
-            if byte == b'/' && bytes.peek() == Some(&b'-') {
-                bytes.next();
-                depth += 1;
-            } else if depth > 0 && byte == b'-' && bytes.peek() == Some(&b'/') {
-                bytes.next();
-                depth -= 1;
-            } else if depth == 0 && byte == b'-' && bytes.peek() == Some(&b'-') {
-                for next in bytes.by_ref() {
-                    if next == b'\n' {
-                        break;
-                    }
-                }
-                clean.push('\n');
-            } else if depth == 0 || byte == b'\n' {
-                clean.push(char::from(byte));
-            }
-        }
-        let deps: BTreeSet<_> = clean
-            .lines()
-            .filter_map(|line| line.trim().strip_prefix("import "))
-            .flat_map(str::split_whitespace)
-            .filter_map(|name| names.get(name).cloned())
-            .collect();
-        dependencies.insert(relative.clone(), deps);
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.path);
     }
-    let mut checked = BTreeSet::new();
-    let mut reused = BTreeSet::new();
-    while checked.len() < files.len() {
-        let next: Vec<_> = files
-            .keys()
-            .filter(|path| {
-                !checked.contains(*path)
-                    && dependencies[*path].iter().all(|dep| checked.contains(dep))
-            })
-            .take(jobs)
-            .cloned()
-            .collect();
-        require(!next.is_empty(), "cyclic staged certificate imports")?;
-        let mut pending = Vec::new();
-        for relative in next {
-            if ready.contains(relative.to_str().ok_or("non-UTF8 module path")?)
-                && dependencies[&relative]
-                    .iter()
-                    .all(|dep| reused.contains(dep))
-            {
-                reused.insert(relative.clone());
-                checked.insert(relative);
-            } else {
-                pending.push(relative);
-            }
-        }
-        std::thread::scope(|scope| -> Result<()> {
-            let workers: Vec<_> = pending
-                .iter()
-                .map(|path| scope.spawn(move || compile(cache, path, env)))
-                .collect();
-            for worker in workers {
-                worker
-                    .join()
-                    .map_err(|_| "Lean certificate worker panicked")??;
-            }
-            Ok(())
-        })?;
-        checked.extend(pending);
-    }
-    require(
-        files.keys().all(|relative| {
-            cache
-                .join("modules")
-                .join(relative)
-                .with_extension("olean")
-                .is_file()
-        }),
-        "certificate build left a staged module without an object",
-    )?;
-    println!(
-        "Checked {} certificate modules ({} source-identical cached modules reused).",
-        files.len(),
-        reused.len()
-    );
-    Ok(())
 }
 
 pub(crate) fn certify(args: &Args) -> Result<()> {
     let formal = args.required_path("--formal")?.canonicalize()?;
-    let requested = args
-        .path("--cache")?
-        .unwrap_or_else(|| PathBuf::from(cache::DEFAULT_CACHE));
-    let cache = cache::private_path(&requested)?;
-    fs::create_dir_all(&cache)?;
-    let jobs: usize = args.one("--jobs")?.unwrap_or("2").parse()?;
-    require(jobs > 0, "jobs must be positive")?;
     for row in profiles::manifest()? {
         profiles::check_hahn(&row)?;
     }
     profiles::check_joint(&profiles::joint_manifest()?)?;
-    let files = cache::sources(&formal)?;
-    let reuse = args.path("--reuse-checked-cache")?;
-    let (hashes, ready) = stage_modules(&cache, &files, reuse.as_deref())?;
-    let gero = environment(&cache, &formal)?;
-    compile_inventory(&cache, &gero, &files, &ready, jobs)?;
+    build_certificates(&formal)?;
+    let env = library_environment(&formal)?;
     let production = profiles::audit(Protocol::Polygero)?;
+    let temp = TempDir::new("mdoc-joint-catalog")?;
+    let catalog = temp.path.join("MdocJointCatalog.lean");
     fs::write(
-        cache.join("modules/MdocJointCatalog.lean"),
+        &catalog,
         numeric_source(
             Protocol::Polygero,
             &production,
@@ -330,13 +182,8 @@ pub(crate) fn certify(args: &Args) -> Result<()> {
             &formal,
         )?,
     )?;
-    compile(&cache, Path::new("MdocJointCatalog.lean"), &gero)?;
-    let status = "Lean checked: universal packing bounds, production joint mdoc certificate, concrete FS bridge and axiom audits";
-    cache::write_json(
-        &cache.join("build-state.json"),
-        &json!({"status":status,"source_sha256":hashes,"manifest_sha256":cache::digest(&root().join("src/bin/zk_tool/parameters/hahn/profiles.json"))?}),
-    )?;
-    println!("{status}");
+    check_generated(&catalog, &env, "MdocJointCatalog.lean")?;
+    println!("Lean checked: universal packing bounds, production joint mdoc certificate, concrete FS bridge and axiom audits");
     Ok(())
 }
 
@@ -462,12 +309,10 @@ pub(crate) fn check_profiles(
         !selected.is_empty() && selected.iter().all(|p| audit.profiles.contains(p)),
         "selected profile is not in catalog",
     )?;
-    let cache = args
-        .path("--hahn-cache")?
-        .unwrap_or_else(|| PathBuf::from(cache::DEFAULT_CACHE));
     let project_root = project.canonicalize()?;
-    let env = cache::environment(&cache, protocol, &project_root)?;
-    let temp = cache::TempDir::new("rust-profiles")?;
+    build_certificates(&project_root)?;
+    let env = library_environment(&project_root)?;
+    let temp = TempDir::new("rust-profiles")?;
     // Importing the certificate environment takes about 2.6 GiB, and each
     // profile adds about 25 MiB, so the full catalog in one file sat at the
     // 4 GiB limit and failed intermittently. Bounded chunks keep every Lean
@@ -478,13 +323,7 @@ pub(crate) fn check_profiles(
             &proof,
             numeric_source(protocol, audit, chunk, &project_root)?,
         )?;
-        let mut command = Command::new("lean");
-        command
-            .args(["-j2", "-M4096", "-DwarningAsError=true"])
-            .arg(proof)
-            .envs(env.clone());
-        let status = run_lean(command, "parameter records")?;
-        require(status.success(), "Lean rejected numerical profiles")?;
+        check_generated(&proof, &env, "the numerical profiles")?;
     }
     println!(
         "{} parameter records checked by Lean; foundational axiom audit passed.",

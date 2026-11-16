@@ -59,11 +59,7 @@ pub(crate) fn all() -> Vec<Step> {
         formal("lake", "lake build", lake),
         formal("security-audit", "lake build SecurityAudit", security_audit),
         formal("source-audit", "formal/scripts/audit.rs", source_audit),
-        formal(
-            "certify-hahn",
-            "zk_tool certify-hahn, fresh cache",
-            certify_hahn,
-        ),
+        formal("certify-hahn", "zk_tool certify-hahn", certify_hahn),
         formal("check-profiles", "zk_tool check-profiles", check_profiles),
     ]
 }
@@ -738,15 +734,10 @@ fn security_audit(cx: &Context, log: &mut Log) -> Outcome {
     lake_build(cx, log, Some("SecurityAudit"))
 }
 
-/// The Hahn certificate cache of this run, which `certify-hahn` refills.
-fn hahn_cache(cx: &Context) -> PathBuf {
-    cx.work.join("hahn-cache")
-}
-
 /// `zk_tool` with `args`, run from `rust/`.
-fn zk_tool(cx: &Context, log: &mut Log, args: &str, cache: &Path) -> Outcome {
+fn zk_tool(cx: &Context, log: &mut Log, args: &str) -> Outcome {
     let mut command = cx.cargo(&format!("run -q --release -p {TOOLS} --bin zk_tool --"));
-    command.args(args.split_whitespace()).arg(cache);
+    command.args(args.split_whitespace());
     let run = log.run(&mut command);
     if run.success {
         Outcome::Passed(tail(&run.output, 1))
@@ -756,23 +747,13 @@ fn zk_tool(cx: &Context, log: &mut Log, args: &str, cache: &Path) -> Outcome {
 }
 
 fn certify_hahn(cx: &Context, log: &mut Log) -> Outcome {
-    let cache = hahn_cache(cx);
-    let _ = fs::remove_dir_all(&cache);
-    zk_tool(cx, log, "certify-hahn --formal ../formal --cache", &cache)
+    zk_tool(cx, log, "certify-hahn --formal ../formal")
 }
 
 fn check_profiles(cx: &Context, log: &mut Log) -> Outcome {
-    let cache = hahn_cache(cx);
-    if !cache.is_dir() {
-        return Outcome::Failed(
-            "no Hahn cache; run certify-hahn first".into(),
-            String::new(),
-        );
-    }
     zk_tool(
         cx,
         log,
-        "check-profiles --protocol polygero --check-lean ../formal --hahn-cache",
-        &cache,
+        "check-profiles --protocol polygero --check-lean ../formal",
     )
 }
