@@ -1,6 +1,8 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Explicit arithmetic over the eleven private per-layer streams.
-use super::split::{ConstantCoordinates, LinearCoordinates, QuadraticCoordinates, SplitLayer};
+use super::classes::{
+    ClassifiedLayer, ConstantCoordinates, LinearCoordinates, QuadraticCoordinates,
+};
 use crate::{
     core::{
         algebra::SerializableField,
@@ -12,7 +14,7 @@ use crate::{
 /// Bind quadratic g,l coordinates. Linear terms have no r coordinate and enter
 /// the public L(u) correction separately.
 pub(super) fn bind_l_into<const W: usize, F: RuntimeField<W> + SerializableField>(
-    layer: &SplitLayer<'_>,
+    layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     assertions: &[F::E],
@@ -59,7 +61,7 @@ pub(super) fn bind_l_into<const W: usize, F: RuntimeField<W> + SerializableField
 /// rho directly, without an output weight or a witness multiplication.
 #[cfg(any(test, feature = "prover"))]
 pub(super) fn bind_r_into<const W: usize, F: RuntimeField<W> + SerializableField>(
-    layer: &SplitLayer<'_>,
+    layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     assertions: &[F::E],
@@ -102,7 +104,7 @@ pub(super) fn bind_r_into<const W: usize, F: RuntimeField<W> + SerializableField
 
 #[cfg(any(test, feature = "prover"))]
 fn add_linear<const W: usize, F: RuntimeField<W> + SerializableField>(
-    layer: &SplitLayer<'_>,
+    layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     assertions: &[F::E],
@@ -137,7 +139,7 @@ fn add_linear<const W: usize, F: RuntimeField<W> + SerializableField>(
 /// The caller sums fragment corrections and subtracts alpha*L(u) from the
 /// ordinary two-factor transition. Purely linear fragments use this same path.
 pub(super) fn affine_linear<const W: usize, F: RuntimeField<W> + SerializableField>(
-    layer: &SplitLayer<'_>,
+    layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     assertions: &[F::E],
@@ -173,7 +175,7 @@ pub(super) fn affine_linear<const W: usize, F: RuntimeField<W> + SerializableFie
 }
 
 pub(super) fn affine_constant<const W: usize, F: RuntimeField<W> + SerializableField>(
-    layer: &SplitLayer<'_>,
+    layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     f: &F,

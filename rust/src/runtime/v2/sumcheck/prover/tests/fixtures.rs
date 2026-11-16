@@ -19,8 +19,8 @@ pub(crate) fn prove_core<
     let circuits = [circuit];
     let schedule = Schedule::new(&circuits, f).unwrap();
     let entering = schedule.draw_top(&circuits, transcript, f);
-    let layers = schedule.split_layers(&circuits);
-    prove_split(
+    let layers = schedule.classify_layers(&circuits);
+    prove_layers(
         &circuits,
         layers,
         w_layers,

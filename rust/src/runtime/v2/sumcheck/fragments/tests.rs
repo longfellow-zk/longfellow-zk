@@ -11,8 +11,8 @@ use crate::{
         v2::{
             proto::sumcheck::SumcheckProof,
             sumcheck::{
-                derive_constraints_for_circuits as derive, prove_circuits as prove,
-                sample_pads_for_test, split::split_layers,
+                classes::classify_layers, derive_constraints_for_circuits as derive,
+                prove_circuits as prove, sample_pads_for_test,
             },
             transcript::Transcript,
         },
@@ -24,7 +24,7 @@ fn draw_and_enter<const W: usize, F: RuntimeField<W> + RegisteredField + Support
     schedule: &Schedule,
     stage: usize,
     entering: &mut Vec<F::E>,
-    active: &mut [SplitFragment<'_, F::E>],
+    active: &mut [ActiveFragment<'_, F::E>],
     t: &mut Transcript,
     f: &F,
 ) {
@@ -405,8 +405,8 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + RegisteredField + Support
     }
     .build();
     let merged = Circuit::from_raw(f, raw);
-    let splits: Vec<_> = circuits.iter().map(|c| split_layers(c, f)).collect();
-    let merged_splits = split_layers(&merged, f);
+    let splits: Vec<_> = circuits.iter().map(|c| classify_layers(c, f)).collect();
+    let merged_splits = classify_layers(&merged, f);
     let mut rng = DeterministicRng::new(913);
     let x = rng.elt_field(f);
     let y = rng.elt_field(f);
@@ -415,7 +415,8 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + RegisteredField + Support
         super::super::eval::eval_circuits(inputs.clone(), &circuits, &splits, &schedule, f)
             .unwrap();
     let expected =
-        super::super::eval::eval_split_circuit(inputs.clone(), &merged, &merged_splits, f).unwrap();
+        super::super::eval::eval_classified_circuit(inputs.clone(), &merged, &merged_splits, f)
+            .unwrap();
     assert_eq!(actual, expected);
     let (pads, _) = sample_pads_for_test(&schedule.geometry, &mut rng, f);
     let mut fragmented_t = Transcript::for_test(b"same-global-circuit");
@@ -440,7 +441,7 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + RegisteredField + Support
         let mut active = Vec::new();
         let mut q = vec![f.zero(); layout.nw];
         for s in &layout.fragments {
-            active.push(SplitFragment::new(s, schedule.split(&circuits, s)));
+            active.push(ActiveFragment::new(s, schedule.classify(&circuits, s)));
         }
         let mut fragmented_t = Transcript::for_test(b"same-layer-assertions");
         let mut merged_t = Transcript::for_test(b"same-layer-assertions");
@@ -459,9 +460,9 @@ fn compare_merged<const W: usize, F: RuntimeField<W> + RegisteredField + Support
         let merged_list = [&merged];
         let merged_schedule = Schedule::new(&merged_list, f).unwrap();
         let merged_fragment = &merged_schedule.layers[stage].fragments[0];
-        let mut merged_active = vec![SplitFragment::new(
+        let mut merged_active = vec![ActiveFragment::new(
             merged_fragment,
-            merged_schedule.split(&merged_list, merged_fragment),
+            merged_schedule.classify(&merged_list, merged_fragment),
         )];
         let mut merged_entering = Vec::new();
         if stage > 0 {

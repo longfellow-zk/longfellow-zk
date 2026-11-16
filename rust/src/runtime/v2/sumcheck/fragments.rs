@@ -15,8 +15,8 @@
 use std::ops::Range;
 
 use super::{
+    classes::ClassifiedLayer,
     quad::{affine_constant, affine_linear, bind_l_into},
-    split::SplitLayer,
 };
 use crate::{
     core::{
@@ -84,26 +84,26 @@ impl Schedule {
     pub(super) fn assertion_counts(&self, fragment: &QuadFragment) -> [usize; 2] {
         self.assertions[fragment.circuit][fragment.layer]
     }
-    /// Split one fragment's layer with the schedule's classes and counts.
+    /// Classify one fragment's layer with the schedule's classes and counts.
     #[cfg(any(test, feature = "verifier"))]
-    pub(super) fn split<'a, F: SerializableField + 'a>(
+    pub(super) fn classify<'a, F: SerializableField + 'a>(
         &self,
         circuits: &'a [&'a Circuit<F>],
         fragment: &QuadFragment,
-    ) -> SplitLayer<'a> {
+    ) -> ClassifiedLayer<'a> {
         let (c, j) = (fragment.circuit, fragment.layer);
-        SplitLayer::with_classes(
+        ClassifiedLayer::with_classes(
             &circuits[c].raw.layers[j],
             &self.classes[c],
             self.assertions[c][j],
         )
     }
-    /// Split every layer of every circuit, in list order.
+    /// Classify every layer of every circuit, in list order.
     #[cfg(any(test, feature = "prover"))]
-    pub(super) fn split_layers<'a, F: SerializableField + 'a>(
+    pub(super) fn classify_layers<'a, F: SerializableField + 'a>(
         &self,
         circuits: &'a [&'a Circuit<F>],
-    ) -> Vec<Vec<SplitLayer<'a>>> {
+    ) -> Vec<Vec<ClassifiedLayer<'a>>> {
         circuits
             .iter()
             .enumerate()
@@ -113,7 +113,7 @@ impl Schedule {
                     .layers
                     .iter()
                     .zip(&self.assertions[c])
-                    .map(|(l, &n)| SplitLayer::with_classes(l, &self.classes[c], n))
+                    .map(|(l, &n)| ClassifiedLayer::with_classes(l, &self.classes[c], n))
                     .collect()
             })
             .collect()
@@ -224,15 +224,15 @@ pub(crate) fn circuit_geometry<F: SerializableField>(
     Ok(Schedule::layout(circuits)?.0)
 }
 
-/// The eleven-way split and assertion coefficients for one quad fragment.
+/// The eleven-way classification and assertion coefficients for one active quad fragment.
 /// Wire values and output weights are borrowed from the global layer arrays.
-pub(super) struct SplitFragment<'a, E> {
+pub(super) struct ActiveFragment<'a, E> {
     pub fragment: QuadFragment,
-    pub layer: SplitLayer<'a>,
+    pub layer: ClassifiedLayer<'a>,
     pub assertions: Vec<E>,
 }
-impl<'a, E> SplitFragment<'a, E> {
-    pub(super) fn new(fragment: &QuadFragment, layer: SplitLayer<'a>) -> Self {
+impl<'a, E> ActiveFragment<'a, E> {
+    pub(super) fn new(fragment: &QuadFragment, layer: ClassifiedLayer<'a>) -> Self {
         assert_eq!(layer.nw, fragment.input_range.len());
         Self {
             fragment: fragment.clone(),
@@ -245,7 +245,7 @@ impl<'a, E> SplitFragment<'a, E> {
 pub(super) fn constant<const W: usize, F: RuntimeField<W> + SerializableField>(
     circuits: &[&Circuit<F>],
     weights: &[F::E],
-    active: &[SplitFragment<'_, F::E>],
+    active: &[ActiveFragment<'_, F::E>],
     f: &F,
 ) -> F::E {
     let mut constant = f.zero();
@@ -270,7 +270,7 @@ pub(super) fn constant<const W: usize, F: RuntimeField<W> + SerializableField>(
 pub(super) fn transition<const W: usize, F: RuntimeField<W> + SerializableField>(
     circuits: &[&Circuit<F>],
     weights: &[F::E],
-    active: &[SplitFragment<'_, F::E>],
+    active: &[ActiveFragment<'_, F::E>],
     nw: usize,
     point: &[F::E],
     alpha: &F::E,

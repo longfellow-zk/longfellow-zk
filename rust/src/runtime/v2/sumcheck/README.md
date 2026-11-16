@@ -44,11 +44,11 @@ Zero-knowledge proving uses `runtime::v2::zk`; see its [README](../zk/README.md)
 
 LFC3 stores quadratic, linear, and constant terms in three streams, with an
 explicit coefficient table and no reserved One input. Each invocation classifies
-the coefficient table once. The private split uses four quadratic streams and
+the coefficient table once. The private classification (`classes`) uses four quadratic streams and
 four linear streams (general, one, minus one, and assertions), plus three constant
 streams. In characteristic two, minus one shares the one stream.
 
-The split preserves repeated segment runs and borrows their token sequences.
+The classification preserves repeated segment runs and borrows their token sequences.
 The prover builds it once for witness evaluation and reuses it for sumcheck,
 releasing each layer after proving it. The verifier constructs one layer at a time.
 Unit-coefficient arithmetic is confined to these eleven streams. See the
@@ -58,8 +58,8 @@ Unit-coefficient arithmetic is confined to these eleven streams. See the
 
 A `QuadFragment` identifies one supplied circuit's sparse terms at a layer,
 including its quadratic, linear and constant streams. Its ranges translate
-local gate indices into the global arrays. A `SplitFragment` adds the eleven-way
-split and sampled assertion coefficients. Neither owns a wire array.
+local gate indices into the global arrays. An `ActiveFragment` adds the eleven-way
+classification and sampled assertion coefficients. Neither owns a wire array.
 
 All circuits read one shared input array and share its public prefix. A circuit
 may declare fewer inputs than another: the array is as wide as the widest
@@ -300,7 +300,7 @@ uses that representation; v5-v7 verification uses the stored legacy circuits.
 The circuit synthesis and tampering suites use the native v2 compiler. Dedicated
 backend tests pin v1 circuit bytes and compare v1/v2 evaluation over binary and
 prime fields. Saved v1 proofs remain byte-for-byte fixtures. Runtime tests check
-split and reference execution, affine corrections, independent numerical and
+classified and reference execution, affine corrections, independent numerical and
 symbolic constraints, proof/transcript agreement, malformed encodings, arbitrary
 traversal, quad fragments versus physically merged circuits, shared inputs, unequal
 depths and widths, zero-round and zero-layer circuits, and sparse constraint lowering.

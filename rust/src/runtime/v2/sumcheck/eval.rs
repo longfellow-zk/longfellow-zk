@@ -1,5 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use super::split::{ConstantCoordinates, LinearCoordinates, QuadraticCoordinates, SplitLayer};
+use super::classes::{
+    ClassifiedLayer, ConstantCoordinates, LinearCoordinates, QuadraticCoordinates,
+};
 #[cfg(test)]
 use crate::runtime::v2::transcript::cheat;
 use crate::{
@@ -13,7 +15,7 @@ use crate::{
 /// Add one fragment's terms to its slice of the common layer output array.
 pub(super) fn eval_layer_into<const W: usize, F: RuntimeField<W> + SerializableField>(
     w: &[F::E],
-    layer: &SplitLayer<'_>,
+    layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     out: &mut [F::E],
     f: &F,
@@ -100,7 +102,7 @@ pub(super) fn eval_layer_into<const W: usize, F: RuntimeField<W> + SerializableF
 #[cfg(test)]
 pub(crate) use tests::fixtures::eval_circuit;
 #[cfg(test)]
-pub(super) use tests::fixtures::{eval_layer, eval_split_circuit};
+pub(super) use tests::fixtures::{eval_classified_circuit, eval_layer};
 
 /// Evaluate the quad fragments from common inputs toward circuit outputs.
 /// Each saved witness is one complete global layer. Completed circuits' zero
@@ -109,7 +111,7 @@ pub(super) use tests::fixtures::{eval_layer, eval_split_circuit};
 pub(super) fn eval_circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
     mut w: Vec<F::E>,
     circuits: &[&Circuit<F>],
-    layers: &[Vec<SplitLayer<'_>>],
+    layers: &[Vec<ClassifiedLayer<'_>>],
     schedule: &super::fragments::Schedule,
     f: &F,
 ) -> Result<Vec<Vec<F::E>>, String> {

@@ -7,14 +7,14 @@ pub(crate) fn eval_circuit<const W: usize, F: RuntimeField<W> + SerializableFiel
     circuit: &Circuit<F>,
     f: &F,
 ) -> Result<Vec<Vec<F::E>>, String> {
-    let layers = super::super::super::split::split_layers(circuit, f);
-    eval_split_circuit(w, circuit, &layers, f)
+    let layers = super::super::super::classes::classify_layers(circuit, f);
+    eval_classified_circuit(w, circuit, &layers, f)
 }
 
-pub(crate) fn eval_split_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(crate) fn eval_classified_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
     mut w: Vec<F::E>,
     circuit: &Circuit<F>,
-    layers: &[SplitLayer<'_>],
+    layers: &[ClassifiedLayer<'_>],
     f: &F,
 ) -> Result<Vec<Vec<F::E>>, String> {
     let mut saved = Vec::with_capacity(layers.len());
@@ -40,7 +40,7 @@ pub(crate) fn eval_split_circuit<const W: usize, F: RuntimeField<W> + Serializab
 }
 pub(crate) fn eval_layer<const W: usize, F: RuntimeField<W> + SerializableField>(
     w: &[F::E],
-    layer: &SplitLayer<'_>,
+    layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     noutput: usize,
     f: &F,

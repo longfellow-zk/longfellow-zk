@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::super::*;
 
-impl<T> SplitStream<T> {
+impl<T> ClassifiedStream<T> {
     pub(in super::super) fn num_terms<const N: usize>(&self, runs: &Runs<'_, N>) -> usize {
         if self.records.is_empty() {
             0
@@ -14,7 +14,7 @@ impl<T> SplitStream<T> {
     }
 }
 
-impl<'a> SplitLayer<'a> {
+impl<'a> ClassifiedLayer<'a> {
     // Compatibility helper for hand-written tests with the former table ordering.
     pub(crate) fn new(layer: &'a Layer) -> Self {
         let max = layer

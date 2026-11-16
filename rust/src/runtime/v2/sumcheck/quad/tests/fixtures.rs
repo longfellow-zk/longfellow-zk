@@ -2,7 +2,7 @@
 use super::super::*;
 use crate::runtime::{algebra::blas::axpy, v2::sumcheck::monomial::weights};
 pub(crate) fn bind_l<const W: usize, F: RuntimeField<W> + SerializableField>(
-    layer: &SplitLayer<'_>,
+    layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     assertions: &[F::E],
@@ -14,7 +14,7 @@ pub(crate) fn bind_l<const W: usize, F: RuntimeField<W> + SerializableField>(
     q
 }
 pub(crate) fn bind_r<const W: usize, F: RuntimeField<W> + SerializableField>(
-    layer: &SplitLayer<'_>,
+    layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     assertions: &[F::E],
@@ -26,7 +26,7 @@ pub(crate) fn bind_r<const W: usize, F: RuntimeField<W> + SerializableField>(
     q
 }
 pub(crate) fn weights_next_affine<const W: usize, F: RuntimeField<W> + SerializableField>(
-    layer: &SplitLayer<'_>,
+    layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
     assertions: &[F::E],

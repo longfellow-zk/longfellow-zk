@@ -33,11 +33,11 @@ mod fragments;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) use fragments::circuit_geometry;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
+mod classes;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod monomial;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod quad;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-mod split;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod symbolic;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]

@@ -29,7 +29,7 @@
 //! coefficients, or the input assertions after the last stage; no stage
 //! after the top opens a boundary of its own.
 
-use super::fragments::{Schedule, SplitFragment};
+use super::fragments::{ActiveFragment, Schedule};
 use crate::{
     core::{
         algebra::{ElementOf, RegisteredField, SerializableField},
@@ -219,7 +219,7 @@ impl Schedule {
         stage: usize,
         drawn: StageWeights<E>,
         weights: &mut Vec<E>,
-        active: &mut [SplitFragment<'_, E>],
+        active: &mut [ActiveFragment<'_, E>],
     ) {
         let layout = &self.layers[stage];
         assert_eq!(weights.len(), layout.nv - layout.output_assertions);

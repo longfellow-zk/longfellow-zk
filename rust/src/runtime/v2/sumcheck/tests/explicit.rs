@@ -18,13 +18,13 @@ use crate::{
         v2::{
             sumcheck::{
                 circuit_geometry,
+                classes::ClassifiedLayer,
                 eval::eval_layer,
                 eval_circuit,
                 monomial::weights,
                 prove,
                 prover::sample_pads_for_test,
                 quad::{affine_constant, bind_l, bind_r, weights_next_affine},
-                split::SplitLayer,
                 tests::diagnostic::verify,
             },
             transcript::Transcript,
@@ -109,7 +109,7 @@ fn three_streams<
     let w = [x.clone(), y.clone(), scalar(11)];
     let a = [scalar(13), f.zero()];
     let rho = [scalar(17), scalar(19)];
-    let split = SplitLayer::new(&layer);
+    let split = ClassifiedLayer::new(&layer);
     let ql = bind_r(&split, &constants, &a, &rho, &w, f);
     let expected0 = f.addf(
         &f.addf(&f.mulf(&f.mulf(&a[0], &constants[3]), &w[1]), &a[0]),
@@ -159,7 +159,7 @@ fn three_streams<
         layer.linear.clone(),
         layer.constant.clone(),
     );
-    let linear_split = SplitLayer::new(&linear_only);
+    let linear_split = ClassifiedLayer::new(&linear_only);
     assert!(eval_layer(&bad, &linear_split, &constants, 2, f)
         .unwrap_err()
         .contains("linear assertion"));

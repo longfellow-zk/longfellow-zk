@@ -3,7 +3,7 @@
 //! verifier with an arbitrary proof. Several verifier paths unwrap or assert
 //! on circuit metadata (assertion counts per constant class, nonzero constant
 //! records); they rely on the reader deriving that metadata with the same
-//! classifier the sumcheck split uses. This test pins that invariant.
+//! classifier the sumcheck classification uses. This test pins that invariant.
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use crate::{

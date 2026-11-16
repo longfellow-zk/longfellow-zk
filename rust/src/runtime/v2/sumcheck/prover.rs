@@ -41,9 +41,9 @@
 //! Both K_a and L(u) are recorded for the shared symbolic builder's affine rows.
 //! The final dense input weights directly address the common authenticated inputs.
 use super::{
+    classes::ClassifiedLayer,
     dense::{as_scalar, bind},
-    fragments::{self, Schedule, SplitFragment},
-    split::SplitLayer,
+    fragments::{self, ActiveFragment, Schedule},
     symbolic::{build_constraints, Constraints, LayerChallenges},
     transcript::{end_layer, round_challenge, StageWeights},
 };
@@ -120,8 +120,8 @@ impl<const W: usize, F: SerializableField> SumcheckPads<W, F> {
 }
 
 /// The caller binds all circuit statements and shared public inputs; the top
-/// weights are drawn here, before the first message. Split each circuit once for both evaluation
-/// and proving; consume its split layers and witnesses as the shared schedule
+/// weights are drawn here, before the first message. Classify each circuit once for both evaluation
+/// and proving; consume its classified layers and witnesses as the shared schedule
 /// advances toward the inputs, and the pads.
 pub(crate) fn evaluate_and_prove_circuits<
     const W: usize,
@@ -141,16 +141,16 @@ pub(crate) fn evaluate_and_prove_circuits<
     }
     // Draw the top weights before the first message (transcript I8).
     let entering = schedule.draw_top(circuits, t, f);
-    let layers = schedule.split_layers(circuits);
+    let layers = schedule.classify_layers(circuits);
     let witnesses = super::eval::eval_circuits(inputs, circuits, &layers, &schedule, f)
         .map_err(|e| format!("eval_circuit failed: {e}"))?;
-    prove_split(circuits, layers, witnesses, pads, schedule, entering, t, f)
+    prove_layers(circuits, layers, witnesses, pads, schedule, entering, t, f)
 }
 
 #[allow(clippy::too_many_arguments)]
-fn prove_split<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
+fn prove_layers<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
     circuits: &[&Circuit<F>],
-    layers: Vec<Vec<SplitLayer<'_>>>,
+    layers: Vec<Vec<ClassifiedLayer<'_>>>,
     witnesses: Vec<Vec<F::E>>,
     pads: SumcheckPads<W, F>,
     schedule: Schedule,
@@ -178,7 +178,7 @@ fn prove_split<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSa
         let mut active: Vec<_> = layout
             .fragments
             .iter()
-            .map(|s| SplitFragment::new(s, layers[s.circuit].next().expect("scheduled fragment")))
+            .map(|s| ActiveFragment::new(s, layers[s.circuit].next().expect("scheduled fragment")))
             .collect();
         schedule.enter(
             stage,

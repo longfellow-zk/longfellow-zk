@@ -77,9 +77,9 @@ A quadratic or linear record with `constants[k] = 0` is an assertion:
 `W[l]*W[r] = 0` or `W[l] = 0`. It contributes nothing to `V`. Constant
 records have nonzero coefficients (the LFC3 reader rejects zero). Each run
 classifies the table once (`classify_constants`: `Zero`, `One`, `MinusOne`,
-`General`; in characteristic two minus one is `One`) and splits each layer
-into eleven streams (`sumcheck/split.rs`): four quadratic, four linear, three
-constant. The split changes traversal cost only, never the arithmetic or the
+`General`; in characteristic two minus one is `One`) and partitions each layer
+into eleven streams (`sumcheck/classes.rs`): four quadratic, four linear, three
+constant. The classification changes traversal cost only, never the arithmetic or the
 circuit ID.
 
 ## Composition: stages and fragments
@@ -135,7 +135,7 @@ followed by the next stage's weights after the claims. The cross message
 precedes `r`, and both claims precede `alpha`. Every boundary closes a node
 with a prover message (transcript I7).
 *Enforced by:* the prover and the verifier each run their own stage loop
-(`prove_split` in `sumcheck/prover.rs`, `derive_constraints_for_circuits`
+(`prove_layers` in `sumcheck/prover.rs`, `derive_constraints_for_circuits`
 in `sumcheck/verifier.rs`), and both loops make every send and draw
 through the same shared steps: `round_challenge`, `terminal_challenge` and
 `end_layer` in `sumcheck/transcript.rs`, and the `Schedule` methods

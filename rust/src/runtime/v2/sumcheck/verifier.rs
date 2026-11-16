@@ -16,13 +16,13 @@
 //! nonzero terminal scale, and both masked factors precede the single alpha.
 //! Zero outputs receive fresh assertion coefficients at their own layer: the
 //! caller's top weights for the first, the preceding combine answer after.
-//! Only the current stage's split metadata is retained.
+//! Only the current stage's classified metadata is retained.
 //!
 //! This derives affine constraints, not an acceptance decision. The caller must
 //! authenticate every stage equation and the final shared-input claim against
 //! the commitment received before sumcheck.
 use super::{
-    fragments::{self, Schedule, SplitFragment},
+    fragments::{self, ActiveFragment, Schedule},
     symbolic::{build_constraints, Constraints, LayerChallenges},
     transcript::{end_layer, round_challenge, terminal_challenge},
 };
@@ -79,7 +79,7 @@ pub(crate) fn derive_constraints_for_circuits<
         let mut active: Vec<_> = layout
             .fragments
             .iter()
-            .map(|s| SplitFragment::new(s, schedule.split(circuits, s)))
+            .map(|s| ActiveFragment::new(s, schedule.classify(circuits, s)))
             .collect();
         schedule.enter(
             stage,

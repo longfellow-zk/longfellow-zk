@@ -73,7 +73,7 @@ fn private_split_preserves_shared_segment_tokens_and_deltas() {
             tokens: vec![0, 2, 1, 0],
         },
     );
-    let split = SplitLayer::new(&source);
+    let split = ClassifiedLayer::new(&source);
     assert!(std::ptr::eq(
         split.quadratic_runs.tokens,
         source.quadratic.tokens.as_slice()
@@ -234,7 +234,7 @@ where F: RuntimeField<W> + RegisteredField + SupportsSampling {
             segmented(Stream::<Constant>::from_terms(c)),
         );
         let before = format!("{raw:?}");
-        let split = SplitLayer::new(&raw);
+        let split = ClassifiedLayer::new(&raw);
         let mut a = (0..5).map(|_| rng.elt_field(f)).collect::<Vec<_>>();
         a[0] = f.zero();
         let rho = (0..split.assertion_counts().iter().sum::<usize>())
@@ -260,7 +260,7 @@ where F: RuntimeField<W> + RegisteredField + SupportsSampling {
             ordinary_linear,
             raw.constant.clone(),
         );
-        let ordinary_split = SplitLayer::new(&ordinary);
+        let ordinary_split = ClassifiedLayer::new(&ordinary);
         assert_eq!(
             eval_layer(&w, &ordinary_split, &constants, 5, f),
             reference::eval_layer(&w, &ordinary, &constants, 5, f)

@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Per-layer coefficient partitioning, private to sumcheck v2.
 //!
-//! Split stored segment definitions once. Classes keep the source segment IDs
+//! Classify stored segment definitions once. Classes keep the source segment IDs
 //! and borrow its token array. Every segment advances by the full source delta,
 //! including terms belonging to other classes, so no token rewriting is needed.
 
@@ -34,11 +34,11 @@ pub(super) struct Runs<'a, const N: usize> {
     tokens: &'a [u32],
     advances: Vec<[u32; N]>,
 }
-pub(super) struct SplitStream<T> {
+pub(super) struct ClassifiedStream<T> {
     records: Vec<T>,
     ranges: Vec<Range<usize>>,
 }
-impl<T> SplitStream<T> {
+impl<T> ClassifiedStream<T> {
     fn with_capacity(records: usize, segments: usize) -> Self {
         Self {
             records: Vec::with_capacity(records),
@@ -50,18 +50,18 @@ impl<T> SplitStream<T> {
 fn class(k: u32, classes: &[CoefficientClass]) -> usize {
     classes[k as usize] as usize
 }
-/// Test convenience: split one circuit with its own classification. The
-/// protocol splits through its `Schedule`, which derives the counts once.
+/// Test convenience: classify one circuit with its own classes. The
+/// protocol classifies through its `Schedule`, which derives the counts once.
 #[cfg(test)]
-pub(super) fn split_layers<'a, F: SerializableField + 'a>(
+pub(super) fn classify_layers<'a, F: SerializableField + 'a>(
     c: &'a Circuit<F>,
     f: &F,
-) -> Vec<SplitLayer<'a>> {
+) -> Vec<ClassifiedLayer<'a>> {
     let classes = classify_constants(f, &c.raw.constants);
     c.raw
         .layers
         .iter()
-        .map(|l| SplitLayer::with_classes(l, &classes, l.assertion_counts(&classes)))
+        .map(|l| ClassifiedLayer::with_classes(l, &classes, l.assertion_counts(&classes)))
         .collect()
 }
 
@@ -81,21 +81,21 @@ fn class_capacities<T>(
     counts
 }
 
-fn split_quadratic<'a>(
+fn classify_quadratic<'a>(
     source: &'a Stream<Quadratic>,
     classes: &[CoefficientClass],
 ) -> (
     Runs<'a, 3>,
-    SplitStream<Quadratic>,
-    SplitStream<QuadraticCoordinates>,
-    SplitStream<QuadraticCoordinates>,
-    SplitStream<QuadraticCoordinates>,
+    ClassifiedStream<Quadratic>,
+    ClassifiedStream<QuadraticCoordinates>,
+    ClassifiedStream<QuadraticCoordinates>,
+    ClassifiedStream<QuadraticCoordinates>,
 ) {
     let capacities = class_capacities(source, classes, |term| term.k);
-    let mut general = SplitStream::with_capacity(capacities[0], source.segments.len());
-    let mut one = SplitStream::with_capacity(capacities[1], source.segments.len());
-    let mut minus = SplitStream::with_capacity(capacities[2], source.segments.len());
-    let mut zero = SplitStream::with_capacity(capacities[3], source.segments.len());
+    let mut general = ClassifiedStream::with_capacity(capacities[0], source.segments.len());
+    let mut one = ClassifiedStream::with_capacity(capacities[1], source.segments.len());
+    let mut minus = ClassifiedStream::with_capacity(capacities[2], source.segments.len());
+    let mut zero = ClassifiedStream::with_capacity(capacities[3], source.segments.len());
     let mut advances = Vec::with_capacity(source.segments.len());
     for segment in source.segments.iter() {
         let starts = [
@@ -160,21 +160,21 @@ fn split_quadratic<'a>(
     )
 }
 
-fn split_linear<'a>(
+fn classify_linear<'a>(
     source: &'a Stream<Linear>,
     classes: &[CoefficientClass],
 ) -> (
     Runs<'a, 2>,
-    SplitStream<Linear>,
-    SplitStream<LinearCoordinates>,
-    SplitStream<LinearCoordinates>,
-    SplitStream<LinearCoordinates>,
+    ClassifiedStream<Linear>,
+    ClassifiedStream<LinearCoordinates>,
+    ClassifiedStream<LinearCoordinates>,
+    ClassifiedStream<LinearCoordinates>,
 ) {
     let capacities = class_capacities(source, classes, |term| term.k);
-    let mut general = SplitStream::with_capacity(capacities[0], source.segments.len());
-    let mut one = SplitStream::with_capacity(capacities[1], source.segments.len());
-    let mut minus = SplitStream::with_capacity(capacities[2], source.segments.len());
-    let mut zero = SplitStream::with_capacity(capacities[3], source.segments.len());
+    let mut general = ClassifiedStream::with_capacity(capacities[0], source.segments.len());
+    let mut one = ClassifiedStream::with_capacity(capacities[1], source.segments.len());
+    let mut minus = ClassifiedStream::with_capacity(capacities[2], source.segments.len());
+    let mut zero = ClassifiedStream::with_capacity(capacities[3], source.segments.len());
     let mut advances = Vec::with_capacity(source.segments.len());
     for segment in source.segments.iter() {
         let starts = [
@@ -233,19 +233,19 @@ fn split_linear<'a>(
     )
 }
 
-fn split_constant<'a>(
+fn classify_constant<'a>(
     source: &'a Stream<Constant>,
     classes: &[CoefficientClass],
 ) -> (
     Runs<'a, 1>,
-    SplitStream<Constant>,
-    SplitStream<ConstantCoordinates>,
-    SplitStream<ConstantCoordinates>,
+    ClassifiedStream<Constant>,
+    ClassifiedStream<ConstantCoordinates>,
+    ClassifiedStream<ConstantCoordinates>,
 ) {
     let capacities = class_capacities(source, classes, |term| term.k);
-    let mut general = SplitStream::with_capacity(capacities[0], source.segments.len());
-    let mut one = SplitStream::with_capacity(capacities[1], source.segments.len());
-    let mut minus = SplitStream::with_capacity(capacities[2], source.segments.len());
+    let mut general = ClassifiedStream::with_capacity(capacities[0], source.segments.len());
+    let mut one = ClassifiedStream::with_capacity(capacities[1], source.segments.len());
+    let mut minus = ClassifiedStream::with_capacity(capacities[2], source.segments.len());
     let mut advances = Vec::with_capacity(source.segments.len());
     for segment in source.segments.iter() {
         let starts = [
@@ -287,7 +287,7 @@ fn split_constant<'a>(
     )
 }
 
-impl SplitStream<Quadratic> {
+impl ClassifiedStream<Quadratic> {
     #[inline(always)]
     pub(super) fn for_each(&self, runs: &Runs<'_, 3>, mut cb: impl FnMut(Quadratic)) {
         if self.records.is_empty() {
@@ -315,7 +315,7 @@ impl SplitStream<Quadratic> {
     }
 }
 
-impl SplitStream<QuadraticCoordinates> {
+impl ClassifiedStream<QuadraticCoordinates> {
     #[inline(always)]
     pub(super) fn for_each(&self, runs: &Runs<'_, 3>, mut cb: impl FnMut(QuadraticCoordinates)) {
         let result: Result<(), std::convert::Infallible> = self.try_for_each(runs, |term| {
@@ -359,7 +359,7 @@ impl SplitStream<QuadraticCoordinates> {
     }
 }
 
-impl SplitStream<Linear> {
+impl ClassifiedStream<Linear> {
     #[inline(always)]
     pub(super) fn for_each(&self, runs: &Runs<'_, 2>, mut cb: impl FnMut(Linear)) {
         if self.records.is_empty() {
@@ -384,7 +384,7 @@ impl SplitStream<Linear> {
     }
 }
 
-impl SplitStream<LinearCoordinates> {
+impl ClassifiedStream<LinearCoordinates> {
     #[inline(always)]
     pub(super) fn for_each(&self, runs: &Runs<'_, 2>, mut cb: impl FnMut(LinearCoordinates)) {
         let result: Result<(), std::convert::Infallible> = self.try_for_each(runs, |term| {
@@ -425,7 +425,7 @@ impl SplitStream<LinearCoordinates> {
     }
 }
 
-impl SplitStream<Constant> {
+impl ClassifiedStream<Constant> {
     #[inline(always)]
     pub(super) fn for_each(&self, runs: &Runs<'_, 1>, mut cb: impl FnMut(Constant)) {
         if self.records.is_empty() {
@@ -447,7 +447,7 @@ impl SplitStream<Constant> {
     }
 }
 
-impl SplitStream<ConstantCoordinates> {
+impl ClassifiedStream<ConstantCoordinates> {
     #[inline(always)]
     pub(super) fn for_each(&self, runs: &Runs<'_, 1>, mut cb: impl FnMut(ConstantCoordinates)) {
         if self.records.is_empty() {
@@ -469,25 +469,25 @@ impl SplitStream<ConstantCoordinates> {
     }
 }
 
-pub(super) struct SplitLayer<'a> {
+pub(super) struct ClassifiedLayer<'a> {
     pub(super) nw: usize,
     pub(super) quadratic_runs: Runs<'a, 3>,
     pub(super) linear_runs: Runs<'a, 2>,
     pub(super) constant_runs: Runs<'a, 1>,
-    pub(super) quadratic: SplitStream<Quadratic>,
-    pub(super) quadratic_one: SplitStream<QuadraticCoordinates>,
-    pub(super) quadratic_minus_one: SplitStream<QuadraticCoordinates>,
-    pub(super) quadratic_assertions: SplitStream<QuadraticCoordinates>,
-    pub(super) linear: SplitStream<Linear>,
-    pub(super) linear_one: SplitStream<LinearCoordinates>,
-    pub(super) linear_minus_one: SplitStream<LinearCoordinates>,
-    pub(super) linear_assertions: SplitStream<LinearCoordinates>,
-    pub(super) constant: SplitStream<Constant>,
-    pub(super) constant_one: SplitStream<ConstantCoordinates>,
-    pub(super) constant_minus_one: SplitStream<ConstantCoordinates>,
+    pub(super) quadratic: ClassifiedStream<Quadratic>,
+    pub(super) quadratic_one: ClassifiedStream<QuadraticCoordinates>,
+    pub(super) quadratic_minus_one: ClassifiedStream<QuadraticCoordinates>,
+    pub(super) quadratic_assertions: ClassifiedStream<QuadraticCoordinates>,
+    pub(super) linear: ClassifiedStream<Linear>,
+    pub(super) linear_one: ClassifiedStream<LinearCoordinates>,
+    pub(super) linear_minus_one: ClassifiedStream<LinearCoordinates>,
+    pub(super) linear_assertions: ClassifiedStream<LinearCoordinates>,
+    pub(super) constant: ClassifiedStream<Constant>,
+    pub(super) constant_one: ClassifiedStream<ConstantCoordinates>,
+    pub(super) constant_minus_one: ClassifiedStream<ConstantCoordinates>,
     assertions: [usize; 2],
 }
-impl<'a> SplitLayer<'a> {
+impl<'a> ClassifiedLayer<'a> {
     /// `assertions` are the layer's counts under `classes`, which the
     /// caller's schedule derived once.
     pub(super) fn with_classes(
@@ -496,11 +496,11 @@ impl<'a> SplitLayer<'a> {
         assertions: [usize; 2],
     ) -> Self {
         let (quadratic_runs, quadratic, quadratic_one, quadratic_minus_one, quadratic_assertions) =
-            split_quadratic(&layer.quadratic, classes);
+            classify_quadratic(&layer.quadratic, classes);
         let (linear_runs, linear, linear_one, linear_minus_one, linear_assertions) =
-            split_linear(&layer.linear, classes);
+            classify_linear(&layer.linear, classes);
         let (constant_runs, constant, constant_one, constant_minus_one) =
-            split_constant(&layer.constant, classes);
+            classify_constant(&layer.constant, classes);
         Self {
             nw: layer.nw,
             quadratic_runs,

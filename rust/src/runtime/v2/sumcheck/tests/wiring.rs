@@ -24,10 +24,10 @@ use crate::{
         algebra::{blas, gf2_128::Gf2_128Field, p256::P256Field, RuntimeField, SupportsSampling},
         v2::{
             sumcheck::{
+                classes::ClassifiedLayer,
                 fragments::Schedule,
                 monomial,
                 quad::{bind_l, bind_r},
-                split::SplitLayer,
             },
             transcript::Transcript,
         },
@@ -39,11 +39,11 @@ fn sample_assertions<
     const W: usize,
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
-    layer: SplitLayer<'a>,
+    layer: ClassifiedLayer<'a>,
     stage: usize,
     transcript: &mut Transcript,
     f: &F,
-) -> (SplitLayer<'a>, Vec<F::E>) {
+) -> (ClassifiedLayer<'a>, Vec<F::E>) {
     // One fragment: its quadratic markers, then its linear markers.
     let n = layer.assertion_counts().iter().sum();
     transcript.send_for_test(&(stage as u64).to_le_bytes());
@@ -78,7 +78,7 @@ fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling
     );
     let constants = [f.zero(), f.one(), f.mone(), element(3)];
     let raw_layer = quadratic_layer_fixture(layer, &constants, f);
-    let layer = crate::runtime::v2::sumcheck::split::SplitLayer::new(&raw_layer);
+    let layer = crate::runtime::v2::sumcheck::classes::ClassifiedLayer::new(&raw_layer);
     let a = [element(7), f.zero()];
     let mut transcript = Transcript::for_test(b"assertion-independence");
     let (layer, rho) = sample_assertions(layer, 0, &mut transcript, f);
@@ -131,7 +131,7 @@ fn check_repeated_output<
     );
     let raw_repeated_output = quadratic_layer_fixture(repeated_output, &constants, f);
     let repeated_output =
-        crate::runtime::v2::sumcheck::split::SplitLayer::new(&raw_repeated_output);
+        crate::runtime::v2::sumcheck::classes::ClassifiedLayer::new(&raw_repeated_output);
     // Repeated output indices still receive independent replacement coefficients.
     let mut expected = transcript.fork_for_test();
     expected.send_for_test(&1u64.to_le_bytes());
@@ -188,7 +188,7 @@ fn check_quad_order<const W: usize, F: RuntimeField<W> + RegisteredField + Suppo
         vec![0],
     );
     let raw_reordered = quadratic_layer_fixture(reordered, &constants, f);
-    let reordered = crate::runtime::v2::sumcheck::split::SplitLayer::new(&raw_reordered);
+    let reordered = crate::runtime::v2::sumcheck::classes::ClassifiedLayer::new(&raw_reordered);
     let (reordered, rho) = sample_assertions(reordered, 2, &mut transcript, f);
     assert_eq!(rho.len(), 2);
     let q_l = bind_r(&reordered, &constants, &a, &rho, &w, f);

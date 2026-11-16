@@ -108,9 +108,9 @@ runtime/v2/transcript/session/Transcript# only src/runtime/v2/transcript.rs src/
 # v2 private coins are PrivateRandom, which no transcript implements.
 runtime/random/engine/RandomEngine# never src/runtime/v2.rs src/runtime/v2/* src/mdoc/runtime/v2.rs src/mdoc/runtime/v2/*
 # Shared sumcheck and Polygero modules use neither role.
-runtime/v2/sumcheck/prover/* never src/runtime/v2/sumcheck/monomial.rs src/runtime/v2/sumcheck/fragments.rs src/runtime/v2/sumcheck/quad.rs src/runtime/v2/sumcheck/split.rs src/runtime/v2/sumcheck/symbolic.rs src/runtime/v2/sumcheck/transcript.rs
-runtime/v2/sumcheck/verifier/* never src/runtime/v2/sumcheck/monomial.rs src/runtime/v2/sumcheck/fragments.rs src/runtime/v2/sumcheck/quad.rs src/runtime/v2/sumcheck/split.rs src/runtime/v2/sumcheck/symbolic.rs src/runtime/v2/sumcheck/transcript.rs
-runtime/v2/sumcheck/eval/* never src/runtime/v2/sumcheck/monomial.rs src/runtime/v2/sumcheck/fragments.rs src/runtime/v2/sumcheck/quad.rs src/runtime/v2/sumcheck/split.rs src/runtime/v2/sumcheck/symbolic.rs src/runtime/v2/sumcheck/transcript.rs
+runtime/v2/sumcheck/prover/* never src/runtime/v2/sumcheck/monomial.rs src/runtime/v2/sumcheck/fragments.rs src/runtime/v2/sumcheck/quad.rs src/runtime/v2/sumcheck/classes.rs src/runtime/v2/sumcheck/symbolic.rs src/runtime/v2/sumcheck/transcript.rs
+runtime/v2/sumcheck/verifier/* never src/runtime/v2/sumcheck/monomial.rs src/runtime/v2/sumcheck/fragments.rs src/runtime/v2/sumcheck/quad.rs src/runtime/v2/sumcheck/classes.rs src/runtime/v2/sumcheck/symbolic.rs src/runtime/v2/sumcheck/transcript.rs
+runtime/v2/sumcheck/eval/* never src/runtime/v2/sumcheck/monomial.rs src/runtime/v2/sumcheck/fragments.rs src/runtime/v2/sumcheck/quad.rs src/runtime/v2/sumcheck/classes.rs src/runtime/v2/sumcheck/symbolic.rs src/runtime/v2/sumcheck/transcript.rs
 runtime/v2/polygero/prover*/* never src/runtime/v2/polygero/config.rs src/runtime/v2/polygero/param.rs src/runtime/v2/polygero/polynomials.rs src/runtime/v2/polygero/constraints.rs src/runtime/v2/polygero/transcript.rs
 runtime/v2/polygero/verifier/* never src/runtime/v2/polygero/config.rs src/runtime/v2/polygero/param.rs src/runtime/v2/polygero/polynomials.rs src/runtime/v2/polygero/constraints.rs src/runtime/v2/polygero/transcript.rs
 
