@@ -141,6 +141,7 @@ fn composition_round_trip_rejects_tampering() {
 
 mod absorption;
 mod sensitivity;
+mod soundness_fuzz;
 
 /// Foreign values must be private inputs of the host circuit: a group that
 /// starts in the host's public prefix, or that runs past its inputs into

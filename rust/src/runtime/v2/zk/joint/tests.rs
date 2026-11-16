@@ -643,4 +643,4 @@ fn participants_reject_unregistered_fields() {
     assert!(check_registered(&other).is_err());
 }
 
-mod soundness_fuzz;
+pub(crate) mod soundness_fuzz;

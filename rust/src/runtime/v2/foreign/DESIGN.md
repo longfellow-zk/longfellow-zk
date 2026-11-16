@@ -638,6 +638,13 @@ application may use pure-foreign storage until its application model lists
 these events beside its circuit, packing and backend events and charges them
 in its schedule, as `Application.Bad` and `ApplicationCharging` do for mdoc.
 
+A test exercises this end to end on random compositions:
+`cheating_provers_of_false_random_compositions_are_rejected` changes one
+host bit or one split input, and wherever the composed statement becomes
+false it runs the prover with its own checks off (`transcript::cheat`),
+linking the split either to the split frontend's values or to the host's
+bits; the verifier must reject every such proof.
+
 The Lean model fixes the field pair and the budget to mdoc
 (`Adapter.Mdoc.inputBits = 768 + 256`, `quotientBound = 2^10`).
 

@@ -1,6 +1,8 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! The prover's side of the composition driver.
 use super::*;
+#[cfg(test)]
+use crate::runtime::v2::transcript::cheat;
 use crate::runtime::{
     random::PrivateRandom,
     v2::{
@@ -42,6 +44,10 @@ where
         )?;
         c.mode.write_pads(&pads, &mut reserved)?;
         host_private.extend(reserved.into_bits());
+        // Tests only (`cheat::cheating_from_host_bits`): the foreign values as
+        // the host's bits give them, not as the split frontend has them.
+        #[cfg(test)]
+        let host_values = cheat::from_host_bits().then(|| c.host_values(&host_private));
 
         let param = c.param()?;
         let (state_host, w_host) = c.host.prepare(host_private, rng)?;
@@ -53,7 +59,12 @@ where
         // then the split of its input equation, whose eta extends the
         // frontend's last combine answer.
         let mut ts = joint.bound(&this.split);
-        let (split_sumcheck, pending) = zk::prove_split(&mut ts, state_split)?;
+        #[cfg_attr(not(test), allow(unused_mut))]
+        let (split_sumcheck, mut pending) = zk::prove_split(&mut ts, state_split)?;
+        #[cfg(test)]
+        for (i, v) in host_values.into_iter().flatten() {
+            pending.values[i] = v;
+        }
         let values = c.split.foreign_values(&pending);
         let (mu, split) = pending.open(&mut ts)?;
 
@@ -79,5 +90,39 @@ where
             },
             transcript,
         ))
+    }
+}
+
+#[cfg(test)]
+impl<const W: usize, F, DH, DS, M> Composition<'_, W, F, DH, DS, M>
+where
+    F: ZkField<W> + PackingField,
+    DH: EvaluationDomain<H, Host>,
+    DS: EvaluationDomain<W, F>,
+{
+    /// The split's foreign values as the host's private bits `host_private`
+    /// give them, by value index: the integer of each group, least
+    /// significant bit first.
+    fn host_values(&self, host_private: &[bool]) -> Vec<(usize, F::E)> {
+        let (f, npublic) = (self.split.field(), self.host_circuit.raw.npublic_input);
+        self.split
+            .map_for_test()
+            .entries()
+            .iter()
+            .enumerate()
+            .filter_map(|(i, s)| match s {
+                Storage::Foreign(g) => {
+                    let mut v = f.zero();
+                    for r in (0..g.width()).rev() {
+                        v = f.addf(&v, &v);
+                        if host_private[g.bit(r) - npublic] {
+                            v = f.addf(&v, &f.one());
+                        }
+                    }
+                    Some((i, v))
+                }
+                Storage::Native(_) => None,
+            })
+            .collect()
     }
 }

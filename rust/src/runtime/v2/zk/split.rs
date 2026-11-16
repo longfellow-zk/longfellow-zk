@@ -163,6 +163,14 @@ impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
         SelectedField::from_parameter(self.param.clone(), domain)
     }
 }
+impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
+    /// The storage map, for the composed prover's cheat that takes the
+    /// foreign values from the host's bits (`transcript::cheat`).
+    #[cfg(test)]
+    pub(crate) fn map_for_test(&self) -> &StorageMap {
+        &self.storage.map
+    }
+}
 impl<const W: usize, F: ZkField<W> + PackingField> Participant<W, F> for MixedSplit<W, F> {
     fn frontend(&self) -> &Frontend<W, F> {
         &self.frontend

@@ -335,4 +335,4 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>>
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
