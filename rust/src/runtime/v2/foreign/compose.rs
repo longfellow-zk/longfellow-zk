@@ -168,7 +168,7 @@ where
         })
     }
     /// The bits after the host circuit's inputs: R, then the mode's pads.
-    #[cfg(test)]
+    #[cfg(all(test, feature = "mdoc"))]
     pub(crate) fn reserved(&self) -> &ReservedSuffix {
         &self.suffix
     }
