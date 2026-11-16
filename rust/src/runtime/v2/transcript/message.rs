@@ -183,7 +183,9 @@ impl SetupMessage for ZkStatement<'_> {}
 
 /// The last message of every proof: Bytes, every proof byte before the
 /// seal block, the magic included (transcript I10).
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(super) struct Seal<'a>(pub(super) &'a [u8]);
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl Message for Seal<'_> {
     const TAG: Tag = Tag::Seal;
     fn encode(&self, e: &mut Encoder<'_>) {

@@ -1,5 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! V2 proof messages, public geometry and complete-proof encoding.
+#[cfg(any(test, feature = "prover"))]
+use crate::runtime::v2::transcript::{EncodedProof, Transcript};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::runtime::v2::{
     proto::{polygero::checked_body, witness_selection::FINGERPRINTS},
@@ -9,16 +11,13 @@ use crate::{
     core::algebra::{ElementOf, SerializableField},
     runtime::{
         algebra::RuntimeField,
-        v2::{
-            proto::{
-                dual_packing::PackingProof,
-                polygero::{
-                    FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig,
-                    PolygeroGeometry,
-                },
-                sumcheck::{SumcheckProof, SumcheckProofGeometry},
+        v2::proto::{
+            dual_packing::PackingProof,
+            polygero::{
+                FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig,
+                PolygeroGeometry,
             },
-            transcript::{EncodedProof, Transcript},
+            sumcheck::{SumcheckProof, SumcheckProofGeometry},
         },
     },
 };
@@ -223,6 +222,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
     /// `LFV9`, then the body in send order: root, fingerprints, sumcheck,
     /// packing, response; then the terminal rows, nonces and frontier (its
     /// count, then its digests).
+    #[cfg(any(test, feature = "prover"))]
     fn write_body(&self, buf: &mut Vec<u8>, g: &ZkProofGeometry, f: &F) -> std::io::Result<()> {
         buf.extend_from_slice(&Self::MAGIC);
         buf.extend_from_slice(&self.com.root.data);
@@ -237,7 +237,10 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
             |b, out| b.0.write_rows(out, geom, f),
         )
     }
-    pub fn write(
+    /// The complete proof: the body, sealed with `transcript` (transcript
+    /// I10). Only `ZkProver::prove`, which owns the session, seals one.
+    #[cfg(any(test, feature = "prover"))]
+    pub(crate) fn write(
         &self,
         g: &ZkProofGeometry,
         f: &F,

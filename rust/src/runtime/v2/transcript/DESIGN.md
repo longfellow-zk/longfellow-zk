@@ -321,7 +321,7 @@ impl<'s, S: ?Sized> Opened<'s, S> {
 }
 // named accessors (I2), in runtime::v2::zk and runtime::v2::foreign::compose
 impl Opened<'_, ZkProofStatement<'_, W, F>> { pub fn geometry(&mut self) -> Bound<'_, ZkProofGeometry>; }
-impl Opened<'_, ComposedStatement<'_, ..>> { pub fn geometry(&mut self) -> Bound<'_, ComposedGeometry>; }
+impl Opened<'_, ComposedStatement<'_, ..>> { pub(crate) fn geometry(&mut self) -> Bound<'_, ComposedGeometry>; }
 impl Transcript {
     pub(crate) fn new<S: Statement + ?Sized>(statement: &S) -> Self;
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P>;

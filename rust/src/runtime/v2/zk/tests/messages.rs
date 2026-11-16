@@ -47,7 +47,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> Standalone<W, F> {
         let base = extension.base();
         let public = vec![base.one()];
         let prover = ZkProver::new(circuit(f), CONFIG, ctx).unwrap();
-        let (proof, geometry, t) = prove_standalone(
+        let (proof, _) = prove_standalone(
             &prover,
             CONTEXT,
             &public,
@@ -57,7 +57,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> Standalone<W, F> {
         )
         .unwrap();
         Self {
-            bytes: proof.write(&geometry, f, t).unwrap().into_bytes(),
+            bytes: proof.into_bytes(),
             public,
             verifier: ZkVerifier::new(circuit(f), CONFIG, ctx).unwrap(),
         }

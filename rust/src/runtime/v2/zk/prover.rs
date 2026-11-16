@@ -18,7 +18,7 @@ use crate::{
                 zk::{CircuitProof, CircuitProofGeometry, ZkProof},
             },
             sumcheck::{self, SumcheckPads, TopWeights},
-            transcript::{Bound, Challenge, Transcript},
+            transcript::{Bound, Challenge, EncodedProof, Transcript},
             zk::{
                 context::private_input_count,
                 joint::{top_weights, CircuitParticipant, FrontendPart, JointParam},
@@ -248,12 +248,13 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
             fingerprints,
         })
     }
-    /// Complete the proof of the statement `committed` was opened with.
+    /// Complete the proof of the statement `committed` was opened with and
+    /// seal it against the geometry that statement wrote (transcript I10).
     pub fn prove<D: EvaluationDomain<W, F>>(
         &self,
         mut committed: ZkProverCommitment<'_, W, F>,
         ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<(ZkProof<W, F>, Transcript), String> {
+    ) -> Result<EncodedProof, String> {
         let statement = committed.statement;
         if !std::ptr::eq(statement.part.participant, &self.participant) {
             return Err("statement belongs to another prover".into());
@@ -264,16 +265,16 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         let param = JointParam::new((self.participant.participant(ctx)?, ()))?;
         // The opening follows the frontend's last message.
         let (com_proof, transcript) = committed.joint.finish(&param, (linear, ()))?;
-        Ok((
-            ZkProof {
-                com: committed.commitment,
-                fingerprints: committed.fingerprints,
-                sumcheck_proof: circuit.sumcheck_proof,
-                packing: circuit.packing,
-                com_proof,
-            },
-            transcript,
-        ))
+        let proof = ZkProof {
+            com: committed.commitment,
+            fingerprints: committed.fingerprints,
+            sumcheck_proof: circuit.sumcheck_proof,
+            packing: circuit.packing,
+            com_proof,
+        };
+        proof
+            .write(&statement.geometry, ctx.field(), transcript)
+            .map_err(|e| e.to_string())
     }
 }
 /// Lays out the public and private inputs, reserving room for `nvirtual`

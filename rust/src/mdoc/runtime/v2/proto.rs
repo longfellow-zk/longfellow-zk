@@ -1,5 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! The mdoc envelope: version `MDA7`, a composed proof body, the final seal.
+#[cfg(any(test, feature = "prover"))]
+use crate::runtime::v2::transcript::{EncodedProof, Transcript};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::runtime::v2::{
     proto::polygero::checked_body,
@@ -13,7 +15,6 @@ use crate::{
         v2::{
             foreign::word::MaskedWord,
             proto::composed::{ComposedGeometry, ComposedProof},
-            transcript::{EncodedProof, Transcript},
         },
     },
 };
@@ -34,7 +35,11 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
 {
     /// The one version magic, outermost (proto I1).
     pub const MAGIC: [u8; 4] = *b"MDA7";
-    pub fn write(
+    /// The complete proof: `MAGIC`, the body, sealed with `transcript`
+    /// (transcript I10). Only the mdoc prover, which owns the session, seals
+    /// one.
+    #[cfg(any(test, feature = "prover"))]
+    pub(crate) fn write(
         &self,
         g: &ComposedGeometry,
         f1: &F1,

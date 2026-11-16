@@ -5,10 +5,12 @@ use sha2::Sha256;
 use super::{ensure, PolygeroError, PolygeroLinearTerm, PolygeroParam};
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::random::PrivateRandom;
+#[cfg(any(test, feature = "testonly"))]
+use crate::runtime::v2::transcript::{EncodedProof, Transcript};
 #[cfg(any(test, feature = "testonly", feature = "tooling"))]
 use crate::runtime::v2::{
     proto::polygero::{checked_body, JointPolygeroProof},
-    transcript::{EncodedProof, Transcript, Unverified, SEAL_BYTES},
+    transcript::{Unverified, SEAL_BYTES},
 };
 use crate::{
     core::algebra::SerializableField,
@@ -277,7 +279,7 @@ impl<L: Participants> JointPolygeroParam<L> {
     /// each field's rows, the nonces and the frontier, then the seal block.
     /// It has no magic. Complete proofs embed the joint body in their own
     /// envelope (`runtime::v2::proto::zk`, `mdoc`).
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     pub fn write(
         &self,
         p: &JointPolygeroProof<L::Bodies>,

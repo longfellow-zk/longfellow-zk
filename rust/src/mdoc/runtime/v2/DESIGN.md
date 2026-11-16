@@ -496,8 +496,8 @@ pub struct MdocProof<F1, F2> { pub body: ComposedProof<2, F1, 4, F2, [MaskedQuot
 impl MdocProof<F1, F2> {
     pub fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ComposedGeometry>, f1: &F1, f2: &F2)
         -> Result<Unverified<'a, Self>, String>;              // I6, I7, I8
-    pub fn write(&self, g: &ComposedGeometry, f1: &F1, f2: &F2, transcript: Transcript)
-        -> Result<EncodedProof, String>;                      // seals (transcript I10)
+    pub(crate) fn write(&self, g: &ComposedGeometry, f1: &F1, f2: &F2, transcript: Transcript)
+        -> Result<EncodedProof, String>;                      // seals (transcript I10); prover only
 }
 
 // Internal: mdoc::runtime::v2

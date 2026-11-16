@@ -19,12 +19,14 @@
 //! then the node's first PRF block; complete verification must check it.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use super::message::ProverMessage;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+use super::message::Seal;
 #[cfg(any(test, feature = "testonly"))]
 use super::message::ZkStatement;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use super::strand::Reader;
 use super::{
-    message::{Encoder, Message, Seal, SetupMessage},
+    message::{Encoder, Message, SetupMessage},
     Strand,
 };
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
@@ -36,6 +38,7 @@ pub const SEAL_BYTES: usize = super::strand::BLOCK_BYTES;
 /// Node terminators. Tags start at 16, so a terminator is never a tag.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 const ROUND: u64 = 0;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 const SEAL: u64 = 1;
 
 /// The statement a transcript opens with: everything the verifier fixes
@@ -250,6 +253,7 @@ impl Transcript {
     }
     /// The seal block over `body`: the Seal message, the SEAL terminator,
     /// then the first PRF block of the sealed node (transcript I10).
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(super) fn compute_final_seal(&mut self, body: &[u8]) -> [u8; SEAL_BYTES] {
         self.send_message(&Seal(body));
         self.strand.write(&SEAL.to_le_bytes());

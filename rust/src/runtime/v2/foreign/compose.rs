@@ -27,7 +27,7 @@ use crate::{
         },
         v2::{
             proto::{composed::ComposedGeometry, polygero::PolygeroConfig},
-            transcript::{Bound, Header, Opened, SetupMessage, Statement},
+            transcript::{Header, SetupMessage, Statement},
             zk::{
                 joint::{CircuitParticipant, FrontendPart, JointParam, SelectedField},
                 storage::{Group, ReservedSuffix, Storage, StorageMap},
@@ -146,7 +146,8 @@ where
     /// The composition's statement on these public inputs: the application's
     /// `identity` message, both frontends and the geometry the proof is
     /// parsed against.
-    pub fn statement<'s, I: SetupMessage>(
+    #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
+    pub(crate) fn statement<'s, I: SetupMessage>(
         &'s self,
         identity: I,
         host_public: &'s [CircuitInput<Host>],
@@ -180,7 +181,7 @@ where
 /// `AdapterLayout`, the `JointGeometry`, and the `PublicInputs` of each
 /// field (host, then split). Proving and verifying take a session opened
 /// with it and read the frontends from it (transcript I2).
-pub struct ComposedStatement<'s, const W: usize, F: ZkField<W> + PackingField, DH, DS, M, I>
+pub(crate) struct ComposedStatement<'s, const W: usize, F: ZkField<W> + PackingField, DH, DS, M, I>
 where
     DH: EvaluationDomain<H, Host>,
     DS: EvaluationDomain<W, F>,
@@ -198,7 +199,10 @@ where
     DS: EvaluationDomain<W, F>,
 {
     /// The geometry the statement writes, which the proof is parsed against.
-    pub fn geometry(&self) -> &ComposedGeometry {
+    /// The prover seals against it.
+    #[cfg(any(test, feature = "prover"))]
+    #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
+    pub(crate) fn geometry(&self) -> &ComposedGeometry {
         &self.geometry
     }
 }
@@ -225,19 +229,5 @@ where
         self.split.write_public(h);
     }
 }
-impl<'s, 'a: 's, const W: usize, F, DH, DS, M, I>
-    Opened<'s, ComposedStatement<'a, W, F, DH, DS, M, I>>
-where
-    F: ZkField<W> + PackingField,
-    DH: EvaluationDomain<H, Host>,
-    DS: EvaluationDomain<W, F>,
-{
-    /// The session, bound to the geometry its statement wrote, which the
-    /// proof is parsed against (transcript I2).
-    pub fn geometry(&mut self) -> Bound<'_, ComposedGeometry> {
-        self.bound(|s| &s.geometry)
-    }
-}
-
 #[cfg(test)]
 mod tests;

@@ -22,7 +22,8 @@ where
     /// with. `host_private` is the host circuit's own private input;
     /// this appends R and the mode's pads.
     #[allow(clippy::type_complexity)]
-    pub fn prove(
+    #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
+    pub(crate) fn prove(
         session: Opened<'_, Self>,
         mut host_private: Vec<CircuitInput<Host>>,
         split_private: Vec<CircuitInput<F>>,

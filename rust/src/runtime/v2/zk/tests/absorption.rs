@@ -227,7 +227,7 @@ fn round_trip<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<
     let base = extension.base();
     let public = vec![base.one()];
     let prover = ZkProver::new(circuit(f), config, &ctx).unwrap();
-    let (proof, geometry, t) = prove_standalone(
+    let (encoded, _) = prove_standalone(
         &prover,
         CONTEXT,
         &public,
@@ -236,7 +236,6 @@ fn round_trip<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<
         &mut DeterministicRng::new(42),
     )
     .unwrap();
-    let encoded = proof.write(&geometry, f, t).unwrap();
     let verifier = ZkVerifier::new(circuit(f), config, &ctx).unwrap();
     let statement = verifier.statement(CONTEXT, &public).unwrap();
     let mut session = Opened::new(&statement);

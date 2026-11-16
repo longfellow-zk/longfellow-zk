@@ -3,7 +3,7 @@
 use super::*;
 use crate::runtime::v2::{
     proto::composed::ComposedProof,
-    transcript::{Opened, SetupMessage, Transcript},
+    transcript::{Bound, Opened, SetupMessage, Transcript},
     zk::{self, joint, split},
 };
 
@@ -51,5 +51,19 @@ where
         // The opening follows the host frontend's last message.
         let equations = (statement_host, (split.statement, ()));
         Ok(joint.finish(equations, &proof.polygero)?.into_transcript())
+    }
+}
+impl<'s, 'a: 's, const W: usize, F, DH, DS, M, I>
+    Opened<'s, ComposedStatement<'a, W, F, DH, DS, M, I>>
+where
+    F: ZkField<W> + PackingField,
+    DH: EvaluationDomain<H, Host>,
+    DS: EvaluationDomain<W, F>,
+{
+    /// The session, bound to the geometry its statement wrote, which the
+    /// proof is parsed against (transcript I2).
+    #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
+    pub(crate) fn geometry(&mut self) -> Bound<'_, ComposedGeometry> {
+        self.bound(|s| &s.geometry)
     }
 }

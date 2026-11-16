@@ -167,7 +167,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         .unwrap();
     assert_eq!(committed.commitment, reference.commitment);
     let geometry = statement.geometry.clone();
-    let (actual, mut actual_ts) = prover.prove(committed, &context).unwrap();
+    let actual = prover.prove(committed, &context).unwrap().into_bytes();
 
     let independent_param = JointParam::new((
         SelectedField::new(
@@ -248,7 +248,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     )
     .unwrap();
     let joint = JointParam::new((prover.participant.participant(&context).unwrap(), ())).unwrap();
-    let (com_proof, mut numerical) = reference.joint.finish(&joint, (native, ())).unwrap();
+    let (com_proof, numerical) = reference.joint.finish(&joint, (native, ())).unwrap();
     let rows = reduce(
         &mut independent_verifier.bound(&verifier_backend.parameters),
         &verifier_source.claim,
@@ -265,13 +265,12 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         packing,
         com_proof,
     };
+    // The standalone proof is the reference proof, sealed on the reference
+    // transcript.
     assert_eq!(
-        actual
-            .write(&geometry, &f, numerical.fork_for_test())
-            .unwrap()
-            .into_bytes(),
+        actual,
         expected
-            .write(&geometry, &f, numerical.fork_for_test())
+            .write(&geometry, &f, numerical)
             .unwrap()
             .into_bytes()
     );
@@ -283,13 +282,12 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         },
         (),
     );
-    let mut independent = independent_verifier
-        .finish(equations, &actual.com_proof)
+    // The independent verifier ends where the prover did: its seal checks.
+    let independent = independent_verifier
+        .finish(equations, &expected.com_proof)
         .unwrap()
         .into_transcript();
-    let state = actual_ts.bytes(32);
-    assert_eq!(state, numerical.bytes(32));
-    assert_eq!(state, independent.bytes(32));
+    assert!(independent.verify_final_seal(&actual).is_ok());
 }
 
 /// `prove` takes a commitment state only from the participant that prepared

@@ -476,7 +476,7 @@ impl ZkProver<W, F> {
                       ctx: &ZkContext<'_, W, F, D>, rng: &mut impl PrivateRandom)
         -> Result<ZkProverCommitment<'s, W, F>, String>;  // opens the session
     pub fn prove(&self, committed: ZkProverCommitment<'_, W, F>, ctx: &ZkContext<'_, W, F, D>)
-        -> Result<(ZkProof<W, F>, Transcript), String>;
+        -> Result<EncodedProof, String>;               // sealed with the statement's geometry
 }
 impl ZkVerifier<W, F> {
     pub fn new(circuit: Circuit<F>, config: PolygeroConfig, ctx: &ZkContext<'_, W, F, D>)

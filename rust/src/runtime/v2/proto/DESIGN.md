@@ -456,8 +456,8 @@ pub struct ZkProof<const W: usize, F> {
 }
 impl<const W: usize, F> ZkProof<W, F> {
     pub const MAGIC: [u8; 4] = *b"LFV9";
-    pub fn write(&self, g: &ZkProofGeometry, f: &F, transcript: Transcript)
-        -> std::io::Result<EncodedProof>;
+    pub(crate) fn write(&self, g: &ZkProofGeometry, f: &F, transcript: Transcript)
+        -> std::io::Result<EncodedProof>;            // ZkProver::prove only
     pub fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ZkProofGeometry>, f: &F)
         -> std::io::Result<Unverified<'a, Self>>;
 }
@@ -484,8 +484,8 @@ impl<..> ComposedProof<WH, H, WS, S, M> {
 pub struct MdocProof<F1, F2> { pub body: ComposedProof<2, F1, 4, F2, [MaskedQuotient; 2]> }
 impl MdocProof<F1, F2> {
     pub const MAGIC: [u8; 4] = *b"MDA7";
-    pub fn write(&self, g: &ComposedGeometry, f1: &F1, f2: &F2, transcript: Transcript)
-        -> Result<EncodedProof, String>;
+    pub(crate) fn write(&self, g: &ComposedGeometry, f1: &F1, f2: &F2, transcript: Transcript)
+        -> Result<EncodedProof, String>;             // the mdoc prover only
     pub fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ComposedGeometry>, f1: &F1, f2: &F2)
         -> Result<Unverified<'a, Self>, String>;
 }
@@ -493,10 +493,11 @@ impl MdocProof<F1, F2> {
 
 How the API enforces the invariants:
 
-- Writers take the `Transcript` by value and end in its crate-private
-  `append_final_seal`, so a proof is written once and is always sealed (I1,
-  transcript I10). The prover hands the writer the geometry it opened its
-  statement with.
+- Writers are crate-private and called only by the provers that own the
+  session (`ZkProver::prove`, the mdoc prover). They take the `Transcript`
+  by value and end in its crate-private `append_final_seal`, so a proof is
+  written once and is always sealed (I1, transcript I10). The prover hands
+  the writer the geometry it opened its statement with.
 - Public readers take `&Bound<'_, G>` and hand sub-geometries from
   `g.part()` to the component readers (`SumcheckProof`, `CircuitProof`,
   `FingerprintResponse`, `ComposedProof`, `FieldProof`, `MerkleProof`, the

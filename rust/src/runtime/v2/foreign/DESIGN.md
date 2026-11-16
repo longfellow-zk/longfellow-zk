@@ -443,7 +443,7 @@ impl<'a, const W: usize, F, DH, DS, M: AdapterMode<F>> Composition<'a, W, F, DH,
                storage: StorageMap, joint: PolygeroConfig,
                domains: (&'a DH, &'a DS)) -> Result<Self, String>;
     pub fn geometry(&self) -> Result<ComposedGeometry, String>;
-    pub fn statement<'s, I: SetupMessage>(&'s self, identity: I,
+    pub(crate) fn statement<'s, I: SetupMessage>(&'s self, identity: I,
         host_public: &'s [CircuitInput<Gf2_128Field>], split_public: &'s [CircuitInput<F>])
         -> Result<ComposedStatement<'s, W, F, DH, DS, M, I>, String>;
     pub fn reserved(&self) -> &ReservedSuffix;
@@ -451,12 +451,14 @@ impl<'a, const W: usize, F, DH, DS, M: AdapterMode<F>> Composition<'a, W, F, DH,
 }
 // The composition's statement: the application's identity message, both
 // frontend parts and the geometry the proof is parsed against (transcript I1).
-pub struct ComposedStatement<'s, const W: usize, F, DH, DS, M, I> { .. }
+// Crate-private: only an application's complete prover and verifier, which
+// seal and check the seal, build one.
+pub(crate) struct ComposedStatement<'s, const W: usize, F, DH, DS, M, I> { .. }
 impl ComposedStatement<'_, W, F, DH, DS, M, I> {
-    pub fn geometry(&self) -> &ComposedGeometry;
+    pub(crate) fn geometry(&self) -> &ComposedGeometry;
     // compose/prover.rs and compose/verifier.rs: no public-input, circuit or
     // geometry parameter (transcript I2); the caller seals afterwards.
-    pub fn prove(session: Opened<'_, Self>,
+    pub(crate) fn prove(session: Opened<'_, Self>,
                  host_private: Vec<CircuitInput<Gf2_128Field>>,
                  split_private: Vec<CircuitInput<F>>, rng: &mut impl PrivateRandom)
         -> Result<(ComposedProof<2, Gf2_128Field, W, F, M::Message>, Transcript), String>;
@@ -467,7 +469,7 @@ impl ComposedStatement<'_, W, F, DH, DS, M, I> {
         -> Result<Transcript, String>;
 }
 impl Opened<'_, ComposedStatement<'_, ..>> {
-    pub fn geometry(&mut self) -> Bound<'_, ComposedGeometry>;   // for MdocProof::read
+    pub(crate) fn geometry(&mut self) -> Bound<'_, ComposedGeometry>;   // for MdocProof::read
 }
 
 // runtime::v2::foreign::adapter

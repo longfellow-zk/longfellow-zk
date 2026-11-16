@@ -487,11 +487,7 @@ fn final_seal_failure_has_its_own_verification_error() {
             &mut DeterministicRng::new(45),
         )
         .unwrap();
-    let (proof, transcript) = prover.prove(committed, &context).unwrap();
-    let mut bytes = proof
-        .write(&statement.geometry, &f, transcript)
-        .unwrap()
-        .into_bytes();
+    let mut bytes = prover.prove(committed, &context).unwrap().into_bytes();
     drop(statement);
     let verifier = ZkVerifier::new(prover.circuit, config, &context).unwrap();
     let check = |bytes: &[u8]| {

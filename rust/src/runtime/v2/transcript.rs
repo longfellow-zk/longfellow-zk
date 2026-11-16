@@ -7,6 +7,7 @@ mod bound;
 #[cfg(test)]
 pub(crate) mod cheat;
 mod message;
+#[cfg(any(test, feature = "prover"))]
 mod prover;
 
 mod session;
@@ -20,6 +21,7 @@ pub use bound::{Bound, Challenge, Opened, StaleChallenge};
 #[cfg(test)]
 pub(crate) use message::REGISTERED_FIELDS;
 pub use message::{Encoder, Message, ProverMessage, SetupMessage, ZkStatement, ZK_PROTOCOL_ID};
+#[cfg(any(test, feature = "prover"))]
 pub use prover::EncodedProof;
 pub use session::{Header, Statement, Transcript, TranscriptRef, SEAL_BYTES};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]

@@ -28,6 +28,7 @@ use crate::{
         v2::{
             proto::{polygero::PolygeroConfig, zk::ZkProof},
             sumcheck::eval_circuit,
+            transcript::{Transcript, SEAL_BYTES},
             zk::{ZkContext, ZkProver, ZkVerifier},
         },
     },
@@ -166,7 +167,7 @@ fn test_zk_prover_verifier_end_to_end() {
     // 4. Prover commit and prove
     let prover_inst = ZkProver::new(circ, config, &ZkContext::new(&make_interpolator)).unwrap();
     let npublic = prover_inst.circuit.raw.npublic_input;
-    let (zkp, geom, ts_prover) = super::prove_standalone(
+    let (encoded, geom) = super::prove_standalone(
         &prover_inst,
         b"test_zk",
         &w0[..npublic],
@@ -175,11 +176,8 @@ fn test_zk_prover_verifier_end_to_end() {
         &mut rng,
     )
     .expect("Failed to prove");
-    // 5. Serialize / deserialize proof roundtrip
-    let serialized = zkp
-        .write(&geom, &f, ts_prover.fork_for_test())
-        .expect("Failed to serialize ZkProof")
-        .into_bytes();
+    // 5. Deserialize the sealed proof
+    let serialized = encoded.into_bytes();
     let verifier = ZkVerifier::new(
         prover_inst.circuit,
         config,
@@ -190,10 +188,14 @@ fn test_zk_prover_verifier_end_to_end() {
     let deserialized =
         super::read_standalone(&verifier, b"test_zk", &w0[..npublic], &serialized, &f)
             .expect("Failed to deserialize ZkProof");
-    assert_eq!(
-        zkp, deserialized,
-        "Deserialized proof is not equal to original proof!"
-    );
+    // The body round-trips: encoding the decoded proof gives every byte
+    // before the seal.
+    let body = serialized.len() - SEAL_BYTES;
+    let reencoded = deserialized
+        .write(&geom, &f, Transcript::for_test(b"re-encode"))
+        .unwrap()
+        .into_bytes();
+    assert_eq!(reencoded[..body], serialized[..body]);
 
     // 6. Verifier verify
     let verify_res = super::reduce_standalone(
@@ -332,7 +334,7 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 let native_bytes = native_writer.to_bytes(&decoded);
                 let prover = ZkProver::new(decoded, config, &context).unwrap();
                 let mut rng = SimpleRng { state: 42 };
-                let (proof, geometry, mut prover_ts) = super::prove_standalone(
+                let (proof, geometry) = super::prove_standalone(
                     &prover,
                     LABEL,
                     &witness_inputs[..1],
@@ -341,10 +343,7 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                     &mut rng,
                 )
                 .unwrap();
-                let proof_bytes = proof
-                    .write(&geometry, &f, prover_ts.fork_for_test())
-                    .unwrap()
-                    .into_bytes();
+                let proof_bytes = proof.into_bytes();
                 if let Some(expected) = &expected_proof {
                     assert_eq!(&proof_bytes, expected);
                 } else {
@@ -364,12 +363,14 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                     &f,
                 )
                 .unwrap();
-                assert_eq!(proof, decoded_proof);
                 let reduce = |p: &ZkProof<2, Gf2_128Field>| {
                     super::reduce_standalone(&verifier, LABEL, &witness_inputs[..1], p, &context)
                 };
-                let mut verifier_ts = reduce(&decoded_proof).unwrap();
-                assert_eq!(prover_ts.bytes(64), verifier_ts.bytes(64));
+                // Both roles end in one transcript state: the prover's seal checks.
+                assert!(reduce(&decoded_proof)
+                    .unwrap()
+                    .verify_final_seal(&proof_bytes)
+                    .is_ok());
 
                 for slot in 0..2 {
                     let mut tampered_claim = decoded_proof.clone();
@@ -427,7 +428,7 @@ fn test_zk_triple_zero_zero_zero() {
 
     let prover_inst = ZkProver::new(circ, config, &ZkContext::new(&make_interpolator)).unwrap();
     let npublic = prover_inst.circuit.raw.npublic_input;
-    let (zkp, _, _) = super::prove_standalone(
+    let (encoded, _) = super::prove_standalone(
         &prover_inst,
         LABEL,
         &w0[..npublic],
@@ -441,6 +442,14 @@ fn test_zk_triple_zero_zero_zero() {
         prover_inst.circuit,
         config,
         &ZkContext::new(&make_interpolator),
+    )
+    .unwrap();
+    let zkp = super::read_standalone(
+        &verifier,
+        LABEL,
+        &w0[..verifier.public_input_count()],
+        encoded.as_bytes(),
+        &f,
     )
     .unwrap();
     let verify_res = super::reduce_standalone(
@@ -548,7 +557,7 @@ fn test_zk_intermediate_zero_logw() {
 
     let prover_inst = ZkProver::new(circ, config, &ZkContext::new(&make_interpolator)).unwrap();
     let npublic = prover_inst.circuit.raw.npublic_input;
-    let (zkp, _, _) = super::prove_standalone(
+    let (encoded, _) = super::prove_standalone(
         &prover_inst,
         LABEL,
         &w0[..npublic],
@@ -562,6 +571,14 @@ fn test_zk_intermediate_zero_logw() {
         prover_inst.circuit,
         config,
         &ZkContext::new(&make_interpolator),
+    )
+    .unwrap();
+    let zkp = super::read_standalone(
+        &verifier,
+        LABEL,
+        &w0[..verifier.public_input_count()],
+        encoded.as_bytes(),
+        &f,
     )
     .unwrap();
     let verify_res = super::reduce_standalone(
@@ -637,7 +654,7 @@ fn test_zk_zero_layers() {
                 "prove failed for all zero inputs: {:?}",
                 prove_res.err()
             );
-            let (zkp, _, _) = prove_res.unwrap();
+            let (encoded, _) = prove_res.unwrap();
 
             let verifier = ZkVerifier::new(
                 prover_inst.circuit,
@@ -645,6 +662,8 @@ fn test_zk_zero_layers() {
                 &ZkContext::new(&make_interpolator),
             )
             .unwrap();
+            let zkp =
+                super::read_standalone(&verifier, LABEL, &w0[..2], encoded.as_bytes(), &f).unwrap();
             let verify_res = super::reduce_standalone(
                 &verifier,
                 LABEL,

@@ -18,6 +18,7 @@ use crate::{
     runtime::v2::{
         proto::{dual_packing::PackingProof, zk::ZkProof},
         sumcheck::circuit_geometry,
+        transcript::EncodedProof,
         zk::CircuitInput,
     },
 };
@@ -179,10 +180,7 @@ fn exercise<
     )
     .unwrap();
     assert_eq!(prover_geometry.circuit().nw(), source.witness_count + 2);
-    let (proof, tp) = p.prove(committed, &context).unwrap();
-    let encoded_proof = proof
-        .write(&prover_geometry, f, tp.fork_for_test())
-        .unwrap();
+    let encoded_proof = p.prove(committed, &context).unwrap();
     let bytes = encoded_proof.as_bytes().to_vec();
     assert_eq!(&bytes[..4], b"LFV9");
 
@@ -293,12 +291,13 @@ fn exercise<
     {
         // The same witness/layout has the same commitment under a different
         // trusted circuit ID. The statement binds the ID and prevents replay.
-        let other_circuit = circuit(f);
-        let mut id = other_circuit.id;
-        id[0] ^= 1;
-        let other_circuit =
-            crate::core::proto::v2::Circuit::with_test_id(id, other_circuit.into_raw());
-        let other_prover = ZkProver::new(other_circuit, config, &context).unwrap();
+        let other_circuit = || {
+            let c = circuit(f);
+            let mut id = c.id;
+            id[0] ^= 1;
+            crate::core::proto::v2::Circuit::with_test_id(id, c.into_raw())
+        };
+        let other_prover = ZkProver::new(other_circuit(), config, &context).unwrap();
         let other_statement = other_prover.statement(CONTEXT, &public).unwrap();
         let committed = other_prover
             .commit(
@@ -308,16 +307,16 @@ fn exercise<
                 &mut DeterministicRng::new(42),
             )
             .unwrap();
-        let (other_proof, _) = other_prover.prove(committed, &context).unwrap();
-        assert_eq!(other_proof.com, proof.com);
+        let other_bytes = other_prover
+            .prove(committed, &context)
+            .unwrap()
+            .into_bytes();
+        let other_verifier = ZkVerifier::new(other_circuit(), config, &context).unwrap();
+        let other_proof =
+            read_standalone(&other_verifier, CONTEXT, &public, &other_bytes, f).unwrap();
+        assert_eq!(other_proof.com, decoded.com);
         assert!(verify(public.clone(), &other_proof).is_err());
 
-        let other_circuit = circuit(f);
-        let mut id = other_circuit.id;
-        id[0] ^= 1;
-        let other_circuit =
-            crate::core::proto::v2::Circuit::with_test_id(id, other_circuit.into_raw());
-        let other_verifier = ZkVerifier::new(other_circuit, config, &context).unwrap();
         let other_statement = other_verifier.statement(CONTEXT, &public).unwrap();
         other_verifier
             .reduce(Opened::new(&other_statement), &other_proof, &context)
@@ -496,9 +495,7 @@ mod messages;
 mod sensitivity;
 
 /// Prove `private` on `public` under `context`, on a transcript opened with
-/// the proof's statement. Returns the proof, its geometry and the prover's
-/// transcript.
-#[allow(clippy::type_complexity)]
+/// the proof's statement. Returns the sealed proof and its geometry.
 pub(super) fn prove_standalone<
     const W: usize,
     F: ZkField<W> + crate::runtime::algebra::packing::PackingField,
@@ -510,18 +507,11 @@ pub(super) fn prove_standalone<
     private: Vec<CircuitInput<F>>,
     ctx: &ZkContext<'_, W, F, D>,
     rng: &mut impl crate::runtime::random::PrivateRandom,
-) -> Result<
-    (
-        ZkProof<W, F>,
-        crate::runtime::v2::proto::zk::ZkProofGeometry,
-        Transcript,
-    ),
-    String,
-> {
+) -> Result<(EncodedProof, crate::runtime::v2::proto::zk::ZkProofGeometry), String> {
     let statement = prover.statement(context, public)?;
     let committed = prover.commit(private, &statement, ctx, rng)?;
-    let (proof, t) = prover.prove(committed, ctx)?;
-    Ok((proof, statement.geometry.clone(), t))
+    let proof = prover.prove(committed, ctx)?;
+    Ok((proof, statement.geometry.clone()))
 }
 /// Reduce `proof` on a transcript opened with its statement.
 pub(super) fn reduce_standalone<
