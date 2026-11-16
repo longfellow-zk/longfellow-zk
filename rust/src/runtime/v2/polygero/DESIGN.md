@@ -91,8 +91,8 @@ it). `A_F` is sparse: a list of terms
 `PolygeroLinearTerm { c, w, k }` that add `k*w[w]` to equation `c`; repeated
 `(c, w)` entries add. Equation and witness indices satisfy `c < m_F` and
 `w < nw_F`. Production statements are always derived. A static system that
-no frontend derives exists only in tests and tooling (`testonly`,
-`tooling`); it is not bound by the transcript and has no statement message.
+no frontend derives exists only in tests (`test`, `testonly`); it is not
+bound by the transcript and has no statement message.
 
 **Final claim.** Polygero reduces nothing further. The verifier accepts only
 if, for every field, the rows behind the root are close to codewords whose
@@ -376,7 +376,7 @@ impl<L: VerifierParticipants> JointPolygeroVerifier<L> {
     ) -> Result<(), PolygeroError>;                 // the opening check; the caller checks the seal
 }
 
-// tests and tools only: #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+// tests only: #[cfg(any(test, feature = "testonly"))]
 impl<E> LinearStatement<E> {
     pub fn new(a: Vec<PolygeroLinearTerm<E>>, b: Vec<E>) -> Self;  // static system, no session
 }
@@ -416,8 +416,7 @@ opening with another parameter fails cleanly, even one with the same row
 count and width (another `nw` can give the same rows). In production
 `LinearStatement` has no public constructor: frontends build it inside
 `runtime::v2` from their absorbed messages, stamped with the session they
-derive on. `LinearStatement::new` exists only under `test`, `testonly` or
-`tooling`, and so do the bare body codec (`JointPolygeroParam::write` and
+derive on. `LinearStatement::new` exists only under `test` or `testonly`, and so do the bare body codec (`JointPolygeroParam::write` and
 `read`) and standalone `JointPolygeroVerifier::verify`. Its system belongs to
 no session, so the zk layer's `finish` rejects it; the bare `prove` and
 `reduce` ignore the stamp. Complete proofs encode the joint

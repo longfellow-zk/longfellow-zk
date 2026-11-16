@@ -3,17 +3,20 @@
 use std::{collections::BTreeMap, fmt};
 
 /// Warnings per cargo target, labeled as cargo labels them with the quotes
-/// dropped and spaces turned into `-`: `lib`, `lib-test`, `bin-zk_tool`.
+/// dropped and spaces turned into `-`, after a prefix naming the package
+/// outside the library: `lib`, `lib-test`, `tools-bin-zk_tool`.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Counts(pub(crate) BTreeMap<String, usize>);
 
 impl Counts {
-    /// The counts in clippy's output: its lines
-    /// ``warning: `longfellow-zk` (lib test) generated 15 warnings (9 duplicates)``.
-    pub(crate) fn of_output(output: &str) -> Self {
+    /// The counts of `package`'s targets in clippy's output, from its lines
+    /// ``warning: `longfellow-zk` (lib test) generated 15 warnings (9 duplicates)``,
+    /// each label after `prefix`.
+    pub(crate) fn of_output(output: &str, package: &str, prefix: &str) -> Self {
         let mut counts = BTreeMap::new();
+        let start = format!("warning: `{package}` (");
         for line in output.lines() {
-            let Some(rest) = line.strip_prefix("warning: `longfellow-zk` (") else {
+            let Some(rest) = line.strip_prefix(start.as_str()) else {
                 continue;
             };
             let Some((label, generated)) = rest.split_once(") generated ") else {
@@ -21,10 +24,18 @@ impl Counts {
             };
             let number = generated.split(' ').next().unwrap_or("");
             if let Ok(n) = number.parse::<usize>() {
-                counts.insert(label.replace('"', "").replace(' ', "-"), n);
+                counts.insert(
+                    format!("{prefix}{}", label.replace('"', "").replace(' ', "-")),
+                    n,
+                );
             }
         }
         Self(counts)
+    }
+
+    /// Add `other`'s counts, which label other targets.
+    pub(crate) fn add(&mut self, other: Self) {
+        self.0.extend(other.0);
     }
 
     /// `label=N,...`, as [`Counts`] displays; `none` or an empty string has no

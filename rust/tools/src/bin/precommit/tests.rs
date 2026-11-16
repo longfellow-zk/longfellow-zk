@@ -6,14 +6,19 @@ fn clippy_counts_are_read_per_target_and_round_trip() {
     let output = "\
 warning: `longfellow-zk` (lib) generated 3 warnings
 warning: `longfellow-zk` (lib test) generated 15 warnings (3 duplicates)
-warning: `longfellow-zk` (bin \"zk_tool\" test) generated 1 warning (run `cargo clippy --fix` \
+warning: `longfellow-zk-tools` (bin \"zk_tool\" test) generated 1 warning (run `cargo clippy --fix` \
 to apply 1 suggestion)
 warning: unused import: `x`
 ";
-    let counts = Counts::of_output(output);
-    assert_eq!(counts.to_string(), "bin-zk_tool-test=1,lib=3,lib-test=15");
+    let mut counts = Counts::of_output(output, "longfellow-zk", "");
+    assert_eq!(counts.to_string(), "lib=3,lib-test=15");
+    counts.add(Counts::of_output(output, "longfellow-zk-tools", "tools-"));
+    assert_eq!(
+        counts.to_string(),
+        "lib=3,lib-test=15,tools-bin-zk_tool-test=1"
+    );
     assert_eq!(Counts::parse(&counts.to_string()).unwrap(), counts);
-    assert_eq!(Counts::of_output("").to_string(), "none");
+    assert_eq!(Counts::of_output("", "x", "").to_string(), "none");
     assert_eq!(Counts::parse("none").unwrap(), Counts::default());
     assert!(Counts::parse("lib").is_err());
     assert!(Counts::parse("lib=x").is_err());

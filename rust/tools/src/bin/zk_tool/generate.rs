@@ -15,7 +15,6 @@
 //! Deterministic offline publication of candidate v2 parameter records.
 use crate::Result;
 
-#[cfg(all(feature = "compiler", feature = "mdoc"))]
 pub(crate) fn run() -> Result<()> {
     use std::fmt::Write;
 
@@ -38,8 +37,4 @@ pub(crate) fn run() -> Result<()> {
     }
     print!("{records}");
     Ok(())
-}
-#[cfg(not(all(feature = "compiler", feature = "mdoc")))]
-pub fn run() -> Result<()> {
-    Err("generate-v2-specs requires compiler and mdoc features".into())
 }

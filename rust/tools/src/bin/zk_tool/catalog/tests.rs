@@ -14,7 +14,6 @@
 
 // The admitted-profile round trip runs a bare joint opening, which the
 // library exposes only with testonly.
-#[cfg(feature = "testonly")]
 use longfellow_zk::{
     core::algebra::RegisteredField,
     runtime::{
@@ -109,7 +108,6 @@ fn rate_four_tuning_respects_capacity() {
     }
 }
 
-#[cfg(feature = "testonly")]
 #[test]
 fn admitted_profiles_encode_and_verify() {
     use longfellow_zk::runtime::algebra::{
@@ -130,7 +128,6 @@ fn admitted_profiles_encode_and_verify() {
     admitted_profiles_roundtrip(&prime, &prime_domain);
 }
 
-#[cfg(feature = "testonly")]
 fn admitted_profiles_roundtrip<
     const W: usize,
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
@@ -155,7 +152,6 @@ fn admitted_profiles_roundtrip<
     roundtrip_profiles(f, d, profiles);
 }
 
-#[cfg(feature = "testonly")]
 fn roundtrip_profiles<
     const W: usize,
     F: RuntimeField<W> + RegisteredField + SupportsSampling,

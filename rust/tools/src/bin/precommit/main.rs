@@ -2,7 +2,7 @@
 //! The checks to run before every commit (AGENTS.md), in one command.
 //!
 //! ```sh
-//! cargo run --release --features tooling --bin precommit -- [options]
+//! cargo run --release -p longfellow-zk-tools --bin precommit -- [options]
 //! ```
 //!
 //! Run it from anywhere in the repository. It runs the steps below in order

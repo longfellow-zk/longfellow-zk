@@ -41,7 +41,11 @@ pub(crate) fn all() -> Vec<Step> {
             features,
         ),
         step("deps", "the dependency check", deps),
-        step("roles", "standalone roles pull no compiler crates", roles),
+        step(
+            "roles",
+            "standalone roles pull no compiler or tool crates",
+            roles,
+        ),
         step("clippy", "clippy warnings do not increase", clippy),
         step("tests", "release tests", tests),
         step(
@@ -67,9 +71,8 @@ pub(crate) fn all() -> Vec<Step> {
 /// The role and feature combinations that must build warning-free alone. The
 /// generic v2 roles build without the mdoc application, the prover and the
 /// verifier each without the other, and without v1 nothing needs the v1
-/// runtime or AES; the compiler and tooling builds check this for offline
-/// code too.
-const FEATURE_SETS: [&str; 12] = [
+/// runtime or AES; the compiler builds check this for offline code too.
+const FEATURE_SETS: [&str; 11] = [
     "",
     "verifier",
     "prover",
@@ -81,7 +84,6 @@ const FEATURE_SETS: [&str; 12] = [
     "prover,mdoc,v1",
     "compiler",
     "compiler,mdoc",
-    "tooling",
 ];
 
 /// The standalone prover and verifier, deployed (v1) and v2.
@@ -97,13 +99,19 @@ const ROLE_SETS: [&str; 6] = [
 /// The compiler's crates, which no proof role may pull.
 const COMPILER_CRATES: [&str; 4] = ["bumpalo", "num-bigint", "num-traits", "rustc-hash"];
 
+/// The tools' own crates, which the library never pulls.
+const TOOL_CRATES: [&str; 3] = ["protobuf", "scip", "serde_json"];
+
+/// The tools, a second member of the workspace in `rust/tools`.
+const TOOLS: &str = "longfellow-zk-tools";
+
 /// The cross and alternative-backend checks: x86-64 does not compile them.
 const CROSS_CHECKS: [&str; 6] = [
     "--target aarch64-unknown-linux-gnu --lib --tests --no-default-features --features \
-     testonly,tooling",
-    "--target armv7-unknown-linux-gnueabihf --lib --tests --benches --features testonly,tooling",
+     testonly",
+    "--target armv7-unknown-linux-gnueabihf --lib --tests --benches --features testonly",
     "--target armv7-unknown-linux-gnueabihf --lib --tests --features testonly,arm-neon",
-    "--target i686-unknown-linux-gnu --lib --tests --benches --features testonly,tooling",
+    "--target i686-unknown-linux-gnu --lib --tests --benches --features testonly",
     "--lib --tests --features testonly,force-generic-arch",
     "--lib --tests --features testonly,limb32",
 ];
@@ -152,7 +160,7 @@ fn all_clean(log: &mut Log, commands: Vec<(String, Command)>, summary: String) -
 fn fmt(cx: &Context, log: &mut Log) -> Outcome {
     let check = cx.options.fmt_check;
     let mut cargo_fmt = cx.command(&cx.rust, "cargo");
-    cargo_fmt.args(["+nightly", "fmt"]);
+    cargo_fmt.args(["+nightly", "fmt", "--all"]);
     if check {
         cargo_fmt.args(["--", "--check"]);
     }
@@ -205,17 +213,20 @@ fn features(cx: &Context, log: &mut Log) -> Outcome {
     // The tests without the mdoc application, which the `--lib` role builds
     // do not compile.
     for args in [
-        "check --lib --tests --no-default-features --features testonly,tooling",
-        "check --features testonly,tooling --tests --benches --bins",
+        "check --lib --tests --no-default-features --features testonly",
+        "check --features testonly --tests --benches --bins",
         "check --all-targets",
     ] {
         commands.push((args.to_owned(), cx.cargo(args)));
     }
+    // The tools, with the library features they ask for.
+    let tools = format!("check -p {TOOLS} --all-targets");
+    commands.push((tools.clone(), cx.cargo(&tools)));
     all_clean(log, commands, "warning-free".into())
 }
 
 fn deps(cx: &Context, log: &mut Log) -> Outcome {
-    let run = log.run(&mut cx.cargo("run --release --features tooling --bin dependency_check"));
+    let run = log.run(&mut cx.cargo(&format!("run --release -p {TOOLS} --bin dependency_check")));
     let summary = run
         .output
         .lines()
@@ -242,30 +253,69 @@ fn roles(cx: &Context, log: &mut Log) -> Outcome {
             .output
             .lines()
             .filter_map(|line| line.split(' ').next())
-            .filter(|name| COMPILER_CRATES.contains(name))
+            .filter(|name| COMPILER_CRATES.contains(name) || TOOL_CRATES.contains(name))
             .collect();
         pulled.sort_unstable();
         pulled.dedup();
         if !pulled.is_empty() {
             return Outcome::Failed(
-                format!("[{set}] pulls compiler crates: {}", pulled.join(", ")),
+                format!(
+                    "[{set}] pulls compiler or tool crates: {}",
+                    pulled.join(", ")
+                ),
                 String::new(),
             );
         }
     }
     Outcome::Passed(format!(
-        "{} role builds pull none of {}",
+        "{} role builds pull none of {}, {}",
         ROLE_SETS.len(),
-        COMPILER_CRATES.join(", ")
+        COMPILER_CRATES.join(", "),
+        TOOL_CRATES.join(", ")
     ))
 }
 
-fn clippy(cx: &Context, log: &mut Log) -> Outcome {
-    let run = log.run(&mut cx.cargo("clippy --all-targets"));
-    if !run.success {
-        return Outcome::Failed("cargo clippy failed".into(), why(&run));
+/// The clippy runs whose warnings count, each for its own package: the
+/// library with its default features, and the tools (whose run also lints
+/// the library, with the features the tools ask for; those warnings belong
+/// to the first run). A tools label starts with `tools-`.
+const CLIPPY_RUNS: [(&str, &str, &str); 2] = [
+    ("clippy --all-targets", "longfellow-zk", ""),
+    (
+        "clippy -p longfellow-zk-tools --all-targets",
+        TOOLS,
+        "tools-",
+    ),
+];
+
+/// The warning counts of every run of [`CLIPPY_RUNS`] in `directory`, with
+/// `target` as the target directory; a run whose package `directory` lacks
+/// (the tools, before they were a workspace member) counts none.
+fn clippy_counts(log: &mut Log, directory: &Path, target: &Path) -> Result<Counts, Run> {
+    let mut counts = Counts::default();
+    for (args, package, prefix) in CLIPPY_RUNS {
+        if package == TOOLS && !directory.join("tools/Cargo.toml").is_file() {
+            continue;
+        }
+        let mut command = Command::new("cargo");
+        command
+            .current_dir(directory)
+            .env("CARGO_TARGET_DIR", target)
+            .args(args.split_whitespace());
+        let run = log.run(&mut command);
+        if !run.success {
+            return Err(run);
+        }
+        counts.add(Counts::of_output(&run.output, package, prefix));
     }
-    let counts = Counts::of_output(&run.output);
+    Ok(counts)
+}
+
+fn clippy(cx: &Context, log: &mut Log) -> Outcome {
+    let counts = match clippy_counts(log, &cx.rust, &cx.target) {
+        Ok(counts) => counts,
+        Err(run) => return Outcome::Failed("cargo clippy failed".into(), why(&run)),
+    };
     let (baseline, source) = match &cx.options.clippy_counts {
         Some(given) => (given.clone(), "given".to_owned()),
         None => match cx
@@ -327,16 +377,8 @@ fn base_counts(cx: &Context, log: &mut Log, base: &str) -> Result<Counts, String
     }
     let crate_dir = source.join("rust");
     let _ = fs::copy(cx.rust.join("Cargo.lock"), crate_dir.join("Cargo.lock"));
-    let mut command = Command::new("cargo");
-    command
-        .current_dir(&crate_dir)
-        .env("CARGO_TARGET_DIR", directory.join("target"))
-        .args(["clippy", "--all-targets"]);
-    let run = log.run(&mut command);
-    if !run.success {
-        return Err(format!("clippy of {base} failed; see the log"));
-    }
-    let counts = Counts::of_output(&run.output);
+    let counts = clippy_counts(log, &crate_dir, &directory.join("target"))
+        .map_err(|_| format!("clippy of {base} failed; see the log"))?;
     let _ = fs::write(&saved, format!("{counts}\n"));
     let _ = fs::remove_dir_all(&source);
     Ok(counts)
@@ -385,13 +427,19 @@ fn test_outcome(run: &Run) -> Outcome {
 }
 
 fn tests(cx: &Context, log: &mut Log) -> Outcome {
-    test_outcome(&log.run(&mut cx.cargo("test --release --features testonly,tooling")))
+    // The library's tests, then the tools'.
+    let library = log.run(&mut cx.cargo("test --release --features testonly"));
+    let tools = log.run(&mut cx.cargo(&format!("test --release -p {TOOLS}")));
+    test_outcome(&Run {
+        success: library.success && tools.success,
+        output: library.output + &tools.output,
+    })
 }
 
 fn doctests(cx: &Context, log: &mut Log) -> Outcome {
     let mut command = cx.cargo_into(
         &cx.work.join("nightly"),
-        "+nightly test --release --features testonly,tooling --doc",
+        "+nightly test --release --features testonly --doc",
     );
     test_outcome(&log.run(&mut command))
 }
@@ -622,7 +670,7 @@ fn hahn_cache(cx: &Context) -> PathBuf {
 
 /// `zk_tool` with `args`, run from `rust/`.
 fn zk_tool(cx: &Context, log: &mut Log, args: &str, cache: &Path) -> Outcome {
-    let mut command = cx.cargo("run -q --release --features tooling --bin zk_tool --");
+    let mut command = cx.cargo(&format!("run -q --release -p {TOOLS} --bin zk_tool --"));
     command.args(args.split_whitespace()).arg(cache);
     let run = log.run(&mut command);
     if run.success {

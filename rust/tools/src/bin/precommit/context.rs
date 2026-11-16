@@ -26,7 +26,7 @@ pub(crate) struct Options {
 pub(crate) struct Context {
     /// The repository root.
     pub(crate) root: PathBuf,
-    /// `root/rust`, the crate.
+    /// `root/rust`, the workspace of the library and the tools.
     pub(crate) rust: PathBuf,
     /// The crate's cargo target directory.
     pub(crate) target: PathBuf,

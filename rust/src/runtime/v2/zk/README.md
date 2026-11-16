@@ -218,4 +218,4 @@ V1 encodings and transcripts are unchanged.
 
 Tests under `tests/` cover single- and multiple-circuit proofs, binary packing and
 prime-field direct inputs, shared input layouts, independent transcript replay,
-malformed shapes, altered messages and commitment binding. `src/bin/dependency_check` enforces protocol and role boundaries.
+malformed shapes, altered messages and commitment binding. `dependency_check` (`tools/`) enforces protocol and role boundaries.

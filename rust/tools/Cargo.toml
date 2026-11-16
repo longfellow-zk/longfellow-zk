@@ -1,0 +1,28 @@
+[package]
+name = "longfellow-zk-tools"
+version = "0.1.0"
+edition = "2021"
+description = "Offline tools for longfellow-zk: parameter certification (zk_tool), the dependency check and the pre-commit runner"
+license = "Apache-2.0"
+repository = "https://github.com/google/longfellow-zk"
+publish = false
+
+# The binaries are found in src/bin: zk_tool, dependency_check, precommit.
+
+[dependencies]
+# zk_tool reads the library's profiles and compiles its circuits (default features).
+longfellow-zk = { path = ".." }
+num-bigint = "0.4"
+num-traits = "0.2"
+# Read rust-analyzer's SCIP index in the dependency check.
+protobuf = "3.7"
+scip = "0.10"
+serde_json = { version = "1.0", features = ["arbitrary_precision"] }
+sha2 = "0.10.8"
+
+[dev-dependencies]
+# zk_tool's catalog tests prove and verify bare Polygero openings.
+longfellow-zk = { path = "..", features = ["testonly"] }
+
+[lints]
+workspace = true

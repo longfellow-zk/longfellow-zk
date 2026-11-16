@@ -394,7 +394,7 @@ establish that a cryptographic implementation satisfies their premises.
   commitment.
 - **Unbound surfaces.** Static Polygero statements (`LinearStatement::new`),
   the bare Polygero body codec and standalone verify, and
-  `Transcript::bound_for_test` exist only in test and tooling builds, and the
+  `Transcript::bound_for_test` exist only in test builds (`testonly`), and the
   transcript does not bind them. The traits `Statement`, `SetupMessage` and
   `Message` are open, and an implementation outside the crate is trusted. No
   prove, verify or read entry point accepts an outside `Statement`; the

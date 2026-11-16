@@ -48,7 +48,7 @@ fn phases_follow_the_layout() {
         ("src/util/array.rs", Shared),
         ("src/circuits/sha256/evaluate.rs", Bridge),
         ("src/circuits/sha256.rs", Neutral),
-        ("src/bin/zk_tool/main.rs", Neutral),
+        ("src/bin/prover_only.rs", Neutral),
         ("src/mdoc/development_provider/next_v2.rs", Neutral),
     ] {
         assert_eq!(phase(path), expected, "{path}");
@@ -261,6 +261,6 @@ fn role_gates_sit_only_on_module_lines() {
 fn only_role_files_and_pending_modules_may_gate_items() {
     assert!(may_gate_items("src/runtime/v2/polygero/prover.rs"));
     assert!(may_gate_items("src/runtime/v2/sumcheck/quad.rs"));
-    assert!(may_gate_items("src/bin/zk_tool/generate.rs"));
+    assert!(may_gate_items("src/bin/verifier_only.rs"));
     assert!(!may_gate_items("src/core/algebra/field.rs"));
 }

@@ -118,7 +118,7 @@ impl SessionStamp {
     }
     /// The identity of no session, for the static systems of tests and
     /// tools: no session's check accepts it.
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     pub(crate) fn detached() -> Self {
         Self::fresh()
     }

@@ -401,8 +401,8 @@ Frontend `reduce` methods return equations awaiting authentication; complete
 sumcheck diagnostics are confined to tests.
 
 Sumcheck does not depend on Ligero, Polygero, or the combined ZK
-implementation. `src/bin/dependency_check` enforces these boundaries from
-rust-analyzer's index of the `testonly,tooling` build on the host target;
+implementation. `dependency_check` (in `tools/`) enforces these boundaries from
+rust-analyzer's index of the `testonly` build on the host target;
 code for other targets and features is covered by the role, feature and
 cross-target builds.
 
@@ -417,8 +417,12 @@ consistent metadata; proving and verification add no validation work.
 
 ### Source layout
 
-This is one Cargo crate, `longfellow-zk`. The source tree mirrors the
-module tree: module `foo` lives in `foo.rs`, its submodules in `foo/`, and
+This directory is a Cargo workspace of two crates: the library
+`longfellow-zk` in `src/`, and the offline tools, `longfellow-zk-tools`, in
+`tools/`, whose dependencies (`scip`, `protobuf`, `serde_json`) stay out of
+the library. Cargo commands run here act on the library; `-p
+longfellow-zk-tools` selects the tools. The source tree mirrors the module
+tree: module `foo` lives in `foo.rs`, its submodules in `foo/`, and
 its unit tests in `foo/tests.rs` or `foo/tests/`.
 
 | Path under `src/` | Contents |
@@ -431,11 +435,15 @@ its unit tests in `foo/tests.rs` or `foo/tests/`.
 | `runtime/v2/` | V2 sumcheck, Polygero, witness selection, packing, ZK orchestration, transcript, Merkle tree and proof codecs |
 | `circuits/` | Reusable circuits and native witness generation |
 | `mdoc/` | mdoc circuits, application APIs, specifications, providers, and artifacts |
-| `bin/zk_tool/` | Rust commands for parameter auditing and specification generation |
 | `bin/prover_only.rs`, `bin/verifier_only.rs` | Single-role mdoc binaries |
-| `bin/dependency_check/` | Module dependency rules over rust-analyzer's index |
 
-Benchmarks live in `benches/`.
+Benchmarks live in `benches/`. The tools are binaries of `tools/`:
+
+| Path under `tools/src/bin/` | Contents |
+|---|---|
+| `zk_tool/` | Rust commands for parameter auditing and specification generation |
+| `dependency_check/` | Module dependency rules over rust-analyzer's index |
+| `precommit/` | The checks to run before every commit (AGENTS.md) |
 
 Compile-time and runtime code occupy separate directories. Prover and
 verifier implementations also remain separate within each protocol.
@@ -552,12 +560,8 @@ compiler. The default features are `verifier`, `prover`, `compiler`, `mdoc`, and
 | `mdoc` | mdoc application and circuit-archive support |
 | `v1` | The deployed v1 protocol: runtime, AES-based transcript, mdoc v1 entry points and the `prover_only`/`verifier_only` tools; on by default. v2-only builds omit it |
 | `testonly` | Test fixtures and deterministic randomness; also enables both proof roles, the compiler and `v1` |
-| `tooling` | Offline Rust tools (`dependency_check`, `zk_tool`); enables the compiler and the tools' own dependencies |
 | `arm-neon` | ARMv7 NEON field arithmetic; also requires the compiler's NEON target flag |
 | `bench-memory` | Benchmark allocation tracking |
-
-The `tooling` feature is not enabled by default and does not enable proving or
-verification.
 
 Feature gates are placed high in the module tree. The `cfg_compiler!`,
 `cfg_prover!`, `cfg_verifier!`, `cfg_prover_or_compiler!`, and
@@ -590,8 +594,8 @@ cargo build --release --no-default-features --features compiler,mdoc
 cargo test --release --features testonly
 
 # Offline-tool tests. The Polygero catalog tests prove and verify every
-# admitted profile, so they need the proof roles that testonly enables.
-cargo test --release --features testonly,tooling --bin zk_tool
+# admitted profile, with the library's testonly features.
+cargo test --release -p longfellow-zk-tools
 ```
 
 Circuit synthesis and tampering tests use the native v2 compiler. Dedicated
@@ -644,7 +648,7 @@ the summary above records the measured code configuration.
 
 `dependency_check` builds the crate's exact file dependency graph from
 rust-analyzer's index and checks it against
-[`src/bin/dependency_check/rules.txt`](src/bin/dependency_check/rules.txt). It checks:
+[`tools/src/bin/dependency_check/rules.txt`](tools/src/bin/dependency_check/rules.txt). It checks:
 
 - component edges against the rules, which must name every component and stay
   acyclic; a component with components below it owns only its root file;
@@ -659,9 +663,9 @@ rust-analyzer's index and checks it against
   `rules.txt`.
 
 ```sh
-cargo run --release --features tooling --bin dependency_check
-cargo run --release --features tooling --bin dependency_check -- --dot /tmp/deps   # files.dot, components.dot
-cargo run --release --features tooling --bin dependency_check -- --current      # current graph as rules
+cargo run --release -p longfellow-zk-tools --bin dependency_check
+cargo run --release -p longfellow-zk-tools --bin dependency_check -- --dot /tmp/deps   # files.dot, components.dot
+cargo run --release -p longfellow-zk-tools --bin dependency_check -- --current      # current graph as rules
 ```
 
 Parameter catalogs and selection belong to the standalone `zk_tool`, which

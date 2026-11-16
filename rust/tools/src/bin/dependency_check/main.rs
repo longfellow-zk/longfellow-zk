@@ -1,12 +1,13 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Dependency check over rust-analyzer's resolved index of this crate.
+//! Dependency check over rust-analyzer's resolved index of the library crate.
 //!
 //! ```sh
-//! cargo run --release --features tooling --bin dependency_check [-- --dot <directory>]
+//! cargo run --release -p longfellow-zk-tools --bin dependency_check [-- --dot <directory>]
 //! ```
 //!
-//! The tool runs `rust-analyzer scip` on the crate (with the analysis features
-//! `testonly,tooling`) and builds the file graph: an edge A -> B means a
+//! The tool runs `rust-analyzer scip` on the workspace in `rust/` (with the
+//! library's `testonly` feature) and builds the file graph of the library
+//! (`rust/src`; the tools in `rust/tools` are not part of it): an edge A -> B means a
 //! reference written in file A resolves to an item defined in file B. Every
 //! reference counts, in signatures, bodies, imports and macro output, and it
 //! is attributed to the file where it is written, so a method defined in
@@ -15,7 +16,7 @@
 //! crate, test and bench files, and the crate root `src/lib.rs` (which only
 //! mounts modules and defines the `cfg_*!` wrappers) are not edges.
 //!
-//! A component is a module path listed in `src/bin/dependency_check/rules.txt`
+//! A component is a module path listed in `rules.txt` beside this source
 //! (for example `runtime/v2/zk`: `src/runtime/v2/zk.rs` and everything under
 //! `src/runtime/v2/zk/`); a file belongs to the longest listed component its
 //! module path starts with. The rules list every component with the components
@@ -54,13 +55,15 @@ use protobuf::Message;
 
 type Graph = BTreeMap<String, BTreeMap<String, usize>>;
 
-/// Test files (a `tests` path segment or `tests.rs`), benches, and the crate
-/// root, which only mounts modules and defines the `cfg_*!` wrappers.
+/// Files outside the library's `src` (the benches and the tools), test files
+/// (a `tests` path segment or `tests.rs`), and the crate root, which only
+/// mounts modules and defines the `cfg_*!` wrappers.
 fn excluded(path: &str) -> bool {
     path == "src/lib.rs"
+        || !path.starts_with("src/")
         || path
             .split('/')
-            .any(|part| part == "tests" || part == "tests.rs" || part == "benches")
+            .any(|part| part == "tests" || part == "tests.rs")
 }
 
 /// The module path of a file: `src/runtime/v2/zk/joint.rs` is `runtime/v2/zk/joint`.
@@ -527,7 +530,7 @@ fn file_graph(root: &Path, work: &Path) -> (Graph, Vec<Reference>, BTreeSet<Stri
     let config = work.join("rust-analyzer.json");
     std::fs::write(
         &config,
-        r#"{"cargo": {"features": ["testonly", "tooling"]}}"#,
+        r#"{"cargo": {"features": ["longfellow-zk/testonly"]}}"#,
     )
     .expect("write the rust-analyzer configuration");
     let index_path = work.join("index.scip");
@@ -755,7 +758,7 @@ struct Rules {
 }
 
 fn rules(path: &Path) -> Rules {
-    let text = std::fs::read_to_string(path).expect("read src/bin/dependency_check/rules.txt");
+    let text = std::fs::read_to_string(path).expect("read the dependency rules.txt");
     let mut allowed = Graph::new();
     let mut symbols = Vec::new();
     let mut section = "";
@@ -850,7 +853,12 @@ fn dot(graph: &Graph, title: &str, clusters: Option<&Components>, labels: bool) 
 }
 
 fn main() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    // This tool is in `rust/tools`; the library it checks is `rust/`.
+    let tools = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let root = tools
+        .parent()
+        .expect("the tools crate lies inside the library's directory")
+        .to_path_buf();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let (dot_dir, current) = match args.as_slice() {
         [] => (None, false),
@@ -858,7 +866,7 @@ fn main() {
         [flag, dir] if flag == "--dot" => (Some(PathBuf::from(dir)), false),
         _ => panic!("usage: dependency_check [--current | --dot <directory>]"),
     };
-    let rules = rules(&root.join("src/bin/dependency_check/rules.txt"));
+    let rules = rules(&tools.join("src/bin/dependency_check/rules.txt"));
     let names = Components(rules.allowed.keys().cloned().collect());
     let (files, references, symbols) = file_graph(&root, &root.join("target/dependency_check"));
     let components = collapse(&files, &names);

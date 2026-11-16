@@ -1,5 +1,5 @@
 # Allowed dependencies between components, checked by
-#   cargo run --release --features tooling --bin dependency_check
+#   cargo run --release -p longfellow-zk-tools --bin dependency_check
 # A component is a module path (`runtime/v2/zk`): a file belongs to the
 # longest component its module path starts with. A component with components
 # below it owns only its root file (`src/runtime/v2.rs`), so every other
@@ -80,9 +80,6 @@ runtime/v2/sumcheck: core/algebra core/proto runtime/algebra runtime/random runt
 runtime/v2/transcript: core/algebra runtime/algebra runtime/v2/proto/tags
 runtime/v2/witness_selection: core/algebra runtime/algebra runtime/random runtime/v2/polygero runtime/v2/transcript runtime/v2/proto/polygero runtime/v2/proto/tags runtime/v2/proto/witness_selection
 runtime/v2/zk: core/algebra core/proto runtime/algebra runtime/random runtime/v2/dual_packing runtime/v2/polygero runtime/v2/sumcheck runtime/v2/transcript runtime/v2/witness_selection runtime/v2/proto/dual_packing runtime/v2/proto/polygero runtime/v2/proto/sumcheck runtime/v2/proto/tags runtime/v2/proto/witness_selection runtime/v2/proto/zk
-bin/dependency_check:
-bin/precommit:
-bin/zk_tool: mdoc/development_provider mdoc/proto mdoc/runtime runtime/v2/proto/merkle runtime/v2/proto/polygero
 util:
 
 # Which files may (`only`) or may not (`never`) reference a symbol. Symbols are

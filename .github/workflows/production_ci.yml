@@ -61,14 +61,14 @@ jobs:
           rustup toolchain install nightly --profile minimal --component rustfmt
 
       - name: Pre-commit checks
-        # The AGENTS.md checklist (rust/src/bin/precommit): formatting, every
+        # The AGENTS.md checklist (rust/tools/src/bin/precommit): formatting, every
         # role and feature build warning-free, the dependency check, the
         # standalone role dependency trees, clippy against the parent commit,
         # the release tests, and the formal inspectors and round shapes. The
         # nightly doctests have their own job. The cross builds are skipped:
         # they need cross C toolchains that this runner does not have.
         run: >-
-          cargo run --release --features tooling --bin precommit --
+          cargo run --release -p longfellow-zk-tools --bin precommit --
           --keep-going --fmt-check --base HEAD^ --no-cross --skip doctests
         working-directory: rust
 
@@ -91,5 +91,5 @@ jobs:
 
       - name: Doctests on nightly
         # Nightly also checks the error codes of the compile_fail doctests.
-        run: cargo run --features tooling --bin precommit -- --only doctests
+        run: cargo run -p longfellow-zk-tools --bin precommit -- --only doctests
         working-directory: rust

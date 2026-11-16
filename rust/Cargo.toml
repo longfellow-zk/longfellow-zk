@@ -1,3 +1,14 @@
+# The library and, in tools/, the offline tools (zk_tool, dependency_check,
+# precommit), whose dependencies stay out of the library.
+[workspace]
+members = [".", "tools"]
+
+[workspace.lints.clippy]
+shadow_same = "warn"
+shadow_reuse = "warn"
+shadow_unrelated = "warn"
+type_complexity = "allow"
+
 [package]
 name = "longfellow-zk"
 version = "0.1.0"
@@ -35,8 +46,6 @@ force-generic-arch = []
 arm-neon = []
 # Benchmark-only allocation tracking; keep it off for timing measurements.
 bench-memory = []
-# Offline audits and specification generation; never a proof-role dependency.
-tooling = ["compiler", "dep:serde_json", "dep:scip", "dep:protobuf"]
 
 [dependencies]
 aes = { version = "0.8.4", optional = true }
@@ -51,11 +60,6 @@ rustc-hash = { version = "2.1.0", optional = true }
 # silently slow role-specific builds made with --no-default-features.
 sha2 = { version = "0.10.8", features = ["asm"] }
 zstd = { version = "0.13", default-features = false, optional = true }
-
-serde_json = { version = "1.0", features = ["arbitrary_precision"], optional = true }
-# Read rust-analyzer's SCIP index in the deps tool (tooling only).
-scip = { version = "0.10", optional = true }
-protobuf = { version = "3.7", optional = true }
 
 [dev-dependencies]
 criterion = "0.5"
@@ -139,11 +143,8 @@ name = "range_interpolation_benchmark"
 path = "benches/range_interpolation_benchmark.rs"
 harness = false
 
-[lints.clippy]
-shadow_same = "warn"
-shadow_reuse = "warn"
-shadow_unrelated = "warn"
-type_complexity = "allow"
+[lints]
+workspace = true
 
 [profile.release]
 opt-level = 3
@@ -154,18 +155,3 @@ panic = "abort"
 [profile.dev]
 opt-level = 2
 lto = false
-
-[[bin]]
-name = "zk_tool"
-path = "src/bin/zk_tool/main.rs"
-required-features = ["tooling", "mdoc"]
-
-[[bin]]
-name = "dependency_check"
-path = "src/bin/dependency_check/main.rs"
-required-features = ["tooling"]
-
-[[bin]]
-name = "precommit"
-path = "src/bin/precommit/main.rs"
-required-features = ["tooling"]

@@ -310,8 +310,8 @@ The seal message (`Seal`, tag 112) carries every proof byte before the seal
 block, the magic included.
 
 These are the only complete proofs. Sealed bare Polygero bodies
-(`JointPolygeroParam::write` and `read`) exist only for tests and tools
-(`test`, `testonly` and `tooling` builds), so I1 does not apply to them.
+(`JointPolygeroParam::write` and `read`) exist only for tests
+(`test` and `testonly` builds), so I1 does not apply to them.
 
 ### Tag registry
 

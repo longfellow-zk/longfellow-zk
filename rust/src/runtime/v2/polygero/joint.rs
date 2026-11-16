@@ -3,7 +3,7 @@
 use super::{ensure, PolygeroError, PolygeroLinearTerm, PolygeroParam};
 #[cfg(any(test, feature = "testonly"))]
 use crate::runtime::v2::transcript::{EncodedProof, Transcript};
-#[cfg(any(test, feature = "testonly", feature = "tooling"))]
+#[cfg(any(test, feature = "testonly"))]
 use crate::runtime::v2::{
     proto::polygero::{codec::checked_body, JointPolygeroProof},
     transcript::{Unverified, SEAL_BYTES},
@@ -112,7 +112,7 @@ impl<E> LinearStatement<E> {
     /// session, so a complete proof's joint opening rejects it; the bare
     /// joint prover and verifier accept it. Frontend-derived systems are
     /// constructed internally.
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     pub fn new(a: Vec<PolygeroLinearTerm<E>>, b: Vec<E>) -> Self {
         Self {
             a,
@@ -160,15 +160,15 @@ pub trait Participants: sealed::Sealed {
     // The bare body codec of `JointPolygeroParam::{write, read}`, for tests
     // and tools only. Complete proofs encode the field bodies themselves.
     /// Bytes of every field's response and rows; None if they overflow.
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     fn wire_len(&self) -> Option<usize>;
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     fn write_responses(&self, b: &Self::Bodies, out: &mut Vec<u8>) -> Result<(), PolygeroError>;
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     fn write_rows(&self, b: &Self::Bodies, out: &mut Vec<u8>) -> Result<(), PolygeroError>;
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     fn read_responses(&self, bytes: &mut &[u8]) -> Result<Self::Bodies, PolygeroError>;
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     fn read_rows(&self, b: &mut Self::Bodies, bytes: &mut &[u8]) -> Result<(), PolygeroError>;
 }
 impl Participants for () {
@@ -187,23 +187,23 @@ impl Participants for () {
     fn validate_bodies(&self, _: &()) -> Result<(), PolygeroError> {
         Ok(())
     }
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     fn wire_len(&self) -> Option<usize> {
         Some(0)
     }
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     fn write_responses(&self, _: &(), _: &mut Vec<u8>) -> Result<(), PolygeroError> {
         Ok(())
     }
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     fn write_rows(&self, _: &(), _: &mut Vec<u8>) -> Result<(), PolygeroError> {
         Ok(())
     }
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     fn read_responses(&self, _: &mut &[u8]) -> Result<(), PolygeroError> {
         Ok(())
     }
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     fn read_rows(&self, _: &mut (), _: &mut &[u8]) -> Result<(), PolygeroError> {
         Ok(())
     }
@@ -251,7 +251,7 @@ impl<L: Participants> JointPolygeroParam<L> {
     }
     /// Read a sealed bare body, for tests and tools only; its length is
     /// checked first (proto I3).
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     pub fn read<'a>(
         &self,
         bytes: &mut &'a [u8],

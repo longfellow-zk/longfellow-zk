@@ -6,16 +6,22 @@ uncommitted instructions.
 
 ## Architecture
 
-The Rust implementation in `rust/` is one crate. Its layering is enforced by
-the dependency checker (`rust/src/bin/dependency_check`); keep the code and the
-rules in `rust/src/bin/dependency_check/rules.txt` consistent with what follows.
+`rust/` is a Cargo workspace of two crates: the library `longfellow-zk`
+(`rust/src`, with its benches and the `prover_only` and `verifier_only`
+binaries), and `longfellow-zk-tools` (`rust/tools`), the offline tools
+`zk_tool`, `dependency_check` and `precommit`, whose dependencies stay out of
+the library. Cargo commands run from `rust/` act on the library unless they
+name the tools with `-p longfellow-zk-tools`. The library is one crate; its
+layering is enforced by the dependency checker
+(`rust/tools/src/bin/dependency_check`); keep the code and the rules in
+`rust/tools/src/bin/dependency_check/rules.txt` consistent with what follows.
 
 ### Compile time and run time
 
 - Compile-time code never uses run-time code, and run-time code never uses
   compile-time code. Shared code uses neither. The dependency checker fixes
   each file's phase in its source (`phase` and `circuit_phase` in
-  `rust/src/bin/dependency_check/main.rs`), not in `rules.txt`; a file it
+  `rust/tools/src/bin/dependency_check/main.rs`), not in `rules.txt`; a file it
   cannot classify fails the check, so classify a new kind of file there, in a
   reviewed change. The classes are:
   - compile time: `compile`, `mdoc::compile`, and the `circuit`, `allocate` and
@@ -66,14 +72,15 @@ rules in `rust/src/bin/dependency_check/rules.txt` consistent with what follows.
   role trait; an item that every role needs and no other build uses lives in
   a module mounted with `cfg_role!`. The dependency checker reports
   item-level gates elsewhere; the modules it still exempts
-  (`ITEM_GATES_PENDING` in `rust/src/bin/dependency_check/main.rs`) are
+  (`ITEM_GATES_PENDING` in `rust/tools/src/bin/dependency_check/main.rs`) are
   converted when they are next edited, and v1 only when the maintainer asks.
 - The standalone prover and verifier build independently, with no compiler
   dependencies: `--no-default-features` with `prover` or `verifier` (plus
   `mdoc`, and `v1` for the deployed system), including the `prover_only` and
   `verifier_only` binaries, must not need the other role, the `compiler`
   feature, compile-time code, or the compiler's crates (`bumpalo`,
-  `num-bigint`, `num-traits`, `rustc-hash`). Check with
+  `num-bigint`, `num-traits`, `rustc-hash`), and no build of the library
+  pulls the tools' crates (`scip`, `protobuf`, `serde_json`). Check with
   `cargo tree -e normal --no-default-features --features prover,mdoc,v1`
   (and the verifier and v2 equivalents).
 - v1 and v2 are disjoint: no v1 file uses a v2 file or the reverse.
@@ -154,7 +161,7 @@ profiles an application chose (for example in `mdoc::proto`).
 - Lean must agree with Rust. After changes to circuits, parameters, or files
   the formal sources cite, run from `formal/` `lake build` and
   `lake build SecurityAudit`; from `rust/`
-  `cargo run --release --features tooling --bin zk_tool -- certify-hahn --formal ../formal`
+  `cargo run --release -p longfellow-zk-tools --bin zk_tool -- certify-hahn --formal ../formal`
   and `... -- check-profiles --protocol polygero --check-lean ../formal`; and
   `formal/scripts/check_mdoc_round_shapes.rs` and the formal source audit
   `formal/scripts/audit.rs` (both built with `rustc --edition 2024 -O`);
@@ -180,32 +187,35 @@ profiles an application chose (for example in `mdoc::proto`).
 From `rust/`, run the checklist runner:
 
 ```sh
-cargo run --release --features tooling --bin precommit
+cargo run --release -p longfellow-zk-tools --bin precommit
 ```
 
 It prints one line per step and stops at the first failing step
 (`--keep-going` runs them all); each step's output is in
 `target/precommit/<step>.log`, and `--help` lists the options. Its steps are:
 
-1. `cargo +nightly fmt`, then
+1. `cargo +nightly fmt --all`, then
    `rustfmt +nightly --edition 2021 --config skip_children=true $(git ls-files 'src/*.rs' 'benches/*.rs')`
    (`cargo fmt` does not reach modules declared inside the `cfg_*!` macros).
 2. The role and feature builds, warning-free: `cargo check --lib --bins
    --no-default-features` with each role and feature set, then the tests
    without mdoc (`--lib --tests --no-default-features --features
-   testonly,tooling`), `--features testonly,tooling --tests --benches --bins`
-   and `--all-targets`.
-3. `cargo run --release --features tooling --bin dependency_check`
+   testonly`), `--features testonly --tests --benches --bins`,
+   `--all-targets`, and the tools (`-p longfellow-zk-tools --all-targets`).
+3. `cargo run --release -p longfellow-zk-tools --bin dependency_check`
    (needs `rustup component add rust-analyzer`).
-4. The standalone prover and verifier, v1 and v2, pull no compiler crate
-   (`cargo tree -e normal --no-default-features`; see "Prover and verifier").
-5. `cargo clippy --all-targets` reports no more warnings for any target than
-   the base commit: `--base REV`, by default `HEAD` when the working tree has
+4. The standalone prover and verifier, v1 and v2, pull no compiler crate and
+   no tool crate (`scip`, `protobuf`, `serde_json`) (`cargo tree -e normal
+   --no-default-features`; see "Prover and verifier").
+5. `cargo clippy --all-targets` and `cargo clippy -p longfellow-zk-tools
+   --all-targets` report no more warnings for any target than the base
+   commit: `--base REV`, by default `HEAD` when the working tree has
    changes and `HEAD^` when it has none; or the counts given with
    `--clippy-counts`.
-6. `cargo test --release --features testonly,tooling`, and the doctests on
-   nightly, which also check `compile_fail` error codes:
-   `cargo +nightly test --release --features testonly,tooling --doc`.
+6. `cargo test --release --features testonly` and `cargo test --release -p
+   longfellow-zk-tools`, and the doctests on nightly, which also check
+   `compile_fail` error codes:
+   `cargo +nightly test --release --features testonly --doc`.
 7. When architecture-specific code changes since the base (`runtime/algebra/arch`,
    limbs, `cfg(target_arch)`), or with `--cross`, the builds for every backend,
    since x86-64 does not compile the others: `--target aarch64-unknown-linux-gnu`,
