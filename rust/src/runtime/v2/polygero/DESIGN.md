@@ -356,7 +356,7 @@ pub struct JointPolygeroProver<S> { /* session stamp, states, column oracle; not
 impl<S> JointPolygeroProver<S> {
     pub(crate) fn commit<L: ProverParticipants<States = S>>(
         t: &mut Bound<'_, JointPolygeroParam<L>>,
-        witnesses: L::Witnesses,                    // moved: released before Merkle construction
+        witnesses: &L::Witnesses,                   // borrowed: the state keeps only encoded rows
         rng: &mut impl PrivateRandom,               // I7
     ) -> Result<(Self, PolygeroCommitment), PolygeroError>;      // sends Commitment
     pub(crate) fn prove<L: ProverParticipants<States = S>>(

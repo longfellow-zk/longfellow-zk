@@ -623,7 +623,7 @@ fn authenticate<X: PackingExtension, D: EvaluationDomain<X::Ambient>>(
     let mut tp = Transcript::for_test(b"generic/backend");
     let mut tv = tp.fork_for_test();
     let (prover, root) =
-        JointPolygeroProver::commit(&mut tp.bound(&param), (witness, ()), &mut rng).unwrap();
+        JointPolygeroProver::commit(&mut tp.bound(&param), &(witness, ()), &mut rng).unwrap();
     let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&param), &root);
     let weights = (0..values.len())
         .map(|_| rng.elt_field(f))

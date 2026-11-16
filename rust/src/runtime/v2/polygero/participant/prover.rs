@@ -38,14 +38,14 @@ impl<
         )?;
         self.1.validate_states(&w.1)
     }
-    fn encode(&self, w: Self::Witnesses, rng: &mut impl PrivateRandom) -> Self::States {
-        let rows = encode_rows(&self.0.param, w.0, self.0.domain, rng, self.0.f);
+    fn encode(&self, w: &Self::Witnesses, rng: &mut impl PrivateRandom) -> Self::States {
+        let rows = encode_rows(&self.0.param, &w.0, self.0.domain, rng, self.0.f);
         (
             FieldState {
                 geom: self.0.param.geom,
                 rows,
             },
-            self.1.encode(w.1, rng),
+            self.1.encode(&w.1, rng),
         )
     }
     fn append_encoded(&self, w: &Self::States, j: usize, h: &mut Sha256) {

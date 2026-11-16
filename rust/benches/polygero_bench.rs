@@ -57,7 +57,7 @@ fn run<F: RuntimeField + RegisteredField + SupportsSampling, D: EvaluationDomain
         let commit_start = Instant::now();
         let (prover, com) = JointPolygeroProver::commit_for_test(
             &mut ts.bound_for_test(&param),
-            (witness, ()),
+            &(witness, ()),
             &mut rng,
         )
         .unwrap();

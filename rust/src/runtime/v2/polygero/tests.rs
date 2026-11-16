@@ -195,7 +195,7 @@ fn exercise<F: RuntimeField + RegisteredField + SupportsSampling, D: EvaluationD
         let mut ts = Transcript::for_test(b"polygero/test");
         let before = ts.fork_for_test();
         let (prover, com) =
-            JointPolygeroProver::commit(&mut ts.bound(&joint), (witness.clone(), ()), &mut rng)
+            JointPolygeroProver::commit(&mut ts.bound(&joint), &(witness.clone(), ()), &mut rng)
                 .unwrap();
         let mut a = Vec::new();
         let mut b = vec![f.zero(); 3];
@@ -646,7 +646,7 @@ fn binary_profile_fits_exact_original_point_table() {
     let mut ts = Transcript::for_test(b"polygero/tight-table");
     let before = ts.fork_for_test();
     let (prover, commitment) =
-        JointPolygeroProver::commit(&mut ts.bound(&joint), (witness.clone(), ()), &mut rng)
+        JointPolygeroProver::commit(&mut ts.bound(&joint), &(witness.clone(), ()), &mut rng)
             .unwrap();
     let constraints = [PolygeroLinearTerm {
         c: 0,
@@ -720,7 +720,7 @@ fn static_statement_is_checked_against_the_opening() {
     let mut tp = Transcript::for_test(seed);
     let (prover, root) = JointPolygeroProver::commit(
         &mut tp.bound(&param),
-        (vec![f.one()], ()),
+        &(vec![f.one()], ()),
         &mut DeterministicRng::new(42),
     )
     .unwrap();

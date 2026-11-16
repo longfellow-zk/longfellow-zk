@@ -32,15 +32,16 @@ use crate::runtime::{
 };
 
 /// Encode u and m, the witness rows, then fstar.
-/// Own the witness so it is released before Merkle construction. Each helper
-/// constructs the interpolation plans it uses.
+/// The witness is borrowed: the rows are new vectors, and the caller decides
+/// how long the witness lives. Each helper constructs the interpolation plans
+/// it uses.
 pub(super) fn encode_rows<
     F: RuntimeField + SupportsSampling,
     D: EvaluationDomain<F>,
     R: PrivateRandom,
 >(
     param: &PolygeroParam,
-    witness: Vec<F::E>,
+    witness: &[F::E],
     domain: &D,
     rng: &mut R,
     f: &F,
@@ -48,7 +49,7 @@ pub(super) fn encode_rows<
     let g = param.geom;
     let mut w = Vec::with_capacity(g.nrow());
     encode_arithmetic_masks(&mut w, param, domain, rng, f);
-    encode_witness_rows(&mut w, param, &witness, domain, rng, f);
+    encode_witness_rows(&mut w, param, witness, domain, rng, f);
     encode_fstar(&mut w, param, domain, rng, f);
     w
 }

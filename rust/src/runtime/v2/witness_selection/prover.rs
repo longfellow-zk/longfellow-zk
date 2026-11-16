@@ -96,20 +96,19 @@ pub(crate) fn commit<L: ProverFields>(
         L::Responses,
     ),
     String,
->
-where
-    Witnesses<L>: Clone,
-{
+> {
     let param = t.part();
     param.fields.validate_witnesses(&witnesses)?;
     param.fields.append_masks(&mut witnesses, rng);
-    // Retain the original cells only through this early exchange. The backend
-    // consumes its copy while encoding; no raw witness is retained by Prover.
+    // Retain the cells only through this early exchange: the backend encodes
+    // its rows from them without keeping them, and they are released once
+    // the responses are formed. No raw witness is retained by Prover.
     let (backend, root) =
-        JointPolygeroProver::commit(&mut t.project(|p| &p.backend), witnesses.clone(), rng)
+        JointPolygeroProver::commit(&mut t.project(|p| &p.backend), &witnesses, rng)
             .map_err(|e| e.to_string())?;
     let coefficients = param.challenges(&mut t.transcript());
     let responses = param.fields.responses(&witnesses, &coefficients);
+    drop(witnesses);
     param.send_responses(&responses, &mut t.transcript());
     Ok((
         Prover {

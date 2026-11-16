@@ -434,12 +434,3 @@ hide its response.
 `formal/lfzk-v2/LfzkV2/Current`: `FingerprintRows`, `TaggedFormat` (the
 first-node bytes), `Selection`, `SelectionReplay`, `SelectionPath`,
 `ApplicationCharging`, `CertifiedProfile`.
-
-## Open questions
-
-1. **Witness copy at commit.** The joint Polygero encoder consumes its
-   witness, so `commit` keeps a second copy of every field's witness until the
-   responses are computed. Letting the encoder read a borrowed witness would
-   remove one full copy. Recommendation: borrow, if an interleaved,
-   core-pinned benchmark shows no prover regression and the peak memory does
-   not grow.

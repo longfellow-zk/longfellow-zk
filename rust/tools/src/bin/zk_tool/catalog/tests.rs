@@ -168,7 +168,7 @@ fn roundtrip_profiles<
         let mut ts = Transcript::for_test(b"polygero/admitted");
         let (prover, com) = JointPolygeroProver::commit_for_test(
             &mut ts.bound_for_test(&param),
-            (witness.clone(), ()),
+            &(witness.clone(), ()),
             &mut rng,
         )
         .unwrap();

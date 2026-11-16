@@ -14,7 +14,8 @@ pub trait ProverParticipants: Participants {
     fn validate_witnesses(&self, w: &Self::Witnesses) -> Result<(), PolygeroError>;
     /// Check that every field's rows were encoded for this list's geometry.
     fn validate_states(&self, w: &Self::States) -> Result<(), PolygeroError>;
-    fn encode(&self, w: Self::Witnesses, rng: &mut impl PrivateRandom) -> Self::States;
+    /// Encode every field's rows from its borrowed witness.
+    fn encode(&self, w: &Self::Witnesses, rng: &mut impl PrivateRandom) -> Self::States;
     fn append_encoded(&self, w: &Self::States, j: usize, h: &mut Sha256);
     fn respond(&self, w: &Self::States, s: &Self::Statements, c: &Self::Challenges)
         -> Self::Bodies;
@@ -28,7 +29,7 @@ impl ProverParticipants for () {
     fn validate_states(&self, _: &()) -> Result<(), PolygeroError> {
         Ok(())
     }
-    fn encode(&self, _: (), _: &mut impl PrivateRandom) {}
+    fn encode(&self, _: &(), _: &mut impl PrivateRandom) {}
     fn append_encoded(&self, _: &(), _: usize, _: &mut Sha256) {}
     fn respond(&self, _: &(), _: &(), _: &()) {}
     fn gather(&self, _: &(), _: &mut (), _: &[usize]) {}

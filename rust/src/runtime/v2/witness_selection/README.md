@@ -38,8 +38,9 @@ statements, it rejects any derived on another session, appends
 `dot(aⱼ,w) + mⱼ - tⱼ = 0`, and hands the system to joint Polygero, which draws
 the batching weights itself (DESIGN.md I5, I8). Frontend equations cannot
 address the dedicated mask cells. Consuming statements avoids copying their
-sparse arrays. The only temporary raw-witness copy is released after the early
-exchange; the retained state contains coefficients and the encoded backend.
+sparse arrays. The raw witness is never copied: the backend encodes its rows
+from a borrow, and the witness is released once the responses are formed; the
+retained state contains coefficients and the encoded backend.
 
 Field lists use recursive typed tuples ending in `()`, so one, two, repeated,
 or more fields use the same code. Fields need canonical serialization and

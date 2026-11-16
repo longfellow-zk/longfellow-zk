@@ -45,13 +45,7 @@ where
             inner: DeterministicRng::new(42),
             samples: 0,
         };
-        let w = super::prover_commitment::encode_rows(
-            &param,
-            witness.clone(),
-            domain,
-            &mut mask_rng,
-            f,
-        );
+        let w = super::prover_commitment::encode_rows(&param, &witness, domain, &mut mask_rng, f);
         let expected_samples = 3 * geometry.k + geometry.s + geometry.t * geometry.data_rows();
         assert_eq!(mask_rng.samples, expected_samples);
 
@@ -82,7 +76,7 @@ where
             JointPolygeroParam::new((Participant::new(param, domain).unwrap(), ())).unwrap();
         assert!(JointPolygeroProver::commit(
             &mut ts.bound(&joint),
-            (invalid, ()),
+            &(invalid, ()),
             &mut rejected_rng
         )
         .is_err());
@@ -143,7 +137,7 @@ fn ordinary_only_rows_allow_large_mask_prefixes() {
         let mut prover_ts = Transcript::for_test(b"polygero/ordinary-only");
         let (prover, commitment) = JointPolygeroProver::commit(
             &mut prover_ts.bound(&joint),
-            (witness.clone(), ()),
+            &(witness.clone(), ()),
             &mut DeterministicRng::new(879),
         )
         .unwrap();

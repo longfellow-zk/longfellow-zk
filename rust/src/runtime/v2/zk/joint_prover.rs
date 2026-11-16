@@ -30,10 +30,7 @@ impl<L: ProverFields> JointParam<L> {
             L::Responses,
         ),
         String,
-    >
-    where
-        Witnesses<L>: Clone,
-    {
+    > {
         let (selection, root, responses) =
             witness_selection::commit(&mut transcript.bound(&self.selection), witnesses, rng)?;
         Ok((

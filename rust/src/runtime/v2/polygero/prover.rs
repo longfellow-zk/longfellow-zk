@@ -33,14 +33,16 @@ pub struct JointPolygeroProver<S> {
     pub(super) oracle: ColumnOracle,
 }
 impl<S> JointPolygeroProver<S> {
-    /// Commit the witnesses and send the root on `t`'s session.
+    /// Commit the witnesses and send the root on `t`'s session. The state
+    /// keeps only the encoded rows, never the witnesses, which the caller
+    /// still owns.
     pub(crate) fn commit<L: ProverParticipants<States = S>>(
         t: &mut Bound<'_, JointPolygeroParam<L>>,
-        witnesses: L::Witnesses,
+        witnesses: &L::Witnesses,
         rng: &mut impl PrivateRandom,
     ) -> Result<(Self, PolygeroCommitment), PolygeroError> {
         let param = t.part();
-        param.participants.validate_witnesses(&witnesses)?;
+        param.participants.validate_witnesses(witnesses)?;
         let states = param.participants.encode(witnesses, rng);
         let oracle = ColumnOracle::new(param.config.n, rng, |j, h| {
             param.participants.append_encoded(&states, j, h)
@@ -92,7 +94,7 @@ impl<S> JointPolygeroProver<S> {
     /// `commit` on a bare session.
     pub fn commit_for_test<L: ProverParticipants<States = S>>(
         t: &mut Bound<'_, JointPolygeroParam<L>>,
-        witnesses: L::Witnesses,
+        witnesses: &L::Witnesses,
         rng: &mut impl PrivateRandom,
     ) -> Result<(Self, PolygeroCommitment), PolygeroError> {
         Self::commit(t, witnesses, rng)
