@@ -164,9 +164,10 @@ Each field commits two dedicated fingerprint masks before coefficient sampling.
 They are backend auxiliary cells, excluded from the original-cell coefficient
 vectors. All four masked responses are bound before either sumcheck. The prime
 commitment excludes the shared bit prefix: its inputs are reconstructed from
-the selected binary witness. Binary public bits are bound at the first boundary;
-prime public inputs are bound when the prime frontend starts. No future prime
-values are added to the earlier fingerprint key.
+the selected binary witness. Both fields' public inputs are bound in the
+statement at the start of node 0, ahead of the commitment and so before
+fingerprint coefficient sampling. No future prime values are added to the earlier
+fingerprint key.
 
 One transcript boundary supplies one boundary answer, including every challenge
 read without an intervening prover message. Fragments add no boundaries or wire

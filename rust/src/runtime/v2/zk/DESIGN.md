@@ -183,8 +183,10 @@ mu.** Every pad is native, so the layer rows read only native cells and go
 to Polygero unbatched. The input equation `<w, v> = t` is split by one
 nonzero `eta` and one message `mu = eta*<w_F, v_F> + R` into the native row
 and the modular claim, both produced by the one call that sends or receives
-`mu`. R is uniform in `F`, committed as a native cell and as bits in the
-binary commitment, and used nowhere else.
+`mu`. R is uniform in `F` and committed as a native cell and as bits in the
+binary commitment. The split puts it in two equations, the native row and
+the modular claim; like every committed cell, its cell and its bits also
+enter their fields' fingerprint equations (witness selection I5).
 *Enforced by:* `MixedStorage::new` (pads native, some value native, R's
 bits given); `MixedSplit` is the only participant type with a mask, and
 `prove_split`, `reduce_split`, `open` and `receive` take only its parts

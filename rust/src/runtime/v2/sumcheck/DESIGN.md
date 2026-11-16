@@ -279,8 +279,9 @@ each added to `omega[0..ninput_c]`.
 Per stage: `logw_s + 2` messages, `2*logw_s + 3` elements and `logw_s + 2`
 boundaries. A run has `sum_s logw_s + 2L` boundaries, which is the sumcheck
 part of the transcript boundary count. A stage with `nw_s = 1` has no rounds
-and starts with `SumcheckCross`. A schedule with `L = 0` sends nothing and
-draws nothing: its top weights are the zero-layer input weights.
+and starts with `SumcheckCross`. A schedule with `L = 0` draws only its top
+weights on entry, which are the zero-layer input weights, and then sends no
+message and makes no further draw.
 
 The caller continues the same stream after the last draw. For the prime
 participant the split's `eta != 0` follows the input weights in the last
@@ -479,8 +480,10 @@ committed cells they constrain are hidden by Polygero. The joint statement is
 ## Open questions
 
 1. **Schedules with no layers.** A participant whose circuits all have zero
-   layers sends no sumcheck message; its top weights are the input weights.
-   No mdoc participant has this shape. Recommendation: keep it, because it
-   needs no special code (`Schedule::draw_top` draws the input weights), and Lean models it
-   (`Frontend.roles` with no stages); state in the transcript design that a
-   sub-protocol with no draws may also send nothing.
+   layers sends no sumcheck message; it draws its top weights, which are the
+   input weights, on entry and nothing after them. No mdoc participant has
+   this shape. Recommendation: keep it, because it needs no special code
+   (`Schedule::draw_top` draws the input weights), and Lean models it
+   (`Frontend.roles` with no stages); the transcript design states it
+   (transcript I8): a sub-protocol whose only draw is its leading draw may
+   send nothing.

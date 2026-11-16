@@ -14,12 +14,13 @@ row with fresh row weights. The P-256 adapter (`foreign::adapter::p256`)
 discharges that modular claim inside the binary host circuit: it publishes
 two masked quotients, and its per-proof virtual leaves feed a fixed
 product-tree fragment that the host sumcheck proves next to the host
-circuit. The driver owns every hand-off between these sub-protocols: it
-draws each input challenge (transcript I8) right after the message that
-closes the previous sub-protocol. Witness selection opens the composition
-with the joint commitment. The joint Polygero opening takes the affine
-statements after the last frontend message and batches them with weights it
-draws and uses itself. For mdoc, the host is the hash circuit, the split circuit is the
+circuit. The driver owns the order of these sub-protocols and every value
+handed from one to the next; each sub-protocol draws its own leading
+challenge on entry, right after the message that closes the previous one
+(I1, transcript I8). Witness selection opens the composition with the joint
+commitment. The joint Polygero opening takes the affine statements after
+the last frontend message and batches them with weights it draws and uses
+itself. For mdoc, the host is the hash circuit, the split circuit is the
 signature circuit with mixed storage, and the application wraps the composed
 body in `MDA7` and the seal (transcript I10, I11).
 
@@ -76,9 +77,10 @@ pure:   sum_v c_v * value(G_v)                         = target  (mod p)
 ```
 
 where `value(G)` is the integer of the bits in group `G`. The pure-foreign
-coefficients and target are those of `zk::split::pure_claim`: with layer
-rows `A_c*v + b_c = 0` and row weights `rho_0..rho_L`, `c = sum_c rho_c*A_c
-- rho_L*w_priv + rho_L*k_pads` and `target = -(sum_c rho_c*b_c + rho_L*t)`.
+coefficients and target are those `PureClaim::batch` makes from the
+frontend's claim (`frontend_claim`): with layer rows `A_c*v + b_c = 0` and
+row weights `rho_0..rho_L`, `c = sum_c rho_c*A_c - rho_L*w_priv +
+rho_L*k_pads` and `target = -(sum_c rho_c*b_c + rho_L*t)`.
 The target is public. The adapter ends with the fragment's assertions: for
 each tree `t` in `{0, 1}`, the product of the tree's virtual leaves is one.
 The host sumcheck proves those assertions.
@@ -203,12 +205,14 @@ absorbed (transcript I3). The fragment's circuit ID is in the statement.
 `Adapter.ProductTree.satisfies_iff` and `Adapter.Leaves.tree_product_check`
 (Lean).
 
-**I8. R is fresh, used once, and checked only modulo p.** For mixed storage
-the prover samples R inside `ComposedStatement::prove`. R enters exactly
-two equations: the native row (coefficient `-1` at the R cell) and the
-modular claim (coefficients `2^r` on its bits). Its bits carry no range
-check, because only their residue modulo `p` enters the claim. Pure-foreign
-storage has no R: its claim's target is public, so it hides nothing.
+**I8. R is fresh and checked only modulo p.** For mixed storage the prover
+samples R inside `ComposedStatement::prove`. The split puts R in two
+equations: the native row (coefficient `-1` at the R cell) and the modular
+claim (coefficients `2^r` on its bits). Like every committed cell, its prime
+cell and its bits also enter their fields' fingerprint equations (witness
+selection I5). Its bits carry no range check, because only their residue
+modulo `p` enters the claim. Pure-foreign storage has no R: its claim's
+target is public, so it hides nothing.
 *Enforced by:* R is not a parameter of `ComposedStatement::prove` (type), and
 only `MixedSplit`, the mixed storage type, has R's mask group (type);
 `Handoff.product_handoff` (Lean) proves that the two copies of R agree
@@ -288,10 +292,11 @@ native    = eta*<w_N, v_N> - R + mu - eta*t = 0
 The prime statement is the layer rows, which read only native pads, then
 the native row. They go to Polygero unbatched.
 
-**Split, pure foreign.** Given the row weights `rho_0..rho_L`, `pure_claim`
-batches the `L` layer rows and the input equation into one claim (see
-Statement) with terms `(G_v, c_v)` for every value in value order and a
-public target. There is no prime statement.
+**Split, pure foreign.** `frontend_claim` reduces the frontend to its
+unbatched claim: the `L` layer rows and the input equation.
+`PureClaim::batch` draws the row weights `rho_0..rho_L` and batches them
+into one claim (see Statement) with terms `(G_v, c_v)` for every value in
+value order and a public target. There is no prime statement.
 
 **Adapter.** For the instance, let `bits` be the claim's total width (the
 foreign widths, then 256 for R in mixed storage), and `X` the

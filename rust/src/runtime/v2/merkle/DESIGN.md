@@ -197,7 +197,8 @@ The nonce count comes from the geometry; the frontier states its digest
 count `f` in one u64 word. Before parsing, the complete reader checks once
 that the proof has exactly the length the geometry and `f` determine, with
 `f <= t*(ceil(log2 n)+1)` (proto I3). `MerkleProof::read_path` reads the
-count and exactly that many digests, and nothing may follow them;
+count, which may not exceed that capacity, and exactly that many digests;
+`JointPolygeroProof::read` requires that nothing follow them, and
 `verify_proof` then requires the exact canonical count (I7).
 
 ## Rust API
@@ -216,8 +217,9 @@ impl MerkleProof {                                       // the opening codec
     pub(in crate::runtime::v2) fn read_nonces(bytes: &mut &[u8], num_queries: usize)
         -> Result<Vec<MerkleNonce>, std::io::Error>;
     pub(in crate::runtime::v2) fn write_path(&self, buf: &mut Vec<u8>);  // u64 count, then digests
-    pub(in crate::runtime::v2) fn read_path(bytes: &mut &[u8], num_queries: usize, mc_pathlen: usize)
-        -> Result<Vec<Digest>, std::io::Error>;  // count <= num_queries * mc_pathlen
+    // max_sz: the opening's checked frontier capacity (Polygero's opening shape check)
+    pub(in crate::runtime::v2) fn read_path(bytes: &mut &[u8], max_sz: usize)
+        -> Result<Vec<Digest>, std::io::Error>;  // count <= max_sz
 }
 
 // runtime::v2::merkle

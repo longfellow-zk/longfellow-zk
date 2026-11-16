@@ -743,8 +743,10 @@ v2 witness construction returns `WitnessCreationFailure` instead of panicking.
 The circuit also requires the signature's nonce point to satisfy `R.x < n`
 and the public key to have a nonzero x-coordinate. Valid signatures with
 `n <= R.x < p` (so `r = R.x - n`) and keys with `x = 0` are therefore
-unprovable. Both are rare. The former is not detected during witness
-construction and fails later with `GeneralFailure`.
+unprovable. Both are rare. V2 detects the former during native witness
+construction, before composition and any transcript randomness: the native
+signature check finds that `(r, R.y)` is not the recovered nonce point, and
+the prover returns `GeneralFailure`.
 
 ## License
 

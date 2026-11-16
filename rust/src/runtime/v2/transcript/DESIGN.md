@@ -3,9 +3,13 @@
 The v2 transcript is a Fiat–Shamir transcript over numbered SHA-256 strands.
 It opens with one statement that fixes the whole instance. After the
 statement it absorbs only prover messages, each exactly once, in one
-encoding. A strand node ends exactly where a challenge follows a message, and
-every sub-protocol starts with a prover message. Each rule below names what
-enforces it: the type system, a runtime check, a test, or Lean.
+encoding. A strand node holds one or more messages and ends exactly where a
+challenge follows a message (I7); the draws after it read from the stream of
+the node that message closed. A sub-protocol need not begin a node: it begins
+either by sending its first message, or by drawing a leading challenge, before
+any message of its own, from the node the preceding message closed (I8). Each
+rule below names what enforces it: the type system, a runtime check, a test,
+or Lean.
 
 ## Invariants
 
@@ -371,10 +375,11 @@ impl<'a> Reading<'a> {                                 // the four draw kinds
     pub fn choose(&mut self, out: &mut [usize], n: usize, scratch: &mut [usize]);
 }
 
-// the proof is parsed against the absorbed geometry (I2)
+// the proof is parsed against the absorbed geometry (I2); mdoc::runtime::v2,
+// crate-private
 impl MdocProof {
-    pub fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ComposedGeometry>, f1: &F1, f2: &F2)
-        -> Result<Unverified<'a, Self>, String>;
+    pub(crate) fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ComposedGeometry>,
+        f1: &Gf2_128Field, f2: &P256Field) -> Result<Unverified<'a, Self>, String>;
 }
 impl ZkProof<F> {
     pub fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ZkProofGeometry>, f: &F)
