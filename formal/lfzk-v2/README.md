@@ -183,7 +183,7 @@ ordinary boundaries (witness selection, conversion, joint Polygero batching and
 shared opening), one optional packing boundary, and the final seal. There is no row-batching boundary; it remains only for pure foreign
 storage, which mdoc does not use. The one-/two-/three-/four-attribute
 presentations have respectively 457/461/466/469 ordinary boundaries. The Rust
-`test_all_next_zk` test counts the boundaries of both the complete prover's and the verifier's sessions (`round_count_for_test`) and checks
+`next_measured_round_counts` test counts the boundaries of both the complete prover's and the verifier's sessions (`round_count_for_test`) and checks
 these values independently of the geometry-derived schedule. Finalization
 then uses a strand-node query and a seal PRF query. Binding source circuit identifiers
 adds no separate query. Current sizes and timings are in the

@@ -3,7 +3,7 @@ import LfzkV2.Current.ProofOutput
 
 /-! Golden vectors of the tagged transcript encoding: the exact SHA-256
 preimages that the Rust tests `runtime::v2::zk::tests::binary_zk_comparison`
-and `mdoc::runtime::tests::next::test_all_next_zk` hash, written with the
+and `mdoc::runtime::tests::next::next_measured_round_counts` hash, written with the
 Lean codecs and compared byte for byte by kernel evaluation.
 
 - The standalone GF(2^128) proof's nodes 1 to 9: every per-boundary message

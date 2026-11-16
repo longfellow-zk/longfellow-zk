@@ -221,7 +221,7 @@ loading path for proving or verification.
 `from_stream` recompute IDs (runtime);
 `circuit_identifier_enforcement_is_unconditional`,
 `instance_load_binds_archive_and_entry_identifiers`,
-`instance_load_checks_public_input_counts`, `run_next_error_table` (tests).
+`instance_load_checks_public_input_counts`, `next_error_table` (tests).
 
 **I4. One shared-bit layout.** The 768 shared bits are defined once, in
 `mdoc::proto::layout`: `sig::{ISSUER_DIGEST, DEVICE_X, DEVICE_Y}` and
@@ -264,7 +264,7 @@ magic, any malformed field, and any length other than exactly one 32-byte
 seal after the body. The only acceptance result is `VerifiedProof`, which
 only the seal check returns (transcript I10).
 *Enforced by:* `Unverified::decoded` (runtime); `VerifiedProof` has no public
-constructor (type); `run_next_verifier_bad_proofs` (test); Lean
+constructor (type); `next_verifier_bad_proofs` (test); Lean
 `ProofBodyCodec`, `ProofOutput`.
 
 **I8. The body is in send order.** The body lists every interactive field in
@@ -305,8 +305,8 @@ exceptional point) is `WitnessCreationFailure`.
 *Enforced by:* the step order in `run_mdoc_prover_encoded`;
 `signatures_the_circuit_rejects_fail_while_encoding`,
 `attribute_items_the_issuer_did_not_sign_fail_while_encoding`,
-`run_false_statements_fail_before_sampling` and
-`run_next_mdoc_all_negative_cases`, which check that the generator's state
+`false_statements_fail_before_sampling` and
+`next_mdoc_all_negative_cases`, which check that the generator's state
 is unchanged (tests).
 
 ## Protocol

@@ -38,21 +38,15 @@ use crate::{
     runtime::{random::DeterministicRng, v2::proto::polygero::PolygeroConfig},
 };
 
+/// The NEXT circuits of one to four attributes. Each test loads its own
+/// copy; they share one compilation per circuit through the test cache.
 struct TestCircuits {
     circuits: std::collections::HashMap<usize, provider::ProvidedCircuit>,
 }
 
 impl TestCircuits {
-    /// The NEXT circuits of one to four attributes, compiled once per test
-    /// binary.
-    fn compile_all() -> Self {
-        let circuits = (1..=4)
-            .map(|count| {
-                let provided = next_circuit(count);
-                assert_v2_parameters(provided.spec(), provided.compressed());
-                (count, provided)
-            })
-            .collect();
+    fn load() -> Self {
+        let circuits = (1..=4).map(|count| (count, next_circuit(count))).collect();
         Self { circuits }
     }
 
@@ -61,7 +55,9 @@ impl TestCircuits {
     }
 }
 
-fn run_next_mdoc_flow(test_circuits: &TestCircuits) {
+#[test]
+fn next_mdoc_flow() {
+    let test_circuits = &TestCircuits::load();
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
     let req_attrs: Vec<RequestedAttribute> = parsed
         .attrs
@@ -154,7 +150,9 @@ fn run_next_mdoc_flow(test_circuits: &TestCircuits) {
     );
 }
 
-fn run_next_mdoc_subset_flow(test_circuits: &TestCircuits) {
+#[test]
+fn next_mdoc_subset_flow() {
+    let test_circuits = &TestCircuits::load();
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
     let req_attrs: Vec<RequestedAttribute> = parsed
         .attrs
@@ -239,7 +237,9 @@ fn requested_fixture_attributes(
         .collect()
 }
 
-fn run_next_mdoc_all_positive_cases(test_circuits: &TestCircuits) {
+#[test]
+fn next_mdoc_all_positive_cases() {
+    let test_circuits = &TestCircuits::load();
     for case in ALL_TEST_CASES {
         if case.name.starts_with("fail-") {
             continue;
@@ -303,7 +303,9 @@ fn run_next_mdoc_all_positive_cases(test_circuits: &TestCircuits) {
     }
 }
 
-fn run_next_mdoc_all_negative_cases(test_circuits: &TestCircuits) {
+#[test]
+fn next_mdoc_all_negative_cases() {
+    let test_circuits = &TestCircuits::load();
     let mut executed = 0;
     let mut skipped_for_attribute_count = Vec::new();
     for case in ALL_TEST_CASES {
@@ -398,7 +400,9 @@ fn run_next_mdoc_all_negative_cases(test_circuits: &TestCircuits) {
     assert_eq!(executed, 3, "unexpected negative-vector coverage");
 }
 
-fn run_next_verifier_negative_cases(test_circuits: &TestCircuits) {
+#[test]
+fn next_verifier_negative_cases() {
+    let test_circuits = &TestCircuits::load();
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
     let req_attrs: Vec<RequestedAttribute> = parsed
         .attrs
@@ -681,7 +685,9 @@ fn run_next_verifier_negative_cases(test_circuits: &TestCircuits) {
     }
 }
 
-fn run_next_verifier_attribute_reordering_and_duplicates(test_circuits: &TestCircuits) {
+#[test]
+fn next_verifier_attribute_reordering_and_duplicates() {
+    let test_circuits = &TestCircuits::load();
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
     let all_req_attrs: Vec<RequestedAttribute> = parsed
         .attrs
@@ -761,7 +767,9 @@ fn run_next_verifier_attribute_reordering_and_duplicates(test_circuits: &TestCir
     );
 }
 
-fn run_next_verifier_bad_proofs(test_circuits: &TestCircuits) {
+#[test]
+fn next_verifier_bad_proofs() {
+    let test_circuits = &TestCircuits::load();
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
     let req_attrs: Vec<RequestedAttribute> = parsed
         .attrs
@@ -960,7 +968,8 @@ fn run_next_verifier_bad_proofs(test_circuits: &TestCircuits) {
     );
 }
 
-fn run_circuit_supports_cbor() {
+#[test]
+fn circuit_supports_cbor() {
     use crate::mdoc::v2::circuit_supports;
 
     // Valid Inputs (ported from C++ CborValidate.ValidInputs)
@@ -1032,9 +1041,11 @@ fn run_circuit_supports_cbor() {
     );
 }
 
-fn run_namespace_mixup(test_circuits: &TestCircuits) {
+#[test]
+fn namespace_mixup() {
     use crate::mdoc::v2::{req_attr, same_namespace};
 
+    let test_circuits = &TestCircuits::load();
     let attr1 = req_attr("org.iso.18013.5.1", "family_name", [0x63, b'f', b'o', b'o']);
     let attr2 = req_attr("org.iso.18013.5.1", "birth_date", [0x63, b'b', b'a', b'r']);
     let attr3 = req_attr(
@@ -1086,7 +1097,9 @@ fn run_namespace_mixup(test_circuits: &TestCircuits) {
 /// The rows of the error table in `mdoc/runtime/v2/DESIGN.md` that need real
 /// circuits, in both roles where they apply; `v2::request::tests` checks the
 /// request rows without circuits.
-fn run_next_error_table(test_circuits: &TestCircuits) {
+#[test]
+fn next_error_table() {
+    let test_circuits = &TestCircuits::load();
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
     let req_attrs = requested_fixture_attributes(&parsed, "TEST_DATA");
     let doc_type = "org.iso.18013.5.1.mDL";
@@ -1240,7 +1253,9 @@ const NEXT_COMBINED_IDS: [&str; 4] = [
     "b25d818a80895127d7e147851666106ba79e86b7f4b8eab32499f648b793815c",
 ];
 
-fn run_next_circuit_hashes(test_circuits: &TestCircuits) {
+#[test]
+fn next_circuit_hashes() {
+    let test_circuits = &TestCircuits::load();
     for nattrs in 1..=4 {
         let p = test_circuits.get(nattrs).expect("circuit missing");
         assert_eq!(p.spec().version, NEXT_VERSION);
@@ -1275,7 +1290,9 @@ fn run_next_circuit_hashes(test_circuits: &TestCircuits) {
 // These counts come from the nodes the draws actually end, independently of the
 // geometry summation used by the Lean metadata checker. Final sealing does
 // not end a node with a draw and is deliberately excluded.
-fn run_next_measured_round_counts(test_circuits: &TestCircuits) {
+#[test]
+fn next_measured_round_counts() {
+    let test_circuits = &TestCircuits::load();
     let data = &TEST_DATA;
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(data);
     let coordinate = |value: &CompileNat<4>| {
@@ -1431,29 +1448,12 @@ fn check_mdoc_trace(
     }
 }
 
-#[test]
-fn test_all_next_zk() {
-    let test_circuits = TestCircuits::compile_all();
-    run_next_circuit_hashes(&test_circuits);
-    run_next_measured_round_counts(&test_circuits);
-    run_next_mdoc_flow(&test_circuits);
-    run_next_mdoc_subset_flow(&test_circuits);
-    run_next_mdoc_all_positive_cases(&test_circuits);
-    run_next_mdoc_all_negative_cases(&test_circuits);
-    run_next_verifier_negative_cases(&test_circuits);
-    run_next_verifier_attribute_reordering_and_duplicates(&test_circuits);
-    run_next_verifier_bad_proofs(&test_circuits);
-    run_circuit_supports_cbor();
-    run_namespace_mixup(&test_circuits);
-    run_next_error_table(&test_circuits);
-    run_false_statements_fail_before_sampling(&test_circuits);
-    run_oversized_document_is_a_decoding_failure(&test_circuits);
-}
-
 /// A false statement fails before the prover draws a coin, with the circuit's
 /// `GeneralFailure`: another issuer key, another session transcript (whose
 /// device signature fails), and the negative vectors (mdoc DESIGN.md I10).
-fn run_false_statements_fail_before_sampling(test_circuits: &TestCircuits) {
+#[test]
+fn false_statements_fail_before_sampling() {
+    let test_circuits = &TestCircuits::load();
     let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
     let req_attrs = requested_fixture_attributes(&parsed, "TEST_DATA");
     let provided = test_circuits.get(req_attrs.len()).unwrap();
@@ -1488,7 +1488,9 @@ fn run_false_statements_fail_before_sampling(test_circuits: &TestCircuits) {
 
 /// A document longer than the v2 cap fails as an undecodable MSO (mdoc
 /// DESIGN.md, "Size limits").
-fn run_oversized_document_is_a_decoding_failure(test_circuits: &TestCircuits) {
+#[test]
+fn oversized_document_is_a_decoding_failure() {
+    let test_circuits = &TestCircuits::load();
     let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
     let req_attrs = requested_fixture_attributes(&parsed, "TEST_DATA");
     let provided = test_circuits.get(req_attrs.len()).unwrap();
@@ -1512,6 +1514,13 @@ fn run_oversized_document_is_a_decoding_failure(test_circuits: &TestCircuits) {
 }
 
 /// Check the shared development profile and its compiled circuit geometry.
+#[test]
+fn next_v2_parameters() {
+    for (_, provided) in TestCircuits::load().circuits {
+        assert_v2_parameters(provided.spec(), provided.compressed());
+    }
+}
+
 fn assert_v2_parameters(spec: &ZkSpecStruct, compressed: &[u8]) {
     use crate::runtime::algebra::{
         fp2::Fp2Field,
