@@ -185,9 +185,10 @@ mod imp {
 
         /// Convert a circuit input wire to a bit. Native binary circuits obtain
         /// input bitness from authenticated packing; prime fields and v1 retain
-        /// the explicit assertion. Pass only an input wire, never an intermediate
-        /// field expression: packing does not constrain intermediate values.
-        pub fn of_input_eltw(&self, x: Eltw<L>) -> Bitw<L> {
+        /// the explicit assertion. Packing does not constrain intermediate
+        /// values, so only [`BooleanIO`](super::BooleanIO), which passes its own
+        /// input wires, may skip the assertion.
+        pub(super) fn of_input_eltw(&self, x: Eltw<L>) -> Bitw<L> {
             if self.logic.field().is_binary() && !self.logic.retain_bit_assertions_v1() {
                 Bitw(Inner::P(x))
             } else {

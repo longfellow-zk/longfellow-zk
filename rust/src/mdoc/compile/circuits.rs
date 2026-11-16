@@ -6,7 +6,7 @@ use crate::{
     circuits::{
         arithmetic::Arithmetic,
         bitvec::V256,
-        boolean::Boolean,
+        boolean::{Boolean, BooleanIO},
         ecdsa2::{Derived, EcdsaCircuit, Given},
     },
     compile::{
@@ -24,12 +24,12 @@ pub fn native_circuit(f: &P256Field) -> Circuit<P256Field> {
     let (c, _, _) = compile_v2(f, |logic| {
         let mut pos = K_FIRST_WIRE_POSITION;
         let issuer_pk = (logic.next(&mut pos), logic.next(&mut pos));
-        let b = Boolean::new(&logic);
+        let bits = BooleanIO::new(&logic);
         // The verifier constructs device_e from a public digest. Foreign storage
         // keeps the other 768 inputs as bits of the hash witness.
         // Prime-field inputs retain their bit assertions, and the signature
         // gadget checks the exact digest and integer ranges.
-        let next_bit = |pos: &mut usize| b.of_input_eltw(logic.next(pos));
+        let next_bit = |pos: &mut usize| bits.next(pos);
         let device_e = V256::new((0..256).map(|_| next_bit(&mut pos)).collect());
         let npublic = pos;
         // The leading private inputs follow the shared layout table, which
