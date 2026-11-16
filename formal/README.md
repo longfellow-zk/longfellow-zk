@@ -247,8 +247,11 @@ support certificate is assumed.
 
 [`Mdoc.VerifierPrivacy.acceptance_probability`](lfzk-v2/LfzkV2/Current/Mdoc/VerifierPrivacy.lean)
 compares the actual runtime verifier's acceptance probabilities within the same
-bound. The verifier observer is proved equal to the indexed verifier, including
-sampler-failure rejection, tuple authentication and the final seal. Rejection
+bound: the simulator's output is accepted as often as the honest proof, up to
+the privacy error. This is not reader privacy in the ISO/IEC 18013-5 sense,
+which hides the reader's request or identity from the holder. The verifier
+observer is proved equal to the indexed verifier, including sampler-failure
+rejection, tuple authentication and the final seal. Rejection
 and abort outcomes are retained; the theorem does not assume an always-accepting
 simulator.
 

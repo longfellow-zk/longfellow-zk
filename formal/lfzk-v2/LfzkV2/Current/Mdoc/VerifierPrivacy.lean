@@ -4,7 +4,16 @@ import LfzkV2.Current.ZeroKnowledge.StrandVerifierObserver
 
 /-! Instantiate the complete privacy theorem with the actual runtime
 verifier as the post-proof observer. This connects its accepted/rejected
-bit, including simulator aborts, to the compared observable distributions. -/
+bit, including simulator aborts, to the compared observable distributions.
+
+`acceptance_probability` states indistinguishability of the simulator's
+acceptance: the actual runtime verifier accepts the honest proof and the
+witness-free simulator's output with probabilities that differ by at most
+the privacy error of `Mdoc.ZeroKnowledge.statClose`, of which it is the
+instance for one observer, the verifier's decision bit. The module is named
+for that observer. It is not reader (verifier) privacy in the ISO/IEC
+18013-5 sense, which hides the reader's request or identity from the holder;
+nothing here models that property. -/
 noncomputable section
 namespace LfzkV2.Current.Mdoc.VerifierPrivacy
 open LfzkV2.Current.ZeroKnowledge
@@ -114,9 +123,11 @@ variable (signature : ∀ context,
   p.circuit.Satisfies (CompleteHonest.primeInputs b p (original (context)) (remaining (context))))
 
 include pivotOne primitive valid signature in
-/-- Actual acceptance probabilities differ by at most the same privacy
-error. No always-accepting simulator or acceptance certificate is assumed;
-missing proofs and physical sampling failures remain rejecting outcomes. -/
+/-- Simulator-acceptance indistinguishability: the actual acceptance
+probabilities of the honest proof and of the simulator's output differ by at
+most the same privacy error. No always-accepting simulator or acceptance
+certificate is assumed; missing proofs and physical sampling failures remain
+rejecting outcomes. -/
 theorem acceptance_probability (additional : Finset Bytes) (fallback : Strand.Oracle) :
     |probOf (fun coin : HonestCoins × ({raw // raw ∈ Window ∪ additional} → Digest) =>
         (Real coin.1 (OracleWindow.extend (Window ∪ additional) coin.2 fallback)).2.1.2) (fun bit => bit = true) -
