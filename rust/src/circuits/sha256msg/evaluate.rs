@@ -12,16 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    circuit::Given as WireGiven,
-    concrete::{ConcreteDerived, ConcreteGiven},
-};
+use super::{circuit::Given as WireGiven, concrete::ConcreteGiven};
 use crate::{
-    circuits::{
-        bitvec::{BitvecLogic, V32},
-        boolean::Boolean,
-        sha256::Derived,
-    },
+    circuits::{bitvec::BitvecLogic, boolean::Boolean},
     compile::logic::Logic,
 };
 
@@ -48,15 +41,4 @@ pub fn evaluate_given<L: Logic, const S: usize>(
         length_bytes,
         expected_hash,
     }
-}
-
-pub fn evaluate_derived<L: Logic>(
-    derived: &ConcreteDerived,
-    bv: &BitvecLogic<L>,
-) -> Vec<Derived<V32<L>>> {
-    derived
-        .sha_derived
-        .iter()
-        .map(|w| w.map(|&x| bv.of_u32(x)))
-        .collect()
 }

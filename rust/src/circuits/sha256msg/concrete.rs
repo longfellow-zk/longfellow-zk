@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::shape::Derived;
 use crate::circuits::sha256::{
     constants::INITIAL, derived as sha256_generate_derived, Derived as Sha256Derived,
     Given as Sha256Given,
@@ -23,11 +24,6 @@ pub struct ConcreteGiven {
     pub nblocks: usize,
     pub length_bytes: u64,
     pub expected_hash: [u32; 8],
-}
-
-#[derive(Clone, Debug)]
-pub struct ConcreteDerived {
-    pub sha_derived: Vec<Sha256Derived<u32>>,
 }
 
 pub fn given(
@@ -121,8 +117,8 @@ pub fn sha256_msg_derived(
 }
 
 #[must_use]
-pub fn derived(given: &ConcreteGiven, max_blocks: usize) -> ConcreteDerived {
-    ConcreteDerived {
+pub fn derived(given: &ConcreteGiven, max_blocks: usize) -> Derived<u32> {
+    Derived {
         sha_derived: sha256_msg_derived(&given.padded_preimage, &INITIAL, max_blocks),
     }
 }
@@ -165,7 +161,7 @@ cfg_testonly! {
         }
     }
 
-    impl ConcreteDerived {
+    impl Derived<u32> {
         pub fn push_derived<const W: usize, FR: crate::runtime::algebra::RuntimeField<W>>(
             &self,
             fr: &FR,
@@ -174,14 +170,6 @@ cfg_testonly! {
             for wit in &self.sha_derived {
                 wit.push_derived(fr, &mut push);
             }
-        }
-
-        pub fn push_elements<const W: usize, FR: crate::runtime::algebra::RuntimeField<W>>(
-            &self,
-            fr: &FR,
-            push: impl FnMut(FR::E),
-        ) {
-            self.push_derived(fr, push);
         }
     }
 }

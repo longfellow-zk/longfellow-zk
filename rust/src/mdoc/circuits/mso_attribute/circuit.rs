@@ -15,7 +15,7 @@
 use crate::{
     circuits::{
         analog_adder::FieldWrappingSum,
-        bitvec::{Bitvec, BitvecLogic, V256, V8},
+        bitvec::{Bitvec, BitvecLogic, V256, V32, V8},
         boolean::Boolean,
         routing::Routing,
         sha256msg::Sha256Msg,
@@ -111,7 +111,7 @@ pub struct Given<L: crate::compile::logic::Logic> {
     pub expected_digest: V256<L>,
 }
 
-pub type Derived<L> = crate::circuits::sha256msg::Derived<L>;
+pub type Derived<L> = crate::circuits::sha256msg::Derived<V32<L>>;
 
 pub struct AttributeVerifier<'a, L: Logic>
 where L::F: FieldWrappingSum

@@ -97,20 +97,11 @@ cfg_prover! {
             for byte in bytes { self.push_v8(byte); }
         }
 
-        fn push_sha256_derived(
-            &mut self,
-            derived: &crate::circuits::sha256::Derived<u32>,
-        ) {
-            derived.for_each(|&val| self.push_v32(val));
-        }
-
         pub(super) fn push_sha256msg_derived(
             &mut self,
-            derived: &crate::circuits::sha256msg::ConcreteDerived,
+            derived: &crate::circuits::sha256msg::Derived<u32>,
         ) {
-            for sha in &derived.sha_derived {
-                self.push_sha256_derived(sha);
-            }
+            derived.for_each(|&val| self.push_v32(val));
         }
     }
 

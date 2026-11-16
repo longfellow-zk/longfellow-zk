@@ -69,7 +69,7 @@ pub struct ConcreteAttrGiven {
 
 #[derive(Clone, Debug)]
 pub struct ConcreteAttrDerived {
-    pub sha_derived: crate::circuits::sha256msg::ConcreteDerived,
+    pub sha_derived: crate::circuits::sha256msg::Derived<u32>,
 }
 
 #[derive(Clone, Debug)]
@@ -89,7 +89,7 @@ pub struct ConcreteGiven<N> {
 #[derive(Clone, Debug)]
 pub struct ConcreteDerived {
     pub attribute_derived: Vec<ConcreteAttrDerived>,
-    pub sha_derived: crate::circuits::sha256msg::ConcreteDerived,
+    pub sha_derived: crate::circuits::sha256msg::Derived<u32>,
 }
 
 pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiven<N> {
@@ -152,13 +152,13 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
 }
 
 pub fn derived<const W: usize, N: Nat<W>>(given: &ConcreteGiven<N>) -> ConcreteDerived {
-    let cose_sha_derived = crate::circuits::sha256msg::ConcreteDerived {
+    let cose_sha_derived = crate::circuits::sha256msg::Derived {
         sha_derived: sha256_msg_derived(&given.preimage.value, &INITIAL, K_MAX_SHA_BLOCKS),
     };
 
     let mut attribute_witnesses = Vec::with_capacity(given.attribute_given.len());
     for ag in &given.attribute_given {
-        let attr_sha_derived = crate::circuits::sha256msg::ConcreteDerived {
+        let attr_sha_derived = crate::circuits::sha256msg::Derived {
             sha_derived: sha256_msg_derived(&ag.padded_preimage, &INITIAL, 2),
         };
         attribute_witnesses.push(ConcreteAttrDerived {

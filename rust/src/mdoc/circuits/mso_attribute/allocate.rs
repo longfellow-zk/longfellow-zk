@@ -58,5 +58,6 @@ pub fn allocate_given<L: LogicIO>(bv: &BitvecLogic<L>, pos: &mut usize) -> Given
 }
 
 pub fn allocate_derived<L: LogicIO>(bv: &BitvecLogic<L>, pos: &mut usize) -> Derived<L> {
-    crate::circuits::sha256msg::allocate_derived::<_, 2>(bv, pos)
+    let bitvec_io = BitvecIO::new(bv);
+    Derived::from_fn(2, || bitvec_io.next(pos))
 }

@@ -414,7 +414,7 @@ fn sha256_matches_independent_reference_at_padding_boundaries() {
         Sha256Msg::<_, K_MAX_SHA_BLOCKS>::new(&logic)
             .assert_message_hash(
                 &sha256msg::evaluate_given::<_, 8>(&given, &bits),
-                &sha256msg::evaluate_derived(&derived, &bits),
+                &derived.map(|&w| bits.of_u32(w)),
             )
             .unwrap();
     }

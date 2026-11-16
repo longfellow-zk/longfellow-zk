@@ -19,7 +19,7 @@ use crate::{
     circuits::{
         bitvec::{BitvecLogic, V8},
         boolean::Boolean,
-        sha256msg::{derived, evaluate_derived, pad_sha256_message, ConcreteGiven},
+        sha256msg::{derived, pad_sha256_message, ConcreteGiven},
     },
     compile::{
         algebra::gf2_128::Gf2_128Field,
@@ -202,7 +202,7 @@ where
         expected_hash: [0; 8],
     };
     let concrete_derived = derived(&concrete_given, 2);
-    let sha_derived = evaluate_derived(&concrete_derived, &bv);
+    let sha_derived = concrete_derived.map(|&w| bv.of_u32(w));
 
     let verifier = AttributeVerifier::new(&l);
 

@@ -19,8 +19,8 @@ use crate::{
         boolean::Boolean,
         sha256::constants::INITIAL,
         sha256msg::{
-            concrete::{given, ConcreteDerived, ConcreteGiven},
-            Given, Sha256Msg,
+            concrete::{given, ConcreteGiven},
+            Derived, Given, Sha256Msg,
         },
     },
     compile::{
@@ -33,7 +33,7 @@ pub(super) fn run_corruptor_test<'a, const MAX_BLOCKS: usize>(
     f: &'a Gf2_128Field,
     tracker: &'a AssertionScope,
     message: &[u8],
-    corrupt: &dyn Fn(&mut ConcreteGiven, &mut ConcreteDerived),
+    corrupt: &dyn Fn(&mut ConcreteGiven, &mut Derived<u32>),
 ) -> EvalAssertions<'a> {
     type L<'a> = EvalLogic<'a, Gf2_128Field>;
     let l = L::new(f, tracker);
@@ -59,11 +59,7 @@ pub(super) fn run_corruptor_test<'a, const MAX_BLOCKS: usize>(
     }
     let expected_hash = Bitvec::<_, 256>::new(expected_hash_wires);
 
-    let mut sha_derived = Vec::with_capacity(MAX_BLOCKS);
-    for b in 0..MAX_BLOCKS {
-        let wit_wires = derived.sha_derived[b].map(|&w| bv.of_u32(w));
-        sha_derived.push(wit_wires);
-    }
+    let sha_derived = derived.map(|&w| bv.of_u32(w));
 
     let sha256msg = Sha256Msg::<_, MAX_BLOCKS>::new(&l);
     let given_wires = Given {
@@ -123,7 +119,7 @@ fn test_exploit_nblocks_too_large() {
 
     let expected_hash = Bitvec::<_, 256>::new(vec![boolean.falseb(); 256]);
 
-    let wit_wires = derived.sha_derived[0].map(|&w| bv.of_u32(w));
+    let wit_wires = derived.map(|&w| bv.of_u32(w));
 
     let nblocks_wire = bv.of_u8(nblocks_val);
     let input_bytes: Vec<_> = given.padded_preimage.iter().map(|&x| bv.of_u8(x)).collect();
@@ -136,7 +132,7 @@ fn test_exploit_nblocks_too_large() {
         length_bytes,
         expected_hash,
     };
-    let assertion = sha256msg.assert_message_hash(&given_wires, &[wit_wires]);
+    let assertion = sha256msg.assert_message_hash(&given_wires, &wit_wires);
     assertion.assert_any_failed_at("assert_message_hash/assert_nblocks/nblocks_max");
 }
 
@@ -156,7 +152,7 @@ fn test_exploit_nblocks_zero() {
 
     let expected_hash = Bitvec::<_, 256>::new(vec![boolean.falseb(); 256]);
 
-    let wit_wires = derived.sha_derived[0].map(|&w| bv.of_u32(w));
+    let wit_wires = derived.map(|&w| bv.of_u32(w));
 
     let nblocks_wire = bv.of_u8(nblocks_val);
     let input_bytes: Vec<_> = given.padded_preimage.iter().map(|&x| bv.of_u8(x)).collect();
@@ -169,7 +165,7 @@ fn test_exploit_nblocks_zero() {
         length_bytes,
         expected_hash,
     };
-    let assertion = sha256msg.assert_message_hash(&given_wires, &[wit_wires]);
+    let assertion = sha256msg.assert_message_hash(&given_wires, &wit_wires);
     assertion.assert_any_failed_at("assert_message_hash/assert_nblocks/nblocks_nz");
 }
 

@@ -5,11 +5,10 @@ use sha2::{Digest, Sha256 as Sha2Reference};
 use super::sha256msg_eval::run_corruptor_test;
 use crate::{
     circuits::{
-        bitvec::BitvecLogic,
+        bitvec::{BitvecIO, BitvecLogic},
         sha256::constants::INITIAL,
         sha256msg::{
-            allocate_derived, allocate_given, concrete::given, evaluate_given, pad_sha256_message,
-            Sha256Msg,
+            allocate_given, concrete::given, evaluate_given, pad_sha256_message, Derived, Sha256Msg,
         },
     },
     compile::{
@@ -125,7 +124,8 @@ fn compiled_v2_sha_matches_reference_and_rejects_rehashed_padding() {
         let mut pos = K_FIRST_WIRE_POSITION;
         let bv = crate::circuits::bitvec::BitvecLogic::new(&logic);
         let given = allocate_given::<_, 3>(&bv, &mut pos);
-        let derived = allocate_derived::<_, 3>(&bv, &mut pos);
+        let io = BitvecIO::new(&bv);
+        let derived = Derived::from_fn(3, || io.next(&mut pos));
         (
             Sha256Msg::<_, 3>::new(&logic).assert_message_hash(&given, &derived),
             1,
@@ -150,7 +150,7 @@ fn compiled_v2_sha_matches_reference_and_rejects_rehashed_padding() {
             }
             let mut inputs = Vec::new();
             g.push_elements(&fr, 3, |e| inputs.push(e));
-            derived.push_elements(&fr, |e| inputs.push(e));
+            derived.push_derived(&fr, |e| inputs.push(e));
             let result = eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs).unwrap();
             assert_eq!(
                 result.is_ok(),

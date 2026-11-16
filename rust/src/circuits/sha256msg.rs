@@ -13,24 +13,24 @@
 // limitations under the License.
 
 mod concrete;
+mod shape;
 
-pub use concrete::{
-    derived, given, pad_sha256_message, sha256_msg_derived, ConcreteDerived, ConcreteGiven,
-};
+pub use concrete::{derived, given, pad_sha256_message, sha256_msg_derived, ConcreteGiven};
+pub use shape::Derived;
 
 cfg_compiler! {
     mod allocate;
     mod circuit;
 
     pub use self::{
-        allocate::{allocate_derived, allocate_given},
-        circuit::{Derived, Given, Sha256Msg},
+        allocate::allocate_given,
+        circuit::{Given, Sha256Msg},
     };
 }
 
 cfg_testonly! {
     mod evaluate;
-    pub use evaluate::{evaluate_derived, evaluate_given};
+    pub use evaluate::evaluate_given;
 }
 
 #[cfg(test)]

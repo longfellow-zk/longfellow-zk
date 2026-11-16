@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::shape::Derived;
 use crate::{
     circuits::{
         analog_adder::FieldWrappingSum,
@@ -28,8 +29,6 @@ pub struct Given<L: Logic, const S: usize> {
     pub length_bytes: V64<L>,
     pub expected_hash: V256<L>,
 }
-
-pub type Derived<L> = Vec<Sha256Derived<V32<L>>>;
 
 pub struct Sha256Msg<'a, L: Logic, const MAX_BLOCKS: usize>
 where L::F: FieldWrappingSum
@@ -288,16 +287,16 @@ where L::F: FieldWrappingSum
     pub fn assert_message_hash<const S: usize>(
         &self,
         given: &Given<L, S>,
-        derived: &[Sha256Derived<V32<L>>],
+        derived: &Derived<V32<L>>,
     ) -> L::Assertions {
         let nblocks_assertion = self.assert_nblocks(&given.nblocks, &given.length_bytes);
         let length_assertion =
             self.assert_length(&given.nblocks, &given.length_bytes, &given.padded_preimage);
 
         let intermediate_hashes_assertion =
-            self.assert_intermediate_hashes(&given.padded_preimage, derived);
+            self.assert_intermediate_hashes(&given.padded_preimage, &derived.sha_derived);
         let final_hash_assertion =
-            self.assert_final_hash(&given.expected_hash, &given.nblocks, derived);
+            self.assert_final_hash(&given.expected_hash, &given.nblocks, &derived.sha_derived);
         let sha_padding_assertion =
             self.assert_sha_padding(&given.nblocks, &given.length_bytes, &given.padded_preimage);
 

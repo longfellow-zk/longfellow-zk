@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::circuits::sha256msg::concrete::{ConcreteDerived, ConcreteGiven};
+use crate::circuits::sha256msg::{concrete::ConcreteGiven, Derived};
 
 #[allow(dead_code)]
 pub(super) struct Sha256MsgCorruptor {
     pub name: String,
     expected_path: String,
-    pub corrupt: Box<dyn Fn(&mut ConcreteGiven, &mut ConcreteDerived)>,
+    pub corrupt: Box<dyn Fn(&mut ConcreteGiven, &mut Derived<u32>)>,
 }
 
 impl Sha256MsgCorruptor {

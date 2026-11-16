@@ -18,9 +18,9 @@ use super::test_support;
 use crate::{
     circuits::{
         analog_adder::FieldWrappingSum,
-        bitvec::BitvecLogic,
+        bitvec::{BitvecIO, BitvecLogic},
         sha256::constants::INITIAL,
-        sha256msg::{allocate_derived, allocate_given, concrete::given, Sha256Msg},
+        sha256msg::{allocate_given, concrete::given, Derived, Sha256Msg},
     },
     compile::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
@@ -53,7 +53,8 @@ fn test_compile_sha256msg_for_field<
         let sha256msg = Sha256Msg::<_, MAX_BLOCKS>::new(&iologic);
         let bv = BitvecLogic::new(&iologic);
         let given_wires = allocate_given::<CompilerLogic<'_, FC>, MAX_BLOCKS>(&bv, &mut pos);
-        let derived_wires = allocate_derived::<CompilerLogic<'_, FC>, MAX_BLOCKS>(&bv, &mut pos);
+        let io = BitvecIO::new(&bv);
+        let derived_wires = Derived::from_fn(MAX_BLOCKS, || io.next(&mut pos));
 
         (
             sha256msg.assert_message_hash::<MAX_BLOCKS>(&given_wires, &derived_wires),
@@ -74,7 +75,7 @@ fn test_compile_sha256msg_for_field<
 
     let mut inputs = initial_inputs(fr);
     given.push_elements(fr, MAX_BLOCKS, |e| inputs.push(e));
-    derived.push_elements(fr, |e| inputs.push(e));
+    derived.push_derived(fr, |e| inputs.push(e));
 
     // Evaluate circuit
     eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
@@ -119,7 +120,8 @@ fn test_compile_sha256msg_tampering() {
         let sha256msg = Sha256Msg::<_, 2>::new(&iologic);
         let bv = BitvecLogic::new(&iologic);
         let given_wires = allocate_given::<CompilerLogic<'_, P256Field>, 2>(&bv, &mut pos);
-        let derived_wires = allocate_derived::<CompilerLogic<'_, P256Field>, 2>(&bv, &mut pos);
+        let io = BitvecIO::new(&bv);
+        let derived_wires = Derived::from_fn(2, || io.next(&mut pos));
 
         (
             sha256msg.assert_message_hash::<2>(&given_wires, &derived_wires),
@@ -137,7 +139,7 @@ fn test_compile_sha256msg_tampering() {
 
         let mut inputs = initial_inputs(&fr);
         g.push_elements(&fr, const_max_blocks, |e| inputs.push(e));
-        d.push_elements(&fr, |e| inputs.push(e));
+        d.push_derived(&fr, |e| inputs.push(e));
 
         let eval_res = eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs).unwrap();
         assert!(

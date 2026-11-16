@@ -15,7 +15,7 @@
 use crate::{
     circuits::{
         analog_adder::AnalogAdder,
-        bitvec::{Bitvec, BitvecLogic, V256, V8},
+        bitvec::{Bitvec, BitvecLogic, V256, V32, V8},
         boolean::{Bitw, Boolean},
         memcmp::Memcmp,
         routing::Routing,
@@ -66,7 +66,7 @@ use crate::mdoc::{
 };
 
 pub struct AttrDerived<L: Logic> {
-    pub sha_derived: crate::circuits::sha256msg::Derived<L>,
+    pub sha_derived: crate::circuits::sha256msg::Derived<V32<L>>,
 }
 
 pub struct Given<L: LogicIO> {
@@ -90,7 +90,7 @@ pub struct Given<L: LogicIO> {
 
 pub struct Derived<L: LogicIO> {
     pub attribute_derived: Vec<AttrDerived<L>>,
-    pub sha_derived: crate::circuits::sha256msg::Derived<L>,
+    pub sha_derived: crate::circuits::sha256msg::Derived<V32<L>>,
 }
 
 pub struct MdocHash<'a, L: LogicIO>

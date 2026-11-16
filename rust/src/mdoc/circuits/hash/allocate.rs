@@ -19,7 +19,7 @@ use crate::{
     circuits::{
         bitvec::{BitvecIO, BitvecLogic},
         boolean::BooleanIO,
-        sha256msg::allocate_derived,
+        sha256msg,
     },
     compile::logic::LogicIO,
     mdoc::{
@@ -106,10 +106,9 @@ pub fn allocate<L: LogicIO>(
     let value_digests_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
     let namespace_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
 
-    let (attribute_given, attribute_derived) = (0..num_attrs)
-        .map(|_| allocate_attribute(&bv, &io, pos))
-        .unzip();
-    let sha_derived = allocate_derived::<_, K_MAX_SHA_BLOCKS>(&bv, pos);
+    let (attribute_given, attribute_derived) =
+        (0..num_attrs).map(|_| allocate_attribute(&io, pos)).unzip();
+    let sha_derived = sha256msg::Derived::from_fn(K_MAX_SHA_BLOCKS, || io.next(pos));
     (
         Given {
             disclosed_attributes,
@@ -138,7 +137,6 @@ pub fn allocate<L: LogicIO>(
 }
 
 fn allocate_attribute<L: LogicIO>(
-    bv: &BitvecLogic<L>,
     io: &BitvecIO<L>,
     pos: &mut usize,
 ) -> (AttrGiven<L>, AttrDerived<L>) {
@@ -152,7 +150,7 @@ fn allocate_attribute<L: LogicIO>(
         length: std::array::from_fn(|_| io.next::<K_ATTR_INDEX_BITS>(pos)),
         permutation: std::array::from_fn(|_| io.next::<2>(pos)),
     };
-    let sha_derived = allocate_derived::<_, 2>(bv, pos);
+    let sha_derived = sha256msg::Derived::from_fn(2, || io.next(pos));
     (
         AttrGiven {
             preimage,
