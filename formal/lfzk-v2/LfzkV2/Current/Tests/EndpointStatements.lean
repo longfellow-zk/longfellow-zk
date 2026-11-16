@@ -1,12 +1,17 @@
 import LfzkV2.Current.Mdoc.Soundness
 import LfzkV2.Current.Mdoc.ZeroKnowledge
+import LfzkV2.Current.Mdoc.VerifierPrivacy
+import LfzkV2.Current.Mdoc.Completeness
 
 /-! Pin the exact statements of the public endpoints. Each fingerprint hashes
 an endpoint's type together with the type and body of every project
 definition it depends on, transitively; proofs and external libraries are
 excluded. Any change to what an endpoint states, including a change to a
 definition it mentions, fails this module until the pinned value is updated
-after review. Axiom and connectivity checks live in `Tests.MdocSoundness`. -/
+after review. The pins cover the four endpoints (soundness, zero knowledge,
+simulator acceptance and completeness), and each of them must reach the
+definitions that carry its meaning (`required`). Axiom and connectivity
+checks live in `Tests.MdocSoundness`. -/
 namespace LfzkV2.Current.Tests.EndpointStatements
 open Lean Elab Command
 
@@ -50,7 +55,33 @@ def pinned : List (Name × UInt64) := [
   (``Current.Mdoc.Soundness.averaged_polynomial_ratio_le, 17302797817049045406),
   (``Current.Mdoc.Soundness.averaged_mdoc_approximation, 7039672695333304793),
   (``Current.Mdoc.ZeroKnowledge.statClose, 11089277535653201106),
-  (``Current.Mdoc.ZeroKnowledge.statClose_at_query_budget, 3608117319759410495)]
+  (``Current.Mdoc.ZeroKnowledge.statClose_at_query_budget, 3608117319759410495),
+  (``Current.Mdoc.VerifierPrivacy.acceptance_probability, 17334613443263901531),
+  (``Current.Mdoc.Completeness.rawReal_some_accepts, 15513187212161813640)]
+
+/-- Definitions each of the four endpoints must reach: its event or
+experiment, its witness premises and the setup it is stated for. -/
+def required : List (Name × List Name) := [
+  (``Current.Mdoc.Soundness.averaged_ratio_le,
+    [``Soundness.Rate7.failureBound, ``Soundness.Rate7.polygeroConstant,
+      ``Current.Mdoc.Soundness.event, ``Current.Mdoc.Soundness.Valid,
+      ``Current.Mdoc.Soundness.extract, ``MdocWitness.HashValid, ``MdocWitness.HashChecks,
+      ``ConcreteAdapterTopology.Others, ``MdocIdentifiers.setup, ``MdocIdentifiers.fragmentId]),
+  (``Current.Mdoc.ZeroKnowledge.statClose,
+    [``Current.Mdoc.ZeroKnowledge.honest, ``Current.Mdoc.ZeroKnowledge.simulate,
+      ``Current.Mdoc.ZeroKnowledge.window, ``Current.Mdoc.ZeroKnowledge.Reachable,
+      ``ZeroKnowledge.StrandCanonicalExecution.rawReal,
+      ``ZeroKnowledge.StrandCanonicalExperiments.rawSimulate, ``MdocWitness.HashValid,
+      ``Current.Mdoc.SetupFamily.values, ``Current.Mdoc.SetupFamily.setup,
+      ``MdocIdentifiers.fragmentId]),
+  (``Current.Mdoc.VerifierPrivacy.acceptance_probability,
+    [``Current.Mdoc.VerifierPrivacy.afterVerifier,
+      ``ZeroKnowledge.StrandVerifierObserver.optional, ``Current.Mdoc.ZeroKnowledge.honest,
+      ``Current.Mdoc.ZeroKnowledge.simulate, ``Current.Mdoc.ZeroKnowledge.window,
+      ``MdocWitness.HashValid, ``MdocIdentifiers.fragmentId]),
+  (``Current.Mdoc.Completeness.rawReal_some_accepts,
+    [``StrandVerifier.verify, ``ZeroKnowledge.StrandCanonicalExecution.rawReal,
+      ``MdocWitness.HashValid, ``ZeroKnowledge.Frontend.CompleteHonest.primeInputs])]
 
 run_cmd do
   let env ← getEnv
@@ -63,14 +94,12 @@ run_cmd do
       changed := changed.push m!"{name}: {actual} (pinned {expected})"
   unless changed.isEmpty do
     throwError "Endpoint statements changed; review, then update the pins:\n{MessageData.joinSep changed.toList "\n"}"
-  -- The fingerprint must cover the definitions that carry the meaning.
-  let (_, reached) := fingerprint env ``Current.Mdoc.Soundness.averaged_ratio_le
-  for required in [``Soundness.Rate7.failureBound, ``Soundness.Rate7.polygeroConstant,
-      ``Current.Mdoc.Soundness.event, ``Current.Mdoc.Soundness.Valid,
-      ``Current.Mdoc.Soundness.extract, ``MdocWitness.HashValid, ``MdocWitness.HashChecks,
-      ``ConcreteAdapterTopology.Others] do
-    unless reached.contains required do
-      throwError "Endpoint fingerprint does not cover {required}"
+  -- Each endpoint's fingerprint must cover the definitions that carry its meaning.
+  for (endpoint, requiredList) in required do
+    let (_, reached) := fingerprint env endpoint
+    for name in requiredList do
+      unless reached.contains name do
+        throwError "Endpoint fingerprint of {endpoint} does not cover {name}"
   -- Hash separation is a consequence of the circuit types, never a premise.
   for (name, _) in pinned do
     let (_, reached) := fingerprint env name
