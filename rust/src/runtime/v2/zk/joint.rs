@@ -197,9 +197,8 @@ impl<F: ZkField + PackingField> CircuitParticipant<F> {
     ) -> Result<Self, String> {
         check_registered(domain.field())?;
         let (circuit, others) = circuits.split_first().ok_or("empty circuit list")?;
-        let (geometry, param, backend) = prepare_circuit_layout(
-            circuit,
-            others,
+        let (geometry, param, backend, inputs) = prepare_circuit_layout(
+            circuits,
             virtual_inputs,
             config,
             domain.field().packing_extension(),
@@ -216,7 +215,7 @@ impl<F: ZkField + PackingField> CircuitParticipant<F> {
                 backend,
                 id: circuit.id,
                 additional_ids: others.iter().map(|c| c.id).collect(),
-                inputs: InputLayout::new(circuits, virtual_inputs)?,
+                inputs,
             },
             param,
         })

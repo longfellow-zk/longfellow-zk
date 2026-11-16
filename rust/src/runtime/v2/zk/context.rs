@@ -58,34 +58,41 @@ pub(crate) fn prepare_parameter<F: ZkField, D: EvaluationDomain<F>>(
     .map_err(|e| e.to_string())
 }
 
-/// Derive the common source layout and one input-aligned sumcheck pad suffix.
-/// The caller still validates the parameter as a selected field.
+/// Derive the common source layout of `circuits`, the primary circuit
+/// first, and one input-aligned sumcheck pad suffix: the proof geometry, the
+/// Polygero parameter, the packed commitment and the validated shared input
+/// layout. The caller still validates the parameter as a selected field.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) fn prepare_circuit_layout<
     F: ZkField + PackingField,
     D: EvaluationDomain<F>,
     X: crate::runtime::algebra::packing::PackingExtension<Ambient = F>,
 >(
-    circuit: &Circuit<F>,
-    others: &[&Circuit<F>],
+    circuits: &[&Circuit<F>],
     virtual_inputs: usize,
     config: PolygeroConfig,
     extension: X,
     domain: &D,
-) -> Result<(CircuitProofGeometry, PolygeroParam, PackingCommitment<F, X>), String> {
+) -> Result<
+    (
+        CircuitProofGeometry,
+        PolygeroParam,
+        PackingCommitment<F, X>,
+        InputLayout,
+    ),
+    String,
+> {
     if domain.field().is_binary() && !extension.binary128_profile() {
         return Err("binary circuits require the authenticated bit-input packing profile".into());
     }
-    let mut circuits = vec![circuit];
-    circuits.extend_from_slice(others);
-    let private_inputs = InputLayout::new(&circuits, virtual_inputs)?.committed();
-    let sc_geom = crate::runtime::v2::sumcheck::circuit_geometry(&circuits)?;
-    let layout = PackingLayout::new(private_inputs, sc_geom.pad_count(), extension.degree())?;
+    let inputs = InputLayout::new(circuits, virtual_inputs)?;
+    let sc_geom = crate::runtime::v2::sumcheck::circuit_geometry(circuits)?;
+    let layout = PackingLayout::new(inputs.committed(), sc_geom.pad_count(), extension.degree())?;
     let param = prepare_parameter(layout.witness_count, config, domain)?;
     let geometry = CircuitProofGeometry::new(sc_geom, layout.degree, param.geometry().nw)
         .map_err(|e| e.to_string())?;
     let backend = PackingCommitment::new(domain.field().clone(), layout, extension)?;
-    Ok((geometry, param, backend))
+    Ok((geometry, param, backend, inputs))
 }
 
 /// The shared input array of a participant's components:
