@@ -1,6 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::{
-    clippy::{BaselineKey, Counts},
+    clippy::{self, BaselineKey, Counts},
     run::diagnostics,
     steps, Options,
 };
@@ -84,24 +84,49 @@ fn a_saved_baseline_is_reused_only_in_the_same_environment() {
     let clippy = "clippy 0.1.91 (f8297e351a 2025-10-28)\n";
     let runs = ["clippy --all-targets", "clippy -p tools --all-targets"];
     let flags = ["RUSTFLAGS=-C target-cpu=x86-64-v2".to_owned()];
-    let measured = BaselineKey::new("94f3de58", rustc, clippy, b"lock", &runs, &flags);
+    let measured = BaselineKey::new("94f3de58", rustc, clippy, b"lock", &runs, &flags, None);
     let counts = Counts::parse("lib=2,lib-test=15").unwrap();
     let saved = measured.save(&counts);
     assert_eq!(measured.saved(&saved), Some(counts.clone()));
     assert_eq!(
-        BaselineKey::new("94f3de58", rustc, clippy, b"lock", &runs, &flags).saved(&saved),
+        BaselineKey::new("94f3de58", rustc, clippy, b"lock", &runs, &flags, None).saved(&saved),
         Some(counts)
     );
     let other_rustc = rustc.replace("1.91.0", "1.92.0");
     let other_clippy = clippy.replace("0.1.91", "0.1.92");
     let fewer_runs = &runs[..1];
     let elsewhere = [
-        BaselineKey::new("2323f5f6", rustc, clippy, b"lock", &runs, &flags),
-        BaselineKey::new("94f3de58", &other_rustc, clippy, b"lock", &runs, &flags),
-        BaselineKey::new("94f3de58", rustc, &other_clippy, b"lock", &runs, &flags),
-        BaselineKey::new("94f3de58", rustc, clippy, b"lock2", &runs, &flags),
-        BaselineKey::new("94f3de58", rustc, clippy, b"lock", fewer_runs, &flags),
-        BaselineKey::new("94f3de58", rustc, clippy, b"lock", &runs, &[]),
+        BaselineKey::new("2323f5f6", rustc, clippy, b"lock", &runs, &flags, None),
+        BaselineKey::new(
+            "94f3de58",
+            &other_rustc,
+            clippy,
+            b"lock",
+            &runs,
+            &flags,
+            None,
+        ),
+        BaselineKey::new(
+            "94f3de58",
+            rustc,
+            &other_clippy,
+            b"lock",
+            &runs,
+            &flags,
+            None,
+        ),
+        BaselineKey::new("94f3de58", rustc, clippy, b"lock2", &runs, &flags, None),
+        BaselineKey::new("94f3de58", rustc, clippy, b"lock", fewer_runs, &flags, None),
+        BaselineKey::new("94f3de58", rustc, clippy, b"lock", &runs, &[], None),
+        BaselineKey::new(
+            "94f3de58",
+            rustc,
+            clippy,
+            b"lock",
+            &runs,
+            &flags,
+            Some(&b""[..]),
+        ),
     ];
     for other in &elsewhere {
         assert_ne!(other, &measured);
@@ -110,4 +135,80 @@ fn a_saved_baseline_is_reused_only_in_the_same_environment() {
     // A file saved without a key (by an older runner) is measured again.
     assert_eq!(measured.saved("lib=2,lib-test=15\n"), None);
     assert_eq!(measured.saved(""), None);
+}
+
+#[test]
+fn the_clippy_configuration_is_the_one_clippy_finds_and_keys_the_baseline() {
+    let temporary =
+        std::env::temp_dir().join(format!("precommit-clippy-config-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&temporary);
+    std::fs::create_dir_all(temporary.join("a/b")).unwrap();
+    // Canonical, as the search sees it, so that skipped prefixes match.
+    let root = temporary.canonicalize().unwrap();
+    let deep = root.join("a/b");
+    let nothing = root.join("skip-nothing");
+    // Whatever lies above the temporary directory, which these files shadow.
+    let outside = clippy::config(&root, &root).unwrap();
+    assert_eq!(clippy::config(&deep, &nothing).unwrap(), outside);
+
+    let write = |path: &str, contents: &str| std::fs::write(root.join(path), contents).unwrap();
+    write("clippy.toml", "disallowed-names = [\"foo\"]\n");
+    let found = |start: &str, skip: &str| clippy::config(&root.join(start), &root.join(skip));
+    assert_eq!(
+        found("a/b", "skip-nothing").unwrap().as_deref(),
+        Some(&b"disallowed-names = [\"foo\"]\n"[..])
+    );
+    assert_eq!(
+        found("a/./b/..", "skip-nothing").unwrap(),
+        found("a", "skip-nothing").unwrap()
+    );
+    // The nearest directory wins, and in it `.clippy.toml` before `clippy.toml`.
+    write("a/clippy.toml", "second");
+    assert_eq!(
+        found("a/b", "skip-nothing").unwrap().as_deref(),
+        Some(&b"second"[..])
+    );
+    write("a/.clippy.toml", "first");
+    assert_eq!(
+        found("a/b", "skip-nothing").unwrap().as_deref(),
+        Some(&b"first"[..])
+    );
+    // A directory with a configuration's name is not one.
+    std::fs::create_dir_all(deep.join(".clippy.toml")).unwrap();
+    assert_eq!(
+        found("a/b", "skip-nothing").unwrap().as_deref(),
+        Some(&b"first"[..])
+    );
+    // Skipped directories are passed over.
+    assert_eq!(
+        found("a/b", "a").unwrap().as_deref(),
+        Some(&b"disallowed-names = [\"foo\"]\n"[..])
+    );
+
+    // Changing the configuration's contents in place changes the key, as
+    // does removing it.
+    let key = |start: &std::path::Path| {
+        let config = clippy::config(start, &nothing).unwrap();
+        BaselineKey::new(
+            "94f3de58",
+            "rustc",
+            "clippy",
+            b"lock",
+            &[],
+            &[],
+            config.as_deref(),
+        )
+    };
+    let measured = key(&root);
+    let saved = measured.save(&Counts::parse("lib=1").unwrap());
+    assert_eq!(key(&root).saved(&saved), Counts::parse("lib=1").ok());
+    write("clippy.toml", "disallowed-names = []\n");
+    assert_ne!(key(&root), measured);
+    assert_eq!(key(&root).saved(&saved), None);
+    std::fs::remove_file(root.join("clippy.toml")).unwrap();
+    assert_eq!(clippy::config(&root, &nothing).unwrap(), outside);
+    if outside.is_none() {
+        assert_ne!(key(&root), measured);
+    }
+    std::fs::remove_dir_all(&root).unwrap();
 }

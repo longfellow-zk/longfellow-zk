@@ -1,6 +1,10 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Clippy warning counts per target, and their comparison with a baseline.
-use std::{collections::BTreeMap, fmt};
+use std::{
+    collections::BTreeMap,
+    fmt, fs,
+    path::{Component, Path, PathBuf},
+};
 
 use sha2::{Digest, Sha256};
 
@@ -87,17 +91,19 @@ impl fmt::Display for Counts {
 }
 
 /// What a baseline was measured with: the base commit, the toolchain
-/// (`rustc -vV` and `cargo clippy -V`), the lock file, and the clippy command
-/// lines with the flags the environment adds. A saved baseline is reused only
-/// under an equal key, so a new toolchain, new dependencies or new flags
-/// measure the baseline again.
+/// (`rustc -vV` and `cargo clippy -V`), the lock file, the clippy command
+/// lines with the flags the environment adds, and the contents of the clippy
+/// configuration from outside the base commit. A saved baseline is reused
+/// only under an equal key, so a new toolchain, new dependencies, new flags or
+/// a changed configuration measure the baseline again.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct BaselineKey(String);
 
 impl BaselineKey {
     /// The key of `base`, measured with `rustc` and `clippy` (the versions
-    /// the tools print), the lock file `lock`, the clippy runs `runs` and the
-    /// environment's flags `flags` (`NAME=value`).
+    /// the tools print), the lock file `lock`, the clippy runs `runs`, the
+    /// environment's flags `flags` (`NAME=value`) and the contents of the
+    /// clippy configuration `config` ([`config`]), `None` when there is none.
     pub(crate) fn new(
         base: &str,
         rustc: &str,
@@ -105,6 +111,7 @@ impl BaselineKey {
         lock: &[u8],
         runs: &[&str],
         flags: &[String],
+        config: Option<&[u8]>,
     ) -> Self {
         let mut key = format!("base {base}\n");
         for (tag, text) in [("rustc", rustc), ("clippy", clippy)] {
@@ -112,16 +119,16 @@ impl BaselineKey {
                 key.push_str(&format!("{tag} {line}\n"));
             }
         }
-        let digest: String = Sha256::digest(lock)
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect();
-        key.push_str(&format!("lock {digest}\n"));
+        key.push_str(&format!("lock {}\n", hex_digest(lock)));
         for run in runs {
             key.push_str(&format!("run {run}\n"));
         }
         for flag in flags {
             key.push_str(&format!("flag {flag:?}\n"));
+        }
+        match config {
+            Some(contents) => key.push_str(&format!("config {}\n", hex_digest(contents))),
+            None => key.push_str("config none\n"),
         }
         Self(key)
     }
@@ -136,4 +143,49 @@ impl BaselineKey {
         let counts = saved.strip_prefix(&self.0)?.strip_prefix("counts ")?;
         Counts::parse(counts.trim()).ok()
     }
+}
+
+/// The SHA-256 digest of `bytes`, in hex.
+fn hex_digest(bytes: &[u8]) -> String {
+    Sha256::digest(bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+/// The names of a clippy configuration file, in clippy's order of
+/// preference within one directory.
+const CONFIG_NAMES: [&str; 2] = [".clippy.toml", "clippy.toml"];
+
+/// The contents of the clippy configuration that a clippy run searching from
+/// `start` reads, or `None` when it finds none. Clippy searches from
+/// `CLIPPY_CONF_DIR`, or else from the package's manifest directory, through
+/// each parent in turn, and reads the first of [`CONFIG_NAMES`] that is a file
+/// in the first directory that has one. This search passes over the
+/// directories under `skip`, whose files the caller accounts for otherwise.
+pub(crate) fn config(start: &Path, skip: &Path) -> Result<Option<Vec<u8>>, String> {
+    let folded = start
+        .components()
+        .fold(PathBuf::new(), |mut path, component| {
+            match component {
+                Component::CurDir => {}
+                Component::ParentDir => {
+                    path.pop();
+                }
+                other => path.push(other),
+            }
+            path
+        });
+    let first = folded.canonicalize().unwrap_or(folded);
+    for directory in first.ancestors().filter(|d| !d.starts_with(skip)) {
+        for name in CONFIG_NAMES {
+            let file = directory.join(name);
+            if file.is_file() {
+                return fs::read(&file)
+                    .map(Some)
+                    .map_err(|e| format!("{}: {e}", file.display()));
+            }
+        }
+    }
+    Ok(None)
 }

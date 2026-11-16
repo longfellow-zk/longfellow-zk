@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    clippy::{BaselineKey, Counts},
+    clippy::{self, BaselineKey, Counts},
     context::Context,
     run::{diagnostics, tail, why, Log, Outcome, Run},
 };
@@ -351,10 +351,14 @@ const CLIPPY_FLAG_VARIABLES: [&str; 4] = [
     "CLIPPY_CONF_DIR",
 ];
 
-/// The key of the clippy baseline of `base` in this environment: the
-/// toolchain that runs clippy in `rust/`, this checkout's `Cargo.lock`, the
-/// clippy runs and the flags the environment adds.
-fn baseline_key(cx: &Context, base: &str) -> Result<BaselineKey, String> {
+/// The key of the clippy baseline of `base` in this environment, measured on
+/// its export to `export` (its `rust/`): the toolchain that runs clippy in
+/// `rust/`, this checkout's `Cargo.lock`, the clippy runs, the flags the
+/// environment adds, and the clippy configuration the runs read from outside
+/// the export, whose files are `base`'s: from `CLIPPY_CONF_DIR` (relative to
+/// `export`, where cargo runs clippy), or else from the directories above
+/// `export`.
+fn baseline_key(cx: &Context, base: &str, export: &Path) -> Result<BaselineKey, String> {
     let version = |program: &str, args: &str| {
         let output = cx
             .command(&cx.rust, program)
@@ -376,6 +380,11 @@ fn baseline_key(cx: &Context, base: &str) -> Result<BaselineKey, String> {
             std::env::var_os(name).map(|value| format!("{name}={}", value.to_string_lossy()))
         })
         .collect();
+    let start = match std::env::var_os("CLIPPY_CONF_DIR") {
+        Some(directory) => export.join(directory),
+        None => export.to_path_buf(),
+    };
+    let config = clippy::config(&start, export)?;
     Ok(BaselineKey::new(
         base,
         &version(&rustc, "-vV")?,
@@ -383,6 +392,7 @@ fn baseline_key(cx: &Context, base: &str) -> Result<BaselineKey, String> {
         &lock,
         &runs,
         &flags,
+        config.as_deref(),
     ))
 }
 
@@ -391,9 +401,15 @@ fn baseline_key(cx: &Context, base: &str) -> Result<BaselineKey, String> {
 /// [`BaselineKey`] they were measured under; saved counts are reused only
 /// under the same key.
 fn base_counts(cx: &Context, log: &mut Log, base: &str) -> Result<Counts, String> {
-    let directory = cx.work.join("clippy-base");
+    let named = cx.work.join("clippy-base");
+    fs::create_dir_all(&named).map_err(|e| format!("{}: {e}", named.display()))?;
+    let directory = named
+        .canonicalize()
+        .map_err(|e| format!("{}: {e}", named.display()))?;
     let saved = directory.join(format!("{base}.counts"));
-    let key = baseline_key(cx, base)?;
+    let source = directory.join("src");
+    let crate_dir = source.join("rust");
+    let key = baseline_key(cx, base, &crate_dir)?;
     if let Ok(text) = fs::read_to_string(&saved) {
         if let Some(counts) = key.saved(&text) {
             log.note(&format!(
@@ -407,7 +423,6 @@ fn base_counts(cx: &Context, log: &mut Log, base: &str) -> Result<Counts, String
             saved.display()
         ));
     }
-    let source = directory.join("src");
     let _ = fs::remove_dir_all(&source);
     fs::create_dir_all(&source).map_err(|e| format!("{}: {e}", source.display()))?;
     log.note(&format!("exporting {base}:rust to {}", source.display()));
@@ -428,7 +443,6 @@ fn base_counts(cx: &Context, log: &mut Log, base: &str) -> Result<Counts, String
     if !archived || !matches!(unpacked, Some(Ok(status)) if status.success()) {
         return Err(format!("cannot export {base}"));
     }
-    let crate_dir = source.join("rust");
     let _ = fs::copy(cx.rust.join("Cargo.lock"), crate_dir.join("Cargo.lock"));
     let counts = clippy_counts(log, &crate_dir, &directory.join("target"))
         .map_err(|_| format!("clippy of {base} failed; see the log"))?;
