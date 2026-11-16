@@ -87,7 +87,8 @@ paths against the generic formulas; the role-trace test (transcript I9).
 
 **I2. Degree one is the identity.** It has no mask cells, no messages, no
 draws, and one equation: the input claim over the unpacked inputs.
-*Enforced by:* `PackingLayout::new` and `mask_cell_count` give zero masks;
+*Enforced by:* `mask_cell_count`, the one mask-count rule, gives zero masks,
+and `PackingLayout::new` and the prover's mask check use it;
 `PackingProof::Direct` is the only degree-one proof and carries nothing;
 `identity_has_no_masks_messages_or_challenges` checks that the transcript
 state is unchanged (test).

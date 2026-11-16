@@ -57,7 +57,7 @@ impl<E: Clone> PackingMasks<E> {
     where
         X::Ambient: AlgebraicField<E = E>,
     {
-        if cells.len() != mask_cell_count(p.degree()) {
+        if Some(cells.len()) != mask_cell_count(p.degree()) {
             return Err("packing mask shape".into());
         }
         Ok(Self { cells })

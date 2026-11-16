@@ -96,12 +96,15 @@ impl<E: Clone> PackingMasks<E> {
         &self.cells
     }
 }
-#[cfg(any(test, feature = "prover"))]
-pub(in crate::runtime::v2) fn mask_cell_count(degree: usize) -> usize {
+/// The packing reduction's mask cells at packing degree `degree`: none for
+/// the identity (I2), else `degree + 1` (`degree - 1` free cells, `r` and
+/// `b`). The one mask-count rule: the commitment layout and the prover's
+/// mask shape check both use it. None if it overflows.
+pub(in crate::runtime::v2) fn mask_cell_count(degree: usize) -> Option<usize> {
     if degree == 1 {
-        0
+        Some(0)
     } else {
-        degree + 1
+        degree.checked_add(1)
     }
 }
 

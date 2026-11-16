@@ -51,7 +51,7 @@ where
     c.validate()?;
     if (p.degree() > 1 && words.len() != c.weights.len().div_ceil(p.degree()))
         || aux.len() != c.auxiliary_count
-        || masks.cells.len() != mask_cell_count(p.degree())
+        || Some(masks.cells.len()) != mask_cell_count(p.degree())
     {
         return Err("packing witness shape".into());
     }

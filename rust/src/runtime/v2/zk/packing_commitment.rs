@@ -9,7 +9,7 @@ use crate::runtime::{
         ZkField,
     },
     v2::{
-        dual_packing::generic::{FieldEquation, SourceClaim},
+        dual_packing::generic::{mask_cell_count, FieldEquation, SourceClaim},
         polygero::PolygeroLinearTerm,
     },
 };
@@ -42,11 +42,7 @@ impl PackingLayout {
             return Err("zero packing degree".into());
         }
         let packed_words = private_inputs.div_ceil(degree);
-        let masks = if degree == 1 {
-            0
-        } else {
-            degree.checked_add(1).ok_or("packing layout overflow")?
-        };
+        let masks = mask_cell_count(degree).ok_or("packing layout overflow")?;
         let suffix_start = packed_words;
         let masks_start = suffix_start
             .checked_add(pad_cells)
