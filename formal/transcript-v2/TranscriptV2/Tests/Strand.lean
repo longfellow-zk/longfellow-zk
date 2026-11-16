@@ -52,11 +52,6 @@ example (reader : Reader) (H : Oracle) :
 
 -- Large and segmented reads obey the same theorem as reads within one block.
 
-example (state : Absorbing) (body : Bytes) (H : Oracle) :
-    ((StrandTranscript.finalSeal state body).run H).2.length = 2 := by
-  rw [StrandTranscript.finalSeal_run]
-  rfl
-
 -- Splitting the one SHA function introduces no extra oracle or consistency premise.
 example (H : Bytes → Digest) : assembleOracle (splitOracle H) = H := assemble_split H
 

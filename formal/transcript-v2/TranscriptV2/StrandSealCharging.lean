@@ -85,22 +85,4 @@ theorem required_before_replay {Proof : Type} {fuel extra : ℕ}
   simp only [Tree.run_bind] at fresh ⊢
   exact obtained.resolve_right fresh
 
-open Framing Strand
-
-abbrev Output := Absorbing × Bytes × Digest
-
-/-- The domains law is proved from the actual Rust byte syntax. -/
-def rawModel : Model Bytes Digest Output where
-  node out := StrandTranscript.finalNodeInput out.1 out.2.1
-  prf out digest := (Input.prf out.1.id digest 0).encode
-  provided := fun out => out.2.2
-  domains out digest := by
-    unfold StrandTranscript.finalNodeInput
-    cases hs : StrandTranscript.finalState out.1 out.2.1 with
-    | root message => exact Ne.symm (Input.prf_ne_root out.1.id digest 0 message)
-    | node id parent message => exact Ne.symm (Input.prf_ne_node out.1.id digest 0 id [parent] message)
-
-@[simp] theorem raw_point (state : Absorbing) (body : Bytes) (provided : Digest) (H : Oracle) :
-    rawModel.point (state,body,provided) H = StrandTranscript.finalSealInput state body H := rfl
-
 end TranscriptV2.StrandSealCharging
