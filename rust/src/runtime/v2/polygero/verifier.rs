@@ -61,6 +61,7 @@ impl<L: Participants> JointPolygeroVerifier<L> {
     /// proofs run `reduce` inside their own composition and check their own
     /// seal.
     #[cfg(any(test, feature = "testonly"))]
+    #[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
     pub fn verify(
         self,
         mut transcript: Transcript,
