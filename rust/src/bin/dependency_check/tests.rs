@@ -136,13 +136,14 @@ fn phases_never_cross() {
 fn circuit_halves_and_their_submodules_have_phases() {
     use Phase::*;
     for (path, expected) in [
-        ("src/circuits/ecdsa2/traits.rs", Compile),
         ("src/circuits/sha256/allocate.rs", Compile),
         ("src/mdoc/circuits/fields.rs", Compile),
         ("src/circuits/sha256/circuit/part.rs", Compile),
         ("src/circuits/sha256/concrete/fast.rs", Runtime),
         ("src/circuits/ecdsa2/evaluate/x.rs", Bridge),
         ("src/circuits/ec/points.rs", Shared),
+        ("src/circuits/ecdsa2/shape.rs", Shared),
+        ("src/circuits/sha256msg/shape/blocks.rs", Shared),
         ("src/circuits/sha256/constants/table.rs", Shared),
         ("src/mdoc/circuits/hash/allocate.rs", Compile),
         ("src/mdoc/circuits/hash.rs", Neutral),
@@ -160,6 +161,7 @@ fn circuit_files_of_unknown_kinds_have_no_phase() {
     for path in [
         "src/circuits/sha256/helpers.rs",
         "src/circuits/sha256/proto.rs",
+        "src/circuits/ecdsa2/traits.rs",
         "src/mdoc/circuits/hash/glue/x.rs",
         "src/newtop/x.rs",
     ] {

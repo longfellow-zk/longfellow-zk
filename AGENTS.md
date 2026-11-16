@@ -18,13 +18,14 @@ rules in `rust/src/bin/dependency_check/rules.txt` consistent with what follows.
   `rust/src/bin/dependency_check/main.rs`), not in `rules.txt`; a file it
   cannot classify fails the check, so classify a new kind of file there, in a
   reviewed change. The classes are:
-  - compile time: `compile`, `mdoc::compile`, and the `circuit`, `allocate`,
-    `traits` and `fields` halves of each circuit in `circuits` and
-    `mdoc::circuits`;
+  - compile time: `compile`, `mdoc::compile`, and the `circuit`, `allocate` and
+    `fields` halves of each circuit in `circuits` and `mdoc::circuits`;
   - run time: `runtime`, `mdoc::runtime`, `mdoc::circuits::cbor` (native CBOR
     and mdoc parsing), and the `concrete` native-witness halves of circuits;
   - shared: `core`, `mdoc::proto`, `mdoc::testcases`, `util`, and the
-    `constants` and `points` halves of circuits;
+    `constants`, `points` and `shape` halves of circuits (a `shape` is the
+    witness layout: generic structs the circuit holds wires in and the native
+    witness holds values in, with the one allocation and encoding order);
   - test-only bridges, which may use both: the `evaluate` halves of circuits,
     which turn native witnesses into circuit wires and must be declared only
     for tests;

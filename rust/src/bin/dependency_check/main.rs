@@ -168,12 +168,13 @@ fn circuit_phase(path: &str, rest: &str) -> Phase {
     let name = segments.next().unwrap_or(rest);
     let half = segments.next();
     match half.unwrap_or(name) {
-        "circuit" | "allocate" | "traits" | "fields" => Compile,
+        "circuit" | "allocate" | "fields" => Compile,
         // Native witness halves.
         "concrete" => Runtime,
         "evaluate" => Bridge,
-        // Constants and point helpers that native code also uses.
-        "constants" | "points" => Shared,
+        // Constants and point helpers that native code also uses, and the
+        // witness layout that the circuit and the native witness share.
+        "constants" | "points" | "shape" => Shared,
         // A circuit's root module mounts and re-exports its halves.
         _ if half.is_none() => Neutral,
         _ => panic!("{path} has no phase; classify its kind in `circuit_phase`"),
