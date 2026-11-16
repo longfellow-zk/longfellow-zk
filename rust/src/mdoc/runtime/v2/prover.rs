@@ -21,6 +21,7 @@ use crate::{
         cbor::mdoc::{MdocParseError, ParsedMdoc},
         v2::{
             circuits::Instance,
+            domains::with_domains,
             inputs::{push_witness_hash, push_witness_sig, PublicInputs},
             request::{Request, RequestError},
             MdocProverErrorCode, RequestedAttribute, ZkSpecStruct,
@@ -28,15 +29,8 @@ use crate::{
     },
     runtime::{
         algebra::{
-            fp2::Fp2Field,
-            gf2_128::Gf2_128Field,
-            p256::P256Field,
-            q256::Q256Field,
-            range_interpolation::{
-                BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
-            },
-            secp256r1::Secp256r1,
-            RuntimeNat, SupportsFFT,
+            gf2_128::Gf2_128Field, p256::P256Field, q256::Q256Field, secp256r1::Secp256r1,
+            RuntimeNat,
         },
         random::{PrivateRandom, SecureRandomEngine},
         v2::transcript::{EncodedProof, Opened},
@@ -123,17 +117,9 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
     let request = Request::check(zk_spec, pkx, pky, transcript, attrs, now, doc_type, &p256)
         .map_err(request_error)?;
 
-    let p256_2 = Fp2Field::new(&p256);
-    let omega = p256_2.omega();
-    let omega_order = p256_2.omega_order();
-    let make_interpolator_sig =
-        QuadraticExtensionFftInterpolatorFactory::new(&p256, &p256_2, omega, omega_order);
-
     let q256 = Q256Field::new();
     let secp256r1 = Secp256r1::new(&p256);
-
     let gf2 = Gf2_128Field::new();
-    let make_interpolator_hash = BinaryInterpolatorFactory::full_field(&gf2);
 
     let instance = Instance::load(&request, circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
@@ -160,25 +146,27 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
     let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &request, &parsed)?;
 
     let gen_err = |_| MdocProverErrorCode::GeneralFailure;
-    let composition = super::link::composition(
-        request.spec(),
-        instance.signature(),
-        instance.hash(),
-        (&make_interpolator_hash, &make_interpolator_sig),
-    )
-    .map_err(gen_err)?;
-    let public = PublicInputs::derive(&request, &p256);
+    with_domains(&gf2, &p256, |domains| {
+        let composition = super::link::composition(
+            request.spec(),
+            instance.signature(),
+            instance.hash(),
+            domains,
+        )
+        .map_err(gen_err)?;
+        let public = PublicInputs::derive(&request, &p256);
 
-    // The statement fixes the spec, the circuits, the geometry and every
-    // public input before the shared commitment (transcript I1).
-    let statement =
-        super::transcript::statement(&composition, &request, &public).map_err(gen_err)?;
-    let (body, tp) =
-        super::link::Statement::prove(Opened::new(&statement), witness_hash, witness_sig, rng)
-            .map_err(gen_err)?;
-    super::proto::MdocProof { body }
-        .write(statement.geometry(), &gf2, &p256, tp)
-        .map_err(gen_err)
+        // The statement fixes the spec, the circuits, the geometry and every
+        // public input before the shared commitment (transcript I1).
+        let statement =
+            super::transcript::statement(&composition, &request, &public).map_err(gen_err)?;
+        let (body, tp) =
+            super::link::Statement::prove(Opened::new(&statement), witness_hash, witness_sig, rng)
+                .map_err(gen_err)?;
+        super::proto::MdocProof { body }
+            .write(statement.geometry(), &gf2, &p256, tp)
+            .map_err(gen_err)
+    })
 }
 
 /// The prover's codes for the request rows of the error table: the attribute

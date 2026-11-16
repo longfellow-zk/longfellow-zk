@@ -19,20 +19,13 @@
 use crate::{
     mdoc::v2::{
         circuits::Instance,
+        domains::with_domains,
         inputs::PublicInputs,
         request::{Request, RequestError},
         MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
     },
     runtime::{
-        algebra::{
-            fp2::Fp2Field,
-            gf2_128::Gf2_128Field,
-            p256::P256Field,
-            range_interpolation::{
-                BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
-            },
-            SupportsFFT,
-        },
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field},
         v2::transcript::{Opened, VerifiedProof},
     },
 };
@@ -55,39 +48,34 @@ pub fn run_mdoc_verifier(
     // the check passes.
     let request = Request::check(zk_spec, pkx, pky, transcript, attrs, now, doc_type, &p256)
         .map_err(request_error)?;
-    let p256_2 = Fp2Field::new(&p256);
-    let omega = p256_2.omega();
-    let omega_order = p256_2.omega_order();
-    let make_interpolator_sig =
-        QuadraticExtensionFftInterpolatorFactory::new(&p256, &p256_2, omega, omega_order);
-
     let gf2 = Gf2_128Field::new();
-    let make_interpolator_hash = BinaryInterpolatorFactory::full_field(&gf2);
 
     let instance = Instance::load(&request, circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocVerifierErrorCode::CircuitParsingFailure)?;
 
     let gen_err = |_| MdocVerifierErrorCode::GeneralFailure;
-    let composition = super::link::composition(
-        request.spec(),
-        instance.signature(),
-        instance.hash(),
-        (&make_interpolator_hash, &make_interpolator_sig),
-    )
-    .map_err(gen_err)?;
-    let public = PublicInputs::derive(&request, &p256);
-    let statement =
-        super::transcript::statement(&composition, &request, &public).map_err(gen_err)?;
-    let mut session = Opened::new(&statement);
-    #[cfg(test)]
-    tests::observe(&mut session);
-    // The proof is parsed against the geometry the statement absorbed.
-    let decoded = super::proto::MdocProof::read(proof_bytes, &session.geometry(), &gf2, &p256)
-        .map_err(|_| MdocVerifierErrorCode::HashParsingFailure)?;
-    super::link::Statement::reduce_and_authenticate(session, &decoded.body)
-        .map_err(gen_err)?
-        .check_seal(decoded)
-        .map_err(|_| MdocVerifierErrorCode::GeneralFailure)
+    with_domains(&gf2, &p256, |domains| {
+        let composition = super::link::composition(
+            request.spec(),
+            instance.signature(),
+            instance.hash(),
+            domains,
+        )
+        .map_err(gen_err)?;
+        let public = PublicInputs::derive(&request, &p256);
+        let statement =
+            super::transcript::statement(&composition, &request, &public).map_err(gen_err)?;
+        let mut session = Opened::new(&statement);
+        #[cfg(test)]
+        tests::observe(&mut session);
+        // The proof is parsed against the geometry the statement absorbed.
+        let decoded = super::proto::MdocProof::read(proof_bytes, &session.geometry(), &gf2, &p256)
+            .map_err(|_| MdocVerifierErrorCode::HashParsingFailure)?;
+        super::link::Statement::reduce_and_authenticate(session, &decoded.body)
+            .map_err(gen_err)?
+            .check_seal(decoded)
+            .map_err(|_| MdocVerifierErrorCode::GeneralFailure)
+    })
 }
 
 /// The verifier's codes for the request rows of the error table.

@@ -20,19 +20,12 @@ use crate::{
         compile,
         proto::{K_ZSTD_LEVEL, NEXT_MAX_ATTRIBUTES, NEXT_VERSION},
         v2::{
+            domains::with_domains,
             provider::{self, ProvidedCircuit},
             ZkSpecStruct, MDOC_JOINT_PROFILE,
         },
     },
-    runtime::algebra::{
-        fp2::Fp2Field,
-        gf2_128::Gf2_128Field,
-        p256::P256Field,
-        range_interpolation::{
-            BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
-        },
-        SupportsFFT,
-    },
+    runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
 };
 
 /// Compile the development circuit and return its matching specification.
@@ -59,11 +52,7 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
         return Err("Compiler returned a circuit other than NEXT".into());
     }
     let f = Gf2_128Field::new();
-    let d = BinaryInterpolatorFactory::full_field(&f);
     let p = P256Field::new();
-    let ext = Fp2Field::new(&p);
-    let pd =
-        QuadraticExtensionFftInterpolatorFactory::new(&p, &ext, ext.omega(), ext.omega_order());
     // Keep payload validation even though the fixed profile does not inspect
     // circuit sizes. The provider separately checks the archive's metadata.
     CircuitReader::new(&f)
@@ -79,7 +68,10 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
     // opening and parent charges within the same query budget as the frontend.
     // Validate it against each interpolation domain.
     let config = MDOC_JOINT_PROFILE;
-    if !config.can_interpolate(&d) || !config.can_interpolate(&pd) {
+    let fits = with_domains(&f, &p, |(hash, signature)| {
+        config.can_interpolate(hash) && config.can_interpolate(signature)
+    });
+    if !fits {
         return Err("unsupported fixed Polygero profile".into());
     }
     Ok(ZkSpecStruct {

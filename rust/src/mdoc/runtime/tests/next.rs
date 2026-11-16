@@ -1522,31 +1522,13 @@ fn next_v2_parameters() {
 }
 
 fn assert_v2_parameters(spec: &ZkSpecStruct, compressed: &[u8]) {
-    use crate::runtime::algebra::{
-        fp2::Fp2Field,
-        gf2_128::Gf2_128Field,
-        p256::P256Field,
-        range_interpolation::{
-            BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
-        },
-        SupportsFFT,
+    use crate::{
+        mdoc::v2::domains::with_domains,
+        runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
     };
     let f = Gf2_128Field::new();
-    let d = BinaryInterpolatorFactory::full_field(&f);
     let p = P256Field::new();
-    let extension = Fp2Field::new(&p);
-    let pd = QuadraticExtensionFftInterpolatorFactory::new(
-        &p,
-        &extension,
-        extension.omega(),
-        extension.omega_order(),
-    );
     let (sig, hash) = decompress_circuits(compressed, &p, &f).unwrap();
-    // The hash circuit is archived at its natural width: the link mask, pads
-    // and tree leaves lie beyond it, so it cannot address them.
-    let link = link_for_test(spec, &sig, &hash, (&d, &pd)).unwrap();
-    assert_eq!(link.0, hash.raw.ninput);
-    assert!(link.1 > link.0);
     let expected = PolygeroConfig {
         k: 349,
         s: 12,
@@ -1554,8 +1536,15 @@ fn assert_v2_parameters(spec: &ZkSpecStruct, compressed: &[u8]) {
         t: 84,
     };
     assert_eq!(spec.polygero, expected);
-    assert!(expected.can_interpolate(&d));
-    assert!(expected.can_interpolate(&pd));
+    with_domains(&f, &p, |domains| {
+        // The hash circuit is archived at its natural width: the link mask,
+        // pads and tree leaves lie beyond it, so it cannot address them.
+        let link = link_for_test(spec, &sig, &hash, domains).unwrap();
+        assert_eq!(link.0, hash.raw.ninput);
+        assert!(link.1 > link.0);
+        assert!(expected.can_interpolate(domains.0));
+        assert!(expected.can_interpolate(domains.1));
+    });
     let geometry = proof_geometry(spec, &sig, &hash).unwrap();
     // Keep the numerical frontend and Merkle charges tied to the actual
     // hash-plus-adapter geometry, including entries for both quad fragments.

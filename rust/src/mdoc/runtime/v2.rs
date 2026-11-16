@@ -19,6 +19,8 @@ mod attribute;
 mod circuits;
 #[cfg(any(test, feature = "prover"))]
 mod document;
+#[cfg(any(test, feature = "prover", feature = "verifier", feature = "compiler"))]
+pub(in crate::mdoc) mod domains;
 mod error;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod inputs;

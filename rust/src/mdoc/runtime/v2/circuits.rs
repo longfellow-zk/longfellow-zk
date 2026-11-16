@@ -127,20 +127,9 @@ pub fn proof_geometry(
     signature: &Circuit<P256Field>,
     hash: &Circuit<Gf2_128Field>,
 ) -> Result<super::MdocProofGeometry, String> {
-    use crate::runtime::algebra::{
-        fp2::Fp2Field,
-        range_interpolation::{
-            BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
-        },
-        SupportsFFT,
-    };
-    let f = Gf2_128Field::new();
-    let p = P256Field::new();
-    let ext = Fp2Field::new(&p);
-    let hd = BinaryInterpolatorFactory::full_field(&f);
-    let sd =
-        QuadraticExtensionFftInterpolatorFactory::new(&p, &ext, ext.omega(), ext.omega_order());
-    Ok(super::MdocProofGeometry {
-        body: super::link::composition(spec, signature, hash, (&hd, &sd))?.geometry()?,
+    super::domains::with_domains(&Gf2_128Field::new(), &P256Field::new(), |domains| {
+        Ok(super::MdocProofGeometry {
+            body: super::link::composition(spec, signature, hash, domains)?.geometry()?,
+        })
     })
 }

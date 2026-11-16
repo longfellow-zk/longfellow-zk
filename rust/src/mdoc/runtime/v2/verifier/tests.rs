@@ -21,6 +21,7 @@ use crate::{
         testcases::TEST_DATA,
         v2::{
             decompress_circuits,
+            domains::with_domains,
             inputs::PublicInputs,
             link, proof_geometry,
             provider::ProvidedCircuit,
@@ -32,16 +33,7 @@ use crate::{
         },
     },
     runtime::{
-        algebra::{
-            fp2::Fp2Field,
-            gf2_128::Gf2_128Field,
-            p256::P256Field,
-            range_interpolation::{
-                BinaryInterpolatorFactory, EvaluationDomain,
-                QuadraticExtensionFftInterpolatorFactory,
-            },
-            SupportsFFT,
-        },
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, range_interpolation::EvaluationDomain},
         random::DeterministicRng,
         v2::{
             proto::{
@@ -226,15 +218,7 @@ fn mdoc_statement_bytes(
     spec: &ZkSpecStruct,
 ) -> Vec<u8> {
     let p256 = P256Field::new();
-    let p256_2 = Fp2Field::new(&p256);
-    let signature_domain = QuadraticExtensionFftInterpolatorFactory::new(
-        &p256,
-        &p256_2,
-        p256_2.omega(),
-        p256_2.omega_order(),
-    );
     let gf2 = Gf2_128Field::new();
-    let hash_domain = BinaryInterpolatorFactory::full_field(&gf2);
     let request = Request::check(
         fixture.provided.spec(),
         &fixture.pkx,
@@ -247,16 +231,17 @@ fn mdoc_statement_bytes(
     )
     .unwrap();
     let public = PublicInputs::derive(&request, &p256);
-    let composition =
-        link::composition(spec, signature, hash, (&hash_domain, &signature_domain)).unwrap();
-    let statement = composition
-        .statement(
-            Identity::for_test(session, spec),
-            public.hash(),
-            public.signature(),
-        )
-        .unwrap();
-    Opened::new(&statement).statement_bytes_for_test().to_vec()
+    with_domains(&gf2, &p256, |domains| {
+        let composition = link::composition(spec, signature, hash, domains).unwrap();
+        let statement = composition
+            .statement(
+                Identity::for_test(session, spec),
+                public.hash(),
+                public.signature(),
+            )
+            .unwrap();
+        Opened::new(&statement).statement_bytes_for_test().to_vec()
+    })
 }
 
 /// One-field sensitivity of the mdoc identity and spec (transcript I1): a

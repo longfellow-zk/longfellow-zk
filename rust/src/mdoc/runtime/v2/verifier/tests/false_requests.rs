@@ -19,6 +19,7 @@ use crate::{
         v2::{
             circuits::Instance,
             document,
+            domains::with_domains,
             inputs::{push_witness_hash, push_witness_sig, PublicInputs},
             link, req_attr,
             request::Request,
@@ -26,17 +27,7 @@ use crate::{
         },
     },
     runtime::{
-        algebra::{
-            fp2::Fp2Field,
-            gf2_128::Gf2_128Field,
-            p256::P256Field,
-            q256::Q256Field,
-            range_interpolation::{
-                BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
-            },
-            secp256r1::Secp256r1,
-            SupportsFFT,
-        },
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, q256::Q256Field, secp256r1::Secp256r1},
         random::DeterministicRng,
         v2::transcript::{cheat::cheating, Opened},
     },
@@ -82,38 +73,32 @@ fn prove_claimed(
 ) -> Result<Vec<u8>, String> {
     let p256 = P256Field::new();
     let (request0, request1) = (check(spec, honest, &p256)?, check(spec, claimed, &p256)?);
-    let p256_2 = Fp2Field::new(&p256);
-    let sig_domain = QuadraticExtensionFftInterpolatorFactory::new(
-        &p256,
-        &p256_2,
-        p256_2.omega(),
-        p256_2.omega_order(),
-    );
     let gf2 = Gf2_128Field::new();
-    let hash_domain = BinaryInterpolatorFactory::full_field(&gf2);
     let instance = Instance::load(&request1, circuits, &p256, &gf2)?;
     let parsed = document::parse(TEST_DATA.mdoc, &request0, &p256)
         .map_err(|_| "honest document parse".to_string())?;
-    let composition = link::composition(
-        request1.spec(),
-        instance.signature(),
-        instance.hash(),
-        (&hash_domain, &sig_domain),
-    )?;
     let witness_hash =
         push_witness_hash(&request0, &parsed).map_err(|e| format!("hash witness: {e:?}"))?;
     let (q256, secp256r1) = (Q256Field::new(), Secp256r1::new(&p256));
     let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &request0, &parsed)
         .map_err(|_| "signature witness".to_string())?;
-    let public = PublicInputs::derive(&request1, &p256);
-    let statement = transcript::statement(&composition, &request1, &public)?;
-    let mut rng = DeterministicRng::new(seed);
-    let (body, tp) = cheating(|| {
-        link::Statement::prove(Opened::new(&statement), witness_hash, witness_sig, &mut rng)
-    })?;
-    Ok(MdocProof { body }
-        .write(statement.geometry(), &gf2, &p256, tp)?
-        .into_bytes())
+    with_domains(&gf2, &p256, |domains| {
+        let composition = link::composition(
+            request1.spec(),
+            instance.signature(),
+            instance.hash(),
+            domains,
+        )?;
+        let public = PublicInputs::derive(&request1, &p256);
+        let statement = transcript::statement(&composition, &request1, &public)?;
+        let mut rng = DeterministicRng::new(seed);
+        let (body, tp) = cheating(|| {
+            link::Statement::prove(Opened::new(&statement), witness_hash, witness_sig, &mut rng)
+        })?;
+        Ok(MdocProof { body }
+            .write(statement.geometry(), &gf2, &p256, tp)?
+            .into_bytes())
+    })
 }
 
 /// Every false request of one and of two attributes, each one part away from

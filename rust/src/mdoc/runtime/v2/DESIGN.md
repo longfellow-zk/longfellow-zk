@@ -526,6 +526,11 @@ impl PublicInputs {
     pub(in crate::mdoc::runtime::v2) fn derive(request: &Request<'_>, p256: &P256Field)
         -> Self;                                              // I1: the only constructor
 }
+// domains.rs: the one place that builds both evaluation domains, for both
+// roles, proof_geometry and the development provider
+pub(in crate::mdoc) fn with_domains<R>(gf2: &Gf2_128Field, p256: &P256Field,
+    f: impl FnOnce((&BinaryInterpolatorFactory<..>, &QuadraticExtensionFftInterpolatorFactory<..>)) -> R)
+    -> R;
 // link.rs and transcript.rs
 pub(super) fn composition(spec: &ZkSpecStruct, signature: &'a Circuit<P256Field>,
     hash: &'a Circuit<Gf2_128Field>, domains: (&'a DH, &'a DS))
@@ -539,6 +544,7 @@ Both roles share the setup and differ only after the statement exists:
 ```rust
 let request = Request::check(spec, pkx, pky, transcript, attrs, now, doc_type, &p256)?;
 let instance = Instance::load(&request, circuits, &p256, &gf2)?;
+// inside with_domains(&gf2, &p256, |domains| ..)
 let composition = link::composition(request.spec(), instance.signature(), instance.hash(), domains)?;
 let public = PublicInputs::derive(&request, &p256);
 let statement = transcript::statement(&composition, &request, &public)?;
