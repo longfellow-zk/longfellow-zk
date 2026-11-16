@@ -260,7 +260,7 @@ fn open_and_receive_draw_eta_and_agree() {
     let public = [f.one()];
     let frontend = FrontendPart::new(&part, &[&c], &public).unwrap();
     assert!(std::ptr::eq(frontend.participant, &part));
-    assert!(std::ptr::eq(frontend.circuits[0], &c));
+    assert!(std::ptr::eq(frontend.circuits()[0], &c));
     assert_eq!(&*frontend.public, &public);
     // Both roles draw eta on entry to the split, right after the frontend.
     let run = || {

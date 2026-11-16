@@ -15,16 +15,13 @@
 use std::ops::Range;
 
 use super::{
-    circuit::CircuitSource,
     quad::{affine_constant, affine_linear, bind_l_into},
     split::SplitLayer,
 };
-#[cfg(test)]
-use crate::core::proto::v2::Circuit;
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::v2::{classify_constants, CoefficientClass},
+        proto::v2::{classify_constants, Circuit, CoefficientClass},
     },
     runtime::{
         algebra::{blas, RuntimeField},
@@ -62,24 +59,18 @@ pub(super) struct Schedule {
 }
 impl Schedule {
     pub(super) fn new<F: SerializableField>(
-        circuits: &[impl CircuitSource<F>],
+        circuits: &[&Circuit<F>],
         f: &F,
     ) -> Result<Self, String> {
         let (geometry, layers, ninput) = Self::layout(circuits)?;
         let classes: Vec<_> = circuits
             .iter()
-            .map(|c| classify_constants(f, &c.raw().constants))
+            .map(|c| classify_constants(f, &c.raw.constants))
             .collect();
         let assertions = circuits
             .iter()
             .zip(&classes)
-            .map(|(c, k)| {
-                c.raw()
-                    .layers
-                    .iter()
-                    .map(|l| l.assertion_counts(k))
-                    .collect()
-            })
+            .map(|(c, k)| c.raw.layers.iter().map(|l| l.assertion_counts(k)).collect())
             .collect();
         Ok(Self {
             geometry,
@@ -97,12 +88,12 @@ impl Schedule {
     #[cfg(any(test, feature = "verifier"))]
     pub(super) fn split<'a, F: SerializableField + 'a>(
         &self,
-        circuits: &'a [impl CircuitSource<F>],
+        circuits: &'a [&'a Circuit<F>],
         fragment: &QuadFragment,
     ) -> SplitLayer<'a> {
         let (c, j) = (fragment.circuit, fragment.layer);
         SplitLayer::with_classes(
-            &circuits[c].raw().layers[j],
+            &circuits[c].raw.layers[j],
             &self.classes[c],
             self.assertions[c][j],
         )
@@ -111,14 +102,14 @@ impl Schedule {
     #[cfg(any(test, feature = "prover"))]
     pub(super) fn split_layers<'a, F: SerializableField + 'a>(
         &self,
-        circuits: &'a [impl CircuitSource<F>],
+        circuits: &'a [&'a Circuit<F>],
     ) -> Vec<Vec<SplitLayer<'a>>> {
         circuits
             .iter()
             .enumerate()
             .map(|(c, circuit)| {
                 circuit
-                    .raw()
+                    .raw
                     .layers
                     .iter()
                     .zip(&self.assertions[c])
@@ -132,34 +123,34 @@ impl Schedule {
     /// which depend only on the circuits' widths and depths.
     #[allow(clippy::type_complexity)]
     fn layout<F: SerializableField>(
-        circuits: &[impl CircuitSource<F>],
+        circuits: &[&Circuit<F>],
     ) -> Result<(SumcheckProofGeometry, Vec<LayerLayout>, usize), String> {
         let first = circuits.first().ok_or("empty circuit list")?;
         // Components share one input array whose width is the largest declared
         // width. Each component reads only its own prefix, so a component can
         // never address inputs beyond its own `ninput`. The public prefix is
         // common to every component.
-        let ninput = circuits.iter().map(|c| c.raw().ninput).max().unwrap();
-        let npublic = first.raw().npublic_input;
+        let ninput = circuits.iter().map(|c| c.raw.ninput).max().unwrap();
+        let npublic = first.raw.npublic_input;
         if circuits.iter().any(|c| {
-            let width = c.raw().ninput;
-            c.raw().npublic_input != npublic
+            let width = c.raw.ninput;
+            c.raw.npublic_input != npublic
                 || npublic > width
-                || c.raw()
+                || c.raw
                     .layers
                     .last()
-                    .map_or(c.raw().noutput != width, |l| l.nw != width)
+                    .map_or(c.raw.noutput != width, |l| l.nw != width)
         }) {
             return Err("circuits must share one input layout".into());
         }
-        let depth = circuits.iter().map(|c| c.raw().layers.len()).max().unwrap();
+        let depth = circuits.iter().map(|c| c.raw.layers.len()).max().unwrap();
         // Once ordered by depth, entering circuits always append to the active
         // layout. The protocol can extend its carried weights in place, with
         // no first-layer branch, placeholder coefficients or weight shuffling.
         let mut order: Vec<_> = (0..circuits.len()).collect();
         // The supplied list is transcript-bound. Its index is the explicit
         // tie-breaker, including for repeated circuit IDs.
-        order.sort_by_key(|&i| (std::cmp::Reverse(circuits[i].raw().layers.len()), i));
+        order.sort_by_key(|&i| (std::cmp::Reverse(circuits[i].raw.layers.len()), i));
         let mut layers = Vec::with_capacity(depth);
         for stage in 0..depth {
             let shared_inputs = stage + 1 == depth;
@@ -169,15 +160,15 @@ impl Schedule {
             let mut fragments = Vec::new();
             for &circuit in &order {
                 let c = &circuits[circuit];
-                if let Some(layer) = stage.checked_sub(depth - c.raw().layers.len()) {
-                    let width = c.raw().layers[layer].nw;
+                if let Some(layer) = stage.checked_sub(depth - c.raw.layers.len()) {
+                    let width = c.raw.layers[layer].nw;
                     if width == 0 {
                         return Err("sumcheck layer must contain a wire".into());
                     }
                     let outputs = if layer == 0 {
-                        c.raw().noutput
+                        c.raw.noutput
                     } else {
-                        c.raw().layers[layer - 1].nw
+                        c.raw.layers[layer - 1].nw
                     };
                     let next_v = nv
                         .checked_add(outputs)
@@ -188,7 +179,7 @@ impl Schedule {
                             .ok_or("output assertion count overflow")?;
                     }
                     let inputs = if shared_inputs {
-                        0..c.raw().ninput
+                        0..c.raw.ninput
                     } else {
                         let end = nw
                             .checked_add(width)
@@ -228,7 +219,7 @@ impl Schedule {
 }
 
 pub(crate) fn circuit_geometry<F: SerializableField>(
-    circuits: &[impl CircuitSource<F>],
+    circuits: &[&Circuit<F>],
 ) -> Result<SumcheckProofGeometry, String> {
     Ok(Schedule::layout(circuits)?.0)
 }
@@ -252,7 +243,7 @@ impl<'a, E> SplitFragment<'a, E> {
 }
 
 pub(super) fn constant<const W: usize, F: RuntimeField<W> + SerializableField>(
-    circuits: &[impl CircuitSource<F>],
+    circuits: &[&Circuit<F>],
     weights: &[F::E],
     active: &[SplitFragment<'_, F::E>],
     f: &F,
@@ -264,7 +255,7 @@ pub(super) fn constant<const W: usize, F: RuntimeField<W> + SerializableField>(
             &mut constant,
             &affine_constant(
                 &a.layer,
-                &circuits[s.circuit].raw().constants,
+                &circuits[s.circuit].raw.constants,
                 &weights[s.output_range.clone()],
                 f,
             ),
@@ -277,7 +268,7 @@ pub(super) fn constant<const W: usize, F: RuntimeField<W> + SerializableField>(
 /// Accumulate Q into one global array; input-layer fragments deliberately overlap.
 /// Finally apply the ordinary a_next=m(u)+alpha*q_r update once over that array.
 pub(super) fn transition<const W: usize, F: RuntimeField<W> + SerializableField>(
-    circuits: &[impl CircuitSource<F>],
+    circuits: &[&Circuit<F>],
     weights: &[F::E],
     active: &[SplitFragment<'_, F::E>],
     nw: usize,
@@ -290,7 +281,7 @@ pub(super) fn transition<const W: usize, F: RuntimeField<W> + SerializableField>
     let mut linear = f.zero();
     for a in active {
         let s = &a.fragment;
-        let constants = &circuits[s.circuit].raw().constants;
+        let constants = &circuits[s.circuit].raw.constants;
         let output_weights = &weights[s.output_range.clone()];
         let input_weights = &m[s.input_range.clone()];
         bind_l_into(

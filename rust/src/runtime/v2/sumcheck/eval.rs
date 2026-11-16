@@ -1,14 +1,11 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use super::{
-    circuit::CircuitSource,
-    split::{ConstantCoordinates, LinearCoordinates, QuadraticCoordinates, SplitLayer},
-};
+use super::split::{ConstantCoordinates, LinearCoordinates, QuadraticCoordinates, SplitLayer};
 #[cfg(test)]
 use crate::runtime::v2::transcript::cheat;
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::v2::{Constant, Linear, Quadratic},
+        proto::v2::{Circuit, Constant, Linear, Quadratic},
     },
     runtime::algebra::RuntimeField,
 };
@@ -111,7 +108,7 @@ pub(super) use tests::fixtures::{eval_layer, eval_split_circuit};
 /// have the next layer's ordering.
 pub(super) fn eval_circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
     mut w: Vec<F::E>,
-    circuits: &[impl CircuitSource<F>],
+    circuits: &[&Circuit<F>],
     layers: &[Vec<SplitLayer<'_>>],
     schedule: &super::fragments::Schedule,
     f: &F,
@@ -120,8 +117,8 @@ pub(super) fn eval_circuits<const W: usize, F: RuntimeField<W> + SerializableFie
         return Err("shared input width mismatch".into());
     }
     // A zero-layer component's outputs are its own input prefix.
-    for c in circuits.iter().filter(|c| c.raw().layers.is_empty()) {
-        if let Some(g) = w[..c.raw().ninput].iter().position(|v| !f.is_zero(v)) {
+    for c in circuits.iter().filter(|c| c.raw.layers.is_empty()) {
+        if let Some(g) = w[..c.raw.ninput].iter().position(|v| !f.is_zero(v)) {
             #[cfg(test)]
             if cheat::active() {
                 continue;
@@ -135,7 +132,7 @@ pub(super) fn eval_circuits<const W: usize, F: RuntimeField<W> + SerializableFie
         let mut out = vec![f.zero(); layout.nv];
         for s in &layout.fragments {
             eval_layer_into(&w[s.input_range.clone()], &layers[s.circuit][s.layer],
-                &circuits[s.circuit].raw().constants, &mut out[s.output_range.clone()], f)
+                &circuits[s.circuit].raw.constants, &mut out[s.output_range.clone()], f)
                 .map_err(|e| format!("Witness does not satisfy circuit constraints at stage {stage}, circuit {}: {e}", s.circuit))?;
         }
         // Depth ordering places the completed circuits' outputs at the tail.

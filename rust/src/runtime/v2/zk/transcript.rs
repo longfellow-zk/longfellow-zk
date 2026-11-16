@@ -137,7 +137,7 @@ impl<F: RegisteredField> SetupMessage for PublicInputsMessage<'_, F> {}
 impl<const W: usize, F: ZkField<W> + PackingField> FrontendPart<'_, W, F> {
     /// One `Circuit` message per circuit of this frontend, primary first.
     pub fn write_circuits(&self, h: &mut Header<'_>) {
-        for c in &self.circuits {
+        for c in self.circuits() {
             h.send(&CircuitMessage(*c));
         }
     }

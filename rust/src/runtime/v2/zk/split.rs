@@ -65,7 +65,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     ) -> Result<SplitClaim<F::E>, String> {
         let part = t.part();
         let f = part.field();
-        let (p, circuit, public) = (part.participant, part.circuits[0], &part.public[..]);
+        let (p, circuit, public) = (part.participant, part.circuits()[0], &part.public[..]);
         let split = p.split()?;
         if split.mask.is_none() {
             // Pure foreign storage: `batch` draws the row weights next and

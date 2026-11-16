@@ -7,11 +7,12 @@
 
 use std::ops::Range;
 
-#[cfg(test)]
-use super::circuit::CircuitSource;
 use crate::core::proto::v2::{CoefficientClass, Constant, Layer, Linear, Quadratic, Stream};
 #[cfg(test)]
-use crate::core::{algebra::SerializableField, proto::v2::classify_constants};
+use crate::core::{
+    algebra::SerializableField,
+    proto::v2::{classify_constants, Circuit},
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct QuadraticCoordinates {
@@ -53,11 +54,11 @@ fn class(k: u32, classes: &[CoefficientClass]) -> usize {
 /// protocol splits through its `Schedule`, which derives the counts once.
 #[cfg(test)]
 pub(super) fn split_layers<'a, F: SerializableField + 'a>(
-    c: &'a impl CircuitSource<F>,
+    c: &'a Circuit<F>,
     f: &F,
 ) -> Vec<SplitLayer<'a>> {
-    let classes = classify_constants(f, &c.raw().constants);
-    c.raw()
+    let classes = classify_constants(f, &c.raw.constants);
+    c.raw
         .layers
         .iter()
         .map(|l| SplitLayer::with_classes(l, &classes, l.assertion_counts(&classes)))

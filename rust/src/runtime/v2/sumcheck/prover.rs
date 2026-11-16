@@ -41,7 +41,6 @@
 //! Both K_a and L(u) are recorded for the shared symbolic builder's affine rows.
 //! The final dense input weights directly address the common authenticated inputs.
 use super::{
-    circuit::CircuitSource,
     dense::{as_scalar, bind},
     fragments::{self, Schedule, SplitFragment},
     split::SplitLayer,
@@ -51,7 +50,10 @@ use super::{
 #[cfg(test)]
 use crate::runtime::v2::transcript::cheat;
 use crate::{
-    core::algebra::{RegisteredField, SerializableField},
+    core::{
+        algebra::{RegisteredField, SerializableField},
+        proto::v2::Circuit,
+    },
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
         random::PrivateRandom,
@@ -71,7 +73,7 @@ pub(crate) fn evaluate_and_prove<
 >(
     inputs: Vec<F::E>,
     pads: &SumcheckProof<W, F>,
-    circuit: &crate::core::proto::v2::Circuit<F>,
+    circuit: &Circuit<F>,
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
@@ -85,7 +87,7 @@ pub(crate) fn prove_circuits<
     const W: usize,
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
-    circuits: &[impl CircuitSource<F>],
+    circuits: &[&Circuit<F>],
     inputs: Vec<F::E>,
     pads: &SumcheckProof<W, F>,
     t: &mut TranscriptRef<'_>,
@@ -125,7 +127,7 @@ pub(crate) fn evaluate_and_prove_circuits<
     const W: usize,
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
-    circuits: &[impl CircuitSource<F>],
+    circuits: &[&Circuit<F>],
     inputs: Vec<F::E>,
     pads: SumcheckPads<W, F>,
     t: &mut TranscriptRef<'_>,
@@ -147,7 +149,7 @@ pub(crate) fn evaluate_and_prove_circuits<
 
 #[allow(clippy::too_many_arguments)]
 fn prove_split<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
-    circuits: &[impl CircuitSource<F>],
+    circuits: &[&Circuit<F>],
     layers: Vec<Vec<SplitLayer<'_>>>,
     witnesses: Vec<Vec<F::E>>,
     pads: SumcheckPads<W, F>,
@@ -191,7 +193,7 @@ fn prove_split<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSa
             let s = &a.fragment;
             super::quad::bind_r_into(
                 &a.layer,
-                &circuits[s.circuit].raw().constants,
+                &circuits[s.circuit].raw.constants,
                 &weights[s.output_range.clone()],
                 &a.assertions,
                 &w[s.input_range.clone()],

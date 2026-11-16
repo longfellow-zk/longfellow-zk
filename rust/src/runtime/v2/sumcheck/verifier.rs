@@ -22,13 +22,12 @@
 //! authenticate every stage equation and the final shared-input claim against
 //! the commitment received before sumcheck.
 use super::{
-    circuit::CircuitSource,
     fragments::{self, Schedule, SplitFragment},
     symbolic::{build_constraints, Constraints, LayerChallenges},
     transcript::{end_layer, round_challenge, terminal_challenge},
 };
 use crate::{
-    core::algebra::RegisteredField,
+    core::{algebra::RegisteredField, proto::v2::Circuit},
     runtime::{
         algebra::{RuntimeField, SupportsSampling},
         v2::{proto::sumcheck::SumcheckProof, transcript::TranscriptRef},
@@ -41,7 +40,7 @@ pub(crate) fn derive_constraints<
     const W: usize,
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
-    circuit: &crate::core::proto::v2::Circuit<F>,
+    circuit: &Circuit<F>,
     proof: &SumcheckProof<W, F>,
     t: &mut TranscriptRef<'_>,
     f: &F,
@@ -57,7 +56,7 @@ pub(crate) fn derive_constraints_for_circuits<
     const W: usize,
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
-    circuits: &[impl CircuitSource<F>],
+    circuits: &[&Circuit<F>],
     proof: &SumcheckProof<W, F>,
     t: &mut TranscriptRef<'_>,
     f: &F,

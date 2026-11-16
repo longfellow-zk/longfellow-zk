@@ -29,12 +29,12 @@
 //! coefficients, or the input assertions after the last stage; no stage
 //! after the top opens a boundary of its own.
 
-use super::{
-    circuit::CircuitSource,
-    fragments::{Schedule, SplitFragment},
-};
+use super::fragments::{Schedule, SplitFragment};
 use crate::{
-    core::algebra::{ElementOf, RegisteredField, SerializableField},
+    core::{
+        algebra::{ElementOf, RegisteredField, SerializableField},
+        proto::v2::Circuit,
+    },
     runtime::{
         algebra::{blas, RuntimeField, SupportsSampling},
         v2::{
@@ -159,7 +159,7 @@ impl Schedule {
         F: RuntimeField<W> + SerializableField + SupportsSampling,
     >(
         &self,
-        circuits: &[impl CircuitSource<F>],
+        circuits: &[&Circuit<F>],
         t: &mut TranscriptRef<'_>,
         f: &F,
     ) -> StageWeights<F::E> {
@@ -237,7 +237,7 @@ impl Schedule {
     >(
         &self,
         stage: usize,
-        circuits: &[impl CircuitSource<F>],
+        circuits: &[&Circuit<F>],
         r: &mut Reading<'_>,
         f: &F,
         next: &mut StageWeights<F::E>,
@@ -257,18 +257,18 @@ impl Schedule {
         F: RuntimeField<W> + SerializableField + SupportsSampling,
     >(
         &self,
-        circuits: &[impl CircuitSource<F>],
+        circuits: &[&Circuit<F>],
         r: &mut Reading<'_>,
         f: &F,
     ) -> Vec<F::E> {
         let mut weights = Vec::new();
         for c in circuits {
-            if c.raw().layers.is_empty() {
+            if c.raw.layers.is_empty() {
                 if weights.is_empty() {
                     weights.resize(self.ninput, f.zero());
                 }
                 // A zero-layer component asserts only on its own input prefix.
-                for a in &mut weights[..c.raw().ninput] {
+                for a in &mut weights[..c.raw.ninput] {
                     f.add(a, &r.elt_field(f));
                 }
             }

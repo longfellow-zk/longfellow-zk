@@ -303,7 +303,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
 /// and public inputs only from here, through its `Bound` (transcript I2).
 pub struct FrontendPart<'a, const W: usize, F: ZkField<W> + PackingField> {
     pub(super) participant: &'a CircuitParticipant<W, F>,
-    pub(super) circuits: Vec<&'a Circuit<F>>,
+    circuits: Vec<&'a Circuit<F>>,
     /// The public inputs as elements of the circuit's field.
     pub(super) public: Cow<'a, [F::E]>,
 }
@@ -322,6 +322,10 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField> FrontendPart<'a, W, F> {
                 .extension()
                 .input_elements(parameters.field(), public),
         })
+    }
+    /// The circuits of this frontend, primary first.
+    pub(super) fn circuits(&self) -> &[&'a Circuit<F>] {
+        &self.circuits
     }
     /// The field of this frontend, its participant's: the one field the
     /// frontend's steps compute in.

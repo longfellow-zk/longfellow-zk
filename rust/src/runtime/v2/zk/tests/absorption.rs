@@ -94,11 +94,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> FrontendPart<'_, W, F> {
         config: PolygeroConfig,
         virtual_inputs: usize,
     ) -> CircuitProofGeometry {
-        let FrontendPart {
-            participant,
-            circuits,
-            public: values,
-        } = self;
+        let (participant, circuits, values) = self.fields_for_test();
         let (geometry, prover_config, param, backend, id, additional_ids, inputs, storage) =
             participant.fields_for_test();
         let PackingCommitment {

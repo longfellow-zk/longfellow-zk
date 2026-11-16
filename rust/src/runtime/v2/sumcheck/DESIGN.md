@@ -344,6 +344,8 @@ per stage:
 ```rust
 // runtime::v2::sumcheck, shared by both roles
 pub(super) struct Schedule { pub geometry: SumcheckProofGeometry, .. }  // stage layouts and fragment ranges
+pub(crate) fn circuit_geometry(circuits: &[&Circuit<F>])
+    -> Result<SumcheckProofGeometry, String>;  // the layout only, for participant setup
 
 // prover feature
 pub(crate) struct SumcheckPads<const W: usize, F: SerializableField>(..); // not Clone
@@ -351,7 +353,7 @@ pub(crate) fn sample_pads<const W: usize, F, R: PrivateRandom>(
     geometry: &SumcheckProofGeometry, rng: &mut R, f: &F,
 ) -> (SumcheckPads<W, F>, Vec<F::E>);       // cells in pad-layout order
 pub(crate) fn evaluate_and_prove_circuits<const W: usize, F>(
-    circuits: &[impl CircuitSource<F>],      // I1: from the frontend's Bound
+    circuits: &[&Circuit<F>],                // I1: from the frontend's Bound
     inputs: Vec<F::E>,                       // [public | private | virtual]
     pads: SumcheckPads<W, F>,                // I6: consumed
     t: &mut TranscriptRef<'_>,                // I1: top weights drawn on entry
@@ -360,7 +362,7 @@ pub(crate) fn evaluate_and_prove_circuits<const W: usize, F>(
 
 // verifier feature
 pub(crate) fn derive_constraints_for_circuits<const W: usize, F>(
-    circuits: &[impl CircuitSource<F>],
+    circuits: &[&Circuit<F>],
     proof: &SumcheckProof<W, F>,             // I8: parsed against the bound geometry
     t: &mut TranscriptRef<'_>,                // I1: top weights drawn on entry
     f: &F,
@@ -387,10 +389,15 @@ The zk frontends call these entry points: `zk::prove`, `zk::prove_split`,
 Both `evaluate_and_prove_circuits` and `derive_constraints_for_circuits`
 build the schedule, validate their inputs against it and then draw the top
 weights (`Schedule::draw_top`) before the first message; the prover then
-evaluates the circuits. Each role then runs its own stage loop (I2): the prover computes
-each stage's messages from `W` and the pads, the verifier takes them from
-the proof, and both loops send and draw only through the shared steps of
-`sumcheck/transcript.rs` and the shared `Schedule` methods. The prover's
+evaluates the circuits. The schedule lives for the call only: it is derived
+from the circuits, so the statement does not hold it, and it is not alive
+during the commitment and the other sub-protocols around the sumcheck.
+`circuit_geometry` computes the layout alone, for participant setup and the
+proof reader; it classifies nothing. Each role then runs its own stage loop
+(I2): the prover computes each stage's messages from `W` and the pads, the
+verifier takes them from the proof, and both loops send and draw only
+through the shared steps of `sumcheck/transcript.rs` and the shared
+`Schedule` methods. The prover's
 internals (`dense`, `eval`, `bind_r_into`) are under `cfg_prover!`; the
 verifier loop is under `cfg_verifier!`; the schedule, `symbolic`,
 `bind_l_into`, `affine_*`, `monomial` and the message types are shared.
@@ -477,7 +484,3 @@ committed cells they constrain are hidden by Polygero. The joint statement is
    needs no special code (`Schedule::draw_top` draws the input weights), and Lean models it
    (`Frontend.roles` with no stages); state in the transcript design that a
    sub-protocol with no draws may also send nothing.
-2. **Where `Schedule` lives.** Each sumcheck entry point and
-   `circuit_geometry` build the `Schedule` from the circuits again.
-   Recommendation: build it once with the frontend's statement part
-   (`FrontendPart`), so both roles and the proof reader share one value.

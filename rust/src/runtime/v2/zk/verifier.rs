@@ -64,7 +64,7 @@ fn sumcheck_constraints<const W: usize, F: ZkField<W> + PackingField>(
         .validate(p.geometry.sumcheck())
         .map_err(|e| e.to_string())?;
     sumcheck::derive_constraints_for_circuits(
-        &part.circuits,
+        part.circuits(),
         sumcheck,
         &mut t.transcript(),
         part.field(),
@@ -252,6 +252,6 @@ pub(crate) fn reduce_split<const W: usize, F: ZkField<W> + PackingField>(
         .map_err(|e| e.to_string())?;
     let f = part.field();
     let constraints =
-        sumcheck::derive_constraints_for_circuits(&part.circuits, proof, &mut t.transcript(), f)?;
+        sumcheck::derive_constraints_for_circuits(part.circuits(), proof, &mut t.transcript(), f)?;
     CircuitParticipant::split_claim(t, constraints)
 }

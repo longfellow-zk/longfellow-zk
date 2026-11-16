@@ -148,7 +148,7 @@ pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField>(
         inputs.push(value);
     }
     let (sumcheck_proof, constraints) = sumcheck::evaluate_and_prove_circuits(
-        &part.circuits,
+        part.circuits(),
         inputs,
         state.pads,
         &mut t.transcript(),
@@ -353,7 +353,7 @@ pub(crate) fn prove_split<const W: usize, F: ZkField<W> + PackingField>(
     let mut inputs = part.public.to_vec();
     inputs.extend_from_slice(&state.values[..p.inputs.committed()]);
     let (proof, constraints) = sumcheck::evaluate_and_prove_circuits(
-        &part.circuits,
+        part.circuits(),
         inputs,
         state.pads,
         &mut t.transcript(),
