@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-cfg_compiler! {
-    mod fields;
-    pub use fields::MdocHashCompileField;
+mod fields;
+pub use fields::MdocHashCompileField;
 
-    pub mod cbor_decoder;
-    pub mod hash;
-    pub mod mso_attribute;
-}
+pub mod cbor_decoder;
+pub mod hash;
+pub mod mso_attribute;
 
 #[cfg(test)]
 mod tests;

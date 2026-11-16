@@ -109,7 +109,6 @@ pub mod circuits {
 #[cfg(feature = "mdoc")]
 pub mod mdoc {
     pub mod cbor;
-    pub mod circuits;
     pub mod proto;
     mod runtime;
 
@@ -121,6 +120,7 @@ pub mod mdoc {
 
     cfg_compiler! {
         pub mod artifacts;
+        pub mod circuits;
         pub mod compile;
         pub mod development_provider;
     }
