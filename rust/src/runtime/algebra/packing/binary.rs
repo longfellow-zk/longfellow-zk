@@ -176,231 +176,235 @@ impl FromIterator<bool> for PackedBits {
     }
 }
 
-/// GF(256) uses powers of a deterministically selected primitive element.
-/// Its element type is distinct from GF128's and its encoding is one byte.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Gf256Element(Gf2_128);
-#[derive(Clone)]
-pub struct Gf256 {
-    field: Gf2_128Field,
-    basis: [Gf2_128; 8],
-    digits: [u128; 8],
-}
-impl Gf256 {
-    pub fn new() -> Self {
-        let field = Gf2_128Field::new();
-        let generator = (2u128..)
-            .map(|candidate| pow_binary128(&field, &Gf2_128::from(candidate), u128::MAX / 255))
-            .find(|g| {
-                [3u8, 5, 17]
-                    .iter()
-                    .all(|prime| pow_binary128(&field, g, u128::from(255 / prime)) != field.one())
-            })
-            .expect("primitive GF256 element");
-        let mut power = field.one();
-        let basis = std::array::from_fn(|_| {
-            let value = power;
-            power = field.mulf(&power, &generator);
-            value
-        });
-        // Extend the eight basis vectors to a full binary basis to obtain
-        // fixed parity masks for canonical serialization.
-        let mut independent = Vec::new();
-        let mut pivots = [0u128; 128];
-        for v in basis
-            .iter()
-            .copied()
-            .chain((0..128).map(|j| Gf2_128::from(1u128 << j)))
-        {
-            let mut x = v.to_u128();
-            for j in (0..128).rev() {
-                if x >> j & 1 != 0 {
-                    if pivots[j] == 0 {
-                        pivots[j] = x;
-                        independent.push(v);
-                        break;
+// GF(256) and the GF(128)-over-GF(256) packing exercise the packing
+// interfaces with a base field other than GF(2); only tests use them.
+cfg_testonly! {
+    /// GF(256) uses powers of a deterministically selected primitive element.
+    /// Its element type is distinct from GF128's and its encoding is one byte.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    pub struct Gf256Element(Gf2_128);
+    #[derive(Clone)]
+    pub struct Gf256 {
+        field: Gf2_128Field,
+        basis: [Gf2_128; 8],
+        digits: [u128; 8],
+    }
+    impl Gf256 {
+        pub fn new() -> Self {
+            let field = Gf2_128Field::new();
+            let generator = (2u128..)
+                .map(|candidate| pow_binary128(&field, &Gf2_128::from(candidate), u128::MAX / 255))
+                .find(|g| {
+                    [3u8, 5, 17]
+                        .iter()
+                        .all(|prime| pow_binary128(&field, g, u128::from(255 / prime)) != field.one())
+                })
+                .expect("primitive GF256 element");
+            let mut power = field.one();
+            let basis = std::array::from_fn(|_| {
+                let value = power;
+                power = field.mulf(&power, &generator);
+                value
+            });
+            // Extend the eight basis vectors to a full binary basis to obtain
+            // fixed parity masks for canonical serialization.
+            let mut independent = Vec::new();
+            let mut pivots = [0u128; 128];
+            for v in basis
+                .iter()
+                .copied()
+                .chain((0..128).map(|j| Gf2_128::from(1u128 << j)))
+            {
+                let mut x = v.to_u128();
+                for j in (0..128).rev() {
+                    if x >> j & 1 != 0 {
+                        if pivots[j] == 0 {
+                            pivots[j] = x;
+                            independent.push(v);
+                            break;
+                        }
+                        x ^= pivots[j];
                     }
-                    x ^= pivots[j];
+                }
+            }
+            let inverse = binary_inverse(&independent);
+            let digits = std::array::from_fn(|i| inverse[i]);
+            Self {
+                field,
+                basis,
+                digits,
+            }
+        }
+        pub fn element(&self, byte: u8) -> Gf256Element {
+            let mut word = 0;
+            for i in 0..8 {
+                word ^= self.basis[i].to_u128() & 0u128.wrapping_sub(u128::from(byte >> i & 1));
+            }
+            Gf256Element(Gf2_128::from(word))
+        }
+        fn byte(&self, x: &Gf256Element) -> u8 {
+            self.digits.iter().enumerate().fold(0, |n, (i, mask)| {
+                n | ((((x.0.to_u128() & mask).count_ones() & 1) as u8) << i)
+            })
+        }
+    }
+    impl Default for Gf256 {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+    impl BareField for Gf256 {
+        type E = Gf256Element;
+    }
+    impl AlgebraicField for Gf256 {
+        fn zero(&self) -> Self::E {
+            Gf256Element(self.field.zero())
+        }
+        fn one(&self) -> Self::E {
+            Gf256Element(self.field.one())
+        }
+        fn add(&self, a: &mut Self::E, b: &Self::E) {
+            self.field.add(&mut a.0, &b.0);
+        }
+        fn sub(&self, a: &mut Self::E, b: &Self::E) {
+            self.field.sub(&mut a.0, &b.0);
+        }
+        fn mul(&self, a: &mut Self::E, b: &Self::E) {
+            self.field.mul(&mut a.0, &b.0);
+        }
+        fn invert(&self, a: &Self::E) -> Self::E {
+            Gf256Element(self.field.invert(&a.0))
+        }
+    }
+    impl SupportsSampling for Gf256 {
+        fn sample<R: FnMut(&mut [u8])>(&self, mut fill: R) -> Self::E {
+            let mut byte = [0u8];
+            fill(&mut byte);
+            self.element(byte[0])
+        }
+    }
+    impl SerializableField for Gf256 {
+        fn field_id(&self) -> FieldID {
+            FieldID::None
+        }
+        fn is_binary(&self) -> bool {
+            true
+        }
+        fn serialized_size_bytes(&self) -> usize {
+            1
+        }
+        fn to_bytes_into(&self, x: &Self::E, b: &mut [u8]) {
+            b[0] = self.byte(x);
+        }
+        fn bytes_to_element(&self, b: &[u8]) -> Result<Self::E, String> {
+            match b {
+                [v] => Ok(self.element(*v)),
+                _ => Err("GF256 encoding width".into()),
+            }
+        }
+        fn serialized_mone(&self) -> Vec<u8> {
+            self.to_bytes(&self.one())
+        }
+    }
+
+    /// A second adapter for the *same* ambient GF128 field, now over GF256.
+    pub struct Binary128Over256 {
+        base: Gf256,
+        inverse: [u128; 128],
+    }
+    impl Binary128Over256 {
+        pub fn new() -> Self {
+            let base = Gf256::new();
+            let f = &base.field;
+            let tensor = (0..16)
+                .flat_map(|j| {
+                    base.basis
+                        .iter()
+                        .map(move |b| f.mulf(b, &Gf2_128::from(1u128 << j)))
+                })
+                .collect::<Vec<_>>();
+            let inverse = binary_inverse(&tensor);
+            Self { base, inverse }
+        }
+    }
+    impl Default for Binary128Over256 {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+    impl PackingExtension for Binary128Over256 {
+        type Base = Gf256;
+        type Ambient = Gf2_128Field;
+        fn base(&self) -> &Gf256 {
+            &self.base
+        }
+        fn degree(&self) -> usize {
+            16
+        }
+        fn embedding_id(&self) -> Vec<u8> {
+            b"GF256-to-GF128/primitive-powers/v1".to_vec()
+        }
+        fn embed(&self, _: &Gf2_128Field, x: &Gf256Element) -> Gf2_128 {
+            x.0
+        }
+        fn native_basis(&self, _: &Gf2_128Field) -> Vec<Gf2_128> {
+            (0..16).map(|j| Gf2_128::from(1u128 << j)).collect()
+        }
+        fn coordinates_into(&self, _: &Gf2_128Field, x: &Gf2_128, out: &mut [Gf256Element]) {
+            assert_eq!(out.len(), 16);
+            for (i, v) in out.iter_mut().enumerate() {
+                let byte = (0..8).fold(0u8, |b, j| {
+                    b | ((((x.to_u128() & self.inverse[8 * i + j]).count_ones() & 1) as u8) << j)
+                });
+                *v = self.base.element(byte);
+            }
+        }
+        fn relative_frobenius(&self, f: &Gf2_128Field, x: &Gf2_128) -> Gf2_128 {
+            let mut v = *x;
+            for _ in 0..8 {
+                v = f.mulf(&v, &v);
+            }
+            v
+        }
+    }
+    fn binary_inverse(basis: &[Gf2_128]) -> [u128; 128] {
+        assert_eq!(basis.len(), 128);
+        let mut rows = std::array::from_fn::<_, 128, _>(|i| {
+            basis
+                .iter()
+                .enumerate()
+                .fold(0, |r, (j, v)| r | (u128::from(v.bit(i)) << j))
+        });
+        let mut inverse = std::array::from_fn::<_, 128, _>(|j| 1u128 << j);
+        for j in 0..128 {
+            let pivot = (j..128)
+                .find(|&i| rows[i] >> j & 1 != 0)
+                .expect("binary extension basis");
+            rows.swap(j, pivot);
+            inverse.swap(j, pivot);
+            for i in 0..128 {
+                if i != j && rows[i] >> j & 1 != 0 {
+                    rows[i] ^= rows[j];
+                    inverse[i] ^= inverse[j];
                 }
             }
         }
-        let inverse = binary_inverse(&independent);
-        let digits = std::array::from_fn(|i| inverse[i]);
-        Self {
-            field,
-            basis,
-            digits,
-        }
+        inverse
     }
-    pub fn element(&self, byte: u8) -> Gf256Element {
-        let mut word = 0;
-        for i in 0..8 {
-            word ^= self.basis[i].to_u128() & 0u128.wrapping_sub(u128::from(byte >> i & 1));
-        }
-        Gf256Element(Gf2_128::from(word))
-    }
-    fn byte(&self, x: &Gf256Element) -> u8 {
-        self.digits.iter().enumerate().fold(0, |n, (i, mask)| {
-            n | ((((x.0.to_u128() & mask).count_ones() & 1) as u8) << i)
-        })
-    }
-}
-impl Default for Gf256 {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-impl BareField for Gf256 {
-    type E = Gf256Element;
-}
-impl AlgebraicField for Gf256 {
-    fn zero(&self) -> Self::E {
-        Gf256Element(self.field.zero())
-    }
-    fn one(&self) -> Self::E {
-        Gf256Element(self.field.one())
-    }
-    fn add(&self, a: &mut Self::E, b: &Self::E) {
-        self.field.add(&mut a.0, &b.0);
-    }
-    fn sub(&self, a: &mut Self::E, b: &Self::E) {
-        self.field.sub(&mut a.0, &b.0);
-    }
-    fn mul(&self, a: &mut Self::E, b: &Self::E) {
-        self.field.mul(&mut a.0, &b.0);
-    }
-    fn invert(&self, a: &Self::E) -> Self::E {
-        Gf256Element(self.field.invert(&a.0))
-    }
-}
-impl SupportsSampling for Gf256 {
-    fn sample<R: FnMut(&mut [u8])>(&self, mut fill: R) -> Self::E {
-        let mut byte = [0u8];
-        fill(&mut byte);
-        self.element(byte[0])
-    }
-}
-impl SerializableField for Gf256 {
-    fn field_id(&self) -> FieldID {
-        FieldID::None
-    }
-    fn is_binary(&self) -> bool {
-        true
-    }
-    fn serialized_size_bytes(&self) -> usize {
-        1
-    }
-    fn to_bytes_into(&self, x: &Self::E, b: &mut [u8]) {
-        b[0] = self.byte(x);
-    }
-    fn bytes_to_element(&self, b: &[u8]) -> Result<Self::E, String> {
-        match b {
-            [v] => Ok(self.element(*v)),
-            _ => Err("GF256 encoding width".into()),
-        }
-    }
-    fn serialized_mone(&self) -> Vec<u8> {
-        self.to_bytes(&self.one())
-    }
-}
 
-/// A second adapter for the *same* ambient GF128 field, now over GF256.
-pub struct Binary128Over256 {
-    base: Gf256,
-    inverse: [u128; 128],
-}
-impl Binary128Over256 {
-    pub fn new() -> Self {
-        let base = Gf256::new();
-        let f = &base.field;
-        let tensor = (0..16)
-            .flat_map(|j| {
-                base.basis
-                    .iter()
-                    .map(move |b| f.mulf(b, &Gf2_128::from(1u128 << j)))
-            })
-            .collect::<Vec<_>>();
-        let inverse = binary_inverse(&tensor);
-        Self { base, inverse }
-    }
-}
-impl Default for Binary128Over256 {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-impl PackingExtension for Binary128Over256 {
-    type Base = Gf256;
-    type Ambient = Gf2_128Field;
-    fn base(&self) -> &Gf256 {
-        &self.base
-    }
-    fn degree(&self) -> usize {
-        16
-    }
-    fn embedding_id(&self) -> Vec<u8> {
-        b"GF256-to-GF128/primitive-powers/v1".to_vec()
-    }
-    fn embed(&self, _: &Gf2_128Field, x: &Gf256Element) -> Gf2_128 {
-        x.0
-    }
-    fn native_basis(&self, _: &Gf2_128Field) -> Vec<Gf2_128> {
-        (0..16).map(|j| Gf2_128::from(1u128 << j)).collect()
-    }
-    fn coordinates_into(&self, _: &Gf2_128Field, x: &Gf2_128, out: &mut [Gf256Element]) {
-        assert_eq!(out.len(), 16);
-        for (i, v) in out.iter_mut().enumerate() {
-            let byte = (0..8).fold(0u8, |b, j| {
-                b | ((((x.to_u128() & self.inverse[8 * i + j]).count_ones() & 1) as u8) << j)
-            });
-            *v = self.base.element(byte);
-        }
-    }
-    fn relative_frobenius(&self, f: &Gf2_128Field, x: &Gf2_128) -> Gf2_128 {
-        let mut v = *x;
-        for _ in 0..8 {
-            v = f.mulf(&v, &v);
-        }
-        v
-    }
-}
-fn binary_inverse(basis: &[Gf2_128]) -> [u128; 128] {
-    assert_eq!(basis.len(), 128);
-    let mut rows = std::array::from_fn::<_, 128, _>(|i| {
-        basis
-            .iter()
-            .enumerate()
-            .fold(0, |r, (j, v)| r | (u128::from(v.bit(i)) << j))
-    });
-    let mut inverse = std::array::from_fn::<_, 128, _>(|j| 1u128 << j);
-    for j in 0..128 {
-        let pivot = (j..128)
-            .find(|&i| rows[i] >> j & 1 != 0)
-            .expect("binary extension basis");
-        rows.swap(j, pivot);
-        inverse.swap(j, pivot);
-        for i in 0..128 {
-            if i != j && rows[i] >> j & 1 != 0 {
-                rows[i] ^= rows[j];
-                inverse[i] ^= inverse[j];
+    // Public fixed-width exponents used only to select the GF256 embedding.
+    fn pow_binary128(field: &Gf2_128Field, value: &Gf2_128, mut exponent: u128) -> Gf2_128 {
+        let mut power = *value;
+        let mut result = field.one();
+        while exponent != 0 {
+            if exponent & 1 != 0 {
+                field.mul(&mut result, &power);
             }
+            power = field.mulf(&power, &power);
+            exponent >>= 1;
         }
+        result
     }
-    inverse
-}
-
-// Public fixed-width exponents used only to select the GF256 embedding.
-fn pow_binary128(field: &Gf2_128Field, value: &Gf2_128, mut exponent: u128) -> Gf2_128 {
-    let mut power = *value;
-    let mut result = field.one();
-    while exponent != 0 {
-        if exponent & 1 != 0 {
-            field.mul(&mut result, &power);
-        }
-        power = field.mulf(&power, &power);
-        exponent >>= 1;
-    }
-    result
 }
 
 #[cfg(test)]
