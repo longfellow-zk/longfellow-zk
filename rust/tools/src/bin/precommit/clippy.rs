@@ -2,6 +2,8 @@
 //! Clippy warning counts per target, and their comparison with a baseline.
 use std::{collections::BTreeMap, fmt};
 
+use sha2::{Digest, Sha256};
+
 /// Warnings per cargo target, labeled as cargo labels them with the quotes
 /// dropped and spaces turned into `-`, after a prefix naming the package
 /// outside the library: `lib`, `lib-test`, `tools-bin-zk_tool`.
@@ -81,5 +83,57 @@ impl fmt::Display for Counts {
             .map(|(label, n)| format!("{label}={n}"))
             .collect();
         f.write_str(&items.join(","))
+    }
+}
+
+/// What a baseline was measured with: the base commit, the toolchain
+/// (`rustc -vV` and `cargo clippy -V`), the lock file, and the clippy command
+/// lines with the flags the environment adds. A saved baseline is reused only
+/// under an equal key, so a new toolchain, new dependencies or new flags
+/// measure the baseline again.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct BaselineKey(String);
+
+impl BaselineKey {
+    /// The key of `base`, measured with `rustc` and `clippy` (the versions
+    /// the tools print), the lock file `lock`, the clippy runs `runs` and the
+    /// environment's flags `flags` (`NAME=value`).
+    pub(crate) fn new(
+        base: &str,
+        rustc: &str,
+        clippy: &str,
+        lock: &[u8],
+        runs: &[&str],
+        flags: &[String],
+    ) -> Self {
+        let mut key = format!("base {base}\n");
+        for (tag, text) in [("rustc", rustc), ("clippy", clippy)] {
+            for line in text.lines() {
+                key.push_str(&format!("{tag} {line}\n"));
+            }
+        }
+        let digest: String = Sha256::digest(lock)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        key.push_str(&format!("lock {digest}\n"));
+        for run in runs {
+            key.push_str(&format!("run {run}\n"));
+        }
+        for flag in flags {
+            key.push_str(&format!("flag {flag:?}\n"));
+        }
+        Self(key)
+    }
+
+    /// The saved file of `counts` measured under this key.
+    pub(crate) fn save(&self, counts: &Counts) -> String {
+        format!("{}counts {counts}\n", self.0)
+    }
+
+    /// The counts in `saved`, when they were measured under this key.
+    pub(crate) fn saved(&self, saved: &str) -> Option<Counts> {
+        let counts = saved.strip_prefix(&self.0)?.strip_prefix("counts ")?;
+        Counts::parse(counts.trim()).ok()
     }
 }

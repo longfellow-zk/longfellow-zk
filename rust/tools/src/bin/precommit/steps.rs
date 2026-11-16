@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    clippy::Counts,
+    clippy::{BaselineKey, Counts},
     context::Context,
     run::{diagnostics, tail, why, Log, Outcome, Run},
 };
@@ -342,17 +342,70 @@ fn clippy(cx: &Context, log: &mut Log) -> Outcome {
     }
 }
 
-/// The clippy counts of commit `base`, measured once on an export of its
-/// `rust/` with this checkout's `Cargo.lock`, and saved by commit.
+/// The variables through which the environment adds compiler flags to the
+/// clippy runs.
+const CLIPPY_FLAG_VARIABLES: [&str; 4] = [
+    "RUSTFLAGS",
+    "CARGO_ENCODED_RUSTFLAGS",
+    "CARGO_BUILD_RUSTFLAGS",
+    "CLIPPY_CONF_DIR",
+];
+
+/// The key of the clippy baseline of `base` in this environment: the
+/// toolchain that runs clippy in `rust/`, this checkout's `Cargo.lock`, the
+/// clippy runs and the flags the environment adds.
+fn baseline_key(cx: &Context, base: &str) -> Result<BaselineKey, String> {
+    let version = |program: &str, args: &str| {
+        let output = cx
+            .command(&cx.rust, program)
+            .args(args.split_whitespace())
+            .output()
+            .map_err(|e| format!("{program} {args}: {e}"))?;
+        if !output.status.success() {
+            return Err(format!("{program} {args} failed"));
+        }
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    };
+    let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".to_owned());
+    let lock_path = cx.rust.join("Cargo.lock");
+    let lock = fs::read(&lock_path).map_err(|e| format!("{}: {e}", lock_path.display()))?;
+    let runs: Vec<_> = CLIPPY_RUNS.iter().map(|(args, _, _)| *args).collect();
+    let flags: Vec<_> = CLIPPY_FLAG_VARIABLES
+        .iter()
+        .filter_map(|name| {
+            std::env::var_os(name).map(|value| format!("{name}={}", value.to_string_lossy()))
+        })
+        .collect();
+    Ok(BaselineKey::new(
+        base,
+        &version(&rustc, "-vV")?,
+        &version("cargo", "clippy -V")?,
+        &lock,
+        &runs,
+        &flags,
+    ))
+}
+
+/// The clippy counts of commit `base`, measured on an export of its `rust/`
+/// with this checkout's `Cargo.lock`, and saved by commit with the
+/// [`BaselineKey`] they were measured under; saved counts are reused only
+/// under the same key.
 fn base_counts(cx: &Context, log: &mut Log, base: &str) -> Result<Counts, String> {
     let directory = cx.work.join("clippy-base");
     let saved = directory.join(format!("{base}.counts"));
+    let key = baseline_key(cx, base)?;
     if let Ok(text) = fs::read_to_string(&saved) {
+        if let Some(counts) = key.saved(&text) {
+            log.note(&format!(
+                "baseline counts of {base} from {}",
+                saved.display()
+            ));
+            return Ok(counts);
+        }
         log.note(&format!(
-            "baseline counts of {base} from {}",
+            "{} was measured in another environment; measuring again",
             saved.display()
         ));
-        return Counts::parse(text.trim());
     }
     let source = directory.join("src");
     let _ = fs::remove_dir_all(&source);
@@ -379,7 +432,7 @@ fn base_counts(cx: &Context, log: &mut Log, base: &str) -> Result<Counts, String
     let _ = fs::copy(cx.rust.join("Cargo.lock"), crate_dir.join("Cargo.lock"));
     let counts = clippy_counts(log, &crate_dir, &directory.join("target"))
         .map_err(|_| format!("clippy of {base} failed; see the log"))?;
-    let _ = fs::write(&saved, format!("{counts}\n"));
+    let _ = fs::write(&saved, key.save(&counts));
     let _ = fs::remove_dir_all(&source);
     Ok(counts)
 }
