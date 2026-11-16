@@ -42,9 +42,15 @@ fn frontier_per_query(n: usize) -> usize {
 /// `validate` and the opening checks enforce the cap all the same.
 const MAX_FRONTIER: usize = u32::MAX as usize;
 
-/// The frontier capacity `t (ceil(log2 n) + 1)` of an opening, if it is at
-/// most `MAX_FRONTIER`.
-fn frontier_capacity(t: usize, n: usize) -> Option<usize> {
+/// The frontier capacity `t (ceil(log2 n) + 1)` of an opening of `t` of `n`
+/// columns, if the opening's shape is valid: `0 < t <= n <= MAX_SIZE`, with
+/// a capacity of at most `MAX_FRONTIER`. This is the one opening-shape
+/// check: geometry validation, the proof-length check, the reader and
+/// `validate_opening` all use it.
+fn opening_capacity(t: usize, n: usize) -> Option<usize> {
+    if t == 0 || t > n || n > MAX_SIZE {
+        return None;
+    }
     t.checked_mul(frontier_per_query(n))
         .filter(|&cap| cap <= MAX_FRONTIER)
 }
@@ -107,11 +113,9 @@ impl PolygeroGeometry {
         if self.sizes().iter().any(|&x| x > MAX_SIZE)
             || self.k == 0
             || self.t >= self.k
-            || self.t == 0
-            || self.t > self.n
             || self.k.checked_add(self.s).is_none_or(|d| d > self.n)
             || self.k.checked_mul(2).is_none_or(|d| d > self.n)
-            || frontier_capacity(self.t, self.n).is_none()
+            || opening_capacity(self.t, self.n).is_none()
         {
             return Err(invalid());
         }
@@ -268,12 +272,7 @@ fn invalid(message: &str) -> Error {
 /// Validate the shared authentication shape before reading or hashing columns.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(in crate::runtime::v2) fn validate_opening(p: &MerkleProof, t: usize, n: usize) -> Result<()> {
-    if t == 0
-        || t > n
-        || n > MAX_SIZE
-        || p.nonce.len() != t
-        || frontier_capacity(t, n).is_none_or(|max| p.path.len() > max)
-    {
+    if p.nonce.len() != t || opening_capacity(t, n).is_none_or(|max| p.path.len() > max) {
         return Err(invalid("joint opening shape"));
     }
     Ok(())
@@ -291,9 +290,7 @@ pub(crate) fn checked_body(
     t: usize,
     n: usize,
 ) -> Result<&[u8]> {
-    if t == 0 || t > n || n > MAX_SIZE {
-        return Err(invalid("joint opening geometry"));
-    }
+    let cap = opening_capacity(t, n).ok_or_else(|| invalid("joint opening geometry"))?;
     let start = prefix
         .checked_add(fixed)
         .ok_or_else(|| invalid("proof length overflow"))?;
@@ -301,7 +298,6 @@ pub(crate) fn checked_body(
         .get(start..)
         .and_then(|rest| rest.first_chunk::<8>())
         .ok_or_else(|| invalid("proof length"))?;
-    let cap = frontier_capacity(t, n).ok_or_else(|| invalid("frontier capacity"))?;
     let expected = usize::try_from(u64::from_le_bytes(*count))
         .ok()
         .filter(|&f| f <= cap)
@@ -349,13 +345,11 @@ impl<B> JointPolygeroProof<B> {
         read_responses: impl FnOnce(&mut &[u8]) -> std::result::Result<B, E>,
         read_rows: impl FnOnce(&mut B, &mut &[u8]) -> std::result::Result<(), E>,
     ) -> std::result::Result<Self, E> {
-        if t == 0 || t > n || n > MAX_SIZE {
-            return Err(invalid("joint opening geometry").into());
-        }
+        let cap = opening_capacity(t, n).ok_or_else(|| invalid("joint opening geometry"))?;
         let mut bodies = read_responses(bytes)?;
         read_rows(&mut bodies, bytes)?;
         let nonce = MerkleProof::read_nonces(bytes, t)?;
-        let path = MerkleProof::read_path(bytes, t, frontier_per_query(n))?;
+        let path = MerkleProof::read_path(bytes, cap)?;
         if !bytes.is_empty() {
             return Err(invalid("bytes after the Merkle frontier").into());
         }

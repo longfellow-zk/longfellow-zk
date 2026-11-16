@@ -222,7 +222,7 @@ fn nonce_codec_uses_the_full_salt_width_and_preserves_the_following_message() {
         MerkleProof::read_nonces(&mut input, nonces.len()).unwrap(),
         nonces
     );
-    assert_eq!(MerkleProof::read_path(&mut input, 2, 4).unwrap(), p.path);
+    assert_eq!(MerkleProof::read_path(&mut input, 8).unwrap(), p.path);
     assert!(input.is_empty());
     for count in [nonces.len(), usize::MAX] {
         assert!(MerkleProof::read_nonces(&mut &bytes[..NONCE_LEN * 2 - 1], count).is_err());
@@ -252,7 +252,16 @@ fn the_frontier_capacity_stays_within_the_formal_cap() {
         t: (1 << 25) - 1,
     };
     assert!(PolygeroGeometry::new(1, config).is_ok());
-    // t = n = 2^28 would allow 2^28 * 29 > 2^32 - 1 digests: rejected.
+    // t = n = 2^28 would allow 2^28 * 29 > 2^32 - 1 digests: the length
+    // check and the reader reject it, through the same opening-shape check.
     let (t, n) = (1usize << 28, 1usize << 28);
     assert!(checked_body(&[0; 64], 4, 10, t, n).is_err());
+    let read = JointPolygeroProof::<()>::read::<std::io::Error>(
+        &mut &[0; 64][..],
+        t,
+        n,
+        |_| Ok(()),
+        |_, _| Ok(()),
+    );
+    assert!(read.is_err());
 }

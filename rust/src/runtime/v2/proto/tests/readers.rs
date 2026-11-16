@@ -11,13 +11,16 @@ fn merkle_frontier_is_its_count_of_digests_within_the_checked_path_bound() {
     frontier.extend([7u8; 96]);
     frontier.push(9);
     let mut rest = &frontier[..];
-    assert_eq!(MerkleProof::read_path(&mut rest, 3, 1).unwrap().len(), 3);
+    assert_eq!(MerkleProof::read_path(&mut rest, 3).unwrap().len(), 3);
     // The count says where the frontier ends; the caller checks what follows.
     assert_eq!(rest, [9]);
-    assert!(MerkleProof::read_path(&mut &frontier[..], 2, 1).is_err());
-    assert!(MerkleProof::read_path(&mut &frontier[..103], 3, 1).is_err());
-    assert!(MerkleProof::read_path(&mut &frontier[..7], 3, 1).is_err());
-    assert!(MerkleProof::read_path(&mut &frontier[..], usize::MAX, 2).is_err());
+    assert!(MerkleProof::read_path(&mut &frontier[..], 2).is_err());
+    assert!(MerkleProof::read_path(&mut &frontier[..103], 3).is_err());
+    assert!(MerkleProof::read_path(&mut &frontier[..7], 3).is_err());
+    // A count whose digests overflow is rejected, whatever the bound.
+    let mut huge = u64::MAX.to_le_bytes().to_vec();
+    huge.extend([7u8; 96]);
+    assert!(MerkleProof::read_path(&mut &huge[..], usize::MAX).is_err());
 }
 
 struct ZeroWidth;

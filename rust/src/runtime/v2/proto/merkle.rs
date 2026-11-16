@@ -97,20 +97,14 @@ impl MerkleProof {
         }
     }
 
-    /// Reads the frontier: its u64 count, at most `num_queries * mc_pathlen`,
-    /// then that many digests. Bytes after them are left to the caller.
+    /// Reads the frontier: its u64 count, at most `max_sz` (the opening's
+    /// checked frontier capacity), then that many digests. Bytes after them
+    /// are left to the caller.
     #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(in crate::runtime::v2) fn read_path(
         bytes: &mut &[u8],
-        num_queries: usize,
-        mc_pathlen: usize,
+        max_sz: usize,
     ) -> Result<Vec<Digest>, std::io::Error> {
-        let max_sz = num_queries.checked_mul(mc_pathlen).ok_or_else(|| {
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Overflow computing max Merkle path size",
-            )
-        })?;
         let invalid = || {
             std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
