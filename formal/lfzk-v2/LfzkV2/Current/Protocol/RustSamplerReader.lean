@@ -240,12 +240,26 @@ theorem Prog.uniform {V : Type} (p : Prog V) (h : p.Lawful) : Uniform p.read := 
   convert this using 2 with s
   simp only [Prog.read]
   cases p.parse s <;> rfl
+
 /-! ## Composite draws -/
 
 /-- `Reading::elements`: `n` draws in index order. -/
 def Prog.vec {A : Type} (p : Prog A) : (n : ℕ) → Prog (Fin n → A)
   | 0 => .map .unit ⟨fun _ => Fin.elim0, fun _ => (), fun _ => rfl, fun _ => funext fun i => Fin.elim0 i⟩
   | n + 1 => .map (.seq p (p.vec n)) (Fin.consEquiv fun _ : Fin (n + 1) => A)
+
+/-- The draw order of a vector: coordinate `0` is read first, from the front of
+the buffer, and the remaining coordinates, in order, from what it leaves; as
+in `(0..n).map(|_| self.elt_field(f))`. -/
+theorem Prog.vec_parse_succ {A : Type} (p : Prog A) (n : ℕ) (s : List Byte) :
+    (p.vec (n + 1)).parse s = (p.parse s).bind fun r =>
+      ((p.vec n).parse r.2).map fun t => (Fin.cons r.1 t.1, t.2) := by
+  simp only [Prog.vec, Prog.parse]
+  cases p.parse s with
+  | none => rfl
+  | some r =>
+    simp only [Option.bind_some]
+    cases (p.vec n).parse r.2 <;> rfl
 
 theorem Prog.vec_lawful {A : Type} (p : Prog A) (h : p.Lawful) : (n : ℕ) → (p.vec n).Lawful
   | 0 => trivial

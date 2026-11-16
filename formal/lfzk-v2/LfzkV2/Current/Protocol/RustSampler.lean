@@ -20,7 +20,7 @@ Uniformity does not depend on the order of draws; the correspondence with
 Rust does. Each role reads, in order (`Kind` is `StrandRoleSampling.Kind`):
 
 * `binary count`, `prime count`: `count` elements by `Reading::elt_field`;
-  coordinate `i` is the `i`th draw. These are the frontend's round
+  coordinate `i` is the `i`th draw (`Prog.vec_parse_succ`). These are the frontend's round
   challenges, layer alphas and stage weights
   (`rust/src/runtime/v2/sumcheck/transcript.rs`: `round_challenge`,
   `end_layer`, `draw_top`, `draw_stage`, `input_assertions`) and the packing
@@ -50,8 +50,12 @@ Rust does. Each role reads, in order (`Kind` is `StrandRoleSampling.Kind`):
 * `opening`: `Reading::choose(out, n, ..)` with `out.len() = t`
   (`queries` in `rust/src/runtime/v2/polygero/transcript.rs`).
 
-A GF(2^128) element's bits follow `gfBits` on the setup's packing basis,
-which is Rust's `native_basis` (see `RustSamplerDraws`). -/
+A GF(2^128) element's bit `i` is the coefficient of the setup's `i`th packing
+basis vector (`gfBits_repr`), which is Rust's `native_basis` (see
+`RustSamplerDraws`). The correspondence takes three facts from the model
+rather than from Rust: the packing basis is the field representation's, each
+frontend role's coordinates follow `FrontendSchedule`, and each
+participant's `cells` is its original cell count in `CellLayout`. -/
 noncomputable section
 namespace LfzkV2.Current.Protocol.RustSampler
 open Merkle.RandomOracle TranscriptV2 StrandRoleSampling
