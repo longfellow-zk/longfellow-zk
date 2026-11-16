@@ -16,6 +16,10 @@
 //! declaration order. The circuit holds a shape of `V32` wires, the native
 //! witness a shape of `u32`; `from_fn` allocates the inputs, `for_each`
 //! encodes them in the same order, and `map` converts one into the other.
+//!
+//! `constants` holds the round constants and the initial chaining value, which
+//! the circuit and the native witness both compute with.
+pub mod constants;
 
 /// The block's message words and the chaining value it starts from.
 #[derive(Clone, Debug)]

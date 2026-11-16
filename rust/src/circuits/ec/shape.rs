@@ -11,7 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//! Points as coordinate tuples, shared by the circuits and native code.
+//! The layout of a point: its coordinate tuple, which the circuits hold wires
+//! in and native code holds values in.
 
 pub type Pt2<T> = (T, T);
 pub type Pt3<T> = (T, T, T);

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod points;
-pub use points::{Pt2, Pt3};
+mod shape;
+pub use shape::{Pt2, Pt3};
 
 cfg_compiler! {
     mod circuit;

@@ -221,9 +221,9 @@ fn circuit_phase(path: &str, rest: &str) -> Phase {
         // Native witness halves.
         "concrete" => Runtime,
         "evaluate" => Bridge,
-        // Constants and point helpers that native code also uses, and the
-        // witness layout that the circuit and the native witness share.
-        "constants" | "points" | "shape" => Shared,
+        // The witness layout that the circuit and the native witness share,
+        // with the constants and point types it is built from.
+        "shape" => Shared,
         // A circuit's root module mounts and re-exports its halves.
         _ if half.is_none() => Neutral,
         _ => panic!("{path} has no phase; classify its kind in `circuit_phase`"),

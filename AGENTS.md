@@ -33,10 +33,11 @@ layering is enforced by the dependency checker
   - run time: `runtime`, `mdoc::runtime`, an application's native parsers
     (`mdoc::cbor`, CBOR and mdoc parsing), and the `concrete` native-witness
     halves of circuits;
-  - shared: `core`, `mdoc::proto`, `mdoc::testcases`, `util`, and the
-    `constants`, `points` and `shape` halves of circuits (a `shape` is the
-    witness layout: generic structs the circuit holds wires in and the native
-    witness holds values in, with the one allocation and encoding order);
+  - shared: `core`, `mdoc::proto`, `mdoc::testcases`, `util`, and the `shape`
+    halves of circuits (a `shape` is the witness layout: generic structs the
+    circuit holds wires in and the native witness holds values in, with the
+    one allocation and encoding order, and the constants and point types it
+    is built from);
   - test-only bridges, which may use both: the `evaluate` halves of circuits,
     which turn native witnesses into circuit wires and must be declared only
     for tests;

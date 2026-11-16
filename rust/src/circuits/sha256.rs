@@ -13,11 +13,10 @@
 // limitations under the License.
 
 mod concrete;
-pub mod constants;
 mod shape;
 
 pub use concrete::derived;
-pub use shape::{Derived, Given};
+pub use shape::{constants, Derived, Given};
 
 cfg_compiler! {
     mod circuit;
