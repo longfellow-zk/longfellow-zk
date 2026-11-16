@@ -84,7 +84,7 @@ impl<F: MdocSigRuntimeField> AssignmentBuilder<'_, F> {
 }
 
 cfg_prover! {
-    use crate::mdoc::proto::K_SIG_MAC_BIT_PLUCKER_V1;
+    use crate::{mdoc::proto::K_SIG_MAC_BIT_PLUCKER_V1, runtime::v1::subfield::GF2_16_BASIS_V1};
 
 
     impl<
@@ -134,7 +134,7 @@ cfg_prover! {
                 let val_chunk = (cur_val & 0xf) as usize;
                 let plucked = (val_chunk << 1) ^ 15;
                 let mut pt = self.field.u128_to_element(0u128);
-                for (j, &basis_val) in crate::core::algebra::GF2_16_BASIS_V1.iter().enumerate() {
+                for (j, &basis_val) in GF2_16_BASIS_V1.iter().enumerate() {
                     if (plucked & (1 << j)) != 0 {
                         pt = self.field.addf(&pt, &self.field.u128_to_element(basis_val));
                     }

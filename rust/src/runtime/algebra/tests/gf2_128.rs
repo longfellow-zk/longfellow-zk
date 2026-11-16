@@ -14,10 +14,10 @@
 
 use crate::{
     compile::algebra::gf2_128::Gf2_128Field as UnoptField,
-    core::algebra::{AlgebraicField, SerializableField, SupportsU128Conversions, GF2_16_BASIS_V1},
+    core::algebra::{AlgebraicField, SerializableField, SupportsU128Conversions},
     runtime::{
         algebra::{gf2_128::*, InterpolationField},
-        v1::subfield::{BinarySubfieldV1, SubfieldV1},
+        v1::subfield::{BinarySubfieldV1, SubfieldV1, GF2_16_BASIS_V1},
     },
 };
 

@@ -15,7 +15,7 @@
 //! Longfellow v1 application verifier.
 
 use crate::{
-    core::algebra::{Nat, GF2_16_BASIS_V1},
+    core::algebra::Nat,
     mdoc::{
         cbor::mdoc::compute_transcript_hash,
         v1::{
@@ -37,7 +37,7 @@ use crate::{
         },
         random::RandomEngine,
         v1::{
-            subfield::{BinarySubfieldV1, P256SubfieldV1},
+            subfield::{BinarySubfieldV1, P256SubfieldV1, GF2_16_BASIS_V1},
             transcript::Transcript,
             zk::{common::ZkContext, ZkVerifier},
         },

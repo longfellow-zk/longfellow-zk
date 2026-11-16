@@ -14,7 +14,7 @@
 
 use crate::{
     core::{
-        algebra::{AlgebraicField, FieldID, SerializableField, GF2_16_BASIS_V1},
+        algebra::{AlgebraicField, FieldID, SerializableField},
         proto::v1::{Circuit, CircuitReader, Layer, RawCircuit, Term, TermDelta},
     },
     runtime::{
@@ -25,7 +25,7 @@ use crate::{
         v1::{
             ligero::LigeroConfig,
             proto::{sumcheck::SumcheckProofGeometry, zk::ZkProof},
-            subfield::BinarySubfieldV1,
+            subfield::{BinarySubfieldV1, GF2_16_BASIS_V1},
             sumcheck::eval::eval_circuit,
             transcript::Transcript,
             zk::{common::ZkContext, ZkProver, ZkVerifier},

@@ -15,7 +15,6 @@
 //! Longfellow v1 application prover.
 
 use crate::{
-    core::algebra::GF2_16_BASIS_V1,
     mdoc::{
         cbor::mdoc::{parse_mdoc, MdocParseError, ParsedMdoc},
         v1::{MdocProverErrorCode, RequestedAttribute, ZkSpecStruct},
@@ -34,7 +33,7 @@ use crate::{
         },
         random::{RandomEngine, SecureRandomEngine},
         v1::{
-            subfield::{BinarySubfieldV1, P256SubfieldV1},
+            subfield::{BinarySubfieldV1, P256SubfieldV1, GF2_16_BASIS_V1},
             transcript::Transcript,
             zk::{common::ZkContext, ZkProver},
         },

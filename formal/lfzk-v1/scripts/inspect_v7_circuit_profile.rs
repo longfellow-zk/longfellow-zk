@@ -24,7 +24,7 @@ use longfellow_zk::{
     mdoc::v1 as mdoc_zk_runtime,
     runtime::{
         algebra as runtime_algebra,
-        v1::{proto::zk as runtime_proto, zk as runtime_zk},
+        v1::{proto::zk as runtime_proto, subfield::GF2_16_BASIS_V1, zk as runtime_zk},
     },
 };
 use runtime_algebra::{
@@ -52,7 +52,7 @@ fn main() {
         QuadraticExtensionFftInterpolatorFactory::new(&p256, &p256_2, omega, omega_order);
     let gf2 = Gf2_128Field::new();
     let sf_hash =
-        longfellow_zk::runtime::v1::subfield::BinarySubfieldV1::new(&core_algebra::GF2_16_BASIS_V1);
+        longfellow_zk::runtime::v1::subfield::BinarySubfieldV1::new(&GF2_16_BASIS_V1);
     let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, sf_hash.basis());
 
     let mut sig_id: Option<[u8; 32]> = None;

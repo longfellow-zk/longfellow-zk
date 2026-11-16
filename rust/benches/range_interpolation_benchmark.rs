@@ -110,7 +110,7 @@ fn all_backends(c: &mut Criterion) {
     }
     {
         let f = Gf2_128RuntimeField::new();
-        let sf = BinarySubfieldV1::new(&longfellow_zk::core::algebra::GF2_16_BASIS_V1);
+        let sf = BinarySubfieldV1::new(&longfellow_zk::runtime::v1::subfield::GF2_16_BASIS_V1);
         let factory = BinaryInterpolatorFactory::new(&f, sf.basis());
         let k = 512;
         let values: Vec<_> = (0..k)
@@ -127,7 +127,7 @@ fn all_backends(c: &mut Criterion) {
 }
 fn binary_ranges(c: &mut Criterion) {
     let f = Gf2_128RuntimeField::new();
-    let sf = BinarySubfieldV1::new(&longfellow_zk::core::algebra::GF2_16_BASIS_V1);
+    let sf = BinarySubfieldV1::new(&longfellow_zk::runtime::v1::subfield::GF2_16_BASIS_V1);
     let factory = BinaryInterpolatorFactory::new(&f, sf.basis());
     for (name, source, destination) in [
         ("easy-control", 0..512, 512..4096),

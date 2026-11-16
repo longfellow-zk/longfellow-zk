@@ -18,6 +18,27 @@ pub use traits::{InterpolationPlanV1, SubfieldV1};
 
 use crate::runtime::algebra::gf2_128::Gf2_128;
 
+/// The basis of the GF(2^16) subfield of GF(2^128) that v1 uses for its binary
+/// (hash) circuit, as GF(2^128) words.
+pub const GF2_16_BASIS_V1: [u128; 16] = [
+    0x0000_0000_0000_0000_0000_0000_0000_0001,
+    0x5c59_7187_7501_d4b8_f187_1e01_b64f_da4c,
+    0x8bb9_9658_eaf2_cae0_a6e3_10fb_6e17_6ea8,
+    0xb61e_08da_12f9_665c_3f8d_e8a2_f9ff_7eed,
+    0xa76c_2e63_4c64_83ae_9ba3_2820_87a3_f827,
+    0x5494_4ff4_a526_9ced_f7af_4e93_629f_689e,
+    0x5439_ecfd_75a9_50d8_d076_5f18_7330_9b88,
+    0x49ec_dfbe_0677_7b02_e566_f9fc_3d9b_58a2,
+    0x97a4_01b7_33e6_6a93_19af_2054_97f8_e2d0,
+    0x789f_d779_3ce7_5238_60e4_dbdc_e977_7814,
+    0xaa44_0b2d_4b54_6256_c0f1_5718_7adb_c05b,
+    0x79f2_cadb_70b6_115d_222f_207d_0d8a_d9f9,
+    0xae72_af78_94ce_037d_f6d1_f84f_b66c_52b8,
+    0xd6f2_26d7_83d4_54db_4af9_4ef0_56d2_8a30,
+    0x057d_918d_4949_25fc_0f37_a0a4_d91b_4220,
+    0x18d4_bbb6_833c_5ae8_b683_0123_50e5_5753,
+];
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BinarySubfieldV1 {
     basis: [Gf2_128; 16],

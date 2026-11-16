@@ -3,10 +3,10 @@
 use std::collections::VecDeque;
 
 use crate::{
-    core::algebra::{AlgebraicField, SerializableField, GF2_16_BASIS_V1},
+    core::algebra::{AlgebraicField, SerializableField},
     runtime::{
         algebra::{fp_generic::FpGenericField, limb::LIMBS_PER_U64, SupportsSampling},
-        v1::subfield::SubfieldV1,
+        v1::subfield::{SubfieldV1, GF2_16_BASIS_V1},
     },
 };
 

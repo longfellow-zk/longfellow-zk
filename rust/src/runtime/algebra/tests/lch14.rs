@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    core::algebra::{AlgebraicField, CANTOR_BASIS_U128, GF2_16_BASIS_V1},
+    core::algebra::{AlgebraicField, CANTOR_BASIS_U128},
     runtime::{
         algebra::{
             gf2_128::{Gf2_128, Gf2_128RuntimeField},
@@ -23,7 +23,7 @@ use crate::{
             },
             RuntimeField,
         },
-        v1::subfield::BinarySubfieldV1,
+        v1::subfield::{BinarySubfieldV1, GF2_16_BASIS_V1},
     },
 };
 

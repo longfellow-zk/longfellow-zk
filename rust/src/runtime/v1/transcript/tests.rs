@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::{
-    core::algebra::{SerializableField, GF2_16_BASIS_V1},
+    core::algebra::SerializableField,
     runtime::{
         algebra::p256::P256Field,
         random::RandomEngine,
         v1::{
             random::RandomEngineV1,
-            subfield::{BinarySubfieldV1, SubfieldV1},
+            subfield::{BinarySubfieldV1, SubfieldV1, GF2_16_BASIS_V1},
             transcript::Transcript,
         },
     },

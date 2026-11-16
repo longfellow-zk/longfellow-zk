@@ -15,7 +15,7 @@
 use super::*;
 use crate::{
     core::{
-        algebra::{AlgebraicField, GF2_16_BASIS_V1},
+        algebra::AlgebraicField,
         proto::v1::{Circuit, Layer, RawCircuit, TermDelta},
     },
     runtime::{
@@ -24,7 +24,7 @@ use crate::{
         v1::{
             ligero::{LigeroConfig, LigeroParam, LigeroVerifier},
             proto::zk::witness_and_constraint_count,
-            subfield::BinarySubfieldV1,
+            subfield::{BinarySubfieldV1, GF2_16_BASIS_V1},
             sumcheck::{derive_verifier_data, eval::eval_circuit, prove_core},
             zk::{common::DEFAULT_STATEMENT_HASH, constraint_compiler::compile},
         },

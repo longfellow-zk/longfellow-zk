@@ -15,7 +15,7 @@
 use std::ops::Range;
 
 use crate::{
-    core::algebra::{AlgebraicField, SupportsU64Conversions, GF2_16_BASIS_V1},
+    core::algebra::{AlgebraicField, SupportsU64Conversions},
     runtime::{
         algebra::{
             fp2::Fp2Field,
@@ -29,7 +29,7 @@ use crate::{
             },
             RuntimeField, SupportsFFT,
         },
-        v1::subfield::{BinarySubfieldV1, InterpolationPlanV1},
+        v1::subfield::{BinarySubfieldV1, InterpolationPlanV1, GF2_16_BASIS_V1},
     },
 };
 

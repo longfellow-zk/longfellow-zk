@@ -13,12 +13,12 @@
 // limitations under the License.
 
 use crate::{
-    core::algebra::{AlgebraicField, SupportsU64Conversions, GF2_16_BASIS_V1},
+    core::algebra::{AlgebraicField, SupportsU64Conversions},
     runtime::{
         algebra::{
             gf2_128::Gf2_128RuntimeField, p256::P256Field, InterpolationField, LagrangeBasis, Poly,
         },
-        v1::subfield::BinarySubfieldV1,
+        v1::subfield::{BinarySubfieldV1, GF2_16_BASIS_V1},
     },
 };
 

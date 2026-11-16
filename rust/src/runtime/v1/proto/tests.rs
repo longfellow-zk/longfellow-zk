@@ -17,7 +17,7 @@
 use std::io::ErrorKind;
 
 use crate::{
-    core::algebra::{AlgebraicField, SerializableField, SupportsU64Conversions, GF2_16_BASIS_V1},
+    core::algebra::{AlgebraicField, SerializableField, SupportsU64Conversions},
     runtime::{
         algebra::p256::P256Field,
         v1::{
@@ -32,7 +32,7 @@ use crate::{
                 zk::{ZkProof, ZkProofGeometry},
                 Digest, MerkleNonce, MerkleProof,
             },
-            subfield::P256SubfieldV1,
+            subfield::{P256SubfieldV1, GF2_16_BASIS_V1},
         },
     },
 };
