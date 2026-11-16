@@ -17,8 +17,6 @@ open scoped Classical
 
 structure Identifiers where
   combinedHash : Digest
-  hashCircuit : Digest
-  primeCircuit : Digest
   /-- The statement constants after the combined hash, as node 0 absorbs
   them: the statement message's (version, attribute count) value, then the
   `Circuit`, `CommitmentLayout`, `AdapterLayout` and `JointGeometry`
@@ -41,8 +39,6 @@ def binaryField : Bytes := utf8 "GF2[x]/(x^128+x^7+x^2+x+1)/polynomial/v1"
 
 def primeField {B : Type} (scalars : MdocRuntime.Scalars B) : Bytes :=
   utf8 "prime/canonical-integer/v1/" ++ scalars.prime.encode (-1)
-
-private def part (bytes : Bytes) : Bytes := encodeLE 8 bytes.length ++ bytes
 
 variable {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
 variable (binary : ConcreteSetup.BinaryCircuit B) (prime : ConcreteSetup.PrimeCircuit)
