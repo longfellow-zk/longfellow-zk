@@ -294,9 +294,16 @@ and `Mdoc.VerifierPrivacy.acceptance_probability_rust` instantiate them with the
 Rust reader. `Protocol.Execution.PublicView` names the proof, observer result
 and before/after traces without exposing private prover execution.
 
+The premises of the four deployed corollaries can hold together:
+[`Tests.MdocInstance`](lfzk-v2/LfzkV2/Current/Tests/MdocInstance.lean) and
+[`Tests.MdocPrivacyInstance`](lfzk-v2/LfzkV2/Current/Tests/MdocPrivacyInstance.lean)
+discharge every one for a toy instance (empty hash fragments, an input-only
+signature circuit, an abstract GF(2^128)), and show that every boundary fiber
+of the Rust reader there is positive.
+
 These are ideal-oracle bounds. No numerical SHA-256-to-random-oracle
-comparison is proved; the trusted circuit, field, representation and sampling
-premises remain explicit.
+comparison is proved; the trusted circuit, field and representation premises
+remain explicit, and so does the reader for the endpoints that take one.
 
 ## Assumptions and remaining correspondence obligations
 

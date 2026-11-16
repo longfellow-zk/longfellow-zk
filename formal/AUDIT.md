@@ -278,6 +278,9 @@ is claimed. V1 proofs and generic paper-facing component theorems are preserved.
 | Current V2 uniform soundness cap | [`Mdoc.Soundness.averaged_nonvacuous`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean) | Strictly below 0.97 for `Q < 2^127`. |
 | Current V2 statistical zero knowledge | [`Mdoc.ZeroKnowledge.statClose`](lfzk-v2/LfzkV2/Current/Mdoc/ZeroKnowledge.lean) | Complete current indexed runtime view, error `(Qpre+Qpost)/2^256`. |
 | Simulator acceptance indistinguishability | [`Mdoc.VerifierPrivacy.acceptance_probability`](lfzk-v2/LfzkV2/Current/Mdoc/VerifierPrivacy.lean) | The actual verifier decision, including rejection and abort. |
+| Current V2 completeness | [`Mdoc.Completeness.accepts`](lfzk-v2/LfzkV2/Current/Mdoc/Completeness.lean) | The honest prover returns an accepted proof whenever every boundary samples. |
+| Deployed reader corollaries | [`Mdoc.Rust`](lfzk-v2/LfzkV2/Current/Mdoc/Rust.lean) | The four endpoints at the Rust challenge reader, with no reader premise; completeness fails with probability at most `2^-128`. |
+| Premise inhabitation | [`Tests.MdocInstance`](lfzk-v2/LfzkV2/Current/Tests/MdocInstance.lean), [`Tests.MdocPrivacyInstance`](lfzk-v2/LfzkV2/Current/Tests/MdocPrivacyInstance.lean) | Every premise of the deployed corollaries holds for a toy instance, with positive reader fibers. |
 | Extant V1 runtime | [`LfzkV1.FlatV7All`](lfzk-v1/LfzkV1/FlatV7All.lean) | V1 signature/hash extraction and soundness certificates. |
 | Paper-facing Polygero | [Polygero component library](polygero/README.md) | Original public-coin extraction/soundness and generic algebra, preserved unchanged. |
 | Packing and witness selection | [Dual packing](dual-packing/README.md), [witness selection](witness-selection/README.md) | Current component reductions and shared algebra. |
