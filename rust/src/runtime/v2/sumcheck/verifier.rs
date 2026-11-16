@@ -41,7 +41,7 @@ pub(crate) fn derive_constraints<
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     circuit: &Circuit<F>,
-    proof: &SumcheckProof<W, F>,
+    proof: &SumcheckProof<F>,
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<Constraints<F::E>, String> {
@@ -57,7 +57,7 @@ pub(crate) fn derive_constraints_for_circuits<
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     circuits: &[&Circuit<F>],
-    proof: &SumcheckProof<W, F>,
+    proof: &SumcheckProof<F>,
     t: &mut TranscriptRef<'_>,
     f: &F,
 ) -> Result<Constraints<F::E>, String> {

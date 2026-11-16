@@ -502,7 +502,7 @@ pub fn proof_sizes(bytes: &[u8], geometry: &MdocProofGeometry) -> Result<BodySiz
 
 // Internal: mdoc::runtime::v2
 pub(crate) type MaskedQuotient = MaskedWord<{ QUOTIENT_BITS }>;
-pub(crate) struct MdocProof<F1, F2> { pub(crate) body: ComposedProof<2, F1, 4, F2, [MaskedQuotient; 2]> }
+pub(crate) struct MdocProof<F1, F2> { pub(crate) body: ComposedProof<F1, F2, [MaskedQuotient; 2]> }
 impl MdocProof<F1, F2> {
     pub(crate) fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ComposedGeometry>, f1: &F1, f2: &F2)
         -> Result<Unverified<'a, Self>, String>;              // I6, I7, I8; verifier

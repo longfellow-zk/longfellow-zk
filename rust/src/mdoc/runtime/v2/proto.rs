@@ -36,7 +36,7 @@ pub struct MdocProofGeometry {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) struct MdocProof<F1: SerializableField, F2: SerializableField> {
-    pub(crate) body: ComposedProof<2, F1, 4, F2, [MaskedQuotient; 2]>,
+    pub(crate) body: ComposedProof<F1, F2, [MaskedQuotient; 2]>,
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + SerializableField>
@@ -71,7 +71,7 @@ impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + Serializable
         f2: &F2,
     ) -> Result<Unverified<'a, Self>, String> {
         let geometry = g.part();
-        let fixed = ComposedProof::<2, F1, 4, F2, [MaskedQuotient; 2]>::fixed_len(geometry, f1, f2)
+        let fixed = ComposedProof::<F1, F2, [MaskedQuotient; 2]>::fixed_len(geometry, f1, f2)
             .ok_or("mdoc proof geometry")?;
         let (t, n) = (geometry.config().t, geometry.config().n);
         let encoded =

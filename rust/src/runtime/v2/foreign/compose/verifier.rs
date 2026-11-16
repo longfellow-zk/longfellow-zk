@@ -22,7 +22,7 @@ where
     #[doc = include_str!("verifier_compile_fail.md")]
     pub(crate) fn reduce_and_authenticate(
         session: Opened<'_, Self>,
-        proof: &ComposedProof<H, Host, W, F, M::Message>,
+        proof: &ComposedProof<Host, F, M::Message>,
     ) -> Result<Authenticated, String> {
         let (this, transcript) = session.into_parts();
         let c = this.composition;

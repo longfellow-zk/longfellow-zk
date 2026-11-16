@@ -36,14 +36,14 @@ use crate::{
 /// data the transcript already binds, never from this proof's own messages.
 pub(crate) fn reduce<const W: usize, F: ZkField<W> + PackingField>(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
-    proof: &CircuitProof<W, F>,
+    proof: &CircuitProof<F>,
     virtual_inputs: &VirtualInputs<F::E>,
 ) -> Result<LinearStatement<F::E>, String> {
     reduce_parts(t, &proof.sumcheck_proof, &proof.packing, virtual_inputs)
 }
 fn reduce_parts<const W: usize, F: ZkField<W> + PackingField>(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
-    sumcheck: &SumcheckProof<W, F>,
+    sumcheck: &SumcheckProof<F>,
     packing: &PackingProof<F::E>,
     virtual_inputs: &VirtualInputs<F::E>,
 ) -> Result<LinearStatement<F::E>, String> {
@@ -54,7 +54,7 @@ fn reduce_parts<const W: usize, F: ZkField<W> + PackingField>(
 /// weights, and derive its constraints on the committed cells.
 fn sumcheck_constraints<const W: usize, F: ZkField<W> + PackingField>(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
-    sumcheck: &SumcheckProof<W, F>,
+    sumcheck: &SumcheckProof<F>,
     virtual_inputs: &VirtualInputs<F::E>,
 ) -> Result<Constraints<F::E>, String> {
     virtual_inputs.validate(&t.part().frontend().inputs)?;
@@ -65,7 +65,7 @@ fn sumcheck_constraints<const W: usize, F: ZkField<W> + PackingField>(
 /// frontend here.
 pub(super) fn reduce_values<const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>>(
     t: &mut Bound<'_, FrontendPart<'_, W, F, P>>,
-    sumcheck: &SumcheckProof<W, F>,
+    sumcheck: &SumcheckProof<F>,
 ) -> Result<Constraints<F::E>, String> {
     let part = t.part();
     sumcheck
@@ -161,7 +161,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
     pub fn verify<D: EvaluationDomain<W, F>>(
         &self,
         session: Opened<'_, ZkProofStatement<'_, W, F>>,
-        proof: Unverified<'_, ZkProof<W, F>>,
+        proof: Unverified<'_, ZkProof<F>>,
         domain: &D,
     ) -> Result<VerifiedProof, ZkVerificationError> {
         self.reduce(session, &proof, domain)?
@@ -171,7 +171,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
     pub(crate) fn reduce<D: EvaluationDomain<W, F>>(
         &self,
         session: Opened<'_, ZkProofStatement<'_, W, F>>,
-        proof: &ZkProof<W, F>,
+        proof: &ZkProof<F>,
         domain: &D,
     ) -> Result<Authenticated, ZkVerificationError> {
         let (statement, t) = session.into_parts();
@@ -247,7 +247,7 @@ impl std::error::Error for ZkVerificationError {}
 /// (`split_claim`), before the split challenge.
 pub(crate) fn reduce_split<const W: usize, F: ZkField<W> + PackingField>(
     t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>,
-    proof: &SumcheckProof<W, F>,
+    proof: &SumcheckProof<F>,
 ) -> Result<SplitClaim<F::E>, String> {
     let constraints = reduce_values(t, proof)?;
     MixedSplit::split_claim(t, constraints)

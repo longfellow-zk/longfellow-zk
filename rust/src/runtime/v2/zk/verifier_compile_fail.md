@@ -34,7 +34,7 @@ use longfellow_zk::runtime::{
 fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
     v: &ZkVerifier<2, Gf2_128Field>,
     session: Opened<'_, ZkProofStatement<'_, 2, Gf2_128Field>>,
-    proof: Unverified<'_, ZkProof<2, Gf2_128Field>>,
+    proof: Unverified<'_, ZkProof<Gf2_128Field>>,
     domain: &D,
 ) -> Result<VerifiedProof, ZkVerificationError> {
     v.verify(session, proof, domain)
@@ -55,7 +55,7 @@ use longfellow_zk::runtime::{
 fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
     v: &ZkVerifier<2, Gf2_128Field>,
     session: Opened<'_, ZkProofStatement<'_, 2, Gf2_128Field>>,
-    proof: Unverified<'_, ZkProof<2, Gf2_128Field>>,
+    proof: Unverified<'_, ZkProof<Gf2_128Field>>,
     domain: &D,
     geometry: &ZkProofGeometry,
 ) {
@@ -80,7 +80,7 @@ use longfellow_zk::{
 fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
     v: &ZkVerifier<2, Gf2_128Field>,
     session: Opened<'_, ZkProofStatement<'_, 2, Gf2_128Field>>,
-    proof: Unverified<'_, ZkProof<2, Gf2_128Field>>,
+    proof: Unverified<'_, ZkProof<Gf2_128Field>>,
     domain: &D,
     circuit: &Circuit<Gf2_128Field>,
 ) {
@@ -102,7 +102,7 @@ use longfellow_zk::runtime::{
 fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
     v: &ZkVerifier<2, Gf2_128Field>,
     session: Opened<'_, ZkProofStatement<'_, 2, Gf2_128Field>>,
-    proof: Unverified<'_, ZkProof<2, Gf2_128Field>>,
+    proof: Unverified<'_, ZkProof<Gf2_128Field>>,
     domain: &D,
     public: &[bool],
 ) {
@@ -125,7 +125,7 @@ use longfellow_zk::runtime::{
 fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
     v: &ZkVerifier<2, Gf2_128Field>,
     statement: &ZkProofStatement<'_, 2, Gf2_128Field>,
-    proof: Unverified<'_, ZkProof<2, Gf2_128Field>>,
+    proof: Unverified<'_, ZkProof<Gf2_128Field>>,
     domain: &D,
 ) {
     let _ = v.verify(statement, proof, domain);

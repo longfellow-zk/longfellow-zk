@@ -348,32 +348,32 @@ pub(crate) fn circuit_geometry(circuits: &[&Circuit<F>])
     -> Result<SumcheckProofGeometry, String>;  // the layout only, for participant setup
 
 // prover feature
-pub(crate) struct SumcheckPads<const W: usize, F: SerializableField>(..); // not Clone
+pub(crate) struct SumcheckPads<F: SerializableField>(..); // not Clone
 pub(crate) fn sample_pads<const W: usize, F, R: PrivateRandom>(
     geometry: &SumcheckProofGeometry, rng: &mut R, f: &F,
-) -> (SumcheckPads<W, F>, Vec<F::E>);       // cells in pad-layout order
+) -> (SumcheckPads<F>, Vec<F::E>);          // cells in pad-layout order
 pub(crate) fn evaluate_and_prove_circuits<const W: usize, F>(
     circuits: &[&Circuit<F>],                // I1: from the frontend's Bound
     inputs: Vec<F::E>,                       // [public | private | virtual]
-    pads: SumcheckPads<W, F>,                // I6: consumed
+    pads: SumcheckPads<F>,                   // I6: consumed
     t: &mut TranscriptRef<'_>,                // I1: top weights drawn on entry
     f: &F,
-) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String>;
+) -> Result<(SumcheckProof<F>, Constraints<F::E>), String>;
 
 // verifier feature
 pub(crate) fn derive_constraints_for_circuits<const W: usize, F>(
     circuits: &[&Circuit<F>],
-    proof: &SumcheckProof<W, F>,             // I8: parsed against the bound geometry
+    proof: &SumcheckProof<F>,                // I8: parsed against the bound geometry
     t: &mut TranscriptRef<'_>,                // I1: top weights drawn on entry
     f: &F,
 ) -> Result<Constraints<F::E>, String>;      // I7: equations, not a verdict
 
 // runtime::v2::proto::sumcheck, the prover/verifier contract
-pub struct SumcheckProof<const W: usize, F> { pub layers: Vec<LayerProof<W, F>> }
-pub struct LayerProof<const W: usize, F> {
-    pub rounds: Vec<RoundPoly<W, F>>, pub cross: F::E, pub claims: [F::E; 2],
+pub struct SumcheckProof<F> { pub layers: Vec<LayerProof<F>> }
+pub struct LayerProof<F> {
+    pub rounds: Vec<RoundPoly<F>>, pub cross: F::E, pub claims: [F::E; 2],
 }
-impl<const W: usize, F> SumcheckProof<W, F> {
+impl<F> SumcheckProof<F> {
     pub fn geometry(&self) -> std::io::Result<SumcheckProofGeometry>;
     pub fn validate(&self, geometry: &SumcheckProofGeometry) -> std::io::Result<()>;
     pub(crate) fn read(bytes: &mut &[u8], geometry: &SumcheckProofGeometry, f: &F)

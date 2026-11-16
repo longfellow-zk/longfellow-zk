@@ -10,10 +10,7 @@ use super::{
     },
     ComposedGeometry,
 };
-use crate::{
-    core::algebra::{ElementOf, SerializableField},
-    runtime::algebra::RuntimeField,
-};
+use crate::core::algebra::{ElementOf, SerializableField};
 
 /// The adapter's message in a composed proof, with its canonical encoding
 /// of exactly `BYTES` bytes: the prover writes it (`WriteAdapterMessage`),
@@ -27,37 +24,24 @@ pub(crate) trait AdapterMessage: Sized {
 /// checks the length and the seal, parses one (proto I2).
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
-pub(crate) struct ComposedProof<
-    const WH: usize,
-    H: SerializableField,
-    const WS: usize,
-    S: SerializableField,
-    M,
-> {
+pub(crate) struct ComposedProof<H: SerializableField, S: SerializableField, M> {
     pub(crate) commitment: PolygeroCommitment,
     pub(crate) fingerprints: (
         FingerprintResponse<ElementOf<H>>,
         (FingerprintResponse<ElementOf<S>>, ()),
     ),
     /// The split frontend's sumcheck; split storage has packing degree one.
-    pub(crate) split: SumcheckProof<WS, S>,
+    pub(crate) split: SumcheckProof<S>,
     /// The split message `mu`.
     pub(crate) mu: ElementOf<S>,
     /// The adapter's message.
     pub(crate) message: M,
-    pub(crate) host: CircuitProof<WH, H>,
+    pub(crate) host: CircuitProof<H>,
     pub(crate) polygero:
         JointPolygeroProof<(FieldProof<ElementOf<H>>, (FieldProof<ElementOf<S>>, ()))>,
 }
 #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
-impl<
-        const WH: usize,
-        H: RuntimeField<WH> + SerializableField,
-        const WS: usize,
-        S: RuntimeField<WS> + SerializableField,
-        M: AdapterMessage,
-    > ComposedProof<WH, H, WS, S, M>
-{
+impl<H: SerializableField, S: SerializableField, M: AdapterMessage> ComposedProof<H, S, M> {
     /// Bytes of every body field before the frontier and its count (proto
     /// I3); None if they overflow.
     pub(crate) fn fixed_len(g: &ComposedGeometry, h: &H, s: &S) -> Option<usize> {

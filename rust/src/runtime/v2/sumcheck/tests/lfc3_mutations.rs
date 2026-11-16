@@ -86,7 +86,7 @@ fn random_proof<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsS
     logw: &[usize],
     rng: &mut DeterministicRng,
     f: &F,
-) -> SumcheckProof<W, F> {
+) -> SumcheckProof<F> {
     SumcheckProof {
         layers: logw
             .iter()

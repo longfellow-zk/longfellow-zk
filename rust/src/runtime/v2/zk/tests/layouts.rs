@@ -357,7 +357,7 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                     &f,
                 )
                 .unwrap();
-                let reduce = |p: &ZkProof<2, Gf2_128Field>| {
+                let reduce = |p: &ZkProof<Gf2_128Field>| {
                     super::reduce_standalone(
                         &verifier,
                         LABEL,

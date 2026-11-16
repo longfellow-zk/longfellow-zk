@@ -85,7 +85,7 @@ use crate::{
 /// with `A + alpha * (B - L(u))`. Subtract the public constant correction K
 /// before each layer's rounds. Finally constrain the claim to the weighted input sum.
 pub(crate) fn build_constraints<const W: usize, F: RuntimeField<W> + SerializableField>(
-    proof: &SumcheckProof<W, F>,
+    proof: &SumcheckProof<F>,
     layer_challenges: Vec<LayerChallenges<F::E>>,
     input_weights: Vec<F::E>,
     f: &F,

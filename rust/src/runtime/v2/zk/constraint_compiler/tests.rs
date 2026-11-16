@@ -30,8 +30,8 @@ use crate::{
 // of the affine symbolic update, then compare each constraint residual.
 #[allow(clippy::too_many_arguments)]
 fn reference<const W: usize, F: RuntimeField<W> + SerializableField>(
-    proof: &SumcheckProof<W, F>,
-    pad_values: &SumcheckProof<W, F>,
+    proof: &SumcheckProof<F>,
+    pad_values: &SumcheckProof<F>,
     points: &[Vec<F::E>],
     alphas: &[F::E],
     terminals: &[F::E],

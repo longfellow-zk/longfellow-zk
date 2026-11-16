@@ -70,7 +70,7 @@ runtime/v2/foreign: core/algebra core/proto runtime/algebra runtime/random runti
 runtime/v2/merkle: runtime/v2/proto/merkle
 runtime/v2/polygero: core/algebra runtime/algebra runtime/random runtime/v2/merkle runtime/v2/transcript runtime/v2/proto/merkle runtime/v2/proto/polygero runtime/v2/proto/tags
 runtime/v2/proto: runtime/v2/proto/field runtime/v2/proto/merkle
-runtime/v2/proto/composed: core/algebra runtime/algebra runtime/v2/proto/field runtime/v2/proto/merkle runtime/v2/proto/polygero runtime/v2/proto/sumcheck runtime/v2/proto/witness_selection runtime/v2/proto/zk
+runtime/v2/proto/composed: core/algebra runtime/v2/proto/field runtime/v2/proto/merkle runtime/v2/proto/polygero runtime/v2/proto/sumcheck runtime/v2/proto/witness_selection runtime/v2/proto/zk
 runtime/v2/proto/dual_packing:
 runtime/v2/proto/field: core/algebra
 runtime/v2/proto/merkle: runtime/v2/proto/field
@@ -79,7 +79,7 @@ runtime/v2/proto/sumcheck: core/algebra core/proto runtime/v2/proto/field runtim
 runtime/v2/proto/tags:
 runtime/v2/proto/util: core/algebra
 runtime/v2/proto/witness_selection: core/algebra runtime/v2/proto/field runtime/v2/proto/util
-runtime/v2/proto/zk: core/algebra runtime/algebra runtime/v2/proto/dual_packing runtime/v2/proto/field runtime/v2/proto/merkle runtime/v2/proto/polygero runtime/v2/proto/sumcheck runtime/v2/proto/util runtime/v2/proto/witness_selection runtime/v2/transcript
+runtime/v2/proto/zk: core/algebra runtime/v2/proto/dual_packing runtime/v2/proto/field runtime/v2/proto/merkle runtime/v2/proto/polygero runtime/v2/proto/sumcheck runtime/v2/proto/util runtime/v2/proto/witness_selection runtime/v2/transcript
 runtime/v2/sumcheck: core/algebra core/proto runtime/algebra runtime/random runtime/v2/transcript util runtime/v2/proto/sumcheck runtime/v2/proto/tags
 runtime/v2/transcript: core/algebra runtime/algebra runtime/v2/proto/tags
 runtime/v2/witness_selection: core/algebra runtime/algebra runtime/random runtime/v2/polygero runtime/v2/transcript runtime/v2/proto/polygero runtime/v2/proto/tags runtime/v2/proto/witness_selection

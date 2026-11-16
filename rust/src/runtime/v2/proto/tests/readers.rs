@@ -48,7 +48,7 @@ impl SerializableField for ZeroWidth {
 #[test]
 fn sumcheck_rejects_a_zero_width_codec_before_decoding() {
     let geometry = SumcheckProofGeometry::new(vec![]).unwrap();
-    assert!(SumcheckProof::<2, ZeroWidth>::read(&mut &[][..], &geometry, &ZeroWidth).is_err());
+    assert!(SumcheckProof::<ZeroWidth>::read(&mut &[][..], &geometry, &ZeroWidth).is_err());
 }
 
 /// Proof geometry is valid by construction and holds one Polygero profile
@@ -129,7 +129,7 @@ fn composed_writer_and_reader_agree_on_every_constructible_geometry() {
             Ok(Self)
         }
     }
-    type Body = ComposedProof<2, Gf2_128Field, 2, Gf2_128Field, Empty>;
+    type Body = ComposedProof<Gf2_128Field, Gf2_128Field, Empty>;
     let f = Gf2_128Field::new();
     let config = PolygeroConfig {
         k: 2,

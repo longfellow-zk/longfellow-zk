@@ -11,7 +11,7 @@ use super::{
     },
     AdapterMessage, ComposedGeometry, ComposedProof,
 };
-use crate::{core::algebra::SerializableField, runtime::algebra::RuntimeField};
+use crate::core::algebra::SerializableField;
 
 /// An adapter message the verifier reads: exactly `BYTES` bytes. Only the
 /// crate's complete readers call `read`, after the whole proof's length check
@@ -22,14 +22,7 @@ pub(crate) trait ReadAdapterMessage: AdapterMessage {
 }
 
 #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
-impl<
-        const WH: usize,
-        H: RuntimeField<WH> + SerializableField,
-        const WS: usize,
-        S: RuntimeField<WS> + SerializableField,
-        M: ReadAdapterMessage,
-    > ComposedProof<WH, H, WS, S, M>
-{
+impl<H: SerializableField, S: SerializableField, M: ReadAdapterMessage> ComposedProof<H, S, M> {
     /// Read exactly the whole body `b`, whose length the complete reader has
     /// checked against `fixed_len` (proto I3): the frontier is its rest.
     /// Crate-private: only an application's complete reader, which checks the

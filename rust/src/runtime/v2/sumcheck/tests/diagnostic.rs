@@ -58,9 +58,9 @@ pub(in super::super) fn verify<
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     inputs: Vec<ElementOf<F>>,
-    pads: &SumcheckProof<W, F>,
+    pads: &SumcheckProof<F>,
     circuit: &Circuit<F>,
-    proof: &SumcheckProof<W, F>,
+    proof: &SumcheckProof<F>,
     transcript: &mut Transcript,
     f: &F,
 ) -> Result<(), String> {
@@ -78,9 +78,9 @@ pub(in super::super) fn verify_core<
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     inputs: Vec<ElementOf<F>>,
-    pads: &SumcheckProof<W, F>,
+    pads: &SumcheckProof<F>,
     circuit: &Circuit<F>,
-    proof: &SumcheckProof<W, F>,
+    proof: &SumcheckProof<F>,
     transcript: &mut Transcript,
     f: &F,
 ) -> Result<(), String> {
@@ -111,7 +111,7 @@ impl<E: Clone> Constraints<E> {
     pub(crate) fn residuals<const W: usize, F: RuntimeField<W, E = E> + SerializableField>(
         &self,
         inputs: &[E],
-        pads: &SumcheckProof<W, F>,
+        pads: &SumcheckProof<F>,
         f: &F,
     ) -> Result<Vec<E>, String> {
         if pads.layers.len() != self.layers.len() || inputs.len() != self.input_weights.len() {
@@ -137,7 +137,7 @@ impl<E: Clone> PadExpression<E> {
     /// constant + sum_{(pad,k) in terms} k*pad_value(pad).
     fn evaluate<const W: usize, F: RuntimeField<W, E = E> + SerializableField>(
         &self,
-        pads: &SumcheckProof<W, F>,
+        pads: &SumcheckProof<F>,
         f: &F,
     ) -> Result<E, String> {
         let mut value = self.constant.clone();
@@ -152,7 +152,7 @@ impl<E: Clone> PadExpression<E> {
 /// Round slots 0,1 hold the pads for c0,c1; claim slots 0,1 hold p_A,p_B.
 fn pad_value<const W: usize, F: RuntimeField<W> + SerializableField>(
     pad: Pad,
-    pads: &SumcheckProof<W, F>,
+    pads: &SumcheckProof<F>,
     f: &F,
 ) -> Result<F::E, String> {
     match pad {

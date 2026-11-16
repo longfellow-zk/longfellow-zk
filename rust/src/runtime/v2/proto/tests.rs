@@ -29,7 +29,7 @@ use crate::{
 fn single_hand_geometry_codec_and_malformed_shapes() {
     use crate::{core::algebra::SerializableField, runtime::v2::proto::sumcheck::LayerProof};
     let f = P256Field::new();
-    let proof: SumcheckProof<4, _> = SumcheckProof {
+    let proof: SumcheckProof<_> = SumcheckProof {
         layers: vec![
             LayerProof {
                 rounds: vec![
@@ -61,7 +61,7 @@ fn single_hand_geometry_codec_and_malformed_shapes() {
         proof
     );
     for len in 0..bytes.len() {
-        assert!(SumcheckProof::<4, _>::read(&mut &bytes[..len], &geometry, &f).is_err());
+        assert!(SumcheckProof::read(&mut &bytes[..len], &geometry, &f).is_err());
     }
     // A geometry with too many rounds cannot reach the reader (proto I8).
     let too_deep = vec![crate::core::proto::MAX_LOGW + 1];
@@ -90,7 +90,7 @@ fn v2_codec_round_limit_is_the_core_limit() {
         .into_iter()
         .filter(|&l| sane_logw(l))
     {
-        let proof: SumcheckProof<4, _> = SumcheckProof {
+        let proof: SumcheckProof<_> = SumcheckProof {
             layers: vec![LayerProof {
                 rounds: vec![
                     RoundPoly {
@@ -119,7 +119,7 @@ fn v2_codec_round_limit_is_the_core_limit() {
         assert!(!sane_logw(logw));
         assert!(SumcheckProofGeometry::new(vec![logw]).is_err());
     }
-    let too_many: SumcheckProof<4, P256Field> = SumcheckProof {
+    let too_many: SumcheckProof<P256Field> = SumcheckProof {
         layers: vec![LayerProof {
             rounds: vec![
                 RoundPoly {
@@ -147,7 +147,7 @@ fn sumcheck_rejects_aliases_in_every_field_position() {
     let count = geometry.serialized_elements();
     let bytes: Vec<_> = (0..count).flat_map(|i| (i as u128).to_le_bytes()).collect();
     let mut remaining = bytes.as_slice();
-    let proof = SumcheckProof::<2, _>::read(&mut remaining, &geometry, &f).unwrap();
+    let proof = SumcheckProof::read(&mut remaining, &geometry, &f).unwrap();
     assert!(remaining.is_empty());
     assert_eq!(proof.write(&geometry, &f).unwrap(), bytes);
 
@@ -155,7 +155,7 @@ fn sumcheck_rejects_aliases_in_every_field_position() {
         let mut alias = bytes.clone();
         alias[16 * i..16 * (i + 1)].fill(0xff);
         assert!(
-            SumcheckProof::<2, _>::read(&mut alias.as_slice(), &geometry, &f).is_err(),
+            SumcheckProof::read(&mut alias.as_slice(), &geometry, &f).is_err(),
             "alias at field position {i}"
         );
     }

@@ -5,7 +5,7 @@ use super::{
 };
 use crate::core::algebra::SerializableField;
 
-impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
+impl<F: SerializableField> SumcheckProof<F> {
     /// A component reader, called only by the complete readers (proto I2).
     pub(crate) fn read(
         bytes: &mut &[u8],

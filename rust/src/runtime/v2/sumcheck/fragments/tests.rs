@@ -272,7 +272,7 @@ fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling
             .all(|x| f.is_zero(x)));
         let bytes = proof.write(&schedule.geometry, f).unwrap();
         let mut remaining = bytes.as_slice();
-        let decoded = SumcheckProof::<W, F>::read(&mut remaining, &schedule.geometry, f).unwrap();
+        let decoded = SumcheckProof::<F>::read(&mut remaining, &schedule.geometry, f).unwrap();
         assert!(remaining.is_empty());
         assert_eq!(decoded.write(&schedule.geometry, f).unwrap(), bytes);
         if !proof.layers.is_empty() {

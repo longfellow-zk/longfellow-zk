@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! The prover's encoding of a composed proof body.
 use super::{AdapterMessage, ComposedGeometry, ComposedProof};
-use crate::{core::algebra::SerializableField, runtime::algebra::RuntimeField};
+use crate::core::algebra::SerializableField;
 
 /// An adapter message the prover writes.
 #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
@@ -10,14 +10,7 @@ pub(crate) trait WriteAdapterMessage: AdapterMessage {
 }
 
 #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
-impl<
-        const WH: usize,
-        H: RuntimeField<WH> + SerializableField,
-        const WS: usize,
-        S: RuntimeField<WS> + SerializableField,
-        M: WriteAdapterMessage,
-    > ComposedProof<WH, H, WS, S, M>
-{
+impl<H: SerializableField, S: SerializableField, M: WriteAdapterMessage> ComposedProof<H, S, M> {
     pub(crate) fn write_to_buf(
         &self,
         out: &mut Vec<u8>,

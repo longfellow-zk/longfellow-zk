@@ -14,13 +14,10 @@ use super::{
 };
 use crate::{
     core::algebra::SerializableField,
-    runtime::{
-        algebra::RuntimeField,
-        v2::transcript::{Bound, Unverified, SEAL_BYTES},
-    },
+    runtime::v2::transcript::{Bound, Unverified, SEAL_BYTES},
 };
 
-impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> {
+impl<F: SerializableField> CircuitProof<F> {
     /// A component reader, called only by the complete readers (proto I2).
     pub(crate) fn read(b: &mut &[u8], g: &CircuitProofGeometry, f: &F) -> std::io::Result<Self> {
         use std::io::{Error, ErrorKind};
@@ -84,7 +81,7 @@ impl ZkProofGeometry {
         .try_fold(0usize, |total, x| total.checked_add(x?))
     }
 }
-impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
+impl<F: SerializableField> ZkProof<F> {
     /// Parse one complete proof against the absorbed geometry (proto I2).
     /// The total length is checked before anything is decoded (proto I3).
     pub fn read<'a>(

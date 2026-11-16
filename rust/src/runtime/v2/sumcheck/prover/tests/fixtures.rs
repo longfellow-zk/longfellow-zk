@@ -11,11 +11,11 @@ pub(crate) fn prove_core<
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     w_layers: Vec<Vec<ElementOf<F>>>,
-    pads: &SumcheckProof<W, F>,
+    pads: &SumcheckProof<F>,
     circuit: &Circuit<F>,
     transcript: &mut TranscriptRef<'_>,
     f: &F,
-) -> (SumcheckProof<W, F>, Constraints<ElementOf<F>>) {
+) -> (SumcheckProof<F>, Constraints<ElementOf<F>>) {
     let circuits = [circuit];
     let schedule = Schedule::new(&circuits, f).unwrap();
     let entering = schedule.draw_top(&circuits, transcript, f);
@@ -38,11 +38,11 @@ pub(crate) fn prove_core<
 /// bind the statement explicitly and call prove_core.
 pub(crate) fn prove<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
     w_layers: Vec<Vec<ElementOf<F>>>,
-    pads: &SumcheckProof<W, F>,
+    pads: &SumcheckProof<F>,
     circuit: &Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
-) -> (SumcheckProof<W, F>, Constraints<ElementOf<F>>) {
+) -> (SumcheckProof<F>, Constraints<ElementOf<F>>) {
     assert!(
         !w_layers.is_empty(),
         "use prove_core for a zero-layer circuit"

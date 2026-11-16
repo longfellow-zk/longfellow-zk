@@ -72,11 +72,11 @@ pub(crate) fn evaluate_and_prove<
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     inputs: Vec<F::E>,
-    pads: &SumcheckProof<W, F>,
+    pads: &SumcheckProof<F>,
     circuit: &Circuit<F>,
     t: &mut TranscriptRef<'_>,
     f: &F,
-) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
+) -> Result<(SumcheckProof<F>, Constraints<F::E>), String> {
     prove_circuits(&[circuit], inputs, pads, t, f)
 }
 
@@ -89,10 +89,10 @@ pub(crate) fn prove_circuits<
 >(
     circuits: &[&Circuit<F>],
     inputs: Vec<F::E>,
-    pads: &SumcheckProof<W, F>,
+    pads: &SumcheckProof<F>,
     t: &mut TranscriptRef<'_>,
     f: &F,
-) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
+) -> Result<(SumcheckProof<F>, Constraints<F::E>), String> {
     let owned = SumcheckPads::from_proof(pads.clone());
     evaluate_and_prove_circuits(circuits, inputs, owned, t, f)
 }
@@ -101,20 +101,20 @@ pub(crate) fn prove_circuits<
 /// claim slots. They are sampled with their committed copy (`sample_pads`)
 /// and used once: proving consumes them, and the type is neither `Clone` nor
 /// a `SumcheckProof`, so the same pads cannot mask two runs (sumcheck I6).
-pub(crate) struct SumcheckPads<const W: usize, F: SerializableField>(SumcheckProof<W, F>);
-impl<const W: usize, F: SerializableField> SumcheckPads<W, F> {
+pub(crate) struct SumcheckPads<F: SerializableField>(SumcheckProof<F>);
+impl<F: SerializableField> SumcheckPads<F> {
     /// Check that the pads have `geometry`'s shape.
     pub(crate) fn validate(&self, geometry: &SumcheckProofGeometry) -> std::io::Result<()> {
         self.0.validate(geometry)
     }
     /// Test fixtures: pads with chosen values, such as a proof reused as pads.
     #[cfg(test)]
-    pub(crate) fn from_proof(pads: SumcheckProof<W, F>) -> Self {
+    pub(crate) fn from_proof(pads: SumcheckProof<F>) -> Self {
         Self(pads)
     }
     /// Test diagnostics: the pad values, in proof layout.
     #[cfg(test)]
-    pub(crate) fn as_proof(&self) -> &SumcheckProof<W, F> {
+    pub(crate) fn as_proof(&self) -> &SumcheckProof<F> {
         &self.0
     }
 }
@@ -129,10 +129,10 @@ pub(crate) fn evaluate_and_prove_circuits<
 >(
     circuits: &[&Circuit<F>],
     inputs: Vec<F::E>,
-    pads: SumcheckPads<W, F>,
+    pads: SumcheckPads<F>,
     t: &mut TranscriptRef<'_>,
     f: &F,
-) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
+) -> Result<(SumcheckProof<F>, Constraints<F::E>), String> {
     let schedule = Schedule::new(circuits, f)?;
     pads.validate(&schedule.geometry)
         .map_err(|e| e.to_string())?;
@@ -152,12 +152,12 @@ fn prove_layers<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsS
     circuits: &[&Circuit<F>],
     layers: Vec<Vec<ClassifiedLayer<'_>>>,
     witnesses: Vec<Vec<F::E>>,
-    pads: SumcheckPads<W, F>,
+    pads: SumcheckPads<F>,
     schedule: Schedule,
     mut entering: StageWeights<F::E>,
     t: &mut TranscriptRef<'_>,
     f: &F,
-) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
+) -> Result<(SumcheckProof<F>, Constraints<F::E>), String> {
     pads.validate(&schedule.geometry)
         .map_err(|e| e.to_string())?;
     assert_eq!(layers.len(), circuits.len());
@@ -237,12 +237,12 @@ pub(super) fn prove_dot_product<
 >(
     mut w: Vec<F::E>,
     mut q_l: Vec<F::E>,
-    pads: &LayerProof<W, F>,
+    pads: &LayerProof<F>,
     initial_claim: F::E,
     transcript: &mut TranscriptRef<'_>,
     f: &F,
     after_alpha: impl FnOnce(&mut Reading<'_>),
-) -> (LayerProof<W, F>, LayerChallenges<F::E>, F::E) {
+) -> (LayerProof<F>, LayerChallenges<F::E>, F::E) {
     let mut claim = initial_claim;
     let mut rounds = Vec::with_capacity(pads.rounds.len());
     let mut point_l = Vec::with_capacity(pads.rounds.len());
@@ -301,11 +301,11 @@ pub(super) fn prove_dot_product<
 fn round<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
     w: &mut Vec<F::E>,
     q_l: &mut Vec<F::E>,
-    pads: &RoundPoly<W, F>,
+    pads: &RoundPoly<F>,
     claim: F::E,
     transcript: &mut TranscriptRef<'_>,
     f: &F,
-) -> (RoundPoly<W, F>, F::E, F::E) {
+) -> (RoundPoly<F>, F::E, F::E) {
     let p = quad_round_poly(q_l, w, &claim, f);
     let (m, z, claim_next) = mask_round(p, pads, claim, transcript, f);
     bind(w, &z, f);
@@ -317,12 +317,12 @@ pub(super) fn mask_round<
     const W: usize,
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
-    p: RoundPoly<W, F>,
-    pads: &RoundPoly<W, F>,
+    p: RoundPoly<F>,
+    pads: &RoundPoly<F>,
     claim: F::E,
     transcript: &mut TranscriptRef<'_>,
     f: &F,
-) -> (RoundPoly<W, F>, F::E, F::E) {
+) -> (RoundPoly<F>, F::E, F::E) {
     let mut m = p.clone();
     // The transcript receives m[j] = c_j - s_j for j = 0,1; p retains the
     // unmasked coefficients used to compute the next claim.
@@ -362,7 +362,7 @@ pub(super) fn quad_round_poly<const W: usize, F: RuntimeField<W> + SerializableF
     w: &[F::E],
     claim: &F::E,
     f: &F,
-) -> RoundPoly<W, F> {
+) -> RoundPoly<F> {
     assert_eq!(q_l.len(), w.len());
     let n = q_l.len();
     let pairs = n / 2;
@@ -408,7 +408,7 @@ pub(crate) fn sample_pads<
     geometry: &SumcheckProofGeometry,
     rng: &mut R,
     f: &F,
-) -> (SumcheckPads<W, F>, Vec<F::E>) {
+) -> (SumcheckPads<F>, Vec<F::E>) {
     let mut witness = Vec::with_capacity(geometry.pad_count());
     let mut proof_layers = Vec::with_capacity(geometry.layers().len());
     for &logw in geometry.layers() {
@@ -450,7 +450,7 @@ pub(crate) fn sample_pads_for_test<
     geometry: &SumcheckProofGeometry,
     rng: &mut R,
     f: &F,
-) -> (SumcheckProof<W, F>, Vec<F::E>) {
+) -> (SumcheckProof<F>, Vec<F::E>) {
     let (pads, witness) = sample_pads(geometry, rng, f);
     (pads.0, witness)
 }

@@ -259,7 +259,7 @@ fn exercise<
         extended.extend(std::iter::repeat_n(0, extra));
         assert!(complete(&extended, &public).is_err(), "extended by {extra}");
     }
-    let verify = |inputs: Vec<CircuitInput<F>>, candidate: &ZkProof<W, F>| {
+    let verify = |inputs: Vec<CircuitInput<F>>, candidate: &ZkProof<F>| {
         let statement = v.statement(CONTEXT, &inputs).map_err(|e| e.to_string())?;
         v.reduce(Opened::new(&statement), candidate, &bounded)
             .map_err(|e| e.to_string())
@@ -384,7 +384,7 @@ fn exercise<
     // Each rejection names the layer that failed.
     {
         use super::ZkVerificationError as E;
-        let rejected = |candidate: &ZkProof<W, F>| {
+        let rejected = |candidate: &ZkProof<F>| {
             let own = v.statement(CONTEXT, &public).unwrap();
             v.reduce(Opened::new(&own), candidate, &bounded).err()
         };
@@ -504,7 +504,7 @@ pub(super) fn reduce_standalone<
     verifier: &ZkVerifier<W, F>,
     context: &[u8],
     public: &[CircuitInput<F>],
-    proof: &ZkProof<W, F>,
+    proof: &ZkProof<F>,
     domain: &D,
 ) -> Result<super::Authenticated, super::ZkVerificationError> {
     let statement = verifier.statement(context, public)?;
@@ -520,7 +520,7 @@ pub(super) fn read_standalone<
     public: &[CircuitInput<F>],
     bytes: &[u8],
     f: &F,
-) -> Result<ZkProof<W, F>, String> {
+) -> Result<ZkProof<F>, String> {
     let statement = verifier
         .statement(context, public)
         .map_err(|e| e.to_string())?;

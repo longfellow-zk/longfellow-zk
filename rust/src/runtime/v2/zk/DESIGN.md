@@ -452,9 +452,9 @@ impl<S, C, R> JointProver<S, C, R> {
 }
 pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: CircuitState<W, F>,
                     virtual_inputs: &VirtualInputs<F::E>)    // I4: fixed before the top weights
-    -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String>;
+    -> Result<(CircuitProof<F>, LinearStatement<F::E>), String>;
 pub(crate) fn prove_split(t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>, state: SplitState<W, F>)
-    -> Result<(SumcheckProof<W, F>, PendingSplit<F::E>), String>;
+    -> Result<(SumcheckProof<F>, PendingSplit<F::E>), String>;
 pub(crate) struct PendingSplit<E> { pub(crate) claim: SplitClaim<E>, .. }
 impl<E> PendingSplit<E> {
     // draws eta (I4), then sends SplitOpening (I9)
@@ -477,10 +477,10 @@ impl Authenticated {
     // the seal of the proof whose opening this authenticated, on its session (I7)
     pub(crate) fn check_seal<P>(self, proof: Unverified<'_, P>) -> Result<VerifiedProof, &'static str>;
 }
-pub(crate) fn reduce(t: &mut Bound<'_, FrontendPart<'_, W, F>>, proof: &CircuitProof<W, F>,
+pub(crate) fn reduce(t: &mut Bound<'_, FrontendPart<'_, W, F>>, proof: &CircuitProof<F>,
                      virtual_inputs: &VirtualInputs<F::E>) -> Result<LinearStatement<F::E>, String>;
 pub(crate) fn reduce_split(t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>,
-                           proof: &SumcheckProof<W, F>)
+                           proof: &SumcheckProof<F>)
     -> Result<SplitClaim<F::E>, String>;
 impl<E> SplitClaim<E> {
     // draws eta (I4), then absorbs SplitOpening (I9)
@@ -524,7 +524,7 @@ impl ZkVerifier<W, F> {
     pub fn statement<'a>(&'a self, context: &'a [u8], public: &'a [CircuitInput<F>])
         -> Result<ZkProofStatement<'a, W, F>, ZkVerificationError>;
     pub fn verify(&self, session: Opened<'_, ZkProofStatement<'_, W, F>>,
-                  proof: Unverified<'_, ZkProof<W, F>>, domain: &D)
+                  proof: Unverified<'_, ZkProof<F>>, domain: &D)
         -> Result<VerifiedProof, ZkVerificationError>;
 }
 ```

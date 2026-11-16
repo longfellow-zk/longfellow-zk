@@ -420,11 +420,11 @@ pub const NONCE_LEN: usize = 32;
 pub struct PolygeroCommitment { root: Digest }
 pub const FINGERPRINTS: usize = 2;
 pub struct FingerprintResponse<E> { pub values: [E; FINGERPRINTS] }
-pub struct RoundPoly<const W: usize, F> { pub coefficients: [F::E; 2] }
-pub struct LayerProof<const W: usize, F> { pub rounds: Vec<RoundPoly<W, F>>, pub cross: F::E, pub claims: [F::E; 2] }
-pub struct SumcheckProof<const W: usize, F> { pub layers: Vec<LayerProof<W, F>> }
+pub struct RoundPoly<F> { pub coefficients: [F::E; 2] }
+pub struct LayerProof<F> { pub rounds: Vec<RoundPoly<F>>, pub cross: F::E, pub claims: [F::E; 2] }
+pub struct SumcheckProof<F> { pub layers: Vec<LayerProof<F>> }
 pub enum PackingProof<E> { Direct, TraceZero { u: Vec<E>, a: E } }
-pub struct CircuitProof<const W: usize, F> { pub sumcheck_proof: SumcheckProof<W, F>, pub packing: PackingProof<F::E> }
+pub struct CircuitProof<F> { pub sumcheck_proof: SumcheckProof<F>, pub packing: PackingProof<F::E> }
 pub struct FieldProof<E> { h: Vec<E>, z: Vec<E>, rows: Vec<E> }  // h, z interactive; rows terminal
 pub struct JointPolygeroProof<B> { bodies: B, opening: MerkleProof } // B: (FieldProof<E>, tail)
 pub(in crate::runtime::v2) struct MerkleProof { nonce: Vec<MerkleNonce>, path: Vec<Digest> }
@@ -442,14 +442,14 @@ pub(crate) trait ReadAdapterMessage: AdapterMessage {       // composed/verifier
 }
 
 // standalone complete proof
-pub struct ZkProof<const W: usize, F> {
+pub struct ZkProof<F> {
     pub com: PolygeroCommitment,
     pub fingerprints: FingerprintResponse<F::E>,
-    pub sumcheck_proof: SumcheckProof<W, F>,
+    pub sumcheck_proof: SumcheckProof<F>,
     pub packing: PackingProof<F::E>,
     pub com_proof: JointPolygeroProof<(FieldProof<F::E>, ())>,
 }
-impl<const W: usize, F> ZkProof<W, F> {
+impl<F> ZkProof<F> {
     pub const MAGIC: [u8; 4] = *b"LFV9";
     pub(crate) fn write(&self, g: &ZkProofGeometry, f: &F, transcript: Transcript)
         -> std::io::Result<EncodedProof>;            // ZkProver::prove only
@@ -458,16 +458,16 @@ impl<const W: usize, F> ZkProof<W, F> {
 }
 
 // composed body, crate-private; applications add the magic and the seal
-pub(crate) struct ComposedProof<const WH: usize, H, const WS: usize, S, M> {
+pub(crate) struct ComposedProof<H, S, M> {
     pub(crate) commitment: PolygeroCommitment,
     pub(crate) fingerprints: (FingerprintResponse<H::E>, (FingerprintResponse<S::E>, ())),
-    pub(crate) split: SumcheckProof<WS, S>,
+    pub(crate) split: SumcheckProof<S>,
     pub(crate) mu: S::E,
     pub(crate) message: M,                                 // M: AdapterMessage
-    pub(crate) host: CircuitProof<WH, H>,
+    pub(crate) host: CircuitProof<H>,
     pub(crate) polygero: JointPolygeroProof<(FieldProof<H::E>, (FieldProof<S::E>, ()))>,
 }
-impl<..> ComposedProof<WH, H, WS, S, M> {
+impl<..> ComposedProof<H, S, M> {
     pub(crate) fn fixed_len(g: &ComposedGeometry, h: &H, s: &S) -> Option<usize>; // B(g)
     pub(crate) fn write_to_buf(&self, out: &mut Vec<u8>, g: &ComposedGeometry, h: &H, s: &S)
         -> Result<(), String>;                       // prover; M: WriteAdapterMessage
@@ -481,7 +481,7 @@ pub struct BodySizes { pub host: usize, pub split: usize, pub host_payload: usiz
     pub split_payload: usize, pub nonces: usize, pub frontier: usize, pub message: usize }
 
 // mdoc::runtime::v2 envelope, crate-private
-pub(crate) struct MdocProof<F1, F2> { pub(crate) body: ComposedProof<2, F1, 4, F2, [MaskedQuotient; 2]> }
+pub(crate) struct MdocProof<F1, F2> { pub(crate) body: ComposedProof<F1, F2, [MaskedQuotient; 2]> }
 impl MdocProof<F1, F2> {
     pub(crate) const MAGIC: [u8; 4] = *b"MDA7";
     pub(crate) fn write(&self, g: &ComposedGeometry, f1: &F1, f2: &F2, transcript: Transcript)

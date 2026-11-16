@@ -29,7 +29,7 @@ where
         mut host_private: Vec<CircuitInput<Host>>,
         split_private: Vec<CircuitInput<F>>,
         rng: &mut impl PrivateRandom,
-    ) -> Result<(ComposedProof<H, Host, W, F, M::Message>, Transcript), String> {
+    ) -> Result<(ComposedProof<Host, F, M::Message>, Transcript), String> {
         let (this, transcript) = session.into_parts();
         let c = this.composition;
         let (fh, fs) = (c.host.field(), c.split.field());

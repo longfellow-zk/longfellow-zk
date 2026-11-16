@@ -19,7 +19,7 @@ fn pads_are_owned_one_use_values_matching_their_committed_copy() {
     impl<T> AmbiguousIfClone<()> for T {}
     struct IsClone;
     impl<T: Clone> AmbiguousIfClone<IsClone> for T {}
-    <SumcheckPads<2, Gf2_128Field> as AmbiguousIfClone<_>>::check();
+    <SumcheckPads<Gf2_128Field> as AmbiguousIfClone<_>>::check();
 
     let f = Gf2_128Field::new();
     let geometry = SumcheckProofGeometry::new(vec![2, 0]).unwrap();

@@ -31,10 +31,10 @@ cfg_role! {
 /// Two masked coefficients of p(x) = c0 + c1*x + c2*x^2.
 /// The incoming claim determines c2 = claim - c0; only c0 and c1 are transmitted.
 #[derive(Debug, PartialEq, Eq)]
-pub struct RoundPoly<const W: usize, F: SerializableField> {
+pub struct RoundPoly<F: SerializableField> {
     pub coefficients: [F::E; 2],
 }
-impl<const W: usize, F: SerializableField> Clone for RoundPoly<W, F> {
+impl<F: SerializableField> Clone for RoundPoly<F> {
     fn clone(&self) -> Self {
         Self {
             coefficients: self.coefficients.clone(),
@@ -43,8 +43,8 @@ impl<const W: usize, F: SerializableField> Clone for RoundPoly<W, F> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct LayerProof<const W: usize, F: SerializableField> {
-    pub rounds: Vec<RoundPoly<W, F>>,
+pub struct LayerProof<F: SerializableField> {
+    pub rounds: Vec<RoundPoly<F>>,
     /// Masked cross coefficient, fixed before the terminal mask scale is sampled.
     pub cross: F::E,
     /// Two factors for the complete virtual layer: `sum_l m_l[l] W[l]` and
@@ -63,15 +63,15 @@ pub struct LayerProof<const W: usize, F: SerializableField> {
 ///     v2::proto::sumcheck::{SumcheckProof, SumcheckProofGeometry},
 /// };
 /// let g = SumcheckProofGeometry::new(vec![]).unwrap();
-/// let _ = SumcheckProof::<4, P256Field>::read(&mut &[][..], &g, &P256Field::new());
+/// let _ = SumcheckProof::<P256Field>::read(&mut &[][..], &g, &P256Field::new());
 /// ```
 #[derive(Debug, PartialEq, Eq)]
-pub struct SumcheckProof<const W: usize, F: SerializableField> {
-    pub layers: Vec<LayerProof<W, F>>,
+pub struct SumcheckProof<F: SerializableField> {
+    pub layers: Vec<LayerProof<F>>,
 }
 // Cloning copies elements; it does not need the field descriptor `F` itself
 // to be `Clone`.
-impl<const W: usize, F: SerializableField> Clone for LayerProof<W, F> {
+impl<F: SerializableField> Clone for LayerProof<F> {
     fn clone(&self) -> Self {
         Self {
             rounds: self.rounds.clone(),
@@ -80,7 +80,7 @@ impl<const W: usize, F: SerializableField> Clone for LayerProof<W, F> {
         }
     }
 }
-impl<const W: usize, F: SerializableField> Clone for SumcheckProof<W, F> {
+impl<F: SerializableField> Clone for SumcheckProof<F> {
     fn clone(&self) -> Self {
         Self {
             layers: self.layers.clone(),
@@ -133,7 +133,7 @@ impl SumcheckProofGeometry {
         self.logw_layers.iter().map(|&logw| 2 * logw + 3).sum()
     }
 }
-impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
+impl<F: SerializableField> SumcheckProof<F> {
     /// The geometry of this proof's shape, if it is a valid one.
     pub fn geometry(&self) -> std::io::Result<SumcheckProofGeometry> {
         SumcheckProofGeometry::new(self.layers.iter().map(|layer| layer.rounds.len()).collect())

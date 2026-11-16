@@ -374,14 +374,14 @@ impl MdocProof {
     pub fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ComposedGeometry>, f1: &F1, f2: &F2)
         -> Result<Unverified<'a, Self>, String>;
 }
-impl ZkProof<W, F> {
+impl ZkProof<F> {
     pub fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ZkProofGeometry>, f: &F)
         -> std::io::Result<Unverified<'a, Self>>;
 }
 
 // a frontend draws its top weights on entry (I8); runtime::v2::zk, crate-private
 pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: CircuitState<W, F>,
-    virtual_inputs: &VirtualInputs<F::E>) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String>;
+    virtual_inputs: &VirtualInputs<F::E>) -> Result<(CircuitProof<F>, LinearStatement<F::E>), String>;
 ```
 
 A leading challenge is drawn inside the call that consumes it, after the

@@ -303,7 +303,7 @@ fn binary_circuits_authenticate_one_shared_input() {
         )
         .unwrap();
         let (opening, _) = joint.finish(&param, (statement, ())).unwrap();
-        let verify = |candidate: &CircuitProof<2, Gf2_128Field>, public: bool| {
+        let verify = |candidate: &CircuitProof<Gf2_128Field>, public: bool| {
             let t = Transcript::for_test(b"fragmented-pcs-test");
             let mut v = param.clone().receive(&root, responses.clone(), t);
             let statement = zk::reduce(

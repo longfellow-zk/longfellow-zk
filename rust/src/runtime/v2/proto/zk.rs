@@ -2,16 +2,12 @@
 //! V2 proof messages, public geometry and complete-proof encoding.
 use crate::{
     core::algebra::{ElementOf, SerializableField},
-    runtime::{
-        algebra::RuntimeField,
-        v2::proto::{
-            dual_packing::PackingProof,
-            polygero::{
-                FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig,
-                PolygeroGeometry,
-            },
-            sumcheck::{SumcheckProof, SumcheckProofGeometry},
+    runtime::v2::proto::{
+        dual_packing::PackingProof,
+        polygero::{
+            FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig, PolygeroGeometry,
         },
+        sumcheck::{SumcheckProof, SumcheckProofGeometry},
     },
 };
 
@@ -95,10 +91,10 @@ impl ZkProofGeometry {
 }
 /// A standalone proof; its fields are in send order (proto I4).
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ZkProof<const W: usize, F: SerializableField> {
+pub struct ZkProof<F: SerializableField> {
     pub com: PolygeroCommitment,
     pub fingerprints: super::witness_selection::FingerprintResponse<ElementOf<F>>,
-    pub sumcheck_proof: SumcheckProof<W, F>,
+    pub sumcheck_proof: SumcheckProof<F>,
     pub packing: PackingProof<ElementOf<F>>,
     pub com_proof: JointPolygeroProof<(FieldProof<ElementOf<F>>, ())>,
 }
@@ -114,16 +110,16 @@ pub struct ZkProof<const W: usize, F: SerializableField> {
 ///     },
 /// };
 /// let g = CircuitProofGeometry::new(SumcheckProofGeometry::new(vec![]).unwrap(), 1, 0).unwrap();
-/// let _ = CircuitProof::<2, Gf2_128Field>::read(&mut &[][..], &g, &Gf2_128Field::new());
+/// let _ = CircuitProof::<Gf2_128Field>::read(&mut &[][..], &g, &Gf2_128Field::new());
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CircuitProof<const W: usize, F: SerializableField> {
-    pub sumcheck_proof: SumcheckProof<W, F>,
+pub struct CircuitProof<F: SerializableField> {
+    pub sumcheck_proof: SumcheckProof<F>,
     pub packing: PackingProof<ElementOf<F>>,
 }
-impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> {
+impl<F: SerializableField> CircuitProof<F> {
     fn write_parts(
-        sumcheck: &SumcheckProof<W, F>,
+        sumcheck: &SumcheckProof<F>,
         packing: &PackingProof<F::E>,
         buf: &mut Vec<u8>,
         g: &CircuitProofGeometry,
@@ -153,7 +149,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
         Self::write_parts(&self.sumcheck_proof, &self.packing, buf, g, f)
     }
 }
-impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
+impl<F: SerializableField> ZkProof<F> {
     pub const MAGIC: [u8; 4] = *b"LFV9";
 }
 

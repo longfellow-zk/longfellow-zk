@@ -9,7 +9,7 @@
 //! Polygero responses; then the terminal section: both fields' opened rows,
 //! the nonces and the frontier, its u64 count first.
 #[cfg(feature = "testonly")]
-use crate::{core::algebra::SerializableField, runtime::algebra::RuntimeField};
+use crate::core::algebra::SerializableField;
 
 mod geometry;
 pub use geometry::ComposedGeometry;
@@ -49,14 +49,7 @@ pub struct BodySizes {
 }
 #[cfg(feature = "testonly")]
 #[cfg_attr(not(feature = "mdoc"), allow(dead_code))]
-impl<
-        const WH: usize,
-        H: RuntimeField<WH> + SerializableField,
-        const WS: usize,
-        S: RuntimeField<WS> + SerializableField,
-        M: AdapterMessage,
-    > ComposedProof<WH, H, WS, S, M>
-{
+impl<H: SerializableField, S: SerializableField, M: AdapterMessage> ComposedProof<H, S, M> {
     /// The sizes of this body's parts under `g`.
     pub(crate) fn sizes(&self, g: &ComposedGeometry, h: &H, s: &S) -> Result<BodySizes, String> {
         let mut host = Vec::new();

@@ -91,7 +91,7 @@ fn check_round_constraints<const W: usize, F: RuntimeField<W> + SerializableFiel
     let c0 = element(3);
     let c1 = element(14);
     let c2 = f.neg(&c0);
-    let pads = SumcheckProof::<W, F> {
+    let pads = SumcheckProof::<F> {
         layers: vec![LayerProof {
             rounds: vec![RoundPoly {
                 coefficients: [element(5), element(9)],
@@ -100,7 +100,7 @@ fn check_round_constraints<const W: usize, F: RuntimeField<W> + SerializableFiel
             claims: [f.zero(), f.zero()],
         }],
     };
-    let proof = SumcheckProof::<W, F> {
+    let proof = SumcheckProof::<F> {
         layers: vec![LayerProof {
             rounds: vec![RoundPoly {
                 coefficients: [
@@ -173,7 +173,7 @@ fn check_terminal<const W: usize, F: RuntimeField<W> + SerializableField>(
         let mut roots = 0;
         for value in 1..64 {
             let r = element(value);
-            let proof = SumcheckProof::<W, F> {
+            let proof = SumcheckProof::<F> {
                 layers: vec![LayerProof {
                     rounds: vec![],
                     cross: cross.clone(),
@@ -279,7 +279,7 @@ fn round_challenge_binds_both_round_coefficients() {
         proto::sumcheck::RoundPoly, sumcheck::transcript, transcript::Transcript,
     };
     let f = P256Field::new();
-    let m = RoundPoly::<4, P256Field> {
+    let m = RoundPoly::<P256Field> {
         coefficients: [f.u64_to_element(3), f.u64_to_element(5)],
     };
     let mut base = Transcript::for_test(b"round-order");

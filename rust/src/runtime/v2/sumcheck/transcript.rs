@@ -91,7 +91,7 @@ pub(super) fn round_challenge<
     const W: usize,
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
-    m: &RoundPoly<W, F>,
+    m: &RoundPoly<F>,
     transcript: &mut TranscriptRef<'_>,
     f: &F,
 ) -> ElementOf<F> {

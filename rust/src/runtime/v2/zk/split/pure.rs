@@ -121,7 +121,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> Participant<W, F> for PureSpl
 
 /// Prover state of a pure-foreign participant before its frontend.
 pub(crate) struct PureState<const W: usize, F: ZkField<W>> {
-    pads: SumcheckPads<W, F>,
+    pads: SumcheckPads<F>,
     /// `[private inputs | pads]`, in value order.
     values: Vec<F::E>,
     participant: Identity<StorageMap>,
@@ -160,7 +160,7 @@ fn frontend_claim<const W: usize, F: ZkField<W> + PackingField>(
 pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField>(
     t: &mut Bound<'_, FrontendPart<'_, W, F, PureSplit<W, F>>>,
     state: PureState<W, F>,
-) -> Result<(SumcheckProof<W, F>, PurePending<F::E>), String> {
+) -> Result<(SumcheckProof<F>, PurePending<F::E>), String> {
     let p = t.part().participant;
     if !p.frontend.prepared(&state.participant, &p.map) {
         return Err("split state belongs to another participant".into());
@@ -180,7 +180,7 @@ pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField>(
 /// constraints to its unbatched rows.
 pub(crate) fn reduce<const W: usize, F: ZkField<W> + PackingField>(
     t: &mut Bound<'_, FrontendPart<'_, W, F, PureSplit<W, F>>>,
-    proof: &SumcheckProof<W, F>,
+    proof: &SumcheckProof<F>,
 ) -> Result<PureClaim<F::E>, String> {
     let constraints = reduce_values(t, proof)?;
     frontend_claim(t.part(), constraints)

@@ -3,13 +3,10 @@
 use super::{CircuitProof, ZkProof, ZkProofGeometry};
 use crate::{
     core::algebra::SerializableField,
-    runtime::{
-        algebra::RuntimeField,
-        v2::transcript::{EncodedProof, Transcript},
-    },
+    runtime::v2::transcript::{EncodedProof, Transcript},
 };
 
-impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
+impl<F: SerializableField> ZkProof<F> {
     /// `LFV9`, then the body in send order: root, fingerprints, sumcheck,
     /// packing, response; then the terminal rows, nonces and frontier (its
     /// count, then its digests).
@@ -17,7 +14,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
         buf.extend_from_slice(&Self::MAGIC);
         buf.extend_from_slice(&self.com.root.data);
         self.fingerprints.write(buf, f);
-        CircuitProof::<W, F>::write_parts(&self.sumcheck_proof, &self.packing, buf, &g.circuit, f)?;
+        CircuitProof::<F>::write_parts(&self.sumcheck_proof, &self.packing, buf, &g.circuit, f)?;
         let geom = &g.polygero();
         self.com_proof.write_to_buf(
             buf,

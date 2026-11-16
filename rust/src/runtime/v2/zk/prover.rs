@@ -78,7 +78,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> Frontend<W, F> {
 /// Owned private inputs and masks for reduction after the shared commitment.
 pub(crate) struct CircuitState<const W: usize, F: ZkField<W> + PackingField> {
     private: Vec<CircuitInput<F>>,
-    pads: SumcheckPads<W, F>,
+    pads: SumcheckPads<F>,
     packing: PackingState<F::E>,
     participant: Identity<()>,
 }
@@ -123,7 +123,7 @@ pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField>(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
     state: CircuitState<W, F>,
     virtual_inputs: &VirtualInputs<F::E>,
-) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
+) -> Result<(CircuitProof<F>, LinearStatement<F::E>), String> {
     let part = t.part();
     let p = part.frontend();
     virtual_inputs.validate(&p.inputs)?;
@@ -286,7 +286,7 @@ mod tests;
 /// Prover state of a mixed split participant between commitment and
 /// reduction.
 pub(crate) struct SplitState<const W: usize, F: ZkField<W>> {
-    pads: SumcheckPads<W, F>,
+    pads: SumcheckPads<F>,
     /// `[private inputs | pads]`, in value order.
     values: Vec<F::E>,
     /// The split mask R.
@@ -342,8 +342,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
 pub(super) fn prove_values<const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>>(
     t: &mut Bound<'_, FrontendPart<'_, W, F, P>>,
     values: &[F::E],
-    pads: SumcheckPads<W, F>,
-) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
+    pads: SumcheckPads<F>,
+) -> Result<(SumcheckProof<F>, Constraints<F::E>), String> {
     let part = t.part();
     let mut inputs = part.public.to_vec();
     inputs.extend_from_slice(&values[..part.frontend().inputs.committed()]);
@@ -361,7 +361,7 @@ pub(super) fn prove_values<const W: usize, F: ZkField<W> + PackingField, P: Part
 pub(crate) fn prove_split<const W: usize, F: ZkField<W> + PackingField>(
     t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>,
     state: SplitState<W, F>,
-) -> Result<(SumcheckProof<W, F>, PendingSplit<F::E>), String> {
+) -> Result<(SumcheckProof<F>, PendingSplit<F::E>), String> {
     let p = t.part().participant;
     if !p.frontend.prepared(&state.participant, &p.storage) {
         return Err("split state belongs to another participant".into());

@@ -152,11 +152,11 @@ pub(in super::super) fn prove_core<
     F: RuntimeField<W> + RegisteredField + SupportsSampling,
 >(
     witnesses: Vec<Vec<F::E>>,
-    pads: &SumcheckProof<W, F>,
+    pads: &SumcheckProof<F>,
     circuit: &crate::core::proto::v2::Circuit<F>,
     t: &mut Transcript,
     f: &F,
-) -> (SumcheckProof<W, F>, Constraints<F::E>) {
+) -> (SumcheckProof<F>, Constraints<F::E>) {
     use crate::runtime::v2::sumcheck::{prover, symbolic};
     let assertions = |index: usize| -> usize {
         circuit.raw.layers.get(index).map_or(0, |l| {
