@@ -1,5 +1,4 @@
 import LfzkV2.Current.CanonicalRequest
-import LfzkV2.Current.CanonicalRequest
 import LfzkV2.Current.ZeroKnowledge.CompleteCanonicalPublic
 
 /-! Canonical public statement and batching readers. These unchanged
