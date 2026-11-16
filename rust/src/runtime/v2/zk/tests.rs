@@ -464,6 +464,8 @@ fn p256_scalar_zk_comparison() {
 }
 
 mod absorption;
+mod batching;
+mod constraint_compiler;
 mod layouts;
 mod messages;
 mod sensitivity;

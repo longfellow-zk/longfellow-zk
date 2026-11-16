@@ -1,9 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use super::*;
+use super::super::batching::*;
 use crate::{
     core::{
         algebra::{AlgebraicField, SupportsU64Conversions},
-        proto::v2::{Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
+        proto::v2::{Circuit, Layer, Linear, Quadratic, RawCircuitBuilder, Stream},
     },
     runtime::{
         algebra::{blas, p256::P256Field},

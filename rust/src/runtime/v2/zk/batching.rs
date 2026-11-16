@@ -98,6 +98,3 @@ pub(crate) fn batch<F: RuntimeField + SerializableField>(
     let target = f.neg(&constant);
     Ok(LinearClaim { weights, target })
 }
-
-#[cfg(test)]
-mod tests;
