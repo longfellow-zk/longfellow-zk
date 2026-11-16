@@ -4,7 +4,7 @@ use super::joint::{Bodies, Coefficients, Fields, JointParam, Responses, Statemen
 use crate::runtime::{
     random::PrivateRandom,
     v2::{
-        polygero::Participants,
+        polygero::ProverParticipants,
         proto::polygero::{JointPolygeroProof, PolygeroCommitment},
         transcript::{Bound, Transcript},
         witness_selection,
@@ -26,7 +26,7 @@ impl<L: Fields> JointParam<L> {
     ) -> Result<
         (
             JointProver<
-                <<L::Selection as witness_selection::Fields>::Backend as Participants>::States,
+                <<L::Selection as witness_selection::Fields>::Backend as ProverParticipants>::States,
                 Coefficients<L>,
                 Responses<L>,
             >,
@@ -38,7 +38,7 @@ impl<L: Fields> JointParam<L> {
     where
         L::Selection: witness_selection::ProverFields,
         Witnesses<L>: Clone,
-    {
+{
         let (selection, root, responses) =
             witness_selection::commit(&mut transcript.bound(&self.selection), witnesses, rng)?;
         Ok((
@@ -76,7 +76,7 @@ impl<S, C, R> JointProver<S, C, R> {
     ) -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>
     where
         L::Selection: witness_selection::Fields<Coefficients = C, Responses = R>,
-        <L::Selection as witness_selection::Fields>::Backend: Participants<States = S>,
+        <L::Selection as witness_selection::Fields>::Backend: ProverParticipants<States = S>,
     {
         let proof = self
             .selection

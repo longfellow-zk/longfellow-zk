@@ -14,7 +14,6 @@ impl From<std::io::Error> for PolygeroError {
         Self(error.to_string())
     }
 }
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(super) fn ensure(condition: bool, message: &str) -> Result<(), PolygeroError> {
     if condition {
         Ok(())

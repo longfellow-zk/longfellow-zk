@@ -25,7 +25,8 @@
 //! A one-field invocation uses `(participant, ())` through the same API.
 //!
 //! `prover` and `verifier` own their field equations; `prover_commitment` encodes masked
-//! rows, `joint` coordinates tuples, `participant` traverses them, and `transcript`
+//! rows, `joint` coordinates tuples, `participant` traverses them (each with a prover and a
+//! verifier half, `ProverParticipants` and `VerifierParticipants`), and `transcript`
 //! owns message framing and challenge rounds. V2 Merkle owns the column authentication codecs and
 //! tree. Typed field bodies and the Merkle envelope live in runtime::v2::proto::polygero.
 //! Frontends derive A*w+b=0 from their previously absorbed source messages and
@@ -37,34 +38,26 @@
 //! the per-field failure bounds, without assuming independence, is a valid but looser
 //! alternative. The former single-field API and PLG9 format have been removed.
 mod config;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-mod constraints;
-mod error;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-use error::ensure;
-pub use error::PolygeroError;
-
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-use crate::runtime::v2::merkle::hash;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-mod joint;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-mod param;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-mod participant;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-mod polynomials;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-mod transcript;
 pub use config::PolygeroLinearTerm;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub use param::PolygeroParam;
 
-cfg_prover! { mod prover_commitment; }
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub use joint::{FieldChallenges, JointPolygeroParam, LinearStatement, Participant, Participants};
+cfg_role! {
+    mod constraints;
+    mod error;
+    mod joint;
+    mod param;
+    mod participant;
+    mod polynomials;
+    mod transcript;
+    use crate::runtime::v2::merkle::hash;
+    use error::ensure;
+    pub use error::PolygeroError;
+    pub use joint::{FieldChallenges, JointPolygeroParam, LinearStatement, Participant, Participants};
+    pub use param::PolygeroParam;
+}
 cfg_prover! {
     mod prover;
+    mod prover_commitment;
+    pub use joint::prover::ProverParticipants;
     pub use prover::FieldState;
     // Outside the crate a bare joint opening runs only in tests and
     // benchmarks, through the `_for_test` entry points.
@@ -75,6 +68,7 @@ cfg_prover! {
 }
 cfg_verifier! {
     mod verifier;
+    pub use joint::verifier::VerifierParticipants;
     #[cfg(feature = "testonly")]
     pub use verifier::JointPolygeroVerifier;
     #[cfg(not(feature = "testonly"))]

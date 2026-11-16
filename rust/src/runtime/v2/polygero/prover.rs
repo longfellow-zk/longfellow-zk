@@ -2,6 +2,7 @@
 //! Commitment and responses for a typed list of fields.
 use super::{
     constraints, ensure, joint::*, prover_commitment::ColumnOracle, PolygeroError, PolygeroParam,
+    ProverParticipants,
 };
 use crate::runtime::{
     algebra::{
@@ -33,7 +34,7 @@ pub struct JointPolygeroProver<S> {
 }
 impl<S> JointPolygeroProver<S> {
     /// Commit the witnesses and send the root on `t`'s session.
-    pub(crate) fn commit<L: Participants<States = S>>(
+    pub(crate) fn commit<L: ProverParticipants<States = S>>(
         t: &mut Bound<'_, JointPolygeroParam<L>>,
         witnesses: L::Witnesses,
         rng: &mut impl PrivateRandom,
@@ -61,7 +62,7 @@ impl<S> JointPolygeroProver<S> {
     /// `statements`, the equations of every field. It draws the batching
     /// weights at the current boundary, which must follow the last message
     /// any statement depends on, and consumes them (transcript I8).
-    pub(crate) fn prove<L: Participants<States = S>>(
+    pub(crate) fn prove<L: ProverParticipants<States = S>>(
         self,
         t: &mut Bound<'_, JointPolygeroParam<L>>,
         statements: L::Statements,
@@ -89,7 +90,7 @@ impl<S> JointPolygeroProver<S> {
 #[cfg(feature = "testonly")]
 impl<S> JointPolygeroProver<S> {
     /// `commit` on a bare session.
-    pub fn commit_for_test<L: Participants<States = S>>(
+    pub fn commit_for_test<L: ProverParticipants<States = S>>(
         t: &mut Bound<'_, JointPolygeroParam<L>>,
         witnesses: L::Witnesses,
         rng: &mut impl PrivateRandom,
@@ -97,7 +98,7 @@ impl<S> JointPolygeroProver<S> {
         Self::commit(t, witnesses, rng)
     }
     /// `prove` on a bare session.
-    pub fn prove_for_test<L: Participants<States = S>>(
+    pub fn prove_for_test<L: ProverParticipants<States = S>>(
         self,
         t: &mut Bound<'_, JointPolygeroParam<L>>,
         statements: L::Statements,

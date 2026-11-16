@@ -17,7 +17,6 @@
 //! The caller selects k, s, n, t. `PolygeroParam` validates them against the
 //! witness layout and interpolation backend. Linear terms describe A*w+b=0.
 
-#[cfg(any(test, feature = "prover", feature = "verifier", feature = "compiler"))]
 impl crate::runtime::v2::proto::polygero::PolygeroConfig {
     /// Capacity for every interpolation used by the nonrecursive protocol.
     /// All ranges are contained in U = [0,k) || [k,k+n).

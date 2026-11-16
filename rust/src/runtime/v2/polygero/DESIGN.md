@@ -158,7 +158,7 @@ rebuilds each opened leaf from the proof's rows and nonce at the drawn column
 and checks the root before any field equation reads those values.
 *Enforced by:* the verifier's opening check,
 `JointPolygeroVerifier::reduce`, which complete proofs run inside their
-composition, calls `merkle::verify_proof` before `Participants::check`
+composition, calls `merkle::verify_proof` before `VerifierParticipants::check`
 (runtime); the test
 `joint_authenticates_every_field_response_column_and_opening`.
 
@@ -166,8 +166,8 @@ composition, calls `merkle::verify_proof` before `Participants::check`
 the fields' checks; they never combine values of two fields. Participants are
 typed `(Participant, Tail)` tuples ending in `()`; witnesses, statements,
 challenges, responses and rows have the same tuple shape.
-*Enforced by:* the sealed `Participants` trait and its associated types
-(type).
+*Enforced by:* the sealed `Participants` trait, its associated types and
+its role extensions `ProverParticipants` and `VerifierParticipants` (type).
 
 **I7. Masks come from private randomness only.** Every mask sample (`u`,
 `m`, `f*`, the `t` prefix samples of each data row) and every Merkle nonce
@@ -326,8 +326,15 @@ impl<'a, const W: usize, F, D> Participant<'a, W, F, D> {
     pub fn new(param: PolygeroParam, domain: &'a D) -> Result<Self, PolygeroError>;
 }
 pub trait Participants: Sealed {                    // (), (Participant, Tail): I6
-    type Witnesses; type Statements; type States; type Bodies; type Challenges;
-    ..                                              // States: prover builds only
+    type Witnesses; type Statements; type Bodies; type Challenges;
+    ..                                              // layout, challenges, responses
+}
+pub trait ProverParticipants: Participants {        // prover builds (joint/prover.rs)
+    type States;                                    // encoded rows
+    ..                                              // encode, append_encoded, respond, gather
+}
+pub trait VerifierParticipants: Participants {      // verifier builds (joint/verifier.rs)
+    ..                                              // append_opened, check
 }
 pub struct JointPolygeroParam<L: Participants> { /* participants, config */ }
 impl<L: Participants> JointPolygeroParam<L> {
@@ -347,19 +354,19 @@ pub struct FieldState<E> { /* geom: PolygeroGeometry, rows: Vec<Vec<E>> */ }
 // crate's drivers hold them.
 pub struct JointPolygeroProver<S> { /* session stamp, states, column oracle; not Clone */ }
 impl<S> JointPolygeroProver<S> {
-    pub(crate) fn commit<L: Participants<States = S>>(
+    pub(crate) fn commit<L: ProverParticipants<States = S>>(
         t: &mut Bound<'_, JointPolygeroParam<L>>,
         witnesses: L::Witnesses,                    // moved: released before Merkle construction
         rng: &mut impl PrivateRandom,               // I7
     ) -> Result<(Self, PolygeroCommitment), PolygeroError>;      // sends Commitment
-    pub(crate) fn prove<L: Participants<States = S>>(
+    pub(crate) fn prove<L: ProverParticipants<States = S>>(
         self,                                       // I4: one opening per commitment
         t: &mut Bound<'_, JointPolygeroParam<L>>,   // checked against the stamp
         statements: L::Statements,                  // I3: the weights are drawn here
     ) -> Result<JointPolygeroProof<L::Bodies>, PolygeroError>;
 }
 pub struct JointPolygeroVerifier<L: Participants> { /* session stamp, root */ }
-impl<L: Participants> JointPolygeroVerifier<L> {
+impl<L: VerifierParticipants> JointPolygeroVerifier<L> {
     pub(crate) fn receive(t: &mut Bound<'_, JointPolygeroParam<L>>, root: &PolygeroCommitment) -> Self;
     pub(crate) fn reduce(
         self,
@@ -383,10 +390,10 @@ impl<L: Participants> JointPolygeroParam<L> {
 // steps on a bare session (`Transcript::bound_for_test`); `verify` is
 // #[cfg(any(test, feature = "testonly"))]
 impl<S> JointPolygeroProver<S> {
-    pub fn commit_for_test<L: Participants<States = S>>(..) -> ..;   // commit
-    pub fn prove_for_test<L: Participants<States = S>>(self, ..) -> ..; // prove
+    pub fn commit_for_test<L: ProverParticipants<States = S>>(..) -> ..;   // commit
+    pub fn prove_for_test<L: ProverParticipants<States = S>>(self, ..) -> ..; // prove
 }
-impl<L: Participants> JointPolygeroVerifier<L> {
+impl<L: VerifierParticipants> JointPolygeroVerifier<L> {
     pub fn receive_for_test(..) -> Self;          // receive
     pub fn verify(self, transcript: Transcript, param: &JointPolygeroParam<L>,
                   statements: L::Statements,
@@ -404,7 +411,7 @@ proofs, after witness selection attaches its fingerprint equations.
 `Bound` with another stamp, so a prover or verifier state cannot be
 completed on another transcript. Each field's prover state (`FieldState`)
 records the full `PolygeroGeometry` its rows were encoded for, and `prove`
-compares it with the parameter's (`Participants::validate_states`), so
+compares it with the parameter's (`ProverParticipants::validate_states`), so
 opening with another parameter fails cleanly, even one with the same row
 count and width (another `nw` can give the same rows). In production
 `LinearStatement` has no public constructor: frontends build it inside

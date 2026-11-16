@@ -3,7 +3,7 @@ use super::*;
 use crate::runtime::{
     random::PrivateRandom,
     v2::{
-        polygero::{JointPolygeroProver, Participants as BackendParticipants},
+        polygero::{JointPolygeroProver, ProverParticipants},
         proto::{
             polygero::{JointPolygeroProof, PolygeroCommitment},
             witness_selection::{FingerprintResponse, FINGERPRINTS},
@@ -14,7 +14,7 @@ use crate::runtime::{
 
 /// Private-witness operations belong to the prover role; shared field lists
 /// expose only layout, challenge, and affine-equation operations.
-pub(crate) trait ProverFields: Fields {
+pub(crate) trait ProverFields: Fields<Backend: ProverParticipants> {
     fn validate_witnesses(&self, witnesses: &Witnesses<Self>) -> Result<(), String>;
     fn append_masks(&self, witnesses: &mut Witnesses<Self>, rng: &mut impl PrivateRandom);
     fn responses(
@@ -89,7 +89,7 @@ pub(crate) fn commit<L: ProverFields>(
     rng: &mut impl PrivateRandom,
 ) -> Result<
     (
-        Prover<<L::Backend as BackendParticipants>::States, L::Coefficients, L::Responses>,
+        Prover<<L::Backend as ProverParticipants>::States, L::Coefficients, L::Responses>,
         PolygeroCommitment,
         L::Responses,
     ),
@@ -133,7 +133,7 @@ impl<S, C, R> Prover<S, C, R> {
         statements: Statements<L>,
     ) -> Result<JointPolygeroProof<Bodies<L>>, String>
     where
-        L::Backend: BackendParticipants<States = S>,
+        L::Backend: ProverParticipants<States = S>,
     {
         let param = t.part();
         if self.session != t.session() {

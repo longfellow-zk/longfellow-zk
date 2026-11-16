@@ -307,7 +307,7 @@ impl<L: Fields> Param<L> {
 }
 
 // prover role
-pub(crate) trait ProverFields: Fields { /* validate_witnesses, append_masks, responses */ }
+pub(crate) trait ProverFields: Fields<Backend: ProverParticipants> { /* validate_witnesses, append_masks, responses */ }
 pub(crate) struct Prover<S, C, R> { backend: JointPolygeroProver<S>, session: SessionStamp,
                                     coefficients: C, responses: R }
 // JointParam::commit only
@@ -322,9 +322,10 @@ impl<S, C, R> Prover<S, C, R> {
 }
 
 // verifier role
+pub(crate) trait VerifierFields: Fields<Backend: VerifierParticipants> {}
 pub(crate) struct Verifier<L: Fields> { backend: JointPolygeroVerifier<L::Backend>, session: SessionStamp,
                                         coefficients: L::Coefficients, responses: L::Responses }
-impl<L: Fields> Verifier<L> {
+impl<L: VerifierFields> Verifier<L> {
     // JointParam::receive only
     pub(crate) fn receive(t: &mut Bound<'_, Param<L>>, root: &PolygeroCommitment,
                    responses: L::Responses) -> Self;                 // same schedule as commit (I3, I4)

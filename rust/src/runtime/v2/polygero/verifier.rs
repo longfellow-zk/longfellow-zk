@@ -4,7 +4,9 @@ use core::marker::PhantomData;
 
 use sha2::Digest as _;
 
-use super::{constraints, ensure, hash, joint::*, PolygeroError, PolygeroParam};
+use super::{
+    constraints, ensure, hash, joint::*, PolygeroError, PolygeroParam, VerifierParticipants,
+};
 #[cfg(any(test, feature = "testonly"))]
 use crate::runtime::v2::transcript::{Transcript, Unverified, VerifiedProof};
 use crate::runtime::{
@@ -24,15 +26,13 @@ use crate::runtime::{
 };
 /// Verifier state between the commitment and the opening. It records the
 /// session that received the commitment and checks only on that session.
-#[cfg(any(test, feature = "verifier"))]
 #[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
 pub struct JointPolygeroVerifier<L: Participants> {
     session: SessionStamp,
     commitment: PolygeroCommitment,
     _participants: PhantomData<fn() -> L>,
 }
-#[cfg(any(test, feature = "verifier"))]
-impl<L: Participants> JointPolygeroVerifier<L> {
+impl<L: VerifierParticipants> JointPolygeroVerifier<L> {
     /// Receive the root on `t`'s session.
     pub(crate) fn receive(
         t: &mut Bound<'_, JointPolygeroParam<L>>,
@@ -124,7 +124,6 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         Ok(())
     }
 }
-#[cfg(any(test, feature = "verifier"))]
 fn verify_primary_response<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
     param: &PolygeroParam,
     response: &[F::E],
@@ -150,7 +149,6 @@ fn verify_primary_response<const W: usize, F: RuntimeField<W>, D: EvaluationDoma
     )
 }
 
-#[cfg(any(test, feature = "verifier"))]
 fn verify_arithmetic<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
     param: &PolygeroParam,
     response: &[F::E],
@@ -180,7 +178,6 @@ fn verify_arithmetic<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, 
     ensure(actual == expected, "Polygero arithmetic check failed")
 }
 
-#[cfg(any(test, feature = "verifier"))]
 fn constraint_sum<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
     param: &PolygeroParam,
     rows: &[Vec<F::E>],
@@ -201,7 +198,6 @@ fn constraint_sum<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>
     sum
 }
 
-#[cfg(any(test, feature = "verifier"))]
 fn opened_row<'a, E>(param: &PolygeroParam, rows: &'a [E], row: usize) -> &'a [E] {
     let t = param.geom.t;
     &rows[row * t..(row + 1) * t]

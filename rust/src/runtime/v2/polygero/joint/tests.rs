@@ -13,6 +13,7 @@ use crate::{
         v2::{
             polygero::{
                 prover_commitment::ColumnOracle, JointPolygeroProver, JointPolygeroVerifier,
+                ProverParticipants, VerifierParticipants,
             },
             proto::polygero::PolygeroCommitment,
             transcript::Bound,
@@ -62,8 +63,13 @@ fn field<
     let b = vec![f.neg(&blas::dot1(&w, f))];
     (p, w, LinearStatement::new(a, b))
 }
-fn roundtrip<L: Participants + Clone>(p: JointPolygeroParam<L>, w: L::Witnesses, s: L::Statements)
-where L::Statements: Clone {
+fn roundtrip<L: ProverParticipants + VerifierParticipants + Clone>(
+    p: JointPolygeroParam<L>,
+    w: L::Witnesses,
+    s: L::Statements,
+) where
+    L::Statements: Clone,
+{
     let mut tp = Transcript::for_test(b"joint/test");
     let mut tv = tp.fork_for_test();
     let (prover, root) =

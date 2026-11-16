@@ -1,10 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Typed recursive participants sharing a column oracle and query set.
-use sha2::Sha256;
-
 use super::{ensure, PolygeroError, PolygeroLinearTerm, PolygeroParam};
-#[cfg(any(test, feature = "prover"))]
-use crate::runtime::random::PrivateRandom;
 #[cfg(any(test, feature = "testonly"))]
 use crate::runtime::v2::transcript::{EncodedProof, Transcript};
 #[cfg(any(test, feature = "testonly", feature = "tooling"))]
@@ -22,6 +18,13 @@ use crate::{
         },
     },
 };
+
+cfg_prover! {
+    pub(super) mod prover;
+}
+cfg_verifier! {
+    pub(super) mod verifier;
+}
 
 /// Widest field encoding a joint participant accepts. Every supported field
 /// is far narrower; the bound keeps codec and proof-size arithmetic small.
@@ -138,12 +141,11 @@ mod sealed {
 /// before the queries. Tuple positions preserve field types and participant order.
 /// For example, `(hash, (signature, ()))` has matching witness and proof tuples;
 /// the fields need not have the same element type or number of witness rows.
+/// The operations of one role extend it: `ProverParticipants` encodes, opens
+/// and responds, `VerifierParticipants` checks.
 pub trait Participants: sealed::Sealed {
     type Witnesses;
     type Statements;
-    /// The prover's encoded rows between commitment and opening.
-    #[cfg(any(test, feature = "prover"))]
-    type States;
     type Bodies;
     type Challenges;
     /// Check that every participant has one profile, written to `config`;
@@ -168,36 +170,10 @@ pub trait Participants: sealed::Sealed {
     fn read_responses(&self, bytes: &mut &[u8]) -> Result<Self::Bodies, PolygeroError>;
     #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn read_rows(&self, b: &mut Self::Bodies, bytes: &mut &[u8]) -> Result<(), PolygeroError>;
-    #[cfg(any(test, feature = "prover"))]
-    fn validate_witnesses(&self, w: &Self::Witnesses) -> Result<(), PolygeroError>;
-    /// Check that every field's rows were encoded for this list's geometry.
-    #[cfg(any(test, feature = "prover"))]
-    fn validate_states(&self, w: &Self::States) -> Result<(), PolygeroError>;
-    #[cfg(any(test, feature = "prover"))]
-    fn encode(&self, w: Self::Witnesses, rng: &mut impl PrivateRandom) -> Self::States;
-    #[cfg(any(test, feature = "prover"))]
-    fn append_encoded(&self, w: &Self::States, j: usize, h: &mut Sha256);
-    #[cfg(any(test, feature = "prover"))]
-    fn respond(&self, w: &Self::States, s: &Self::Statements, c: &Self::Challenges)
-        -> Self::Bodies;
-    #[cfg(any(test, feature = "prover"))]
-    fn gather(&self, w: &Self::States, b: &mut Self::Bodies, indices: &[usize]);
-    #[cfg(any(test, feature = "verifier"))]
-    fn append_opened(&self, w: &Self::Bodies, q: usize, t: usize, h: &mut Sha256);
-    #[cfg(any(test, feature = "verifier"))]
-    fn check(
-        &self,
-        b: &Self::Bodies,
-        s: &Self::Statements,
-        c: &Self::Challenges,
-        indices: &[usize],
-    ) -> Result<(), PolygeroError>;
 }
 impl Participants for () {
     type Witnesses = ();
     type Statements = ();
-    #[cfg(any(test, feature = "prover"))]
-    type States = ();
     type Bodies = ();
     type Challenges = ();
     fn describe(&self, _: &mut Option<PolygeroConfig>) -> Result<usize, PolygeroError> {
@@ -229,28 +205,6 @@ impl Participants for () {
     }
     #[cfg(any(test, feature = "testonly", feature = "tooling"))]
     fn read_rows(&self, _: &mut (), _: &mut &[u8]) -> Result<(), PolygeroError> {
-        Ok(())
-    }
-    #[cfg(any(test, feature = "prover"))]
-    fn validate_witnesses(&self, _: &()) -> Result<(), PolygeroError> {
-        Ok(())
-    }
-    #[cfg(any(test, feature = "prover"))]
-    fn validate_states(&self, _: &()) -> Result<(), PolygeroError> {
-        Ok(())
-    }
-    #[cfg(any(test, feature = "prover"))]
-    fn encode(&self, _: (), _: &mut impl PrivateRandom) {}
-    #[cfg(any(test, feature = "prover"))]
-    fn append_encoded(&self, _: &(), _: usize, _: &mut Sha256) {}
-    #[cfg(any(test, feature = "prover"))]
-    fn respond(&self, _: &(), _: &(), _: &()) {}
-    #[cfg(any(test, feature = "prover"))]
-    fn gather(&self, _: &(), _: &mut (), _: &[usize]) {}
-    #[cfg(any(test, feature = "verifier"))]
-    fn append_opened(&self, _: &(), _: usize, _: usize, _: &mut Sha256) {}
-    #[cfg(any(test, feature = "verifier"))]
-    fn check(&self, _: &(), _: &(), _: &(), _: &[usize]) -> Result<(), PolygeroError> {
         Ok(())
     }
 }

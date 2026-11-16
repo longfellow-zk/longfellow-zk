@@ -17,7 +17,7 @@ use super::*;
 use crate::{
     core::algebra::AlgebraicField,
     runtime::v2::{
-        polygero::{prover_commitment::ColumnOracle, Participants},
+        polygero::{prover_commitment::ColumnOracle, ProverParticipants},
         proto::polygero::PolygeroCommitment,
     },
 };

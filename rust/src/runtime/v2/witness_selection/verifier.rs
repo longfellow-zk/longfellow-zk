@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::runtime::v2::{
-    polygero::JointPolygeroVerifier,
+    polygero::{JointPolygeroVerifier, VerifierParticipants},
     proto::polygero::{JointPolygeroProof, PolygeroCommitment},
     transcript::{Bound, SessionStamp},
 };
@@ -10,6 +10,20 @@ use crate::runtime::v2::{
 /// This is not complete-proof verification; the enclosing protocol checks its seal.
 pub(crate) struct Authenticated {
     _private: (),
+}
+
+/// The field lists a verifier checks: those whose backend participants check
+/// their openings.
+pub(crate) trait VerifierFields: Fields<Backend: VerifierParticipants> {}
+impl VerifierFields for () {}
+impl<
+        'a,
+        const W: usize,
+        F: RuntimeField<W> + RegisteredField + SupportsSampling,
+        D: EvaluationDomain<W, F>,
+        T: VerifierFields,
+    > VerifierFields for (Field<'a, W, F, D>, T)
+{
 }
 
 /// Retains the early fingerprint state while the caller runs the frontend.
@@ -21,7 +35,7 @@ pub(crate) struct Verifier<L: Fields> {
     coefficients: L::Coefficients,
     responses: L::Responses,
 }
-impl<L: Fields> Verifier<L> {
+impl<L: VerifierFields> Verifier<L> {
     /// Receive the root, draw the coefficients and absorb the responses on
     /// `t`'s session: the same schedule as `commit`.
     pub(crate) fn receive(

@@ -44,7 +44,10 @@ impl<L: Fields> JointParam<L> {
         root: &PolygeroCommitment,
         responses: Responses<L>,
         mut transcript: Transcript,
-    ) -> JointVerifier<L> {
+    ) -> JointVerifier<L>
+    where
+        L::Selection: witness_selection::VerifierFields,
+    {
         let selection = witness_selection::Verifier::receive(
             &mut transcript.bound(&self.selection),
             root,
@@ -83,7 +86,10 @@ impl<L: Fields> JointVerifier<L> {
         mut self,
         equations: Statements<L>,
         proof: &JointPolygeroProof<Bodies<L>>,
-    ) -> Result<Authenticated, String> {
+    ) -> Result<Authenticated, String>
+    where
+        L::Selection: witness_selection::VerifierFields,
+    {
         let selection = self.selection.finish(
             &mut self.transcript.bound(&self.param.selection),
             equations,
