@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use crate::{core::algebra::AlgebraicField, mdoc::v2::key::*};
+use crate::{core::algebra::AlgebraicField, mdoc::v2::key::*, runtime::algebra::p256::P256Field};
 
 #[test]
 fn coordinates_require_a_nonempty_canonical_field_value() {

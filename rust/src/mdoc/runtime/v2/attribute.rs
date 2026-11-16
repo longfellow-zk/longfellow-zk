@@ -75,6 +75,3 @@ pub(in crate::mdoc::runtime) fn circuit_supports(data: &[u8]) -> bool {
         _ => false,
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -65,6 +65,3 @@ pub(super) fn parse_pk_coordinate(s: &str, field: &P256Field) -> Result<P256Elem
     let nat = parse_hex_nat::<4, RuntimeNat<4>>(s)?;
     field.bytes_to_element(&nat.to_bytes_le())
 }
-
-#[cfg(test)]
-mod tests;

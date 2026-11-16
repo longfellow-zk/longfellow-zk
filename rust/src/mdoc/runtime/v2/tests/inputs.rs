@@ -50,7 +50,7 @@ fn witness_hash(
         &P256Field::new(),
     )
     .expect("the test request passes the request check");
-    super::push_witness_hash(&request, parsed)
+    super::super::inputs::push_witness_hash(&request, parsed)
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn zero_signature_is_a_witness_error() {
     .unwrap();
     assert_eq!(request.issuer_pk(), &(f.one(), f.one()));
     assert_eq!(
-        super::push_witness_sig(&f, &q, &curve, &request, &zero_signature),
+        super::super::inputs::push_witness_sig(&f, &q, &curve, &request, &zero_signature),
         Err(MdocProverErrorCode::WitnessCreationFailure)
     );
 }
@@ -208,7 +208,7 @@ fn witness_sig(
         &f,
     )
     .unwrap();
-    super::push_witness_sig(&f, &q, &curve, &request, &parsed)
+    super::super::inputs::push_witness_sig(&f, &q, &curve, &request, &parsed)
 }
 
 #[test]

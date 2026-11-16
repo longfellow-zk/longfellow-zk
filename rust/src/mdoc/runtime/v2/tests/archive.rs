@@ -1,5 +1,13 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use crate::{core::proto::archive::CircuitArchiveBuilder, mdoc::v2::archive::*};
+use std::io::Read;
+
+use crate::{
+    core::proto::{
+        archive::CircuitArchiveBuilder,
+        v2::limits::{MAX_ARCHIVE_BYTES, MAX_METADATA_BYTES},
+    },
+    mdoc::v2::archive::*,
+};
 
 #[test]
 fn compressed_file_reads_stop_at_the_named_limit() {

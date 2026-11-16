@@ -22,6 +22,3 @@ cfg_prover! {
     mod private;
     pub(super) use private::{push_witness_hash, push_witness_sig};
 }
-
-#[cfg(test)]
-mod tests;

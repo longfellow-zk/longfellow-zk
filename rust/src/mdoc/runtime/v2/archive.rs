@@ -38,6 +38,3 @@ pub(super) fn read(compressed: &[u8]) -> Result<CircuitArchive, String> {
     }
     Ok(result)
 }
-
-#[cfg(test)]
-mod tests;

@@ -76,3 +76,6 @@ where
     let c = link::composition(spec, signature, hash, domains)?;
     Ok((c.reserved().start(), c.mode().fragment().raw.ninput))
 }
+
+#[cfg(test)]
+mod tests;
