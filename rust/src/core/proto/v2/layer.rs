@@ -21,176 +21,74 @@ pub struct Constant {
     pub k: u32,
 }
 
-impl Stream<Quadratic> {
-    /// Delta-encode absolute terms and intern equal records in one run.
-    /// Segmentation can replace the run dictionary without changing order.
-    pub fn from_terms(terms: impl IntoIterator<Item = Quadratic>) -> Self {
-        let mut previous = Quadratic::default();
-        let mut dictionary = std::collections::HashMap::new();
-        let mut deltas = Vec::new();
-        let terms = terms.into_iter();
-        let mut run = Vec::with_capacity(terms.size_hint().0);
-        for term in terms {
-            let mut delta = term;
-            delta.g = term.g.wrapping_sub(previous.g);
-            delta.l = term.l.wrapping_sub(previous.l);
-            delta.r = term.r.wrapping_sub(previous.r);
-            previous = term;
-            let index = *dictionary.entry(delta).or_insert_with(|| {
-                let index = deltas.len() as u32;
-                deltas.push(delta);
-                index
-            });
-            run.push(index);
-        }
-        if run.is_empty() {
-            return Self::default();
-        }
-        Self {
-            deltas,
-            segments: vec![run].into(),
-            tokens: vec![0],
-        }
-    }
-    #[inline(always)]
-    pub fn for_each(&self, mut cb: impl FnMut(Quadratic)) {
-        let result: Result<(), std::convert::Infallible> = self.try_for_each(|t| {
-            cb(t);
-            Ok(())
-        });
-        match result {
-            Ok(()) => (),
-            Err(e) => match e {},
-        }
-    }
-    #[inline(always)]
-    pub fn try_for_each<E>(&self, mut cb: impl FnMut(Quadratic) -> Result<(), E>) -> Result<(), E> {
-        let mut previous = Quadratic::default();
-        for &token in &self.tokens {
-            for &index in &self.segments[token as usize] {
-                let delta = self.deltas[index as usize];
-                previous.g = previous.g.wrapping_add(delta.g);
-                previous.l = previous.l.wrapping_add(delta.l);
-                previous.r = previous.r.wrapping_add(delta.r);
-                previous.k = delta.k;
-                cb(previous)?;
+/// Implements `from_terms`, `for_each` and `try_for_each` (with the given
+/// visibility) for the stream of one record type. The listed coordinates are
+/// delta-encoded with wrapping arithmetic; `k` stays absolute.
+macro_rules! delta_stream {
+    ($record:ident, [$($delta:ident),+], $try_vis:vis try_for_each) => {
+        impl Stream<$record> {
+            /// Delta-encode absolute terms and intern equal records in one run.
+            /// Segmentation can replace the run dictionary without changing order.
+            pub fn from_terms(terms: impl IntoIterator<Item = $record>) -> Self {
+                let mut previous = $record::default();
+                let mut dictionary = std::collections::HashMap::new();
+                let mut deltas = Vec::new();
+                let terms = terms.into_iter();
+                let mut run = Vec::with_capacity(terms.size_hint().0);
+                for term in terms {
+                    let mut delta = term;
+                    $(delta.$delta = term.$delta.wrapping_sub(previous.$delta);)+
+                    previous = term;
+                    let index = *dictionary.entry(delta).or_insert_with(|| {
+                        let index = deltas.len() as u32;
+                        deltas.push(delta);
+                        index
+                    });
+                    run.push(index);
+                }
+                if run.is_empty() {
+                    return Self::default();
+                }
+                Self {
+                    deltas,
+                    segments: vec![run].into(),
+                    tokens: vec![0],
+                }
+            }
+            #[inline(always)]
+            pub fn for_each(&self, mut cb: impl FnMut($record)) {
+                let result: Result<(), std::convert::Infallible> = self.try_for_each(|t| {
+                    cb(t);
+                    Ok(())
+                });
+                match result {
+                    Ok(()) => (),
+                    Err(e) => match e {},
+                }
+            }
+            #[inline(always)]
+            $try_vis fn try_for_each<E>(
+                &self,
+                mut cb: impl FnMut($record) -> Result<(), E>,
+            ) -> Result<(), E> {
+                let mut previous = $record::default();
+                for &token in &self.tokens {
+                    for &index in &self.segments[token as usize] {
+                        let delta = self.deltas[index as usize];
+                        $(previous.$delta = previous.$delta.wrapping_add(delta.$delta);)+
+                        previous.k = delta.k;
+                        cb(previous)?;
+                    }
+                }
+                Ok(())
             }
         }
-        Ok(())
-    }
+    };
 }
 
-impl Stream<Linear> {
-    /// Delta-encode absolute terms and intern equal records in one run.
-    /// Segmentation can replace the run dictionary without changing order.
-    pub fn from_terms(terms: impl IntoIterator<Item = Linear>) -> Self {
-        let mut previous = Linear::default();
-        let mut dictionary = std::collections::HashMap::new();
-        let mut deltas = Vec::new();
-        let terms = terms.into_iter();
-        let mut run = Vec::with_capacity(terms.size_hint().0);
-        for term in terms {
-            let mut delta = term;
-            delta.g = term.g.wrapping_sub(previous.g);
-            delta.l = term.l.wrapping_sub(previous.l);
-            previous = term;
-            let index = *dictionary.entry(delta).or_insert_with(|| {
-                let index = deltas.len() as u32;
-                deltas.push(delta);
-                index
-            });
-            run.push(index);
-        }
-        if run.is_empty() {
-            return Self::default();
-        }
-        Self {
-            deltas,
-            segments: vec![run].into(),
-            tokens: vec![0],
-        }
-    }
-    #[inline(always)]
-    pub fn for_each(&self, mut cb: impl FnMut(Linear)) {
-        let result: Result<(), std::convert::Infallible> = self.try_for_each(|t| {
-            cb(t);
-            Ok(())
-        });
-        match result {
-            Ok(()) => (),
-            Err(e) => match e {},
-        }
-    }
-    #[inline(always)]
-    pub fn try_for_each<E>(&self, mut cb: impl FnMut(Linear) -> Result<(), E>) -> Result<(), E> {
-        let mut previous = Linear::default();
-        for &token in &self.tokens {
-            for &index in &self.segments[token as usize] {
-                let delta = self.deltas[index as usize];
-                previous.g = previous.g.wrapping_add(delta.g);
-                previous.l = previous.l.wrapping_add(delta.l);
-                previous.k = delta.k;
-                cb(previous)?;
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Stream<Constant> {
-    /// Delta-encode absolute terms and intern equal records in one run.
-    /// Segmentation can replace the run dictionary without changing order.
-    pub fn from_terms(terms: impl IntoIterator<Item = Constant>) -> Self {
-        let mut previous = Constant::default();
-        let mut dictionary = std::collections::HashMap::new();
-        let mut deltas = Vec::new();
-        let terms = terms.into_iter();
-        let mut run = Vec::with_capacity(terms.size_hint().0);
-        for term in terms {
-            let mut delta = term;
-            delta.g = term.g.wrapping_sub(previous.g);
-            previous = term;
-            let index = *dictionary.entry(delta).or_insert_with(|| {
-                let index = deltas.len() as u32;
-                deltas.push(delta);
-                index
-            });
-            run.push(index);
-        }
-        if run.is_empty() {
-            return Self::default();
-        }
-        Self {
-            deltas,
-            segments: vec![run].into(),
-            tokens: vec![0],
-        }
-    }
-    #[inline(always)]
-    pub fn for_each(&self, mut cb: impl FnMut(Constant)) {
-        let result: Result<(), std::convert::Infallible> = self.try_for_each(|t| {
-            cb(t);
-            Ok(())
-        });
-        match result {
-            Ok(()) => (),
-            Err(e) => match e {},
-        }
-    }
-    #[inline(always)]
-    fn try_for_each<E>(&self, mut cb: impl FnMut(Constant) -> Result<(), E>) -> Result<(), E> {
-        let mut previous = Constant::default();
-        for &token in &self.tokens {
-            for &index in &self.segments[token as usize] {
-                let delta = self.deltas[index as usize];
-                previous.g = previous.g.wrapping_add(delta.g);
-                previous.k = delta.k;
-                cb(previous)?;
-            }
-        }
-        Ok(())
-    }
-}
+delta_stream!(Quadratic, [g, l, r], pub try_for_each);
+delta_stream!(Linear, [g, l], pub try_for_each);
+delta_stream!(Constant, [g], try_for_each);
 
 /// One layer's term streams. Assertion counts are not stored: the run time
 /// derives them from its own classification of the circuit's constants.
