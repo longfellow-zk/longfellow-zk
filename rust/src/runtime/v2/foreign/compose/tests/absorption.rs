@@ -61,8 +61,7 @@ where
         let Composition {
             host_circuit,
             split_circuit,
-            host_ctx: _,
-            split_ctx: _,
+            domains: _,
             host: host_participant,
             split: split_participant,
             suffix,

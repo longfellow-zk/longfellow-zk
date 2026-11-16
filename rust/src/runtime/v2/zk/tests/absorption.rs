@@ -31,7 +31,7 @@ use crate::{
                 joint::FrontendPart,
                 packing_commitment::{PackingCommitment, PackingLayout},
                 storage::{Group, Run, Split, StorageMap},
-                InputLayout, ZkContext, ZkProofStatement, ZkProver, ZkVerifier,
+                InputLayout, ZkProofStatement, ZkProver, ZkVerifier,
             },
         },
     },
@@ -222,21 +222,20 @@ fn round_trip<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<
         n: 64,
         t: 2,
     };
-    let ctx = ZkContext::new(domain);
     let extension = f.packing_extension();
     let base = extension.base();
     let public = vec![base.one()];
-    let prover = ZkProver::new(circuit(f), config, &ctx).unwrap();
+    let prover = ZkProver::new(circuit(f), config, domain).unwrap();
     let (encoded, _) = prove_standalone(
         &prover,
         CONTEXT,
         &public,
         vec![base.one(), base.one()],
-        &ctx,
+        domain,
         &mut DeterministicRng::new(42),
     )
     .unwrap();
-    let verifier = ZkVerifier::new(circuit(f), config, &ctx).unwrap();
+    let verifier = ZkVerifier::new(circuit(f), config, domain).unwrap();
     let statement = verifier.statement(CONTEXT, &public).unwrap();
     let mut session = Opened::new(&statement);
     let used = session.statement();
@@ -246,7 +245,7 @@ fn round_trip<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<
         assert!(std::ptr::eq(g.part(), &used.geometry));
         ZkProof::read(encoded.as_bytes(), &g, f).unwrap()
     };
-    let verified = verifier.verify(session, parsed, &ctx).unwrap();
+    let verified = verifier.verify(session, parsed, domain).unwrap();
     let decoded = Statement::from_trace(&verified.trace);
     assert_eq!(decoded, opened);
     used.check_absorbed_for_test(&decoded);

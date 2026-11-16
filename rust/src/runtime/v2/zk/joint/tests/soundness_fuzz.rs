@@ -246,7 +246,7 @@ struct Outcome {
 #[allow(clippy::too_many_arguments)]
 fn run<const W: usize, F, D>(
     f: &F,
-    ctx: &ZkContext<'_, W, F, D>,
+    domain: &D,
     seed: u64,
     cases: usize,
     binary: bool,
@@ -314,7 +314,7 @@ where
         assert!(gens.iter().all(|g| satisfied(f, g, &inputs)));
         let circuits: Vec<Circuit<F>> = gens.iter().map(|g| build(f, g)).collect();
         let components: Vec<&Circuit<F>> = circuits.iter().collect();
-        let p = match CircuitParticipant::new(&components, 0, config, ctx) {
+        let p = match CircuitParticipant::new(&components, 0, config, domain) {
             Ok(p) => p,
             Err(e) => panic!("case {case}: participant: {e}"),
         };
@@ -325,12 +325,12 @@ where
             let mut prover_rng = DeterministicRng::new(prng);
             let mut prove_all = || -> Result<_, String> {
                 let (state, w) = p.prepare(private.clone(), &mut prover_rng)?;
-                let param = JointParam::new((p.participant(ctx)?, ()))?;
+                let param = JointParam::new((p.participant(domain)?, ()))?;
                 let t = Transcript::for_test(label.as_bytes());
                 let (mut joint, root, responses) = param.commit((w, ()), t, &mut prover_rng)?;
                 let part = FrontendPart::new(&p, &components, &public)?;
                 let (proof, statement) =
-                    zk::prove(&mut joint.bound(&part), state, &VirtualInputs::none(), ctx)?;
+                    zk::prove(&mut joint.bound(&part), state, &VirtualInputs::none())?;
                 let (opening, _) = joint.finish(&param, (statement, ()))?;
                 Ok((param, root, responses, proof, opening))
             };
@@ -343,7 +343,7 @@ where
             let t = Transcript::for_test(label.as_bytes());
             let mut v = param.receive(&root, responses, t);
             let part = FrontendPart::new(&p, &components, &public)?;
-            let statement = zk::reduce(&mut v.bound(&part), &proof, &VirtualInputs::none(), ctx)?;
+            let statement = zk::reduce(&mut v.bound(&part), &proof, &VirtualInputs::none())?;
             v.finish((statement, ()), &opening).map(|_| ())
         };
         if let Err(e) = attempt(&inputs, false, 1000 + case as u64) {
@@ -390,7 +390,6 @@ const CASES: usize = 32;
 fn cheating_provers_of_false_random_statements_are_rejected() {
     let gf = Gf2_128Field::new();
     let domain = BinaryInterpolatorFactory::full_field(&gf);
-    let ctx = ZkContext::new(&domain);
     use crate::core::algebra::SupportsU128Conversions;
     let general = [
         gf.u128_to_element(0x1234_5678_9abc_def0_0fed_cba9_8765_4321),
@@ -398,7 +397,7 @@ fn cheating_provers_of_false_random_statements_are_rejected() {
     ];
     let binary = run(
         &gf,
-        &ctx,
+        &domain,
         11,
         CASES,
         true,
@@ -409,11 +408,10 @@ fn cheating_provers_of_false_random_statements_are_rejected() {
     let p = P256Field::new();
     let p2 = Fp2Field::new(&p);
     let pd = QuadraticExtensionFftInterpolatorFactory::new(&p, &p2, p2.omega(), p2.omega_order());
-    let pctx = ZkContext::new(&pd);
     let prime_general = [p.u64_to_element(0xdead_beef_1234), p.u64_to_element(3)];
     let prime = run(
         &p,
-        &pctx,
+        &pd,
         12,
         CASES,
         false,

@@ -90,19 +90,6 @@ use longfellow_zk::runtime::v2::transcript::TranscriptRef;
 fn bad(t: TranscriptRef<'_>) { t.append_final_seal(vec![]); }
 ```
 
-The field in a v2 context comes from its domain, rather than an independent
-struct member:
-
-```compile_fail,E0560
-use longfellow_zk::runtime::{
-    algebra::{range_interpolation::EvaluationDomain, ZkField},
-    v2::zk::ZkContext,
-};
-fn bad<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>(f: &F, domain: &D) {
-    let _ = ZkContext { f, domain };
-}
-```
-
 Elements carry only registered fields (`RegisteredField`), whose FieldID
 names one field and one encoding width. GF(2) and GF(256) share
 `FieldID::None` and the same one-byte encoding of one, and the P-256

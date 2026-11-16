@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use super::{
     context::{prepare_circuit_layout, prepare_parameter, CircuitInput},
     packing_commitment::PackingCommitment,
-    InputLayout, ZkContext,
+    InputLayout,
 };
 use crate::{
     core::{
@@ -156,21 +156,21 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         circuits: &[&Circuit<F>],
         virtual_inputs: usize,
         config: PolygeroConfig,
-        ctx: &ZkContext<'_, W, F, D>,
+        domain: &D,
     ) -> Result<Self, String> {
-        check_registered(ctx.field())?;
+        check_registered(domain.field())?;
         let (circuit, others) = circuits.split_first().ok_or("empty circuit list")?;
         let (geometry, param, backend) = prepare_circuit_layout(
             circuit,
             others,
             virtual_inputs,
             config,
-            ctx.field().packing_extension(),
-            ctx,
+            domain.field().packing_extension(),
+            domain,
         )?;
         // Keep the selected field's mask-cell and backend/domain checks even
         // when this circuit will join a larger participant list.
-        SelectedField::from_parameter(param.clone(), ctx.domain)?;
+        SelectedField::from_parameter(param.clone(), domain)?;
         Ok(Self {
             geometry,
             #[cfg(any(test, feature = "prover"))]
@@ -193,11 +193,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         storage: super::storage::StorageMap,
         mask: Option<super::storage::Group>,
         config: PolygeroConfig,
-        ctx: &ZkContext<'_, W, F, D>,
+        domain: &D,
     ) -> Result<Self, String> {
-        check_registered(ctx.field())?;
-        let extension = ctx.field().packing_extension();
-        if ctx.field().is_binary() || extension.degree() != 1 {
+        check_registered(domain.field())?;
+        let extension = domain.field().packing_extension();
+        if domain.field().is_binary() || extension.degree() != 1 {
             return Err("split storage requires a degree-one prime frontend".into());
         }
         let sc_geom = circuit_geometry(&[circuit])?;
@@ -219,8 +219,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         let layout = super::packing_commitment::PackingLayout::new(committed, pads, 1)?;
         let param = match split.mask {
             Some(_) => {
-                let cells = prepare_parameter(layout.witness_count + 1, config, ctx.domain)?;
-                SelectedField::from_parameter(cells.clone(), ctx.domain)?;
+                let cells = prepare_parameter(layout.witness_count + 1, config, domain)?;
+                SelectedField::from_parameter(cells.clone(), domain)?;
                 Some(cells)
             }
             None => None,
@@ -231,7 +231,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             #[cfg(any(test, feature = "prover"))]
             config,
             param,
-            backend: PackingCommitment::new(ctx.field().clone(), layout, extension)?,
+            backend: PackingCommitment::new(domain.field().clone(), layout, extension)?,
             id: circuit.id,
             additional_ids: Vec::new(),
             inputs,
@@ -271,6 +271,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     pub fn geometry(&self) -> CircuitProofGeometry {
         self.geometry.clone()
     }
+    /// The field of this participant's circuits and commitment, the field of
+    /// the domain it was built with.
+    pub(crate) fn field(&self) -> &F {
+        self.backend.parameters.field()
+    }
     fn param(&self) -> Result<&PolygeroParam, String> {
         self.param
             .as_ref()
@@ -281,13 +286,14 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     pub(super) fn polygero(&self) -> Result<PolygeroGeometry, String> {
         Ok(self.param()?.geometry())
     }
-    /// This participant as a field of the joint commitment. A participant
-    /// that commits nothing (pure foreign storage) has none: the call fails.
+    /// This participant as a field of the joint commitment, over `domain`,
+    /// the domain it was built with. A participant that commits nothing (pure
+    /// foreign storage) has none: the call fails.
     pub(crate) fn participant<'a, D: EvaluationDomain<W, F>>(
         &'a self,
-        ctx: &ZkContext<'a, W, F, D>,
+        domain: &'a D,
     ) -> Result<SelectedField<'a, W, F, D>, String> {
-        SelectedField::from_parameter(self.param()?.clone(), ctx.domain)
+        SelectedField::from_parameter(self.param()?.clone(), domain)
     }
 }
 
@@ -316,6 +322,11 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField> FrontendPart<'a, W, F> {
                 .extension()
                 .input_elements(parameters.field(), public),
         })
+    }
+    /// The field of this frontend, its participant's: the one field the
+    /// frontend's steps compute in.
+    pub(crate) fn field(&self) -> &'a F {
+        self.participant.field()
     }
 }
 

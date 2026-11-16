@@ -31,7 +31,7 @@ use crate::{
             zk::{
                 joint::{CircuitParticipant, FrontendPart, JointParam, SelectedField},
                 storage::{Group, ReservedSuffix, Storage, StorageMap},
-                write_joint_geometry, CircuitInput, ZkContext,
+                write_joint_geometry, CircuitInput,
             },
         },
     },
@@ -64,8 +64,8 @@ where
 {
     host_circuit: &'a Circuit<Host>,
     split_circuit: &'a Circuit<F>,
-    host_ctx: ZkContext<'a, H, Host, DH>,
-    split_ctx: ZkContext<'a, W, F, DS>,
+    /// The interpolation domains of the host and of the split participant.
+    domains: (&'a DH, &'a DS),
     host: CircuitParticipant<H, Host>,
     split: CircuitParticipant<W, F>,
     /// R and the mode's pads after the host circuit's inputs, filled by the
@@ -109,25 +109,18 @@ where
         let mask = suffix.group(M::MASK_BITS)?;
         widths.push(mask.width());
         let mode = M::new(widths, npublic, &mut suffix)?;
-        let (host_ctx, split_ctx) = (ZkContext::new(domains.0), ZkContext::new(domains.1));
         let host = CircuitParticipant::new(
             &[host_circuit, mode.fragment()],
             mode.virtual_inputs(),
             joint,
-            &host_ctx,
+            domains.0,
         )?;
-        let split = CircuitParticipant::with_storage(
-            split_circuit,
-            storage,
-            Some(mask),
-            joint,
-            &split_ctx,
-        )?;
+        let split =
+            CircuitParticipant::with_storage(split_circuit, storage, Some(mask), joint, domains.1)?;
         Ok(Self {
             host_circuit,
             split_circuit,
-            host_ctx,
-            split_ctx,
+            domains,
             host,
             split,
             suffix,
@@ -137,8 +130,8 @@ where
     }
     fn param(&self) -> Result<JointParam<Fields<'_, W, F, DH, DS>>, String> {
         JointParam::new((
-            self.host.participant(&self.host_ctx)?,
-            (self.split.participant(&self.split_ctx)?, ()),
+            self.host.participant(self.domains.0)?,
+            (self.split.participant(self.domains.1)?, ()),
         ))
     }
     pub(crate) fn geometry(&self) -> Result<ComposedGeometry, String> {

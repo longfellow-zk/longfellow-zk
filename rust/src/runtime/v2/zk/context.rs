@@ -12,42 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Shared field/domain references and deterministic layout derivation for v2.
+//! Deterministic layout derivation for v2.
 //!
-//! The caller supplies an interpolation domain with a stable ordered point set.
-//! The prover and verifier use that same domain and field. Circuit metadata
+//! Participant construction takes an interpolation domain with a stable
+//! ordered point set, and the participant keeps the domain's field: the
+//! prover and verifier use that same domain and field. Circuit metadata
 //! determines the witness and pad layout passed to Polygero.
-use crate::runtime::algebra::{
-    packing::{BaseElement, PackingField},
-    range_interpolation::EvaluationDomain,
-    ZkField,
-};
+use crate::runtime::algebra::packing::{BaseElement, PackingField};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::{
     core::proto::v2::Circuit,
+    runtime::algebra::{range_interpolation::EvaluationDomain, ZkField},
     runtime::v2::{
         polygero::PolygeroParam,
         proto::{polygero::PolygeroConfig, zk::CircuitProofGeometry},
         zk::packing_commitment::{PackingCommitment, PackingLayout},
     },
 };
-
-/// Borrow an interpolation domain together with its own arithmetic field.
-pub struct ZkContext<'a, const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>> {
-    pub(crate) domain: &'a D,
-    _field: std::marker::PhantomData<&'a F>,
-}
-impl<'a, const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>> ZkContext<'a, W, F, D> {
-    pub fn new(domain: &'a D) -> Self {
-        Self {
-            domain,
-            _field: std::marker::PhantomData,
-        }
-    }
-    pub fn field(&self) -> &'a F {
-        self.domain.field()
-    }
-}
 
 /// Count private inputs from the trusted circuit metadata.
 #[cfg(any(test, feature = "prover"))]
@@ -91,9 +72,9 @@ pub(crate) fn prepare_circuit_layout<
     virtual_inputs: usize,
     config: PolygeroConfig,
     extension: X,
-    ctx: &ZkContext<'_, W, F, D>,
+    domain: &D,
 ) -> Result<(CircuitProofGeometry, PolygeroParam, PackingCommitment<F, X>), String> {
-    if ctx.field().is_binary() && !extension.binary128_profile() {
+    if domain.field().is_binary() && !extension.binary128_profile() {
         return Err("binary circuits require the authenticated bit-input packing profile".into());
     }
     let mut circuits = vec![circuit];
@@ -101,10 +82,10 @@ pub(crate) fn prepare_circuit_layout<
     let private_inputs = InputLayout::new(&circuits, virtual_inputs)?.committed();
     let sc_geom = crate::runtime::v2::sumcheck::circuit_geometry(&circuits)?;
     let layout = PackingLayout::new(private_inputs, sc_geom.pad_count(), extension.degree())?;
-    let param = prepare_parameter(layout.witness_count, config, ctx.domain)?;
+    let param = prepare_parameter(layout.witness_count, config, domain)?;
     let geometry = CircuitProofGeometry::new(sc_geom, layout.degree, param.geometry().nw)
         .map_err(|e| e.to_string())?;
-    let backend = PackingCommitment::new(ctx.field().clone(), layout, extension)?;
+    let backend = PackingCommitment::new(domain.field().clone(), layout, extension)?;
     Ok((geometry, param, backend))
 }
 

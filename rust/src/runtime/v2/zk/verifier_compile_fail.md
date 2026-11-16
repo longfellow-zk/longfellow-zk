@@ -13,10 +13,11 @@ Every input of `ZkVerifier::verify` and where the transcript absorbs it
 - `proof`: parsed against the geometry the session's statement wrote; each
   interactive field is absorbed as its prover message where it is sent,
   and the seal covers every byte before the seal block.
-- `ctx`: the field, whose FieldID is in `CommitmentLayout` and in every
-  Elements value, and the evaluation domain, which the verifier fixes and
-  the transcript does not absorb; the participant rejects a domain other
-  than the one it was built with.
+- `domain`: the evaluation domain, which the verifier fixes and the
+  transcript does not absorb; the participant rejects a domain other than
+  the one it was built with. The field is the participant's, the domain's
+  field at construction, whose FieldID is in `CommitmentLayout` and in
+  every Elements value.
 
 The verifier takes no geometry, circuit or public inputs except through the
 statement and the session. The call that verifies:
@@ -27,16 +28,16 @@ use longfellow_zk::runtime::{
     v2::{
         proto::zk::ZkProof,
         transcript::{Opened, Unverified, VerifiedProof},
-        zk::{ZkContext, ZkProofStatement, ZkVerificationError, ZkVerifier},
+        zk::{ZkProofStatement, ZkVerificationError, ZkVerifier},
     },
 };
 fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
     v: &ZkVerifier<2, Gf2_128Field>,
     session: Opened<'_, ZkProofStatement<'_, 2, Gf2_128Field>>,
     proof: Unverified<'_, ZkProof<2, Gf2_128Field>>,
-    ctx: &ZkContext<'_, 2, Gf2_128Field, D>,
+    domain: &D,
 ) -> Result<VerifiedProof, ZkVerificationError> {
-    v.verify(session, proof, ctx)
+    v.verify(session, proof, domain)
 }
 ```
 
@@ -48,17 +49,17 @@ use longfellow_zk::runtime::{
     v2::{
         proto::zk::{ZkProof, ZkProofGeometry},
         transcript::{Opened, Unverified},
-        zk::{ZkContext, ZkProofStatement, ZkVerifier},
+        zk::{ZkProofStatement, ZkVerifier},
     },
 };
 fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
     v: &ZkVerifier<2, Gf2_128Field>,
     session: Opened<'_, ZkProofStatement<'_, 2, Gf2_128Field>>,
     proof: Unverified<'_, ZkProof<2, Gf2_128Field>>,
-    ctx: &ZkContext<'_, 2, Gf2_128Field, D>,
+    domain: &D,
     geometry: &ZkProofGeometry,
 ) {
-    let _ = v.verify(session, proof, ctx, geometry);
+    let _ = v.verify(session, proof, domain, geometry);
 }
 ```
 
@@ -72,7 +73,7 @@ use longfellow_zk::{
         v2::{
             proto::zk::ZkProof,
             transcript::{Opened, Unverified},
-            zk::{ZkContext, ZkProofStatement, ZkVerifier},
+            zk::{ZkProofStatement, ZkVerifier},
         },
     },
 };
@@ -80,10 +81,10 @@ fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
     v: &ZkVerifier<2, Gf2_128Field>,
     session: Opened<'_, ZkProofStatement<'_, 2, Gf2_128Field>>,
     proof: Unverified<'_, ZkProof<2, Gf2_128Field>>,
-    ctx: &ZkContext<'_, 2, Gf2_128Field, D>,
+    domain: &D,
     circuit: &Circuit<Gf2_128Field>,
 ) {
-    let _ = v.verify(session, proof, ctx, circuit);
+    let _ = v.verify(session, proof, domain, circuit);
 }
 ```
 
@@ -95,17 +96,17 @@ use longfellow_zk::runtime::{
     v2::{
         proto::zk::ZkProof,
         transcript::{Opened, Unverified},
-        zk::{ZkContext, ZkProofStatement, ZkVerifier},
+        zk::{ZkProofStatement, ZkVerifier},
     },
 };
 fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
     v: &ZkVerifier<2, Gf2_128Field>,
     session: Opened<'_, ZkProofStatement<'_, 2, Gf2_128Field>>,
     proof: Unverified<'_, ZkProof<2, Gf2_128Field>>,
-    ctx: &ZkContext<'_, 2, Gf2_128Field, D>,
+    domain: &D,
     public: &[bool],
 ) {
-    let _ = v.verify(session, proof, ctx, public);
+    let _ = v.verify(session, proof, domain, public);
 }
 ```
 
@@ -118,16 +119,16 @@ use longfellow_zk::runtime::{
     v2::{
         proto::zk::ZkProof,
         transcript::Unverified,
-        zk::{ZkContext, ZkProofStatement, ZkVerifier},
+        zk::{ZkProofStatement, ZkVerifier},
     },
 };
 fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
     v: &ZkVerifier<2, Gf2_128Field>,
     statement: &ZkProofStatement<'_, 2, Gf2_128Field>,
     proof: Unverified<'_, ZkProof<2, Gf2_128Field>>,
-    ctx: &ZkContext<'_, 2, Gf2_128Field, D>,
+    domain: &D,
 ) {
-    let _ = v.verify(statement, proof, ctx);
+    let _ = v.verify(statement, proof, domain);
 }
 ```
 

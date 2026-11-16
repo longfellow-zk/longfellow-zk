@@ -29,7 +29,7 @@ use crate::{
             proto::{polygero::PolygeroConfig, zk::ZkProof},
             sumcheck::eval_circuit,
             transcript::{Transcript, SEAL_BYTES},
-            zk::{ZkContext, ZkProver, ZkVerifier},
+            zk::{ZkProver, ZkVerifier},
         },
     },
 };
@@ -165,25 +165,20 @@ fn test_zk_prover_verifier_end_to_end() {
     };
 
     // 4. Prover commit and prove
-    let prover_inst = ZkProver::new(circ, config, &ZkContext::new(&make_interpolator)).unwrap();
+    let prover_inst = ZkProver::new(circ, config, &make_interpolator).unwrap();
     let npublic = prover_inst.circuit.raw.npublic_input;
     let (encoded, geom) = super::prove_standalone(
         &prover_inst,
         b"test_zk",
         &w0[..npublic],
         w0[npublic..].to_vec(),
-        &ZkContext::new(&make_interpolator),
+        &make_interpolator,
         &mut rng,
     )
     .expect("Failed to prove");
     // 5. Deserialize the sealed proof
     let serialized = encoded.into_bytes();
-    let verifier = ZkVerifier::new(
-        prover_inst.circuit,
-        config,
-        &ZkContext::new(&make_interpolator),
-    )
-    .unwrap();
+    let verifier = ZkVerifier::new(prover_inst.circuit, config, &make_interpolator).unwrap();
     assert_eq!(verifier.geometry(), geom);
     let deserialized =
         super::read_standalone(&verifier, b"test_zk", &w0[..npublic], &serialized, &f)
@@ -203,7 +198,7 @@ fn test_zk_prover_verifier_end_to_end() {
         b"test_zk",
         &w0[..verifier.public_input_count()],
         &deserialized,
-        &ZkContext::new(&make_interpolator),
+        &make_interpolator,
     );
 
     assert!(
@@ -222,7 +217,6 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
 
     let f = Gf2_128Field::new();
     let interpolation = BinaryInterpolatorFactory::full_field(&f);
-    let context = ZkContext::new(&interpolation);
     // A non-power-of-two width exercises several sumcheck rounds and input pairs
     // (0,3)/(2,2), whose Morton and lexicographic orders differ.
     let inputs: Vec<_> = (1..=7).map(|v| v % 3 != 0).collect();
@@ -332,14 +326,14 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 let native_id = decoded.id;
                 let native_writer = crate::core::proto::v2::CircuitWriter::new(&f);
                 let native_bytes = native_writer.to_bytes(&decoded);
-                let prover = ZkProver::new(decoded, config, &context).unwrap();
+                let prover = ZkProver::new(decoded, config, &interpolation).unwrap();
                 let mut rng = SimpleRng { state: 42 };
                 let (proof, geometry) = super::prove_standalone(
                     &prover,
                     LABEL,
                     &witness_inputs[..1],
                     witness_inputs[1..].to_vec(),
-                    &context,
+                    &interpolation,
                     &mut rng,
                 )
                 .unwrap();
@@ -352,7 +346,7 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 // Proving must not change storage, segmentation, or ID.
                 assert_eq!(prover.circuit.id, native_id);
                 assert_eq!(native_writer.to_bytes(&prover.circuit), native_bytes);
-                let verifier = ZkVerifier::new(prover.circuit, config, &context).unwrap();
+                let verifier = ZkVerifier::new(prover.circuit, config, &interpolation).unwrap();
                 let verifier_geometry = verifier.geometry();
                 assert_eq!(geometry, verifier_geometry);
                 let decoded_proof = super::read_standalone(
@@ -364,7 +358,13 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 )
                 .unwrap();
                 let reduce = |p: &ZkProof<2, Gf2_128Field>| {
-                    super::reduce_standalone(&verifier, LABEL, &witness_inputs[..1], p, &context)
+                    super::reduce_standalone(
+                        &verifier,
+                        LABEL,
+                        &witness_inputs[..1],
+                        p,
+                        &interpolation,
+                    )
                 };
                 // Both roles end in one transcript state: the prover's seal
                 // checks on the authenticated session.
@@ -428,24 +428,19 @@ fn test_zk_triple_zero_zero_zero() {
         t: 4,
     };
 
-    let prover_inst = ZkProver::new(circ, config, &ZkContext::new(&make_interpolator)).unwrap();
+    let prover_inst = ZkProver::new(circ, config, &make_interpolator).unwrap();
     let npublic = prover_inst.circuit.raw.npublic_input;
     let (encoded, _) = super::prove_standalone(
         &prover_inst,
         LABEL,
         &w0[..npublic],
         w0[npublic..].to_vec(),
-        &ZkContext::new(&make_interpolator),
+        &make_interpolator,
         &mut rng,
     )
     .expect("Failed to prove ZK with logv=0, logw=0");
 
-    let verifier = ZkVerifier::new(
-        prover_inst.circuit,
-        config,
-        &ZkContext::new(&make_interpolator),
-    )
-    .unwrap();
+    let verifier = ZkVerifier::new(prover_inst.circuit, config, &make_interpolator).unwrap();
     let zkp = super::read_standalone(
         &verifier,
         LABEL,
@@ -459,7 +454,7 @@ fn test_zk_triple_zero_zero_zero() {
         LABEL,
         &w0[..verifier.public_input_count()],
         &zkp,
-        &ZkContext::new(&make_interpolator),
+        &make_interpolator,
     );
 
     assert!(
@@ -557,24 +552,19 @@ fn test_zk_intermediate_zero_logw() {
         t: 4,
     };
 
-    let prover_inst = ZkProver::new(circ, config, &ZkContext::new(&make_interpolator)).unwrap();
+    let prover_inst = ZkProver::new(circ, config, &make_interpolator).unwrap();
     let npublic = prover_inst.circuit.raw.npublic_input;
     let (encoded, _) = super::prove_standalone(
         &prover_inst,
         LABEL,
         &w0[..npublic],
         w0[npublic..].to_vec(),
-        &ZkContext::new(&make_interpolator),
+        &make_interpolator,
         &mut rng,
     )
     .expect("Failed to prove ZK with intermediate logw=0");
 
-    let verifier = ZkVerifier::new(
-        prover_inst.circuit,
-        config,
-        &ZkContext::new(&make_interpolator),
-    )
-    .unwrap();
+    let verifier = ZkVerifier::new(prover_inst.circuit, config, &make_interpolator).unwrap();
     let zkp = super::read_standalone(
         &verifier,
         LABEL,
@@ -588,7 +578,7 @@ fn test_zk_intermediate_zero_logw() {
         LABEL,
         &w0[..verifier.public_input_count()],
         &zkp,
-        &ZkContext::new(&make_interpolator),
+        &make_interpolator,
     );
 
     assert!(
@@ -635,13 +625,13 @@ fn test_zk_zero_layers() {
         };
         const LABEL: &[u8] = b"test_zk_zero_layers";
 
-        let prover_inst = ZkProver::new(circ, config, &ZkContext::new(&make_interpolator)).unwrap();
+        let prover_inst = ZkProver::new(circ, config, &make_interpolator).unwrap();
         let prove_res = super::prove_standalone(
             &prover_inst,
             LABEL,
             &w0[..2],
             w0[2..].to_vec(),
-            &ZkContext::new(&make_interpolator),
+            &make_interpolator,
             &mut rng,
         );
 
@@ -658,21 +648,12 @@ fn test_zk_zero_layers() {
             );
             let (encoded, _) = prove_res.unwrap();
 
-            let verifier = ZkVerifier::new(
-                prover_inst.circuit,
-                config,
-                &ZkContext::new(&make_interpolator),
-            )
-            .unwrap();
+            let verifier =
+                ZkVerifier::new(prover_inst.circuit, config, &make_interpolator).unwrap();
             let zkp =
                 super::read_standalone(&verifier, LABEL, &w0[..2], encoded.as_bytes(), &f).unwrap();
-            let verify_res = super::reduce_standalone(
-                &verifier,
-                LABEL,
-                &w0[..2],
-                &zkp,
-                &ZkContext::new(&make_interpolator),
-            );
+            let verify_res =
+                super::reduce_standalone(&verifier, LABEL, &w0[..2], &zkp, &make_interpolator);
             assert!(
                 verify_res.is_ok(),
                 "verify failed for all zero inputs: {:?}",

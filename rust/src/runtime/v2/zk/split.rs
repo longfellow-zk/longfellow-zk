@@ -62,9 +62,9 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     pub(super) fn split_claim(
         t: &mut Bound<'_, FrontendPart<'_, W, F>>,
         constraints: Constraints<F::E>,
-        f: &F,
     ) -> Result<SplitClaim<F::E>, String> {
         let part = t.part();
+        let f = part.field();
         let (p, circuit, public) = (part.participant, part.circuits[0], &part.public[..]);
         let split = p.split()?;
         if split.mask.is_none() {
@@ -211,12 +211,11 @@ impl<E> SplitClaim<E> {
     pub(crate) fn batch<const W: usize, F>(
         self,
         t: &mut Bound<'_, FrontendPart<'_, W, F>>,
-        f: &F,
     ) -> Result<ModularClaim<E>, String>
     where
         F: ZkField<W> + PackingField + BareField<E = E>,
     {
-        let p = t.part().participant;
+        let (p, f) = (t.part().participant, t.part().field());
         if p.split()?.mask.is_some() {
             return Err("row weights batch only pure foreign storage".into());
         }
@@ -249,13 +248,12 @@ impl<E> PendingSplit<E> {
     pub(crate) fn open<const W: usize, F>(
         self,
         t: &mut Bound<'_, FrontendPart<'_, W, F>>,
-        f: &F,
     ) -> Result<(E, SplitOutput<E>), String>
     where
         F: ZkField<W> + PackingField + BareField<E = E>,
     {
+        let (p, f) = (t.part().participant, t.part().field());
         let Eta(scale) = transcript::eta(&mut t.transcript(), f);
-        let p = t.part().participant;
         let mu = p.split_message(&self, &scale, f)?;
         transcript::send_mu(&mut t.transcript(), &mu, f);
         let foreign = p.foreign_claim(&self.claim, &scale, &mu, f)?;
@@ -271,13 +269,12 @@ impl<E> SplitClaim<E> {
         self,
         t: &mut Bound<'_, FrontendPart<'_, W, F>>,
         mu: &E,
-        f: &F,
     ) -> Result<SplitOutput<E>, String>
     where
         F: ZkField<W> + PackingField + BareField<E = E>,
     {
+        let (p, f) = (t.part().participant, t.part().field());
         let Eta(scale) = transcript::eta(&mut t.transcript(), f);
-        let p = t.part().participant;
         transcript::send_mu(&mut t.transcript(), mu, f);
         let foreign = p.foreign_claim(&self, &scale, mu, f)?;
         let statement = p.split_statement(self, &scale, mu, t.session(), f)?;

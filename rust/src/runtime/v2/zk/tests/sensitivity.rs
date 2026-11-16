@@ -41,7 +41,7 @@ use crate::{
                 joint::{CircuitParticipant, FrontendPart},
                 split::value_count,
                 storage::{Group, Run, Split, Storage, StorageMap},
-                ZkContext, ZkProofStatement, ZkVerifier,
+                ZkProofStatement, ZkVerifier,
             },
         },
     },
@@ -107,8 +107,7 @@ fn standalone(
 ) -> (Vec<u8>, ZkProofGeometry, [usize; 8]) {
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
-    let ctx = ZkContext::new(&d);
-    let verifier = ZkVerifier::new(circuit, config, &ctx).unwrap();
+    let verifier = ZkVerifier::new(circuit, config, &d).unwrap();
     let statement = verifier.statement(CONTEXT, &[true]).unwrap();
     let cells = statement.part.participant.backend.layout.fields_for_test();
     (statement_bytes(&statement), verifier.geometry(), cells)
@@ -122,8 +121,7 @@ fn edited(
 ) -> Vec<u8> {
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
-    let ctx = ZkContext::new(&d);
-    let mut participant = CircuitParticipant::new(&[circuit], 0, CONFIG, &ctx).unwrap();
+    let mut participant = CircuitParticipant::new(&[circuit], 0, CONFIG, &d).unwrap();
     let geometry = ZkProofGeometry::new(participant.geometry(), CONFIG).unwrap();
     edit(&mut participant);
     statement_bytes(&ZkProofStatement {
@@ -311,10 +309,9 @@ fn split_statement(
     let p = P256Field::new();
     let p2 = Fp2Field::new(&p);
     let d = QuadraticExtensionFftInterpolatorFactory::new(&p, &p2, p2.omega(), p2.omega_order());
-    let ctx = ZkContext::new(&d);
     let storage = StorageMap::new(value_count(circuit).unwrap(), foreign).unwrap();
     let participant =
-        CircuitParticipant::with_storage(circuit, storage, Some(mask), CONFIG, &ctx).unwrap();
+        CircuitParticipant::with_storage(circuit, storage, Some(mask), CONFIG, &d).unwrap();
     let public = [p.one()];
     let statement = ZkProofStatement {
         identity: ZkStatement { context: CONTEXT },

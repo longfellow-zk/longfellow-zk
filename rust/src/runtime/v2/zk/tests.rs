@@ -12,37 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{ZkContext, ZkProver, ZkVerifier};
-use crate::{
-    core::proto::v2::quadratic_fixture,
-    runtime::v2::{
-        proto::{dual_packing::PackingProof, zk::ZkProof},
-        sumcheck::circuit_geometry,
-        transcript::EncodedProof,
-        zk::CircuitInput,
-    },
-};
-
-#[test]
-fn context_uses_its_domains_runtime_modulus() {
-    use crate::runtime::algebra::{
-        fp_generic::FpGenericField, limb::LIMBS_PER_U64,
-        range_interpolation::ScalarInterpolatorFactory,
-    };
-    type Prime = FpGenericField<1, { LIMBS_PER_U64 }, { 3 * LIMBS_PER_U64 }>;
-    let f17 = Prime::new_generic([17]);
-    let f19 = Prime::new_generic([19]);
-    let d17 = ScalarInterpolatorFactory::new(&f17, 16);
-    let d19 = ScalarInterpolatorFactory::new(&f19, 16);
-    let context17 = ZkContext::new(&d17);
-    let context19 = ZkContext::new(&d19);
-    assert!(std::ptr::eq(context17.field(), &f17));
-    assert!(std::ptr::eq(context19.field(), &f19));
-}
+use super::{ZkProver, ZkVerifier};
 use crate::{
     core::{
         algebra::SerializableField,
-        proto::v1::{compute_id, Circuit, Layer, RawCircuit, TermDelta},
+        proto::{
+            v1::{compute_id, Circuit, Layer, RawCircuit, TermDelta},
+            v2::quadratic_fixture,
+        },
     },
     runtime::{
         algebra::{
@@ -51,8 +28,14 @@ use crate::{
         },
         random::DeterministicRng,
         v2::{
-            proto::polygero::{FieldProof, PolygeroConfig},
-            transcript::{Opened, Transcript},
+            proto::{
+                dual_packing::PackingProof,
+                polygero::{FieldProof, PolygeroConfig},
+                zk::ZkProof,
+            },
+            sumcheck::circuit_geometry,
+            transcript::{EncodedProof, Opened, Transcript},
+            zk::CircuitInput,
         },
     },
 };
@@ -157,18 +140,17 @@ fn exercise<
         inner: domain,
         limit: config.k + config.n,
     };
-    let context = ZkContext::new(&bounded);
     use crate::{core::algebra::AlgebraicField, runtime::algebra::packing::PackingExtension};
     let extension = f.packing_extension();
     let base = extension.base();
     let public = vec![base.one()];
     let witness = vec![base.one(), base.one()];
     const CONTEXT: &[u8] = b"longfellow/v2/test";
-    let p = ZkProver::new(circuit(f), config, &context).unwrap();
+    let p = ZkProver::new(circuit(f), config, &bounded).unwrap();
     let statement = p.statement(CONTEXT, &public).unwrap();
     let mut rng = DeterministicRng::new(42);
     let committed = p
-        .commit(witness.to_vec(), &statement, &context, &mut rng)
+        .commit(witness.to_vec(), &statement, &bounded, &mut rng)
         .unwrap();
     let prover_geometry = statement.geometry.clone();
     let source_circuit = circuit(f);
@@ -180,12 +162,12 @@ fn exercise<
     )
     .unwrap();
     assert_eq!(prover_geometry.circuit().nw(), source.witness_count + 2);
-    let encoded_proof = p.prove(committed, &context).unwrap();
+    let encoded_proof = p.prove(committed, &bounded).unwrap();
     let bytes = encoded_proof.as_bytes().to_vec();
     assert_eq!(&bytes[..4], b"LFV9");
 
     // Independently reconstruct the circuit, geometry, and decoded verifier proof.
-    let v = ZkVerifier::new(circuit(f), config, &context).unwrap();
+    let v = ZkVerifier::new(circuit(f), config, &bounded).unwrap();
     let geometry = v.geometry();
     assert_eq!(geometry, prover_geometry);
     let vs = v.statement(CONTEXT, &public).unwrap();
@@ -244,7 +226,7 @@ fn exercise<
             - opening.1,
     );
     let complete = |encoded: &[u8], public: &[CircuitInput<F>]| -> Result<(), String> {
-        let verifier = ZkVerifier::new(circuit(f), config, &context).map_err(|e| e.to_string())?;
+        let verifier = ZkVerifier::new(circuit(f), config, &bounded).map_err(|e| e.to_string())?;
         let statement = verifier
             .statement(CONTEXT, public)
             .map_err(|e| e.to_string())?;
@@ -256,7 +238,7 @@ fn exercise<
             ZkProof::read(encoded, &bound, f).map_err(|e| e.to_string())?
         };
         let verified = verifier
-            .verify(session, parsed, &context)
+            .verify(session, parsed, &bounded)
             .map_err(|e| e.to_string())?;
         // Prover and verifier run one schedule (transcript I9).
         assert_eq!(verified.trace, encoded_proof.trace);
@@ -279,7 +261,7 @@ fn exercise<
     }
     let verify = |inputs: Vec<CircuitInput<F>>, candidate: &ZkProof<W, F>| {
         let statement = v.statement(CONTEXT, &inputs).map_err(|e| e.to_string())?;
-        v.reduce(Opened::new(&statement), candidate, &context)
+        v.reduce(Opened::new(&statement), candidate, &bounded)
             .map_err(|e| e.to_string())
     };
     verify(public.clone(), &decoded).unwrap();
@@ -297,21 +279,21 @@ fn exercise<
             id[0] ^= 1;
             crate::core::proto::v2::Circuit::with_test_id(id, c.into_raw())
         };
-        let other_prover = ZkProver::new(other_circuit(), config, &context).unwrap();
+        let other_prover = ZkProver::new(other_circuit(), config, &bounded).unwrap();
         let other_statement = other_prover.statement(CONTEXT, &public).unwrap();
         let committed = other_prover
             .commit(
                 witness.to_vec(),
                 &other_statement,
-                &context,
+                &bounded,
                 &mut DeterministicRng::new(42),
             )
             .unwrap();
         let other_bytes = other_prover
-            .prove(committed, &context)
+            .prove(committed, &bounded)
             .unwrap()
             .into_bytes();
-        let other_verifier = ZkVerifier::new(other_circuit(), config, &context).unwrap();
+        let other_verifier = ZkVerifier::new(other_circuit(), config, &bounded).unwrap();
         let other_proof =
             read_standalone(&other_verifier, CONTEXT, &public, &other_bytes, f).unwrap();
         assert_eq!(other_proof.com, decoded.com);
@@ -319,7 +301,7 @@ fn exercise<
 
         let other_statement = other_verifier.statement(CONTEXT, &public).unwrap();
         other_verifier
-            .reduce(Opened::new(&other_statement), &other_proof, &context)
+            .reduce(Opened::new(&other_statement), &other_proof, &bounded)
             .unwrap();
     }
     let bad_public = vec![base.zero()];
@@ -404,12 +386,12 @@ fn exercise<
         use super::ZkVerificationError as E;
         let rejected = |candidate: &ZkProof<W, F>| {
             let own = v.statement(CONTEXT, &public).unwrap();
-            v.reduce(Opened::new(&own), candidate, &context).err()
+            v.reduce(Opened::new(&own), candidate, &bounded).err()
         };
-        let other = ZkVerifier::new(circuit(f), config, &context).unwrap();
+        let other = ZkVerifier::new(circuit(f), config, &bounded).unwrap();
         let other_statement = other.statement(CONTEXT, &public).unwrap();
         let wrong = v
-            .reduce(Opened::new(&other_statement), &decoded, &context)
+            .reduce(Opened::new(&other_statement), &decoded, &bounded)
             .err();
         assert!(matches!(wrong, Some(E::InvalidStatement(_))), "{wrong:?}");
         let mut short_sumcheck = (*decoded).clone();
@@ -505,12 +487,12 @@ pub(super) fn prove_standalone<
     context: &[u8],
     public: &[CircuitInput<F>],
     private: Vec<CircuitInput<F>>,
-    ctx: &ZkContext<'_, W, F, D>,
+    domain: &D,
     rng: &mut impl crate::runtime::random::PrivateRandom,
 ) -> Result<(EncodedProof, crate::runtime::v2::proto::zk::ZkProofGeometry), String> {
     let statement = prover.statement(context, public)?;
-    let committed = prover.commit(private, &statement, ctx, rng)?;
-    let proof = prover.prove(committed, ctx)?;
+    let committed = prover.commit(private, &statement, domain, rng)?;
+    let proof = prover.prove(committed, domain)?;
     Ok((proof, statement.geometry.clone()))
 }
 /// Reduce and authenticate `proof` on a transcript opened with its statement.
@@ -523,10 +505,10 @@ pub(super) fn reduce_standalone<
     context: &[u8],
     public: &[CircuitInput<F>],
     proof: &ZkProof<W, F>,
-    ctx: &ZkContext<'_, W, F, D>,
+    domain: &D,
 ) -> Result<super::Authenticated, super::ZkVerificationError> {
     let statement = verifier.statement(context, public)?;
-    verifier.reduce(Opened::new(&statement), proof, ctx)
+    verifier.reduce(Opened::new(&statement), proof, domain)
 }
 /// Parse a complete proof against the geometry of its statement.
 pub(super) fn read_standalone<

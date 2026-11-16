@@ -25,7 +25,7 @@ use crate::{
                 packing_commitment::{prover::PackingState, PackingCommitment},
                 split::PendingSplit,
                 storage::{Split, Storage},
-                CircuitInput, InputLayout, JointProver, VirtualInputs, ZkContext, ZkProofStatement,
+                CircuitInput, InputLayout, JointProver, VirtualInputs, ZkProofStatement,
             },
         },
     },
@@ -121,11 +121,10 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
 /// completes the shared Polygero proof against the original commitment.
 /// Continue the transcript used for that commitment. All participants must
 /// finish this reduction before the joint backend samples its challenges.
-pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField>(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
     state: CircuitState<W, F>,
     virtual_inputs: &VirtualInputs<F::E>,
-    ctx: &ZkContext<'_, W, F, D>,
 ) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
     let part = t.part();
     let p = part.participant;
@@ -137,7 +136,7 @@ pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationD
         .pads
         .validate(p.geometry.sumcheck())
         .map_err(|e| e.to_string())?;
-    let f = ctx.field();
+    let f = part.field();
     let private = p
         .backend
         .parameters
@@ -203,9 +202,9 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
     pub fn new<D: EvaluationDomain<W, F>>(
         circuit: Circuit<F>,
         config: PolygeroConfig,
-        ctx: &ZkContext<'_, W, F, D>,
+        domain: &D,
     ) -> Result<Self, String> {
-        let participant = CircuitParticipant::new(&[&circuit], 0, config, ctx)?;
+        let participant = CircuitParticipant::new(&[&circuit], 0, config, domain)?;
         Ok(Self {
             circuit,
             participant,
@@ -225,7 +224,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         &self,
         private: Vec<CircuitInput<F>>,
         statement: &'s ZkProofStatement<'s, W, F>,
-        ctx: &ZkContext<'_, W, F, D>,
+        domain: &D,
         rng: &mut R,
     ) -> Result<ZkProverCommitment<'s, W, F>, String> {
         if !std::ptr::eq(statement.part.participant, &self.participant) {
@@ -235,7 +234,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
             return Err("witness length mismatch".into());
         }
         let (state, witness) = self.participant.prepare(private, rng)?;
-        let param = JointParam::new((self.participant.participant(ctx)?, ()))?;
+        let param = JointParam::new((self.participant.participant(domain)?, ()))?;
         let (joint, commitment, (fingerprints, ())) =
             param.commit((witness, ()), Transcript::new(statement), rng)?;
         Ok(ZkProverCommitment {
@@ -251,15 +250,15 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
     pub fn prove<D: EvaluationDomain<W, F>>(
         &self,
         mut committed: ZkProverCommitment<'_, W, F>,
-        ctx: &ZkContext<'_, W, F, D>,
+        domain: &D,
     ) -> Result<EncodedProof, String> {
         let statement = committed.statement;
         if !std::ptr::eq(statement.part.participant, &self.participant) {
             return Err("statement belongs to another prover".into());
         }
         let mut t = committed.joint.bound(&statement.part);
-        let (circuit, linear) = prove(&mut t, committed.state, &VirtualInputs::none(), ctx)?;
-        let param = JointParam::new((self.participant.participant(ctx)?, ()))?;
+        let (circuit, linear) = prove(&mut t, committed.state, &VirtualInputs::none())?;
+        let param = JointParam::new((self.participant.participant(domain)?, ()))?;
         // The opening follows the frontend's last message.
         let (com_proof, transcript) = committed.joint.finish(&param, (linear, ()))?;
         let proof = ZkProof {
@@ -270,7 +269,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
             com_proof,
         };
         proof
-            .write(&statement.geometry, ctx.field(), transcript)
+            .write(&statement.geometry, self.participant.field(), transcript)
             .map_err(|e| e.to_string())
     }
 }
@@ -340,14 +339,9 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
 /// Run the split frontend of `t`'s part, which draws its top weights on
 /// entry, and reduce its constraints to the claim its storage discharges (`split_claim`),
 /// before the split challenge.
-pub(crate) fn prove_split<
-    const W: usize,
-    F: ZkField<W> + PackingField,
-    D: EvaluationDomain<W, F>,
->(
+pub(crate) fn prove_split<const W: usize, F: ZkField<W> + PackingField>(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
     state: SplitState<W, F>,
-    ctx: &ZkContext<'_, W, F, D>,
 ) -> Result<(SumcheckProof<W, F>, PendingSplit<F::E>), String> {
     let part = t.part();
     let p = part.participant;
@@ -355,7 +349,7 @@ pub(crate) fn prove_split<
     if !p.prepared(&state.participant) {
         return Err("split state belongs to another participant".into());
     }
-    let f = ctx.field();
+    let f = part.field();
     let mut inputs = part.public.to_vec();
     inputs.extend_from_slice(&state.values[..p.inputs.committed()]);
     let (proof, constraints) = sumcheck::evaluate_and_prove_circuits(
@@ -365,7 +359,7 @@ pub(crate) fn prove_split<
         &mut t.transcript(),
         f,
     )?;
-    let claim = CircuitParticipant::split_claim(t, constraints, f)?;
+    let claim = CircuitParticipant::split_claim(t, constraints)?;
     Ok((
         proof,
         PendingSplit {

@@ -2,7 +2,7 @@
 
 `runtime::v2::zk` composes projective sumcheck, authenticated input packing and
 nonrecursive Polygero. `runtime::v1::zk` retains the separate deployed protocol.
-`ZkProver`, `ZkVerifier`, `ZkContext` and `ZkProverCommitment` provide standalone
+`ZkProver`, `ZkVerifier` and `ZkProverCommitment` provide standalone
 proofs. `joint::JointParam` owns early witness selection and the final joint
 authentication for standalone and application proofs. `joint::CircuitParticipant`
 supplies circuit reductions to that wrapper. Prover and verifier orchestration
@@ -22,9 +22,9 @@ uniform verifier challenges; it assumes independent uniform private coins.
 
 ## Commitment and field participants
 
-`ZkContext::new(domain)` obtains its field directly from the ordered interpolation
-domain. Parameters and participants use that same field; no separate arithmetic
-instance can be attached. The joint handles take the transcript by value at
+A participant takes its field from the ordered interpolation domain it is built
+with, and every frontend takes its field from its participant (`FrontendPart::field`);
+no separate arithmetic instance can be attached. The joint handles take the transcript by value at
 commit or receive and own it through the frontend reductions and the
 authentication; they have no public transcript accessor. A frontend reaches the
 session only through a handle's crate-private `bound()`, after the fingerprint

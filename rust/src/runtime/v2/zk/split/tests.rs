@@ -18,7 +18,6 @@ use crate::{
                 joint::{CircuitParticipant, FrontendPart},
                 split::value_count,
                 storage::{Group, StorageMap},
-                ZkContext,
             },
         },
     },
@@ -56,24 +55,23 @@ const CONFIG: PolygeroConfig = PolygeroConfig {
 fn pure_foreign_participant_cannot_join_the_joint_backend() {
     let f = P256Field::new();
     let domain = ScalarInterpolatorFactory::new(&f, 128);
-    let ctx = ZkContext::new(&domain);
     let c = small_circuit(&f);
     let n = value_count(&c).unwrap();
     let groups: Vec<_> = (0..n)
         .map(|i| (i, Group::new(i * 256, 256).unwrap()))
         .collect();
     let storage = StorageMap::new(n, &groups).unwrap();
-    let part = CircuitParticipant::with_storage(&c, storage, None, CONFIG, &ctx).unwrap();
+    let part = CircuitParticipant::with_storage(&c, storage, None, CONFIG, &domain).unwrap();
     assert!(!part.commits());
-    assert!(part.participant(&ctx).is_err());
+    assert!(part.participant(&domain).is_err());
     assert_eq!(part.geometry().nw(), 0);
     // A mixed participant still joins, with its native cells, R and the
     // fingerprint masks.
     let mixed = StorageMap::new(n, &[(0, Group::new(7, 1).unwrap())]).unwrap();
     let mask = Some(Group::new(20, 256).unwrap());
-    let joined = CircuitParticipant::with_storage(&c, mixed, mask, CONFIG, &ctx).unwrap();
+    let joined = CircuitParticipant::with_storage(&c, mixed, mask, CONFIG, &domain).unwrap();
     assert!(joined.commits());
-    let selected = joined.participant(&ctx).unwrap();
+    let selected = joined.participant(&domain).unwrap();
     assert_eq!(selected.geometry().nw, joined.geometry().nw());
     assert!(zk::joint::JointParam::new((selected, ())).is_ok());
 }
@@ -82,7 +80,6 @@ fn pure_foreign_participant_cannot_join_the_joint_backend() {
 fn mixed_split_authenticates_native_rows_and_foreign_values() {
     let f = P256Field::new();
     let domain = ScalarInterpolatorFactory::new(&f, 128);
-    let ctx = ZkContext::new(&domain);
     let c = small_circuit(&f);
     // Value 0 (the first private input) lives in the binary commitment.
     let shared = Group::new(7, 1).unwrap();
@@ -90,7 +87,7 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     let values = value_count(&c).unwrap();
     let storage = StorageMap::new(values, &[(0, shared)]).unwrap();
     let part =
-        CircuitParticipant::with_storage(&c, storage, Some(mask_group), CONFIG, &ctx).unwrap();
+        CircuitParticipant::with_storage(&c, storage, Some(mask_group), CONFIG, &domain).unwrap();
     assert!(part.commits());
     let source = f.one();
     let native = f.zero();
@@ -111,13 +108,11 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     let (proof, reduction) = zk::prove_split(
         &mut tp.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
         state,
-        &ctx,
     )
     .unwrap();
     let checked = zk::reduce_split(
         &mut tv.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
         &proof,
-        &ctx,
     )
     .unwrap();
     assert_eq!(reduction.claim.claim.weights, checked.claim.weights);
@@ -164,7 +159,6 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     let claim = zk::reduce_split(
         &mut t.bound(&FrontendPart::new(&part, &[&c], &[f.one()]).unwrap()),
         &forged,
-        &ctx,
     )
     .unwrap();
     let mu = f.addf(
@@ -181,7 +175,6 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
 fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
     let f = P256Field::new();
     let domain = ScalarInterpolatorFactory::new(&f, 128);
-    let ctx = ZkContext::new(&domain);
     let c = small_circuit(&f);
     let values = value_count(&c).unwrap();
     let group = |i: usize| Group::new(256 * i, 256).unwrap();
@@ -193,10 +186,10 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
         storage.clone(),
         Some(group(values)),
         CONFIG,
-        &ctx
+        &domain
     )
     .is_err());
-    let part = CircuitParticipant::with_storage(&c, storage, None, CONFIG, &ctx).unwrap();
+    let part = CircuitParticipant::with_storage(&c, storage, None, CONFIG, &domain).unwrap();
     assert!(!part.commits());
     let private = vec![f.u64_to_element(5), f.zero()];
     let (_, witness) = part
@@ -216,9 +209,9 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
         let mut tp = Transcript::for_test(b"pure");
         let mut tv = tp.fork_for_test();
         let mut prover = tp.bound(&frontend);
-        let (proof, pending) = zk::prove_split(&mut prover, state, &ctx).unwrap();
+        let (proof, pending) = zk::prove_split(&mut prover, state).unwrap();
         let mut verifier = tv.bound(&frontend);
-        let claim = zk::reduce_split(&mut verifier, &proof, &ctx).unwrap();
+        let claim = zk::reduce_split(&mut verifier, &proof).unwrap();
         assert_eq!(pending.claim.claim.weights, claim.claim.weights);
         assert_eq!(pending.claim.claim.target, claim.claim.target);
         // No mask: the mixed split's message and native row do not apply.
@@ -233,12 +226,12 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
             .borrow()
             .draw(|r| r.elements(&f, count).for_each(drop));
         let witness_values = pending.values.clone();
-        let batched = pending.claim.batch(&mut prover, &f);
+        let batched = pending.claim.batch(&mut prover);
         assert_eq!(
             prover.transcript().fork_for_test().bytes(32),
             reference.bytes(32)
         );
-        let checked = claim.batch(&mut verifier, &f).unwrap();
+        let checked = claim.batch(&mut verifier).unwrap();
         (batched, checked, witness_values)
     };
     let (batched, checked, honest) = run();
@@ -259,12 +252,11 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
 fn open_and_receive_draw_eta_and_agree() {
     let f = P256Field::new();
     let domain = ScalarInterpolatorFactory::new(&f, 128);
-    let ctx = ZkContext::new(&domain);
     let c = small_circuit(&f);
     let values = value_count(&c).unwrap();
     let storage = StorageMap::new(values, &[(0, Group::new(7, 1).unwrap())]).unwrap();
     let mask = Group::new(20, 256).unwrap();
-    let part = CircuitParticipant::with_storage(&c, storage, Some(mask), CONFIG, &ctx).unwrap();
+    let part = CircuitParticipant::with_storage(&c, storage, Some(mask), CONFIG, &domain).unwrap();
     let public = [f.one()];
     let frontend = FrontendPart::new(&part, &[&c], &public).unwrap();
     assert!(std::ptr::eq(frontend.participant, &part));
@@ -282,12 +274,12 @@ fn open_and_receive_draw_eta_and_agree() {
         let mut tp = Transcript::for_test(b"split/eta");
         let mut tv = tp.fork_for_test();
         let mut prover = tp.bound(&frontend);
-        let (proof, pending) = zk::prove_split(&mut prover, state, &ctx).unwrap();
-        let opened = pending.open(&mut prover, &f);
+        let (proof, pending) = zk::prove_split(&mut prover, state).unwrap();
+        let opened = pending.open(&mut prover);
         let mut verifier = tv.bound(&frontend);
-        let claim = zk::reduce_split(&mut verifier, &proof, &ctx).unwrap();
+        let claim = zk::reduce_split(&mut verifier, &proof).unwrap();
         let received = match &opened {
-            Ok((mu, _)) => Some(claim.receive(&mut verifier, mu, &f)),
+            Ok((mu, _)) => Some(claim.receive(&mut verifier, mu)),
             Err(_) => None,
         };
         (opened, received, tp.bytes(32), tv.bytes(32))
@@ -309,13 +301,12 @@ fn open_and_receive_draw_eta_and_agree() {
 fn split_state_proves_only_for_its_own_participant() {
     let f = P256Field::new();
     let domain = ScalarInterpolatorFactory::new(&f, 128);
-    let ctx = ZkContext::new(&domain);
     let c = small_circuit(&f);
     let values = value_count(&c).unwrap();
     let mask = Some(Group::new(20, 256).unwrap());
     let participant = |start| {
         let storage = StorageMap::new(values, &[(0, Group::new(start, 1).unwrap())]).unwrap();
-        CircuitParticipant::with_storage(&c, storage, mask, CONFIG, &ctx).unwrap()
+        CircuitParticipant::with_storage(&c, storage, mask, CONFIG, &domain).unwrap()
     };
     let (own, other) = (participant(7), participant(8));
     assert_eq!(own.geometry(), other.geometry());
@@ -330,7 +321,7 @@ fn split_state_proves_only_for_its_own_participant() {
         let mut t = Transcript::for_test(b"split-identity");
         let public = [f.one()];
         let frontend = FrontendPart::new(part, &[&c], &public).unwrap();
-        zk::prove_split(&mut t.bound(&frontend), state, &ctx).map(|_| ())
+        zk::prove_split(&mut t.bound(&frontend), state).map(|_| ())
     };
     assert_eq!(
         prove(&other).unwrap_err(),

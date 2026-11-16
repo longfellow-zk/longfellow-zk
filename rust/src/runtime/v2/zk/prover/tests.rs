@@ -35,7 +35,6 @@ use crate::{
                 constraint_compiler,
                 joint::{JointParam, SelectedField},
                 packing_commitment::PackingCommitment,
-                ZkContext,
             },
         },
     },
@@ -85,7 +84,6 @@ fn evaluation_failures_do_not_disclose_witness_values() {
 fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let f = Gf2_128Field::new();
     let domain = BinaryInterpolatorFactory::full_field(&f);
-    let context = ZkContext::new(&domain);
     let raw = RawCircuit {
         ninput: 4,
         npublic_input: 1,
@@ -126,7 +124,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
             n: 128,
             t: 2,
         },
-        &context,
+        &domain,
     )
     .unwrap();
     let public = vec![true];
@@ -137,7 +135,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     // Reject a wrong witness length before sampling private masks.
     let mut rejected_rng = DeterministicRng::new(42);
     assert!(matches!(
-        prover.commit([].to_vec(), &statement, &context, &mut rejected_rng),
+        prover.commit([].to_vec(), &statement, &domain, &mut rejected_rng),
         Err(error) if error == "witness length mismatch"
     ));
     assert_eq!(rejected_rng.bytes(32), DeterministicRng::new(42).bytes(32));
@@ -153,7 +151,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         .commit(
             witness.to_vec(),
             &statement,
-            &context,
+            &domain,
             &mut DeterministicRng::new(42),
         )
         .unwrap();
@@ -161,13 +159,13 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         .commit(
             witness.to_vec(),
             &statement,
-            &context,
+            &domain,
             &mut DeterministicRng::new(42),
         )
         .unwrap();
     assert_eq!(committed.commitment, reference.commitment);
     let geometry = statement.geometry.clone();
-    let actual = prover.prove(committed, &context).unwrap().into_bytes();
+    let actual = prover.prove(committed, &domain).unwrap().into_bytes();
 
     let independent_param = JointParam::new((
         SelectedField::new(
@@ -247,7 +245,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         source,
     )
     .unwrap();
-    let joint = JointParam::new((prover.participant.participant(&context).unwrap(), ())).unwrap();
+    let joint = JointParam::new((prover.participant.participant(&domain).unwrap(), ())).unwrap();
     let (com_proof, numerical) = reference.joint.finish(&joint, (native, ())).unwrap();
     let rows = reduce(
         &mut independent_verifier.bound(&verifier_backend.parameters),
@@ -300,7 +298,6 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
 fn prove_rejects_a_state_of_another_participant() {
     let f = Gf2_128Field::new();
     let domain = BinaryInterpolatorFactory::full_field(&f);
-    let context = ZkContext::new(&domain);
     let raw = || RawCircuit {
         ninput: 3,
         npublic_input: 1,
@@ -339,21 +336,21 @@ fn prove_rejects_a_state_of_another_participant() {
         n: 64,
         t: 2,
     };
-    let prover = ZkProver::new(circuit, config, &context).unwrap();
-    let other = ZkProver::new(renamed, config, &context).unwrap();
+    let prover = ZkProver::new(circuit, config, &domain).unwrap();
+    let other = ZkProver::new(renamed, config, &domain).unwrap();
     // x1 * x2 = 0: the witness satisfies the circuit, so only the check rejects.
     let (public, witness) = (vec![true], vec![false, true]);
     let statement = prover.statement(b"state", &public).unwrap();
     let other_statement = other.statement(b"state", &public).unwrap();
     let mut rng = DeterministicRng::new(5);
     let mut committed = prover
-        .commit(witness.clone(), &statement, &context, &mut rng)
+        .commit(witness.clone(), &statement, &domain, &mut rng)
         .unwrap();
     let foreign = other
-        .commit(witness, &other_statement, &context, &mut rng)
+        .commit(witness, &other_statement, &domain, &mut rng)
         .unwrap();
     let mut t = committed.joint.bound(&statement.part);
-    let result = prove(&mut t, foreign.state, &VirtualInputs::none(), &context);
+    let result = prove(&mut t, foreign.state, &VirtualInputs::none());
     assert_eq!(
         result.err().unwrap(),
         "commitment belongs to another participant"

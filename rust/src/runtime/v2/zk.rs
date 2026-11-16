@@ -28,8 +28,10 @@
 //!
 //! The prover runs numerical sumcheck; the verifier reconstructs its constraints
 //! from the messages. Both use the same constraint compiler and codec layout.
-//! `context` borrows the interpolation domain and derives the layout from the
-//! circuit. Prover and verifier orchestration remain in separate role modules.
+//! `context` derives the layout from the circuit; a participant keeps the
+//! field of the interpolation domain it was built with, and every frontend
+//! takes its field from its participant. Prover and verifier orchestration
+//! remain in separate role modules.
 //!
 //! Every type the standalone role APIs return has one public path here:
 //!
@@ -58,9 +60,9 @@ pub(crate) mod split;
 pub(crate) mod storage;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;
+pub use context::CircuitInput;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) use context::InputLayout;
-pub use context::{CircuitInput, ZkContext};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) use context::{VirtualInput, VirtualInputs};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]

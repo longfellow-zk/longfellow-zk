@@ -30,7 +30,7 @@ where
     ) -> Result<(ComposedProof<H, Host, W, F, M::Message>, Transcript), String> {
         let (this, transcript) = session.into_parts();
         let c = this.composition;
-        let (fh, fs) = (c.host_ctx.field(), c.split_ctx.field());
+        let (fh, fs) = (c.host.field(), c.split.field());
         // The split mask R and the mode's pads fill the reserved suffix.
         let mask = rng.elt_field(fs);
         let pads = c.mode.sample_pads(rng);
@@ -53,9 +53,9 @@ where
         // then the split of its input equation, whose eta extends the
         // frontend's last combine answer.
         let mut ts = joint.bound(&this.split);
-        let (split_sumcheck, pending) = zk::prove_split(&mut ts, state_split, &c.split_ctx)?;
+        let (split_sumcheck, pending) = zk::prove_split(&mut ts, state_split)?;
         let values = c.split.foreign_values(&pending)?;
-        let (mu, split) = pending.open(&mut ts, fs)?;
+        let (mu, split) = pending.open(&mut ts)?;
 
         // Adapter rounds, whose conversion pair follows the split message,
         // then the host frontend with the mode's fragment, whose top weights
@@ -63,7 +63,7 @@ where
         let mut ta = joint.bound(&c.mode);
         let (message, leaves) = M::prove(&mut ta, &split.foreign, &values, pads, fs, fh)?;
         let mut th = joint.bound(&this.host);
-        let (host, statement_host) = zk::prove(&mut th, state_host, &leaves, &c.host_ctx)?;
+        let (host, statement_host) = zk::prove(&mut th, state_host, &leaves)?;
         // The opening follows the host frontend's last message.
         let equations = (statement_host, (split.statement, ()));
         let (polygero, transcript) = joint.finish(&param, equations)?;

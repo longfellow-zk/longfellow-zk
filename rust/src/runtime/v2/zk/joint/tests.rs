@@ -241,7 +241,6 @@ fn circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
 fn frontend_part_takes_only_its_participants_circuits() {
     let f = Gf2_128Field::new();
     let domain = BinaryInterpolatorFactory::full_field(&f);
-    let ctx = ZkContext::new(&domain);
     let (main, side) = circuits(&f);
     let config = PolygeroConfig {
         k: 64,
@@ -249,7 +248,7 @@ fn frontend_part_takes_only_its_participants_circuits() {
         n: 256,
         t: 8,
     };
-    let p = CircuitParticipant::new(&[&main, &side], 0, config, &ctx).unwrap();
+    let p = CircuitParticipant::new(&[&main, &side], 0, config, &domain).unwrap();
     let renamed = |c: Circuit<Gf2_128Field>| {
         let mut id = c.id;
         id[0] ^= 1;
@@ -276,7 +275,6 @@ fn frontend_part_takes_only_its_participants_circuits() {
 fn binary_circuits_authenticate_one_shared_input() {
     let f = Gf2_128Field::new();
     let domain = BinaryInterpolatorFactory::full_field(&f);
-    let ctx = ZkContext::new(&domain);
     let (main, side) = circuits(&f);
     let config = PolygeroConfig {
         k: 64,
@@ -287,14 +285,14 @@ fn binary_circuits_authenticate_one_shared_input() {
     for count in [0, 1, 3, 5] {
         let mut components = vec![&main];
         components.extend(vec![&side; count]);
-        let p = CircuitParticipant::new(&components, 0, config, &ctx).unwrap();
+        let p = CircuitParticipant::new(&components, 0, config, &domain).unwrap();
         let private = vec![true, true, false];
         let mut rng = DeterministicRng::new(77);
         let (state, w) = p.prepare(private.to_vec(), &mut rng).unwrap();
         // Circuit multiplicity changes pads, but never duplicates the packed input.
         assert_eq!(p.backend.layout.private_inputs, 3);
         let param =
-            crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ()))
+            crate::runtime::v2::zk::joint::JointParam::new((p.participant(&domain).unwrap(), ()))
                 .unwrap();
         let t = Transcript::for_test(b"fragmented-pcs-test");
         let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
@@ -302,7 +300,6 @@ fn binary_circuits_authenticate_one_shared_input() {
             &mut joint.bound(&FrontendPart::new(&p, &components, &[true]).unwrap()),
             state,
             &VirtualInputs::none(),
-            &ctx,
         )
         .unwrap();
         let (opening, _) = joint.finish(&param, (statement, ())).unwrap();
@@ -313,7 +310,6 @@ fn binary_circuits_authenticate_one_shared_input() {
                 &mut v.bound(&FrontendPart::new(&p, &components, &[public])?),
                 candidate,
                 &VirtualInputs::none(),
-                &ctx,
             )?;
             v.finish((statement, ()), &opening)
                 .map(|_| ())
@@ -334,7 +330,7 @@ fn binary_circuits_authenticate_one_shared_input() {
             invalid.extend(vec![&wrong; count]);
             // No frontend part, and so no transcript use, for a mismatched layout.
             assert!(FrontendPart::new(&p, &invalid, &[true]).is_err());
-            assert!(CircuitParticipant::new(&invalid, 0, config, &ctx).is_err());
+            assert!(CircuitParticipant::new(&invalid, 0, config, &domain).is_err());
         }
     }
 }
@@ -348,7 +344,6 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     let f2 = Fp2Field::new(&f);
     let domain =
         QuadraticExtensionFftInterpolatorFactory::new(&f, &f2, f2.omega(), f2.omega_order());
-    let ctx = ZkContext::new(&domain);
     let (main, side) = circuits(&f);
     let components = [&main, &side, &main];
     let p = CircuitParticipant::new(
@@ -360,7 +355,7 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
             n: 256,
             t: 8,
         },
-        &ctx,
+        &domain,
     )
     .unwrap();
     let mut private = [2, 3, 0].map(|x| f.u64_to_element(x)).to_vec();
@@ -376,14 +371,14 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     substituted.extend(private);
     assert!(eval_circuit(substituted, &main, &f).is_err());
     let param =
-        crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ())).unwrap();
+        crate::runtime::v2::zk::joint::JointParam::new((p.participant(&domain).unwrap(), ()))
+            .unwrap();
     let t = Transcript::for_test(b"prime-fragmented-pcs-test");
     let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
     let (proof, statement) = zk::prove(
         &mut joint.bound(&FrontendPart::new(&p, &components, &public).unwrap()),
         state,
         &VirtualInputs::none(),
-        &ctx,
     )
     .unwrap();
     assert!(matches!(proof.packing, PackingProof::Direct));
@@ -394,7 +389,6 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
         &mut v.bound(&FrontendPart::new(&p, &components, &public).unwrap()),
         &proof,
         &VirtualInputs::none(),
-        &ctx,
     )
     .unwrap();
     let mut tv = v
@@ -426,7 +420,7 @@ fn malformed_public_prefix_is_an_error_before_sampling() {
             n: 64,
             t: 2,
         },
-        &ZkContext::new(&domain),
+        &domain,
     );
     assert!(matches!(result, Err(ref e) if e == "public prefix"));
 }
@@ -440,7 +434,6 @@ fn final_seal_failure_has_its_own_verification_error() {
     };
     let f = Gf2_128Field::new();
     let domain = BinaryInterpolatorFactory::full_field(&f);
-    let context = ZkContext::new(&domain);
     let (circuit, _) = circuits(&f);
     let config = PolygeroConfig {
         k: 64,
@@ -448,25 +441,25 @@ fn final_seal_failure_has_its_own_verification_error() {
         n: 448,
         t: 24,
     };
-    let prover = ZkProver::new(circuit, config, &context).unwrap();
+    let prover = ZkProver::new(circuit, config, &domain).unwrap();
     let private = vec![false; 3];
     let statement = prover.statement(b"seal error", &[false]).unwrap();
     let committed = prover
         .commit(
             private.to_vec(),
             &statement,
-            &context,
+            &domain,
             &mut DeterministicRng::new(45),
         )
         .unwrap();
-    let mut bytes = prover.prove(committed, &context).unwrap().into_bytes();
+    let mut bytes = prover.prove(committed, &domain).unwrap().into_bytes();
     drop(statement);
-    let verifier = ZkVerifier::new(prover.circuit, config, &context).unwrap();
+    let verifier = ZkVerifier::new(prover.circuit, config, &domain).unwrap();
     let check = |bytes: &[u8]| {
         let statement = verifier.statement(b"seal error", &[false]).unwrap();
         let mut session = Opened::new(&statement);
         let decoded = ZkProof::read(bytes, &session.bound(|s| &s.geometry), &f).unwrap();
-        verifier.verify(session, decoded, &context).map(|_| ())
+        verifier.verify(session, decoded, &domain).map(|_| ())
     };
     check(&bytes).unwrap();
     *bytes.last_mut().unwrap() ^= 1;
@@ -484,7 +477,6 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     use crate::{core::algebra::SupportsU128Conversions, runtime::v2::zk::VirtualInput};
     let f = Gf2_128Field::new();
     let domain = BinaryInterpolatorFactory::full_field(&f);
-    let ctx = ZkContext::new(&domain);
     let (main, _) = circuits(&f);
     // Output: in[4] + 1, which vanishes iff the virtual entry equals one.
     let fragment = Circuit::from_raw(
@@ -510,7 +502,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
         n: 256,
         t: 8,
     };
-    let p = CircuitParticipant::new(&[&main, &fragment], 1, config, &ctx).unwrap();
+    let p = CircuitParticipant::new(&[&main, &fragment], 1, config, &domain).unwrap();
     assert_eq!(p.backend.layout.private_inputs, 3);
     assert_eq!((p.inputs.committed_end, p.inputs.ninput), (4, 5));
     // x[1] = 1, so c0 + c1 = 1 makes the virtual entry one.
@@ -524,7 +516,8 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     };
     let honest = definition(c0);
     let param =
-        crate::runtime::v2::zk::joint::JointParam::new((p.participant(&ctx).unwrap(), ())).unwrap();
+        crate::runtime::v2::zk::joint::JointParam::new((p.participant(&domain).unwrap(), ()))
+            .unwrap();
     let mut rng = DeterministicRng::new(91);
     let (state, w) = p.prepare(vec![true, true, false], &mut rng).unwrap();
     let t = Transcript::for_test(b"virtual-inputs-test");
@@ -533,7 +526,6 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
         &mut joint.bound(&FrontendPart::new(&p, &[&main, &fragment], &[true]).unwrap()),
         state,
         &honest,
-        &ctx,
     )
     .unwrap();
     let (opening, _) = joint.finish(&param, (statement, ())).unwrap();
@@ -544,7 +536,6 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
             &mut v.bound(&FrontendPart::new(&p, &[&main, &fragment], &[true])?),
             &proof,
             definition,
-            &ctx,
         )?;
         v.finish((statement, ()), &opening)
             .map(|_| ())
@@ -578,11 +569,10 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
         &mut joint.bound(&FrontendPart::new(&p, &[&main, &fragment], &[true]).unwrap()),
         state,
         &tampered,
-        &ctx,
     )
     .is_err());
     // The primary circuit cannot read the virtual suffix.
-    assert!(CircuitParticipant::new(&[&fragment, &main], 1, config, &ctx).is_err());
+    assert!(CircuitParticipant::new(&[&fragment, &main], 1, config, &domain).is_err());
 }
 
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {

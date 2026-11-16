@@ -26,7 +26,7 @@ where
     ) -> Result<Authenticated, String> {
         let (this, transcript) = session.into_parts();
         let c = this.composition;
-        let (fh, fs) = (c.host_ctx.field(), c.split_ctx.field());
+        let (fh, fs) = (c.host.field(), c.split.field());
         let param = c.param()?;
         let mut joint = param.receive(&proof.commitment, proof.fingerprints.clone(), transcript);
 
@@ -34,8 +34,8 @@ where
         // then the split of its input equation, whose eta extends the
         // frontend's last combine answer.
         let mut ts = joint.bound(&this.split);
-        let claim = zk::reduce_split(&mut ts, &proof.split, &c.split_ctx)?;
-        let split = claim.receive(&mut ts, &proof.mu, fs)?;
+        let claim = zk::reduce_split(&mut ts, &proof.split)?;
+        let split = claim.receive(&mut ts, &proof.mu)?;
 
         // Adapter rounds, whose conversion pair follows the split message,
         // then the host frontend with the mode's fragment, whose top weights
@@ -43,7 +43,7 @@ where
         let mut ta = joint.bound(&c.mode);
         let leaves = M::verify(&mut ta, &split.foreign, &proof.message, fs, fh)?;
         let mut th = joint.bound(&this.host);
-        let statement_host = zk::reduce(&mut th, &proof.host, &leaves, &c.host_ctx)?;
+        let statement_host = zk::reduce(&mut th, &proof.host, &leaves)?;
         // The opening follows the host frontend's last message.
         let equations = (statement_host, (split.statement, ()));
         joint.finish(equations, &proof.polygero)

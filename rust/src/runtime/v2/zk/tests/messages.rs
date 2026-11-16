@@ -21,7 +21,7 @@ use crate::{
                 zk::ZkProof,
             },
             transcript::{Opened, Trace, VerifiedProof},
-            zk::{CircuitInput, ZkContext, ZkProver, ZkVerifier},
+            zk::{CircuitInput, ZkProver, ZkVerifier},
         },
     },
 };
@@ -42,24 +42,24 @@ pub(super) struct Standalone<const W: usize, F: ZkField<W> + PackingField> {
     pub(super) verifier: ZkVerifier<W, F>,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> Standalone<W, F> {
-    pub(super) fn new<D: EvaluationDomain<W, F>>(f: &F, ctx: &ZkContext<'_, W, F, D>) -> Self {
+    pub(super) fn new<D: EvaluationDomain<W, F>>(f: &F, domain: &D) -> Self {
         let extension = f.packing_extension();
         let base = extension.base();
         let public = vec![base.one()];
-        let prover = ZkProver::new(circuit(f), CONFIG, ctx).unwrap();
+        let prover = ZkProver::new(circuit(f), CONFIG, domain).unwrap();
         let (proof, _) = prove_standalone(
             &prover,
             CONTEXT,
             &public,
             vec![base.one(), base.one()],
-            ctx,
+            domain,
             &mut DeterministicRng::new(42),
         )
         .unwrap();
         Self {
             bytes: proof.into_bytes(),
             public,
-            verifier: ZkVerifier::new(circuit(f), CONFIG, ctx).unwrap(),
+            verifier: ZkVerifier::new(circuit(f), CONFIG, domain).unwrap(),
         }
     }
     /// The complete verification of `bytes`: open the session, parse
@@ -68,7 +68,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> Standalone<W, F> {
         &self,
         bytes: &[u8],
         f: &F,
-        ctx: &ZkContext<'_, W, F, D>,
+        domain: &D,
     ) -> Result<VerifiedProof, String> {
         let statement = self
             .verifier
@@ -77,7 +77,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> Standalone<W, F> {
         let mut session = Opened::new(&statement);
         let parsed = ZkProof::read(bytes, &session.geometry(), f).map_err(|e| e.to_string())?;
         self.verifier
-            .verify(session, parsed, ctx)
+            .verify(session, parsed, domain)
             .map_err(|e| e.to_string())
     }
 }
@@ -90,15 +90,14 @@ fn every_message<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDoma
     domain: &D,
     tags: &[Tag],
 ) {
-    let ctx = ZkContext::new(domain);
-    let proof = Standalone::new(f, &ctx);
-    let verified = proof.verify(&proof.bytes, f, &ctx).unwrap();
+    let proof = Standalone::new(f, domain);
+    let verified = proof.verify(&proof.bytes, f, domain).unwrap();
     let honest = &verified.trace;
     let messages = sent(honest, 4);
     let seen: BTreeSet<u64> = messages.iter().map(|m| m.tag).collect();
     assert_eq!(seen, tags.iter().map(|t| t.value()).collect());
     let verify = |altered: &[u8]| {
-        let (result, traces) = Trace::dropped(|| proof.verify(altered, f, &ctx));
+        let (result, traces) = Trace::dropped(|| proof.verify(altered, f, domain));
         (result.is_ok(), traces)
     };
     for m in &messages {
@@ -161,9 +160,8 @@ fn first_block_is_the_strands_first_prf_block() {
     };
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
-    let ctx = ZkContext::new(&d);
-    let proof = Standalone::new(&f, &ctx);
-    let verified = proof.verify(&proof.bytes, &f, &ctx).unwrap();
+    let proof = Standalone::new(&f, &d);
+    let verified = proof.verify(&proof.bytes, &f, &d).unwrap();
     let trace = &verified.trace;
     // The root's header is 16 bytes (u32 STRAND, u64 id 0, u32 no parent);
     // a continuation's adds its parent's digest.
@@ -181,15 +179,14 @@ fn every_byte_flip<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDo
     f: &F,
     domain: &D,
 ) {
-    let ctx = ZkContext::new(domain);
-    let proof = Standalone::new(f, &ctx);
-    proof.verify(&proof.bytes, f, &ctx).unwrap();
+    let proof = Standalone::new(f, domain);
+    proof.verify(&proof.bytes, f, domain).unwrap();
     let mut flipped = proof.bytes.clone();
     for i in 0..flipped.len() {
         for mask in [0x01, 0x80] {
             flipped[i] ^= mask;
             assert!(
-                proof.verify(&flipped, f, &ctx).is_err(),
+                proof.verify(&flipped, f, domain).is_err(),
                 "byte {i} flipped by {mask:#04x}"
             );
             flipped[i] ^= mask;
