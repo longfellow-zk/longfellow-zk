@@ -2,7 +2,8 @@
 use sha2::{Digest, Sha256};
 
 use super::{
-    compute_transcript_hash, parse_mdoc, parse_signature, required_map_value, validate_mso_layout,
+    compute_transcript_hash, parse_mdoc,
+    prover::{parse_signature, required_map_value, validate_mso_layout},
     MdocParseError,
 };
 use crate::{
@@ -173,7 +174,7 @@ fn item_witness(payload: &[u8], wide_header: bool) -> Result<super::ParsedAttr, 
     let mut digests = b"\xa1\x62ns\xa1\x01\x58\x20".to_vec();
     digests.extend_from_slice(&[0; 32]);
     let digests = CborParser::new(&digests).parse_exact().unwrap();
-    super::compute_witness(
+    super::prover::compute_witness(
         b"name".to_vec(),
         vec![0xf5],
         &wrapped,
@@ -247,7 +248,7 @@ fn element_identifiers_are_unique_only_within_their_namespace() {
         }
         encoded.extend_from_slice(&item);
         let issuer = CborParser::new(&encoded).parse_exact().unwrap();
-        let result = super::extract_attrs(&issuer, &encoded, &digests);
+        let result = super::prover::extract_attrs(&issuer, &encoded, &digests);
         if same_namespace {
             assert!(matches!(
                 result,

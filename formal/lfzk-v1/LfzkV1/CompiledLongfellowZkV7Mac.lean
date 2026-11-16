@@ -62,7 +62,7 @@ No step of `twofield_zk` is redone, and the bound is exactly its bound.
 the two 128-bit halves of its 32-byte little-endian encoding (`bytes[..16]`, `bytes[16..]`):
 
 * `issuer_sig_e` is `issuer_sig_digest`, the SHA-256 digest of the COSE `Sig_structure` of the
-  MSO (`rust/src/mdoc/cbor/mdoc.rs`), read big-endian as an integer;
+  MSO (`rust/src/mdoc/cbor/mdoc/prover.rs`), read big-endian as an integer;
 * `device_pk.x`, `device_pk.y` are the device key's P-256 affine coordinates (`deviceKeyInfo`).
 
 A zero block **is possible for honest inputs**: there are P-256 points with `x < 2^128` (high half
