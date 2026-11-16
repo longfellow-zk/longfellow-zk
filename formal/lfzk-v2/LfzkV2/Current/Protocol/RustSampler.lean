@@ -366,18 +366,25 @@ theorem fiber_pos (queries : c.t ≤ c.n) (wide : setupWidth S ≤ rustBlocks * 
 
 /-- A boundary aborts on at most `width * (1/2)^j` of all PRF streams, for
 every `j` with `j` attempts' worth of each draw within the cap. -/
-theorem round_abort_le (queries : c.t ≤ c.n) (index : Fin g.roles.length) (history block) (j : ℕ)
+theorem roleProg_abort_le (queries : c.t ≤ c.n) (index : Fin g.roles.length) (j : ℕ)
     (wide : j * (roleProg S degree index).width ≤ rustBlocks * 32) :
     (Nat.card {H : Strand.Word → Strand.Digest //
-        (((sampler S degree).data.sample (.round index history block)).run H).1 = none} : ℚ) /
+        ((lazySampler (roleProg S degree index) rustBlocks rustBlocks_fits).run H).1 = none} : ℚ) /
         Nat.card (Strand.Word → Strand.Digest) ≤
       (roleProg S degree index).width * (1 / 2 : ℚ) ^ j := by
-  rw [sampler_sample_round]
   refine (le_of_eq (lazySampler_abort _ _ _)).trans ?_
   refine ((Prog.read_abort _ j _ wide).trans
     (Prog.abortSum_le_halving j _ (kindProg_halving _ _ _ _ _ _ _ queries _))).trans ?_
   apply mul_le_mul_of_nonneg_right _ (by positivity)
   exact_mod_cast Prog.draws_le_width _
+
+theorem round_abort_le (queries : c.t ≤ c.n) (index : Fin g.roles.length) (history block) (j : ℕ)
+    (wide : j * (roleProg S degree index).width ≤ rustBlocks * 32) :
+    (Nat.card {H : Strand.Word → Strand.Digest //
+        (((sampler S degree).data.sample (.round index history block)).run H).1 = none} : ℚ) /
+        Nat.card (Strand.Word → Strand.Digest) ≤
+      (roleProg S degree index).width * (1 / 2 : ℚ) ^ j :=
+  roleProg_abort_le S degree queries index j wide
 
 /-- A concrete bound: when every boundary's reject-free width is at most
 `2^40` bytes, each boundary aborts on at most `2^-128` of its PRF streams. -/

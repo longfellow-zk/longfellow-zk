@@ -59,7 +59,9 @@ def pinned : List (Name × UInt64) := [
   (``Current.Mdoc.ZeroKnowledge.statClose, 11089277535653201106),
   (``Current.Mdoc.ZeroKnowledge.statClose_at_query_budget, 3608117319759410495),
   (``Current.Mdoc.VerifierPrivacy.acceptance_probability, 17334613443263901531),
-  (``Current.Mdoc.Completeness.rawReal_some_accepts, 15513187212161813640),
+  (``Current.Mdoc.Completeness.some_accepts, 4494509276498619142),
+  (``Current.Mdoc.Completeness.accepts, 14703360873936376765),
+  (``Current.Mdoc.Completeness.accepts_rust, 7576761460556919049),
   (``Current.Mdoc.Soundness.averaged_ratio_le_rust, 10790887318093611518),
   (``Current.Mdoc.ZeroKnowledge.statClose_rust, 9355581669937741965),
   (``Current.Mdoc.VerifierPrivacy.acceptance_probability_rust, 11679471597644133134)]
@@ -86,8 +88,13 @@ def required : List (Name × List Name) := [
       ``ZeroKnowledge.StrandVerifierObserver.optional, ``Current.Mdoc.ZeroKnowledge.honest,
       ``Current.Mdoc.ZeroKnowledge.simulate, ``Current.Mdoc.ZeroKnowledge.window,
       ``MdocWitness.HashValid, ``MdocIdentifiers.fragmentId]),
-  (``Current.Mdoc.Completeness.rawReal_some_accepts,
-    [``StrandVerifier.verify, ``ZeroKnowledge.StrandCanonicalExecution.rawReal,
+  (``Current.Mdoc.Completeness.some_accepts,
+    [``Current.Mdoc.Completeness.prove, ``Current.Mdoc.Completeness.verify, ``StrandVerifier.verify,
+      ``ZeroKnowledge.StrandCanonicalExecution.rawReal,
+      ``MdocWitness.HashValid, ``ZeroKnowledge.Frontend.CompleteHonest.primeInputs]),
+  (``Current.Mdoc.Completeness.accepts,
+    [``Current.Mdoc.Completeness.prove, ``Current.Mdoc.Completeness.verify, ``StrandVerifier.verify,
+      ``Current.Mdoc.Completeness.Sampled, ``TranscriptV2.StrandVerifier.sampled,
       ``MdocWitness.HashValid, ``ZeroKnowledge.Frontend.CompleteHonest.primeInputs]),
   -- The deployed corollaries must reach the Rust reader itself: its lazy
   -- block reading, its role programs and the exact draws.
@@ -104,6 +111,10 @@ def required : List (Name × List Name) := [
       ``Protocol.RustSampler.rustBlocks]),
   (``Current.Mdoc.VerifierPrivacy.acceptance_probability_rust,
     [``Current.Mdoc.VerifierPrivacy.afterVerifier, ``Protocol.RustSampler.lazySampler,
+      ``Protocol.RustSampler.kindProg, ``Protocol.RustSampler.rustBlocks]),
+  (``Current.Mdoc.Completeness.accepts_rust,
+    [``Current.Mdoc.Completeness.prove, ``Current.Mdoc.Completeness.verify,
+      ``Protocol.RustSampler.prfWindow, ``Protocol.RustSampler.lazySampler,
       ``Protocol.RustSampler.kindProg, ``Protocol.RustSampler.rustBlocks])]
 
 run_cmd do

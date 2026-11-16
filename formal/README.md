@@ -160,8 +160,8 @@ The composition takes typed setup, sampler and adversary records. Shared
 [`Protocol.Setup`](lfzk-v2/LfzkV2/Current/Protocol/Setup.lean) owns public runtime
 data. [`Protocol.ExecutionSampler`](lfzk-v2/LfzkV2/Current/Protocol/ExecutionSampler.lean)
 owns the executable callback; [`Protocol.Sampling`](lfzk-v2/LfzkV2/Current/Protocol/Sampling.lean)
-adds role factors and the soundness balance law. Privacy and conditional
-completeness do not import that latter module.
+adds role factors and the soundness balance law. Privacy and completeness do
+not import that latter module.
 [`Protocol.Execution`](lfzk-v2/LfzkV2/Current/Protocol/Execution.lean) owns the
 original/verifier trace observation and the original-query-bounded adversary.
 Soundness setup adds structural layout, framing and resource constraints;
@@ -268,17 +268,26 @@ When verification is included as a later observer, its raw calls count in
 `Qpost`. All new endpoint axiom checks permit only `propext`, `Classical.choice`
 and `Quot.sound`.
 
-[`Mdoc.Completeness.rawReal_some_accepts`](lfzk-v2/LfzkV2/Current/Mdoc/Completeness.lean)
-proves that every proof returned by the actual honest experiment passes the
-runtime verifier. It derives parsing, backend truth, original-column
-authentication and final sealing from ordinary witness truth and execution.
-This is conditional on an actual successful output; sampler aborts remain
-possible outcomes of the partial-reader model.
+[`Mdoc.Completeness.accepts`](lfzk-v2/LfzkV2/Current/Mdoc/Completeness.lean)
+proves deterministic completeness: when the challenge reader returns a value at
+every ordinary boundary, the honest prover (`prove`, the actual experiment's
+prover at one request and witness) returns a proof and the runtime verifier
+accepts it. `some_accepts` shows that every returned proof is accepted, and
+`prove_some` that the prover returns one. Parsing, backend truth,
+original-column authentication and final sealing are derived from ordinary
+witness truth and execution. For the Rust reader,
+[`Mdoc.Completeness.accepts_rust`](lfzk-v2/LfzkV2/Current/Mdoc/Rust.lean)
+bounds the failure probability: over uniform SHA answers at the PRF inputs,
+with all other answers arbitrary, the honest prover fails to return an accepted
+proof with probability at most `2^-128` when each boundary's reject-free width
+is at most `2^40` bytes and there are fewer than `2^64` boundaries. The bound
+covers every PRF key at once, so it needs no argument about which boundaries a
+run reaches.
 
 [`Mdoc.Runtime`](lfzk-v2/LfzkV2/Current/Mdoc/Runtime.lean) supplies the same
 typed protocol setup to soundness, privacy and honest execution. The
 oracle-selected privacy setup is proved equal to that concrete setup.
-Privacy and conditional completeness use `Protocol.ExecutionSampler`, which
+Privacy and completeness use `Protocol.ExecutionSampler`, which
 contains only the executable callback; sampler balance is required separately
 by soundness. [`Mdoc.ZeroKnowledge.statClose_rust`](lfzk-v2/LfzkV2/Current/Mdoc/Rust.lean)
 and `Mdoc.VerifierPrivacy.acceptance_probability_rust` instantiate them with the

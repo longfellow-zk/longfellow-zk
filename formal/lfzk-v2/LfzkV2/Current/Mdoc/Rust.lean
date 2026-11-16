@@ -1,6 +1,7 @@
 import LfzkV2.Current.Mdoc.Soundness
 import LfzkV2.Current.Mdoc.VerifierPrivacy
-import LfzkV2.Current.Protocol.RustSampler
+import LfzkV2.Current.Mdoc.Completeness
+import LfzkV2.Current.Protocol.RustSamplerWindow
 
 /-! The mdoc endpoints at the deployed challenge reader.
 
@@ -194,4 +195,62 @@ theorem acceptance_probability_rust
     pivotOne primitive valid signature additional fallback
 
 end VerifierPrivacy
+
+namespace Completeness
+open LfzkV2.Current.ZeroKnowledge ConcreteSetup Frontend
+open scoped Classical
+
+variable {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
+variable (runtime : Mdoc.Runtime B)
+local notation "Sh" => MdocRuntime.shape runtime.binary.description runtime.prime runtime.binary.plan runtime.primePlan
+  runtime.inputFits runtime.privateFits (RuntimeStatement.degreeFits runtime.binary)
+local notation "Answer" => MdocRuntime.Answer runtime.binary.description runtime.prime runtime.binary.plan
+  runtime.primePlan runtime.binaryNodes
+local notation "HonestCoins" => (CompleteHonest.Tape runtime.binary runtime.prime × CompleteHonest.Masks (B := B)) ×
+  Backend.JointMasks runtime.binaryNodes ConcreteSetup.primeNodes runtime.binary.description.cells
+    (CellLayout.Prime.cells runtime.prime.remaining runtime.prime.pads)
+local notation "Rust" => runtime.rustSampler.data.execution
+local notation "Batching" => fun (answer : Answer) => answer IdealSamples.Component.batching
+
+/-- Completeness at the Rust reader. For every witness, request and prover
+coin, and every assignment of the SHA answers outside the PRF inputs, the
+honest prover fails to return an accepted proof on at most `2^-128` of all
+tables of PRF answers, when every boundary's reject-free width is at most
+`2^40` bytes and there are fewer than `2^64` boundaries. -/
+theorem accepts_rust (original : Fin runtime.binary.nPrivate → Bool)
+    (remaining : Fin runtime.prime.remaining → Adapter.Mdoc.P)
+    (request : CanonicalRequest.Request Sh runtime.binary.nPublic)
+    (pivotOne : runtime.binary.basis 0 = 1)
+    (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX runtime.binary.basis) = true)
+    (valid : MdocWitness.HashValid
+      (RequestedSimulator.requestedBinary runtime.binary runtime.prime runtime.primePlan Sh request) original)
+    (signature :
+      let b := RequestedSimulator.requestedBinary runtime.binary runtime.prime runtime.primePlan Sh request
+      let p := RequestedSimulator.requestedPrime runtime.binary runtime.prime runtime.primePlan Sh
+        (RuntimeStatement.prime_count runtime.binary runtime.prime runtime.primePlan runtime.inputFits
+          runtime.privateFits) request
+      p.circuit.Satisfies (CompleteHonest.primeInputs b p original remaining))
+    (coins : HonestCoins) (nonces : Fin 2443 → MerkleNonce) (outside : Strand.Oracle)
+    (small : Protocol.RustSampler.setupWidth runtime.protocol ≤ 2 ^ 40)
+    (fits : (MdocRuntime.geometry runtime.binary.description runtime.prime runtime.binary.plan
+      runtime.primePlan).roles.length < 2 ^ 64) :
+    (Nat.card {T : Protocol.RustSampler.Table // ¬ ∃ output,
+        prove runtime Rust Batching original remaining request coins nonces
+          (OracleWindow.extend Protocol.RustSampler.prfWindow T outside) = some output ∧
+        verify runtime Rust Batching (OracleWindow.extend Protocol.RustSampler.prfWindow T outside) output = true} : ℚ) /
+        Nat.card Protocol.RustSampler.Table ≤ 1 / 2 ^ 128 := by
+  have sub : Nat.card {T : Protocol.RustSampler.Table // ¬ ∃ output,
+        prove runtime Rust Batching original remaining request coins nonces
+          (OracleWindow.extend Protocol.RustSampler.prfWindow T outside) = some output ∧
+        verify runtime Rust Batching (OracleWindow.extend Protocol.RustSampler.prfWindow T outside) output = true} ≤
+      Nat.card {T : Protocol.RustSampler.Table // ¬ Sampled runtime Rust
+        (OracleWindow.extend Protocol.RustSampler.prfWindow T outside)} :=
+    Nat.card_mono (Set.toFinite _) fun T bad all => bad (accepts runtime Rust Batching original remaining request
+      pivotOne primitive valid signature coins nonces _ all)
+  have hpos : (0 : ℚ) < Nat.card Protocol.RustSampler.Table := by exact_mod_cast Nat.card_pos
+  refine (div_le_div_of_nonneg_right (b := (Nat.card {T : Protocol.RustSampler.Table // ¬ Sampled runtime Rust
+    (OracleWindow.extend Protocol.RustSampler.prfWindow T outside)} : ℚ)) (by exact_mod_cast sub) hpos.le).trans ?_
+  exact Protocol.RustSampler.sampled_abort_le runtime.protocol rfl (by decide) small fits outside _
+
+end Completeness
 end LfzkV2.Current.Mdoc
