@@ -2,6 +2,10 @@
 //! Masked fingerprint responses; coefficients are derived from the transcript.
 use crate::core::algebra::SerializableField;
 
+cfg_role! {
+    mod codec;
+}
+
 pub const FINGERPRINTS: usize = 2;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -13,15 +17,5 @@ impl<E> FingerprintResponse<E> {
         for value in &self.values {
             super::util::write_elt_field(out, value, f);
         }
-    }
-    /// A component reader, called only by the complete readers (proto I2).
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    pub(crate) fn read<F: SerializableField<E = E>>(
-        input: &mut &[u8],
-        f: &F,
-    ) -> std::io::Result<Self> {
-        Ok(Self {
-            values: [super::read_field(input, f)?, super::read_field(input, f)?],
-        })
     }
 }

@@ -541,7 +541,8 @@ impl<const N: usize> MaskedWord<N> {
     pub(crate) fn encoded(&self) -> Vec<u8>;            // tests
     pub(crate) fn read(bytes: &mut &[u8]) -> Result<Self, String>;  // rejects nonzero padding
 }
-// [MaskedWord<N>; 2] implements AdapterMessage, with its reader (proto I2)
+// [MaskedWord<N>; 2] implements AdapterMessage, WriteAdapterMessage and
+// ReadAdapterMessage, its reader (proto I2)
 ```
 
 The split's side is owned by `zk::split` and called by the driver. For mixed

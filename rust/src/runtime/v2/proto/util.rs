@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! V2 scalar and fixed-byte I/O.
+//! V2 scalar output.
 
 use crate::core::algebra::{ElementOf, SerializableField};
 
@@ -22,16 +22,4 @@ pub(super) fn write_elt_field<F: SerializableField>(bytes: &mut Vec<u8>, e: &Ele
     let start = bytes.len();
     bytes.resize(start + len, 0);
     f.to_bytes_into(e, &mut bytes[start..]);
-}
-
-/// Helper to read exactly 32 bytes (for digests).
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) fn read_bytes_32(bytes: &mut &[u8]) -> std::io::Result<[u8; 32]> {
-    use std::io::{Error, ErrorKind};
-    if 32 > bytes.len() {
-        return Err(Error::new(ErrorKind::UnexpectedEof, "EOF reading 32 bytes"));
-    }
-    let (chunk, rem) = bytes.split_at(32);
-    *bytes = rem;
-    Ok(chunk.try_into().unwrap())
 }

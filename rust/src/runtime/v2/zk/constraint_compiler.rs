@@ -34,7 +34,7 @@ use crate::runtime::{
     algebra::{blas, RuntimeField},
     v2::{
         polygero::PolygeroLinearTerm,
-        proto::sumcheck::CircuitPadLayout,
+        proto::sumcheck::pads::CircuitPadLayout,
         sumcheck::symbolic::{Constraints, Pad, PadExpression},
         zk::packing_commitment::PackingLayout,
     },

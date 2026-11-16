@@ -18,7 +18,9 @@ use crate::runtime::{
     v2::{
         merkle::verify_proof,
         proto::{
-            polygero::{validate_opening, FieldProof, JointPolygeroProof, PolygeroCommitment},
+            polygero::{
+                codec::validate_opening, FieldProof, JointPolygeroProof, PolygeroCommitment,
+            },
             Digest,
         },
         transcript::{Bound, SessionStamp},

@@ -15,8 +15,6 @@
 //! Longfellow v2 sumcheck proof types and wire encoding.
 
 //! Single-hand messages, codec, and committed-pad positions.
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-use super::read_field;
 use crate::{
     core::{
         algebra::{ElementOf, SerializableField},
@@ -24,6 +22,11 @@ use crate::{
     },
     runtime::v2::proto::util::write_elt_field,
 };
+
+cfg_role! {
+    mod codec;
+    pub(crate) mod pads;
+}
 
 /// Two masked coefficients of p(x) = c0 + c1*x + c2*x^2.
 /// The incoming claim determines c2 = claim - c0; only c0 and c1 are transmitted.
@@ -91,19 +94,6 @@ impl<const W: usize, F: SerializableField> Clone for SumcheckProof<W, F> {
 pub struct SumcheckProofGeometry {
     logw_layers: Vec<usize>,
 }
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-#[derive(Clone, Debug)]
-pub(crate) struct LayerPadLayout {
-    pub(crate) rounds: Vec<[usize; 2]>,
-    pub(crate) claims: [usize; 2],
-    pub(crate) product: usize,
-    pub(crate) cross: usize,
-}
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-#[derive(Clone, Debug)]
-pub(crate) struct CircuitPadLayout {
-    pub(crate) layers: Vec<LayerPadLayout>,
-}
 
 /// Two pads per round, two terminal pads, p_AB, and an independent cross pad.
 pub const fn pad_count(logw: usize) -> usize {
@@ -142,31 +132,6 @@ impl SumcheckProofGeometry {
     pub fn serialized_elements(&self) -> usize {
         self.logw_layers.iter().map(|&logw| 2 * logw + 3).sum()
     }
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    pub(crate) fn pad_layout(&self, base: usize) -> CircuitPadLayout {
-        base.checked_add(self.pad_count())
-            .expect("sumcheck pad layout overflow");
-        let layers: Vec<_> = self
-            .logw_layers
-            .iter()
-            .scan(base, |next, &logw| {
-                let count = pad_count(logw);
-                let start = *next;
-                *next += count;
-                let terminal = *next - 4;
-                let rounds = (0..logw)
-                    .map(|round| [start + 2 * round, start + 2 * round + 1])
-                    .collect();
-                Some(LayerPadLayout {
-                    rounds,
-                    claims: [terminal, terminal + 1],
-                    product: terminal + 2,
-                    cross: terminal + 3,
-                })
-            })
-            .collect();
-        CircuitPadLayout { layers }
-    }
 }
 impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
     /// The geometry of this proof's shape, if it is a valid one.
@@ -184,39 +149,6 @@ impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
             return Err(invalid("sumcheck shape mismatch"));
         }
         Ok(())
-    }
-    /// A component reader, called only by the complete readers (proto I2).
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    pub(crate) fn read(
-        bytes: &mut &[u8],
-        geometry: &SumcheckProofGeometry,
-        f: &F,
-    ) -> std::io::Result<Self> {
-        if f.serialized_size_bytes() == 0 {
-            return Err(invalid("zero field encoding width"));
-        }
-        let size = geometry
-            .serialized_elements()
-            .checked_mul(f.serialized_size_bytes())
-            .ok_or_else(|| invalid("sumcheck byte size overflow"))?;
-        if bytes.len() < size {
-            return Err(invalid("truncated sumcheck proof"));
-        }
-        let mut layers = Vec::with_capacity(geometry.logw_layers.len());
-        for &logw in &geometry.logw_layers {
-            let mut rounds = Vec::with_capacity(logw);
-            for _ in 0..logw {
-                rounds.push(RoundPoly {
-                    coefficients: [read_field(bytes, f)?, read_field(bytes, f)?],
-                });
-            }
-            layers.push(LayerProof {
-                rounds,
-                cross: read_field(bytes, f)?,
-                claims: [read_field(bytes, f)?, read_field(bytes, f)?],
-            });
-        }
-        Ok(Self { layers })
     }
     pub fn write_to_buf(
         &self,

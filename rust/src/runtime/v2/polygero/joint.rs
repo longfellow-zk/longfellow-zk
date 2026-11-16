@@ -5,7 +5,7 @@ use super::{ensure, PolygeroError, PolygeroLinearTerm, PolygeroParam};
 use crate::runtime::v2::transcript::{EncodedProof, Transcript};
 #[cfg(any(test, feature = "testonly", feature = "tooling"))]
 use crate::runtime::v2::{
-    proto::polygero::{checked_body, JointPolygeroProof},
+    proto::polygero::{codec::checked_body, JointPolygeroProof},
     transcript::{Unverified, SEAL_BYTES},
 };
 use crate::{

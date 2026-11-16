@@ -1,5 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Canonical field decoding for every v2 proof message.
+//! Canonical decoding of the scalars of every v2 proof message: field
+//! elements and 32-byte digests. Every proof role reads.
 use std::io::{Error, ErrorKind, Result};
 
 use crate::core::algebra::SerializableField;
@@ -28,4 +29,14 @@ pub(crate) fn read_field<F: SerializableField>(bytes: &mut &[u8], f: &F) -> Resu
     }
     *bytes = &bytes[width..];
     Ok(value)
+}
+
+/// Read exactly 32 bytes (a digest).
+pub(crate) fn read_bytes_32(bytes: &mut &[u8]) -> Result<[u8; 32]> {
+    if 32 > bytes.len() {
+        return Err(Error::new(ErrorKind::UnexpectedEof, "EOF reading 32 bytes"));
+    }
+    let (chunk, rem) = bytes.split_at(32);
+    *bytes = rem;
+    Ok(chunk.try_into().unwrap())
 }

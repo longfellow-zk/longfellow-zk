@@ -168,7 +168,7 @@ fn oversized_opening_counts_reject_without_allocation() {
 
 #[test]
 fn the_length_check_bounds_the_frontier_before_decoding() {
-    use super::super::polygero::checked_body;
+    use super::super::polygero::codec::checked_body;
     // t = 2 columns of n = 16 leaves: at most 2 * 5 frontier digests. The
     // count follows the 4 + 10 bytes before the frontier.
     let frame = 4 + 10 + 8 + 32;
@@ -241,7 +241,7 @@ fn nonce_codec_uses_the_full_salt_width_and_preserves_the_following_message() {
 /// `(t, n)` above it even when `t <= n <= 2^28`.
 #[test]
 fn the_frontier_capacity_stays_within_the_formal_cap() {
-    use super::super::polygero::{checked_body, PolygeroConfig};
+    use super::super::polygero::{codec::checked_body, PolygeroConfig};
     // The largest valid geometry: at least four committed rows of n columns
     // fit in 2^28 cells, so n <= 2^26 and t < k <= 2^25, with 27 digests per
     // query: below 2^25 * 27 < 2^32 - 1 frontier digests.

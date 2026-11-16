@@ -105,7 +105,10 @@ fn proof_geometries_are_checked_and_derive_their_polygero_geometry() {
 #[test]
 fn composed_writer_and_reader_agree_on_every_constructible_geometry() {
     use super::super::{
-        composed::{AdapterMessage, ComposedGeometry, ComposedProof},
+        composed::{
+            AdapterMessage, ComposedGeometry, ComposedProof, ReadAdapterMessage,
+            WriteAdapterMessage,
+        },
         dual_packing::PackingProof,
         polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment, PolygeroConfig},
         witness_selection::FingerprintResponse,
@@ -117,7 +120,11 @@ fn composed_writer_and_reader_agree_on_every_constructible_geometry() {
     struct Empty;
     impl AdapterMessage for Empty {
         const BYTES: usize = 0;
+    }
+    impl WriteAdapterMessage for Empty {
         fn write(&self, _: &mut Vec<u8>) {}
+    }
+    impl ReadAdapterMessage for Empty {
         fn read(_: &mut &[u8]) -> Result<Self, String> {
             Ok(Self)
         }

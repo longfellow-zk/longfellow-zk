@@ -7,7 +7,7 @@ use crate::runtime::v2::transcript::EncodedProof;
 use crate::runtime::v2::transcript::Transcript;
 #[cfg(any(test, feature = "verifier"))]
 use crate::runtime::v2::{
-    proto::polygero::checked_body,
+    proto::polygero::codec::checked_body,
     transcript::{Bound, Unverified, SEAL_BYTES},
 };
 #[cfg(feature = "testonly")]

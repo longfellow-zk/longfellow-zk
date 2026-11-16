@@ -430,11 +430,15 @@ pub struct JointPolygeroProof<B> { bodies: B, opening: MerkleProof } // B: (Fiel
 pub(in crate::runtime::v2) struct MerkleProof { nonce: Vec<MerkleNonce>, path: Vec<Digest> }
 
 // the adapter's message (foreign::word implements it for [MaskedWord<Q>; 2]);
-// crate-private, with the composed body, in role builds
+// crate-private, with the composed body, in role builds (composed/body.rs)
 pub(crate) trait AdapterMessage: Sized {
     const BYTES: usize;
-    fn write(&self, out: &mut Vec<u8>);                       // prover
-    fn read(b: &mut &[u8]) -> Result<Self, String>;           // verifier; exactly BYTES
+}
+pub(crate) trait WriteAdapterMessage: AdapterMessage {      // composed/prover.rs
+    fn write(&self, out: &mut Vec<u8>);
+}
+pub(crate) trait ReadAdapterMessage: AdapterMessage {       // composed/verifier.rs
+    fn read(b: &mut &[u8]) -> Result<Self, String>;           // exactly BYTES
 }
 
 // standalone complete proof
@@ -466,9 +470,9 @@ pub(crate) struct ComposedProof<const WH: usize, H, const WS: usize, S, M> {
 impl<..> ComposedProof<WH, H, WS, S, M> {
     pub(crate) fn fixed_len(g: &ComposedGeometry, h: &H, s: &S) -> Option<usize>; // B(g)
     pub(crate) fn write_to_buf(&self, out: &mut Vec<u8>, g: &ComposedGeometry, h: &H, s: &S)
-        -> Result<(), String>;
+        -> Result<(), String>;                       // prover; M: WriteAdapterMessage
     pub(crate) fn read(body: &[u8], g: &ComposedGeometry, h: &H, s: &S)
-        -> Result<Self, String>;                     // exactly the whole body
+        -> Result<Self, String>;                     // verifier; M: ReadAdapterMessage; the whole body
     #[cfg(feature = "testonly")]
     pub(crate) fn sizes(&self, g: &ComposedGeometry, h: &H, s: &S) -> Result<BodySizes, String>;
 }
@@ -486,6 +490,14 @@ impl MdocProof<F1, F2> {
         -> Result<Unverified<'a, Self>, String>;
 }
 ```
+
+Each message module keeps its types and geometry in its own file. The
+encoders only the prover runs live beside it in `prover.rs` (merkle,
+polygero, zk, composed), and the length checks and decoders every proof
+role runs in `codec.rs` (merkle, polygero, sumcheck, witness selection,
+zk), mounted only in role builds; the sumcheck pad positions are in
+`sumcheck/pads.rs`, the composed body and its length in `composed/body.rs`,
+and the composed reader in `composed/verifier.rs`.
 
 How the API enforces the invariants:
 
@@ -506,7 +518,7 @@ How the API enforces the invariants:
 - `MaskedWord<N>` (in `foreign::word`) holds a value below `2^N` by
   construction: its reader rejects padding bits, and its only constructor
   masks a `Word<N>` with an `Otp<N>` (I6). The contract names only the
-  `AdapterMessage` trait, so it names no protocol type (I9).
+  `AdapterMessage` traits, so it names no protocol type (I9).
 - No geometry type but `PolygeroConfig` has public fields, and none has a
   wire form (I1, I8).
 

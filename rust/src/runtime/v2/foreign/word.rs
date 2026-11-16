@@ -9,6 +9,10 @@
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::random::PrivateRandom;
 use crate::runtime::v2::proto::composed::AdapterMessage;
+#[cfg(any(test, feature = "verifier"))]
+use crate::runtime::v2::proto::composed::ReadAdapterMessage;
+#[cfg(any(test, feature = "prover"))]
+use crate::runtime::v2::proto::composed::WriteAdapterMessage;
 
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 const fn mask(n: usize) -> u64 {
@@ -128,13 +132,17 @@ impl<const N: usize> MaskedWord<N> {
 
 impl<const N: usize> AdapterMessage for [MaskedWord<N>; 2] {
     const BYTES: usize = 2 * MaskedWord::<N>::BYTES;
-    #[cfg(any(test, feature = "prover"))]
+}
+#[cfg(any(test, feature = "prover"))]
+impl<const N: usize> WriteAdapterMessage for [MaskedWord<N>; 2] {
     fn write(&self, out: &mut Vec<u8>) {
         for m in self {
             m.write(out);
         }
     }
-    #[cfg(any(test, feature = "verifier"))]
+}
+#[cfg(any(test, feature = "verifier"))]
+impl<const N: usize> ReadAdapterMessage for [MaskedWord<N>; 2] {
     fn read(b: &mut &[u8]) -> Result<Self, String> {
         Ok([MaskedWord::read(b)?, MaskedWord::read(b)?])
     }
