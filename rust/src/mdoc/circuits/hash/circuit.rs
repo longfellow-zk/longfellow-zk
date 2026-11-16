@@ -100,7 +100,7 @@ where L::F: MdocHashCompileField
 impl<'a, L: LogicIO> MdocHash<'a, L>
 where L::F: MdocHashCompileField
 {
-    pub fn new(logic: &'a L, _num_attrs: usize) -> Self {
+    pub fn new(logic: &'a L) -> Self {
         Self {
             logic,
             shamsg_mso: Sha256Msg::new(logic),

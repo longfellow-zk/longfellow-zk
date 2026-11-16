@@ -56,7 +56,7 @@ where FC: MdocHashCompileField {
     let num_attrs = hash_input.attrs.len();
 
     super::compile(fc, |iologic| {
-        let mdoc = MdocHash::new(&iologic, num_attrs);
+        let mdoc = MdocHash::new(&iologic);
         let (given_wires, derived_wires, _) = allocate(&iologic, num_attrs, &mut pos);
 
         (
@@ -230,7 +230,7 @@ fn test_mdoc_zk_circuits_hash_for_field<
 
     let (_circuit, stats, _symbols) = super::compile(fc, |iologic| {
         let mut pos = K_FIRST_WIRE_POSITION;
-        let mdoc = MdocHash::new(&iologic, num_attrs);
+        let mdoc = MdocHash::new(&iologic);
         let (given_wires, derived_wires, _) = allocate(&iologic, num_attrs, &mut pos);
 
         (

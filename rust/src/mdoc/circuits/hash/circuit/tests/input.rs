@@ -45,7 +45,7 @@ fn namespace_passes(expected: &[u8], encoded: &[u8], offset: u16, message_len: u
             )
         })
         .collect();
-    MdocHash::new(&logic, 0)
+    MdocHash::new(&logic)
         .assert_mso_namespace(&wires, &preimage)
         .is_ok()
 }
@@ -89,7 +89,7 @@ fn namespace_check_is_independent_of_doc_type_suppression() {
     let tracker = AssertionScope::new();
     let logic = EvalLogic::new(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
-    MdocHash::new(&logic, witness.hash_input.attrs.len())
+    MdocHash::new(&logic)
         .assert_valid_presentation(
             &evaluate_given(&logic, &bits, &witness),
             &evaluate_derived(&logic, &bits, &derived),
@@ -111,7 +111,7 @@ fn validity_passes(from: &[u8; 20], until: &[u8; 20], now: &[u8; 20]) -> bool {
     let logic = EvalLogic::new(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let wires = evaluate_given(&logic, &bits, &witness);
-    MdocHash::new(&logic, 0)
+    MdocHash::new(&logic)
         .assert_mso_validity(&wires, &wires.preimage.value)
         .is_ok()
 }
@@ -189,7 +189,7 @@ fn every_disclosed_attribute_checks_its_last_public_bytes() {
             let bits = BitvecLogic::new(&logic);
             let wires = evaluate_given(&logic, &bits, &changed);
             assert!(
-                MdocHash::new(&logic, changed.hash_input.attrs.len())
+                MdocHash::new(&logic)
                     .assert_attributes(
                         &wires,
                         &evaluate_derived(&logic, &bits, &derived),

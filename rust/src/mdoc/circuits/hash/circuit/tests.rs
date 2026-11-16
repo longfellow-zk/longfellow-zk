@@ -33,7 +33,7 @@ fn doc_type_requires_the_complete_signed_length() {
     let tracker = AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
-    let hash = MdocHash::new(&logic, 0);
+    let hash = MdocHash::new(&logic);
     let mut witness = fixture();
     for expected in [b"org.iso".as_slice(), b"".as_slice()] {
         witness.hash_input.expected_doc_type = expected.to_vec();
@@ -58,7 +58,7 @@ fn valid_until_must_end_before_sha_padding() {
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let wires = evaluate_given(&logic, &bits, &witness);
-    let hash = MdocHash::new(&logic, witness.hash_input.attrs.len());
+    let hash = MdocHash::new(&logic);
     assert!(
         hash.assert_mso_validity(&wires, &wires.preimage.value)
             .is_err(),
@@ -75,7 +75,7 @@ fn fixed_field_reads_fit_the_entire_unpadded_range() {
     let tracker = AssertionScope::new();
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
-    let hash = MdocHash::new(&logic, 0);
+    let hash = MdocHash::new(&logic);
     let preimage: Vec<_> = (0..160).map(|_| bits.of_u8(0)).collect();
     for count in [K_VALID_FROM_LEN + 20, K_VALID_UNTIL_LEN + 20, 100, 34, 13] {
         let offset = bits.of_u64::<16>(26);
@@ -144,7 +144,7 @@ fn every_selected_field_reports_an_out_of_message_read() {
                 "attribute_item"
             }
         };
-        let result = MdocHash::new(&logic, witness.hash_input.attrs.len())
+        let result = MdocHash::new(&logic)
             .assert_valid_presentation(&wires, &evaluate_derived(&logic, &bits, &derived));
         assert!(
             result
@@ -177,7 +177,7 @@ fn compiled_ranges_reject_crossing_and_wrapping_the_message_end() {
         let length = io.next::<16>(&mut position);
         let consumed = io.next::<16>(&mut position);
         (
-            MdocHash::new(&logic, 0).assert_preimage_range(&offset, &length, &consumed),
+            MdocHash::new(&logic).assert_preimage_range(&offset, &length, &consumed),
             1,
         )
     });
@@ -233,7 +233,7 @@ fn signed_envelope_constraints_reject_rehashed_documents() {
         let bits = BitvecLogic::new(&logic);
         let wires = evaluate_given(&logic, &bits, &witness);
         let derived = evaluate_derived(&logic, &bits, &derived);
-        let hash = MdocHash::new(&logic, witness.hash_input.attrs.len());
+        let hash = MdocHash::new(&logic);
         let result = hash.assert_valid_presentation(&wires, &derived);
         assert!(result.is_err());
         assert!(
@@ -273,7 +273,7 @@ fn doc_type_checks_types_lengths_and_actual_read_end() {
         let logic = EvalLogic::new_with_tracker(&f, &tracker);
         let bits = BitvecLogic::new(&logic);
         let wires = evaluate_given(&logic, &bits, &witness);
-        let result = MdocHash::new(&logic, 0).assert_mso_doc_type(&wires, &wires.preimage.value);
+        let result = MdocHash::new(&logic).assert_mso_doc_type(&wires, &wires.preimage.value);
         assert_eq!(
             result.is_ok(),
             valid,
@@ -321,7 +321,7 @@ fn doc_type_header_type_is_checked_after_rehashing() {
     let logic = EvalLogic::new_with_tracker(&f, &tracker);
     let bits = BitvecLogic::new(&logic);
     let wires = evaluate_given(&logic, &bits, &witness);
-    let result = MdocHash::new(&logic, witness.hash_input.attrs.len())
+    let result = MdocHash::new(&logic)
         .assert_valid_presentation(&wires, &evaluate_derived(&logic, &bits, &derived));
     result.assert_any_failed_at("assert_valid_presentation/assert_mso_doc_type/text_length");
     assert!(!result
@@ -346,7 +346,7 @@ fn public_attribute_lengths_must_fit_the_allocated_arrays() {
         } else {
             attribute.expected_cbor_value.len = bits.of_u64::<10>(65);
         }
-        let result = MdocHash::new(&logic, original.hash_input.attrs.len())
+        let result = MdocHash::new(&logic)
             .assert_valid_presentation(&wires, &evaluate_derived(&logic, &bits, &derived));
         assert!(
             result.failed_paths().iter().any(|p| p
@@ -379,7 +379,7 @@ fn attribute_type_checks_reject_documents_with_fresh_hashes() {
         let logic = EvalLogic::new_with_tracker(&f, &tracker);
         let bits = BitvecLogic::new(&logic);
         let wires = evaluate_given(&logic, &bits, &witness);
-        let result = MdocHash::new(&logic, witness.hash_input.attrs.len())
+        let result = MdocHash::new(&logic)
             .assert_valid_presentation(&wires, &evaluate_derived(&logic, &bits, &derived));
         result.assert_any_failed_at("assert_valid_presentation/assert_attributes/assert_attributes.0/attribute_item/assert_attribute/assert_item_slot_key_only/major_type");
         assert!(
@@ -442,7 +442,7 @@ fn missing_attribute_witness_is_rejected_before_indexing() {
     let bits = BitvecLogic::new(&logic);
     let mut wires = evaluate_given(&logic, &bits, &witness);
     wires.attribute_given.pop();
-    let _ = MdocHash::new(&logic, witness.hash_input.attrs.len())
+    let _ = MdocHash::new(&logic)
         .assert_valid_presentation(&wires, &evaluate_derived(&logic, &bits, &derived));
 }
 
@@ -458,7 +458,7 @@ fn namespace_text_must_precede_each_selected_digest_without_wrapping() {
         let wires = evaluate_given(&logic, &bits, &witness);
         let end = usize::from(offset) + witness.hash_input.expected_namespace.len();
         for digest in [offset, (end as u16), (end + 1) as u16] {
-            let result = MdocHash::new(&logic, 0)
+            let result = MdocHash::new(&logic)
                 .assert_namespace_before_digest(&wires, &bits.of_u64(u64::from(digest)));
             assert_eq!(result.is_ok(), usize::from(digest) > end);
         }

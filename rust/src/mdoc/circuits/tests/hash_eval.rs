@@ -49,7 +49,7 @@ fn test_eval_mdoc_hash_independent() {
 
     let given = given::<4, _>(hash_input);
     let derived = derived::<4, _>(&given);
-    let mdoc = MdocHash::new(&l, given.hash_input.attrs.len());
+    let mdoc = MdocHash::new(&l);
     let bv = BitvecLogic::new(&l);
     let wire_given = evaluate_given(&l, &bv, &given);
     let wire_derived = evaluate_derived(&l, &bv, &derived);
@@ -69,7 +69,7 @@ where FC: CompileField + FieldWrappingSum {
     let wire_given = evaluate_given(l, &bv, &given);
     let wire_derived = evaluate_derived(l, &bv, &derived);
 
-    let mdoc = MdocHash::new(l, given.hash_input.attrs.len());
+    let mdoc = MdocHash::new(l);
     let assertion = mdoc.assert_valid_presentation(&wire_given, &wire_derived);
 
     assertion.unwrap();
@@ -218,7 +218,7 @@ where FC: CompileField + FieldWrappingSum {
             &bitvec_logic,
         );
 
-        let mdoc = MdocHash::new(l, given.hash_input.attrs.len());
+        let mdoc = MdocHash::new(l);
         let assertion = mdoc.assert_valid_presentation(&wire_given, &wire_derived);
         if is_negative {
             assert!(
@@ -271,7 +271,7 @@ fn test_doc_type_key_and_offset_tampering() {
     let wire_given = evaluate_given(&l, &bv, &tampered_given);
     let wire_derived = evaluate_derived(&l, &bv, &derived);
 
-    let mdoc = MdocHash::new(&l, tampered_given.hash_input.attrs.len());
+    let mdoc = MdocHash::new(&l);
     let res = mdoc.assert_valid_presentation(&wire_given, &wire_derived);
 
     assert!(
@@ -304,7 +304,7 @@ fn test_eval_mdoc_hash_shared_corruptors() {
         let wire_given = evaluate_given(&l, &bv, &tampered_given);
         let wire_derived = evaluate_derived(&l, &bv, &derived_val);
 
-        let mdoc = MdocHash::new(&l, tampered_given.hash_input.attrs.len());
+        let mdoc = MdocHash::new(&l);
         let res = mdoc.assert_valid_presentation(&wire_given, &wire_derived);
         assert!(
             res.is_err(),
@@ -340,7 +340,7 @@ fn test_check_doc_type_suppression() {
     let derived_val = derived::<4, _>(&given_val);
     let wire_given = evaluate_given(&l, &bv, &given_val);
     let wire_derived = evaluate_derived(&l, &bv, &derived_val);
-    let mdoc = MdocHash::new(&l, given_val.hash_input.attrs.len());
+    let mdoc = MdocHash::new(&l);
     let res = mdoc.assert_valid_presentation(&wire_given, &wire_derived);
     res.unwrap();
 
@@ -356,7 +356,7 @@ fn test_check_doc_type_suppression() {
     let wire_given_wrong = evaluate_given(&l2, &bv2, &given_wrong);
     let wire_derived_wrong = evaluate_derived(&l2, &bv2, &derived_val);
 
-    let mdoc2 = MdocHash::new(&l2, given_wrong.hash_input.attrs.len());
+    let mdoc2 = MdocHash::new(&l2);
     let res_wrong = mdoc2.assert_valid_presentation(&wire_given_wrong, &wire_derived_wrong);
     assert!(res_wrong.is_err());
     let failed_all = res_wrong.failed_paths();
@@ -377,7 +377,7 @@ fn test_check_doc_type_suppression() {
 
     let wire_given_suppressed = evaluate_given(&l3, &bv3, &given_suppressed);
     let wire_derived_suppressed = evaluate_derived(&l3, &bv3, &derived_val);
-    let mdoc3 = MdocHash::new(&l3, given_suppressed.hash_input.attrs.len());
+    let mdoc3 = MdocHash::new(&l3);
     let res_suppressed =
         mdoc3.assert_valid_presentation(&wire_given_suppressed, &wire_derived_suppressed);
     res_suppressed.unwrap();

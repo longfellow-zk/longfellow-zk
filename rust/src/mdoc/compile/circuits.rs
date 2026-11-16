@@ -94,7 +94,7 @@ pub fn binary_circuit(f: &Gf2_128Field, num_attrs: usize) -> Result<Circuit<Gf2_
             l.assert_all(
                 "mdoc_hash",
                 &[
-                    MdocHash::new(&l, num_attrs).assert_valid_presentation(&given, &derived),
+                    MdocHash::new(&l).assert_valid_presentation(&given, &derived),
                     b.assert_true(
                         "canonical_device_x",
                         &a.lt(given.device_pk.0.as_array(), &modulus),
