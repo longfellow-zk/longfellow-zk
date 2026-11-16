@@ -57,11 +57,10 @@ impl<F: MdocSigRuntimeField> AssignmentBuilder<'_, F> {
         self.buffer.push(elt.clone());
     }
 
+    /// The 256 bits of `nat`, least significant first.
     pub(super) fn push_nat_256_bits<N: Nat<4>>(&mut self, nat: &N) {
-        let mut bytes = nat.to_bytes_le();
-        bytes.resize(32, 0);
-        for &b in &bytes {
-            self.push_bits_len(u64::from(b), 8);
+        for limb in nat.to_limbs() {
+            self.push_bits_len(limb, 64);
         }
     }
 }
@@ -92,9 +91,11 @@ cfg_prover! {
             self.push_bits_len(u64::from(val),32);
         }
 
+        /// The 256 bits of `nat`, least significant first.
         pub(super) fn push_nat256<N: Nat<4>>(&mut self, nat: &N) {
-            let mut bytes=nat.to_bytes_le(); bytes.resize(32,0);
-            for byte in bytes { self.push_v8(byte); }
+            for limb in nat.to_limbs() {
+                self.push_bits_len(limb, 64);
+            }
         }
 
         pub(super) fn push_sha256msg_derived(
