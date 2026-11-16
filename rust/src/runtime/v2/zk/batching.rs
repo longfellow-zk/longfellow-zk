@@ -9,7 +9,7 @@
 use crate::{
     core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
-        algebra::{blas, blas::dot, RuntimeField},
+        algebra::{blas::dot, RuntimeField},
         v2::{
             polygero::PolygeroLinearTerm,
             sumcheck::{self, symbolic::Constraints},
@@ -17,9 +17,10 @@ use crate::{
     },
 };
 
-pub struct LinearClaim<E> {
-    pub weights: Vec<E>,
-    pub target: E,
+/// A linear claim `<weights, v> = target` over a frontend's values.
+pub(crate) struct LinearClaim<E> {
+    pub(crate) weights: Vec<E>,
+    pub(crate) target: E,
 }
 
 /// The unbatched rows of a frontend over its values `[private inputs |
@@ -67,9 +68,12 @@ pub(crate) fn rows<const W: usize, F: RuntimeField<W> + SerializableField>(
     Ok((layers, LinearClaim { weights, target }))
 }
 
+#[cfg(test)]
+use crate::runtime::algebra::blas::axpy;
 /// Batch `rows` with `rho`, one weight per layer row and a last one for the
 /// input equation: `sum_c rho_c (A_c v + b_c) - rho_L (<w, v> - t) = 0`,
 /// written as the claim `<weights, v> = target`.
+#[cfg(test)]
 pub(crate) fn batch<const W: usize, F: RuntimeField<W> + SerializableField>(
     rows: Rows<F::E>,
     rho: &[F::E],
@@ -83,12 +87,12 @@ pub(crate) fn batch<const W: usize, F: RuntimeField<W> + SerializableField>(
         return Err("batched frontend row weights".into());
     }
     let mut weights = vec![f.zero(); input.weights.len()];
-    let mut constant = blas::dot(row, &b, f);
+    let mut constant = dot(row, &b, f);
     for term in a {
         f.fma(&mut weights[term.w], &row[term.c], &term.k);
     }
     f.add(&mut constant, &f.mulf(last, &input.target));
-    blas::axpy(&mut weights, &f.neg(last), &input.weights, f);
+    axpy(&mut weights, &f.neg(last), &input.weights, f);
     let target = f.neg(&constant);
     Ok(LinearClaim { weights, target })
 }

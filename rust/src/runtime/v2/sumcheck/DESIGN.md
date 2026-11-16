@@ -344,10 +344,7 @@ per stage:
 ```rust
 // runtime::v2::sumcheck, shared by both roles
 pub(super) struct Schedule { pub geometry: SumcheckProofGeometry, .. }  // stage layouts and fragment ranges
-pub struct TopWeights<E>(..);        // private field; only top_weights builds it
-impl<E> TopWeights<E> {
-    pub fn outputs(&self) -> &[E];          // top-stage output weights, or the input weights if L = 0
-}
+pub(crate) struct TopWeights<E>(..); // private field; only top_weights builds it
 pub(crate) fn top_weights<const W: usize, F>(
     circuits: &[impl CircuitSource<F>],
     t: &mut TranscriptRef<'_>,

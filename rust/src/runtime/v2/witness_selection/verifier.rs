@@ -8,14 +8,14 @@ use crate::runtime::v2::{
 
 /// Evidence that the fingerprint and frontend equations were authenticated.
 /// This is not complete-proof verification; the enclosing protocol checks its seal.
-pub struct Authenticated {
+pub(crate) struct Authenticated {
     _private: (),
 }
 
 /// Retains the early fingerprint state while the caller runs the frontend.
 /// It records the session that received the commitment and authenticates
 /// only on that session.
-pub struct Verifier<L: Fields> {
+pub(crate) struct Verifier<L: Fields> {
     backend: JointPolygeroVerifier<L::Backend>,
     session: SessionStamp,
     coefficients: L::Coefficients,
@@ -24,7 +24,7 @@ pub struct Verifier<L: Fields> {
 impl<L: Fields> Verifier<L> {
     /// Receive the root, draw the coefficients and absorb the responses on
     /// `t`'s session: the same schedule as `commit`.
-    pub fn receive(
+    pub(crate) fn receive(
         t: &mut Bound<'_, Param<L>>,
         root: &PolygeroCommitment,
         responses: L::Responses,

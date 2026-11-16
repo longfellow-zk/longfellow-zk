@@ -390,76 +390,81 @@ impl<L: Fields> JointParam<L> {
     pub fn new(fields: L) -> Result<Self, String>;
     pub fn config(&self) -> PolygeroConfig;
 }
-pub fn top_weights(t: &mut Bound<'_, FrontendPart<'_, W, F>>)
+pub(crate) fn top_weights(t: &mut Bound<'_, FrontendPart<'_, W, F>>)
     -> Result<Challenge<TopWeights<F::E>>, String>;     // I4
 
-// zk, prover
+// zk, prover: the drivers (`ZkProver`, the composition driver) run these
+// crate-private steps; their states are crate-private
 impl CircuitParticipant<W, F> {
-    pub fn prepare(&self, private: Vec<CircuitInput<F>>, rng: &mut impl PrivateRandom)
+    pub(crate) fn prepare(&self, private: Vec<CircuitInput<F>>, rng: &mut impl PrivateRandom)
         -> Result<(CircuitState<W, F>, Vec<F::E>), String>;
     pub(crate) fn prepare_split(&self, private: Vec<CircuitInput<F>>, mask: Option<F::E>,
                                 rng: &mut impl PrivateRandom) -> Result<(SplitState<W, F>, Vec<F::E>), String>;
-    pub fn foreign_values(&self, pending: &PendingSplit<F::E>)
+    pub(crate) fn foreign_values(&self, pending: &PendingSplit<F::E>)
         -> Result<Vec<F::E>, String>;                    // claim term order, R last
 }
 impl<L: Fields> JointParam<L> {
-    pub fn commit(&self, witnesses: Witnesses<L>, transcript: Transcript, rng: &mut impl PrivateRandom)
+    pub(crate) fn commit(&self, witnesses: Witnesses<L>, transcript: Transcript,
+                         rng: &mut impl PrivateRandom)
         -> Result<(JointProver<..>, PolygeroCommitment, Responses<L>), String>;  // I6
 }
 impl<S, C, R> JointProver<S, C, R> {
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P>;
     // I4: each field's equations, derived on this session; draws the batching weights
-    pub fn finish<L: Fields>(self, param: &JointParam<L>, equations: Statements<L>)
+    pub(crate) fn finish<L: Fields>(self, param: &JointParam<L>, equations: Statements<L>)
         -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>;
 }
-pub fn prove(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: CircuitState<W, F>,
-             top: Challenge<TopWeights<F::E>>, virtual_inputs: &VirtualInputs<F::E>,
-             ctx: &ZkContext<'_, W, F, D>)
+pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: CircuitState<W, F>,
+                    top: Challenge<TopWeights<F::E>>, virtual_inputs: &VirtualInputs<F::E>,
+                    ctx: &ZkContext<'_, W, F, D>)
     -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String>;
-pub fn prove_split(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: SplitState<W, F>,
-                   top: Challenge<TopWeights<F::E>>, ctx: &ZkContext<'_, W, F, D>)
+pub(crate) fn prove_split(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: SplitState<W, F>,
+                          top: Challenge<TopWeights<F::E>>, ctx: &ZkContext<'_, W, F, D>)
     -> Result<(SumcheckProof<W, F>, PendingSplit<F::E>), String>;
-pub struct PendingSplit<E> { pub claim: SplitClaim<E>, .. }
+pub(crate) struct PendingSplit<E> { pub(crate) claim: SplitClaim<E>, .. }
 impl<E> PendingSplit<E> {
-    pub fn open(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>, eta: Challenge<Eta<E>>, f: &F)
-        -> Result<(E, SplitOutput<E>), String>;           // sends SplitOpening (I9)
+    pub(crate) fn open(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>, eta: Challenge<Eta<E>>,
+                       f: &F) -> Result<(E, SplitOutput<E>), String>;  // sends SplitOpening (I9)
 }
 
-// zk, verifier
+// zk, verifier: crate-private steps of the composed and standalone verifiers
 impl<L: Fields> JointParam<L> {
-    pub fn receive(self, root: &PolygeroCommitment, responses: Responses<L>,
-                   transcript: Transcript) -> JointVerifier<L>;           // I6
+    pub(crate) fn receive(self, root: &PolygeroCommitment, responses: Responses<L>,
+                          transcript: Transcript) -> JointVerifier<L>;    // I6
 }
 impl<L: Fields> JointVerifier<L> {
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P>;
     // I4: each field's equations, derived on this session; draws the batching weights
-    pub fn finish(self, equations: Statements<L>, proof: &JointPolygeroProof<Bodies<L>>)
+    pub(crate) fn finish(self, equations: Statements<L>, proof: &JointPolygeroProof<Bodies<L>>)
         -> Result<Authenticated, String>;                // I7
 }
-impl Authenticated { pub fn into_transcript(self) -> Transcript; }
-pub fn reduce(t: &mut Bound<'_, FrontendPart<'_, W, F>>, proof: &CircuitProof<W, F>,
-              top: Challenge<TopWeights<F::E>>, virtual_inputs: &VirtualInputs<F::E>,
-              ctx: &ZkContext<'_, W, F, D>) -> Result<LinearStatement<F::E>, String>;
-pub fn reduce_split(t: &mut Bound<'_, FrontendPart<'_, W, F>>, proof: &SumcheckProof<W, F>,
-                    top: Challenge<TopWeights<F::E>>, ctx: &ZkContext<'_, W, F, D>)
+impl Authenticated { pub(crate) fn into_transcript(self) -> Transcript; }
+pub(crate) fn reduce(t: &mut Bound<'_, FrontendPart<'_, W, F>>, proof: &CircuitProof<W, F>,
+                     top: Challenge<TopWeights<F::E>>, virtual_inputs: &VirtualInputs<F::E>,
+                     ctx: &ZkContext<'_, W, F, D>) -> Result<LinearStatement<F::E>, String>;
+pub(crate) fn reduce_split(t: &mut Bound<'_, FrontendPart<'_, W, F>>, proof: &SumcheckProof<W, F>,
+                           top: Challenge<TopWeights<F::E>>, ctx: &ZkContext<'_, W, F, D>)
     -> Result<SplitClaim<F::E>, String>;
 impl<E> SplitClaim<E> {
-    pub fn receive(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>, eta: Challenge<Eta<E>>,
-                   mu: &E, f: &F) -> Result<SplitOutput<E>, String>;    // absorbs SplitOpening (I9)
+    pub(crate) fn receive(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>, eta: Challenge<Eta<E>>,
+                          mu: &E, f: &F) -> Result<SplitOutput<E>, String>; // absorbs SplitOpening (I9)
 }
 
 // zk::split, both roles; the draws live in zk::split::transcript (transcript I9)
-pub struct SplitClaim<E> { pub claim: LinearClaim<E>, .. }  // rows unbatched
+pub(crate) struct SplitClaim<E> { pub(crate) claim: LinearClaim<E>, .. }  // rows unbatched
 impl<E> SplitClaim<E> {
-    // pure foreign only (I11): draws rho = elements(F, L+1) and uses it (I4)
-    pub fn batch(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>, f: &F)
+    // pure foreign only (I11), tests only until a driver uses it:
+    // draws rho = elements(F, L+1) and uses it (I4)
+    #[cfg(test)]
+    pub(crate) fn batch(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>, f: &F)
         -> Result<ModularClaim<E>, String>;
 }
-pub struct Eta<E>(..);                                    // nonzero; no public constructor
-pub fn eta(t: &mut Bound<'_, P>, f: &F) -> Challenge<Eta<F::E>>;          // nonzero(F)
-#[must_use] pub struct SplitOutput<E> { pub statement: LinearStatement<E>, pub foreign: ModularClaim<E> }
-pub struct LinearClaim<E> { pub weights: Vec<E>, pub target: E }    // zk::LinearClaim
-#[must_use] pub struct ModularClaim<E> { pub terms: Vec<(Group, E)>, pub target: E }  // zk::storage
+pub(crate) struct Eta<E>(..);                             // nonzero; built only by eta
+pub(crate) fn eta(t: &mut Bound<'_, P>, f: &F) -> Challenge<Eta<F::E>>;  // nonzero(F)
+#[must_use] pub(crate) struct SplitOutput<E> { pub(crate) statement: LinearStatement<E>,
+                                               pub(crate) foreign: ModularClaim<E> }
+pub(crate) struct LinearClaim<E> { pub(crate) weights: Vec<E>, pub(crate) target: E }  // zk::batching
+#[must_use] pub struct ModularClaim<E> { pub(crate) terms: Vec<(Group, E)>, pub(crate) target: E }  // zk::storage
 
 // zk: standalone single-circuit proof
 impl ZkProver<W, F> {

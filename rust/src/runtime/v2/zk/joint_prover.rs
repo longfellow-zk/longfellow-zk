@@ -13,12 +13,12 @@ use crate::runtime::{
 
 /// Owns the session from the commitment through the opening. The underlying
 /// backend state is inaccessible to frontend callers.
-pub struct JointProver<S, C, R> {
+pub(crate) struct JointProver<S, C, R> {
     transcript: Transcript,
     selection: witness_selection::Prover<S, C, R>,
 }
 impl<L: Fields> JointParam<L> {
-    pub fn commit(
+    pub(crate) fn commit(
         &self,
         witnesses: Witnesses<L>,
         mut transcript: Transcript,
@@ -69,7 +69,7 @@ impl<S, C, R> JointProver<S, C, R> {
     /// fingerprint equations, draws the Polygero batching weights at the
     /// current boundary (transcript I8), sends each field's response, draws
     /// the columns and returns the opening with the transcript.
-    pub fn finish<L: Fields>(
+    pub(crate) fn finish<L: Fields>(
         mut self,
         param: &JointParam<L>,
         equations: Statements<L>,

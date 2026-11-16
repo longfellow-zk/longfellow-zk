@@ -75,7 +75,7 @@ impl<
 /// The backend handle is private: completing this protocol always appends its
 /// affine equations, so callers cannot forget to authenticate the fingerprints.
 /// It records the session it committed on and completes only on that session.
-pub struct Prover<S, C, R> {
+pub(crate) struct Prover<S, C, R> {
     backend: JointPolygeroProver<S>,
     session: SessionStamp,
     coefficients: C,
@@ -83,7 +83,7 @@ pub struct Prover<S, C, R> {
 }
 /// Commit, draw the fingerprint coefficients and send the responses, all on
 /// `t`'s session, before any frontend challenge.
-pub fn commit<L: ProverFields>(
+pub(crate) fn commit<L: ProverFields>(
     t: &mut Bound<'_, Param<L>>,
     mut witnesses: Witnesses<L>,
     rng: &mut impl PrivateRandom,

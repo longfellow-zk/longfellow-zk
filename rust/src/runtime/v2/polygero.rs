@@ -63,8 +63,23 @@ pub use param::PolygeroParam;
 cfg_prover! { mod prover_commitment; }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub use joint::{FieldChallenges, JointPolygeroParam, LinearStatement, Participant, Participants};
-cfg_prover! {mod prover; pub use prover::{FieldState, JointPolygeroProver};}
-cfg_verifier! {mod verifier; pub use verifier::JointPolygeroVerifier;}
+cfg_prover! {
+    mod prover;
+    pub use prover::FieldState;
+    // Outside the crate a bare joint opening runs only in tests and
+    // benchmarks, through the `_for_test` entry points.
+    #[cfg(feature = "testonly")]
+    pub use prover::JointPolygeroProver;
+    #[cfg(not(feature = "testonly"))]
+    pub(crate) use prover::JointPolygeroProver;
+}
+cfg_verifier! {
+    mod verifier;
+    #[cfg(feature = "testonly")]
+    pub use verifier::JointPolygeroVerifier;
+    #[cfg(not(feature = "testonly"))]
+    pub(crate) use verifier::JointPolygeroVerifier;
+}
 
 #[cfg(test)]
 mod tests;

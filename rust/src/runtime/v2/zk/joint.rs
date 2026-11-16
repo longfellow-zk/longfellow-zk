@@ -320,7 +320,7 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField> FrontendPart<'a, W, F> {
 /// starts, after the last message the frontend depends on (its virtual-input definitions
 /// included), and hands them to `prove`, `prove_split`, `reduce` or
 /// `reduce_split` before any other message (transcript I8).
-pub fn top_weights<const W: usize, F: ZkField<W> + PackingField>(
+pub(crate) fn top_weights<const W: usize, F: ZkField<W> + PackingField>(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
 ) -> Result<Challenge<TopWeights<F::E>>, String> {
     let part = t.part();

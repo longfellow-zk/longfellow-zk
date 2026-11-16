@@ -272,8 +272,8 @@ impl StorageMap {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use = "The modular claim must be discharged by the cross-field adapter."]
 pub struct ModularClaim<E> {
-    pub terms: Vec<(Group, E)>,
-    pub target: E,
+    pub(crate) terms: Vec<(Group, E)>,
+    pub(crate) target: E,
 }
 
 /// Storage of a participant whose values are not all native.

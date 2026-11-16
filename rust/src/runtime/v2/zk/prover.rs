@@ -75,7 +75,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
 }
 
 /// Owned private inputs and masks for reduction after the shared commitment.
-pub struct CircuitState<const W: usize, F: ZkField<W> + PackingField> {
+pub(crate) struct CircuitState<const W: usize, F: ZkField<W> + PackingField> {
     private: Vec<CircuitInput<F>>,
     pads: SumcheckPads<W, F>,
     packing: PackingState<F::E>,
@@ -84,7 +84,7 @@ pub struct CircuitState<const W: usize, F: ZkField<W> + PackingField> {
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     /// Own, validate and pack typed inputs before sampling any masks. The returned
     /// witness belongs in the corresponding position of the Polygero tuple.
-    pub fn prepare(
+    pub(crate) fn prepare(
         &self,
         private: Vec<CircuitInput<F>>,
         rng: &mut impl PrivateRandom,
@@ -121,7 +121,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
 /// completes the shared Polygero proof against the original commitment.
 /// Continue the transcript used for that commitment. All participants must
 /// finish this reduction before the joint backend samples its challenges.
-pub fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
     state: CircuitState<W, F>,
     top: Challenge<TopWeights<F::E>>,
@@ -289,7 +289,7 @@ fn prepare_inputs<E: Clone>(public: &[E], private: Vec<E>, nvirtual: usize) -> V
 mod tests;
 
 /// Prover state of a split participant between commitment and reduction.
-pub struct SplitState<const W: usize, F: ZkField<W>> {
+pub(crate) struct SplitState<const W: usize, F: ZkField<W>> {
     pads: SumcheckPads<W, F>,
     /// `[private inputs | pads]`, in value order.
     values: Vec<F::E>,
@@ -342,7 +342,11 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
 /// Run the split frontend of `t`'s part from its top weights `top` and reduce
 /// its constraints to the claim its storage discharges (`split_claim`),
 /// before the split challenge.
-pub fn prove_split<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+pub(crate) fn prove_split<
+    const W: usize,
+    F: ZkField<W> + PackingField,
+    D: EvaluationDomain<W, F>,
+>(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
     state: SplitState<W, F>,
     top: Challenge<TopWeights<F::E>>,

@@ -308,9 +308,10 @@ impl<L: Fields> Param<L> {
 
 // prover role
 pub trait ProverFields: Fields { /* validate_witnesses, append_masks, responses */ }
-pub struct Prover<S, C, R> { backend: JointPolygeroProver<S>, session: SessionStamp,
-                             coefficients: C, responses: R }
-pub fn commit<L: ProverFields>(
+pub(crate) struct Prover<S, C, R> { backend: JointPolygeroProver<S>, session: SessionStamp,
+                                    coefficients: C, responses: R }
+// JointParam::commit only
+pub(crate) fn commit<L: ProverFields>(
     t: &mut Bound<'_, Param<L>>, witnesses: Witnesses<L>, rng: &mut impl PrivateRandom,
 ) -> Result<(Prover<..>, PolygeroCommitment, L::Responses), String>;  // sends Commitment, draws, sends responses
 impl<S, C, R> Prover<S, C, R> {
@@ -321,17 +322,18 @@ impl<S, C, R> Prover<S, C, R> {
 }
 
 // verifier role
-pub struct Verifier<L: Fields> { backend: JointPolygeroVerifier<L::Backend>, session: SessionStamp,
-                                 coefficients: L::Coefficients, responses: L::Responses }
+pub(crate) struct Verifier<L: Fields> { backend: JointPolygeroVerifier<L::Backend>, session: SessionStamp,
+                                        coefficients: L::Coefficients, responses: L::Responses }
 impl<L: Fields> Verifier<L> {
-    pub fn receive(t: &mut Bound<'_, Param<L>>, root: &PolygeroCommitment,
+    // JointParam::receive only
+    pub(crate) fn receive(t: &mut Bound<'_, Param<L>>, root: &PolygeroCommitment,
                    responses: L::Responses) -> Self;                 // same schedule as commit (I3, I4)
     // JointVerifier::finish only: stamps, fingerprint rows, then the backend's reduce
     pub(crate) fn finish(self, t: &mut Bound<'_, Param<L>>, statements: Statements<L>,
                          proof: &JointPolygeroProof<Bodies<L>>)
         -> Result<Authenticated, String>;                                // I5, I8
 }
-pub struct Authenticated { .. }      // only from finish; not a VerifiedProof
+pub(crate) struct Authenticated { .. } // only from finish; not a VerifiedProof
 ```
 
 How the API carries the invariants:

@@ -107,5 +107,5 @@ impl<
     }
 }
 
-cfg_prover! { mod prover; pub use prover::{commit, Prover, ProverFields}; }
-cfg_verifier! { mod verifier; pub use verifier::{Authenticated, Verifier}; }
+cfg_prover! { mod prover; pub(crate) use prover::{commit, Prover}; pub use prover::ProverFields; }
+cfg_verifier! { mod verifier; pub(crate) use verifier::{Authenticated, Verifier}; }

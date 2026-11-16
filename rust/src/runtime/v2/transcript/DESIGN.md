@@ -372,10 +372,10 @@ impl ZkProof<W, F> {
         -> std::io::Result<Unverified<'a, Self>>;
 }
 
-// a frontend takes its top weights as an input (I8); runtime::v2::zk
-pub fn top_weights(t: &mut Bound<'_, FrontendPart<'_, W, F>>)
+// a frontend takes its top weights as an input (I8); runtime::v2::zk, crate-private
+pub(crate) fn top_weights(t: &mut Bound<'_, FrontendPart<'_, W, F>>)
     -> Result<Challenge<TopWeights<F::E>>, String>;
-pub fn prove(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: CircuitState<W, F>,
+pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: CircuitState<W, F>,
     top: Challenge<TopWeights<F::E>>, ..) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String>;
 ```
 

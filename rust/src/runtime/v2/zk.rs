@@ -31,25 +31,22 @@
 //! `context` borrows the interpolation domain and derives the layout from the
 //! circuit. Prover and verifier orchestration remain in separate role modules.
 //!
-//! Every type the role APIs return has one public path here:
+//! Every type the standalone role APIs return has one public path here:
 //!
 //! ```
 //! use longfellow_zk::runtime::{
 //!     algebra::p256::P256Field,
-//!     v2::zk::{split::SplitClaim, CircuitState, LinearClaim, SplitState},
+//!     v2::zk::{ZkProofStatement, ZkProverCommitment, ZkVerificationError},
 //! };
 //! fn _named(
-//!     _: CircuitState<4, P256Field>,
-//!     _: SplitState<4, P256Field>,
-//!     _: SplitClaim<u64>,
-//!     _: LinearClaim<u64>,
+//!     _: ZkProofStatement<'_, 4, P256Field>,
+//!     _: ZkProverCommitment<'_, 4, P256Field>,
+//!     _: ZkVerificationError,
 //! ) {
 //! }
 //! ```
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod batching;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub use batching::LinearClaim;
 pub(crate) mod context;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub mod joint;
@@ -67,13 +64,18 @@ pub use context::{CircuitInput, VirtualInput, VirtualInputs, ZkContext};
 pub use transcript::{write_joint_geometry, ZkProofStatement};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod constraint_compiler;
-cfg_prover! { mod joint_prover; pub use joint_prover::JointProver; }
-cfg_verifier! { mod joint_verifier; pub use joint_verifier::{Authenticated, JointVerifier}; }
+cfg_prover! { mod joint_prover; pub(crate) use joint_prover::JointProver; }
+cfg_verifier! { mod joint_verifier; }
 cfg_prover! {
     mod prover;
-    pub use prover::{prove, prove_split, CircuitState, SplitState, ZkProver, ZkProverCommitment};
+    pub(crate) use prover::{prove, prove_split};
+    pub use prover::{ZkProver, ZkProverCommitment};
 }
-cfg_verifier! { mod verifier; pub use verifier::{reduce, reduce_split, ZkVerificationError, ZkVerifier}; }
+cfg_verifier! {
+    mod verifier;
+    pub(crate) use verifier::{reduce, reduce_split};
+    pub use verifier::{ZkVerificationError, ZkVerifier};
+}
 
 #[cfg(test)]
 mod tests;

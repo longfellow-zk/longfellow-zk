@@ -15,7 +15,7 @@ use crate::{
 
 /// The mixed split's nonzero rescaling challenge `eta`. Only its draw
 /// (`eta`) builds it.
-pub struct Eta<E>(pub(super) E);
+pub(crate) struct Eta<E>(pub(super) E);
 
 /// `SplitOpening` (64): Elements(F, 1), the split message mu (F is P-256 in
 /// mdoc).
@@ -48,6 +48,7 @@ pub(crate) fn eta<const W: usize, F: RuntimeField<W> + SupportsSampling, P: ?Siz
 /// them at once: they read further from the frontend's last answer (its last
 /// combine, after alpha and the input assertions; transcript I7), with no
 /// message or boundary of their own.
+#[cfg(test)]
 pub(super) fn row_weights<F: SupportsSampling>(
     t: &mut TranscriptRef<'_>,
     count: usize,

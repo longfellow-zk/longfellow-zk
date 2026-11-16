@@ -5,7 +5,7 @@ use core::marker::PhantomData;
 use sha2::Digest as _;
 
 use super::{constraints, ensure, hash, joint::*, PolygeroError, PolygeroParam};
-#[cfg(any(test, feature = "testonly", feature = "tooling"))]
+#[cfg(any(test, feature = "testonly"))]
 use crate::runtime::v2::transcript::{Transcript, Unverified, VerifiedProof};
 use crate::runtime::{
     algebra::{
@@ -25,6 +25,7 @@ use crate::runtime::{
 /// Verifier state between the commitment and the opening. It records the
 /// session that received the commitment and checks only on that session.
 #[cfg(any(test, feature = "verifier"))]
+#[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
 pub struct JointPolygeroVerifier<L: Participants> {
     session: SessionStamp,
     commitment: PolygeroCommitment,
@@ -33,7 +34,10 @@ pub struct JointPolygeroVerifier<L: Participants> {
 #[cfg(any(test, feature = "verifier"))]
 impl<L: Participants> JointPolygeroVerifier<L> {
     /// Receive the root on `t`'s session.
-    pub fn receive(t: &mut Bound<'_, JointPolygeroParam<L>>, root: &PolygeroCommitment) -> Self {
+    pub(crate) fn receive(
+        t: &mut Bound<'_, JointPolygeroParam<L>>,
+        root: &PolygeroCommitment,
+    ) -> Self {
         let param = t.part();
         param.receive(root, &mut t.transcript());
         Self {
@@ -42,12 +46,21 @@ impl<L: Participants> JointPolygeroVerifier<L> {
             _participants: PhantomData,
         }
     }
+    /// `receive` on a bare session, for tests and benchmarks outside the
+    /// crate (`Transcript::bound_for_test`).
+    #[cfg(feature = "testonly")]
+    pub fn receive_for_test(
+        t: &mut Bound<'_, JointPolygeroParam<L>>,
+        root: &PolygeroCommitment,
+    ) -> Self {
+        Self::receive(t, root)
+    }
     /// Complete standalone verification of a bare body (`JointPolygeroParam::read`)
     /// on the session that received the commitment, including the mandatory
     /// final seal, against `statements`. For tests and tools only: complete
     /// proofs run `reduce` inside their own composition and check their own
     /// seal.
-    #[cfg(any(test, feature = "testonly", feature = "tooling"))]
+    #[cfg(any(test, feature = "testonly"))]
     pub fn verify(
         self,
         mut transcript: Transcript,

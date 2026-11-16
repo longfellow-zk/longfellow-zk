@@ -42,12 +42,12 @@ pub mod transcript;
 use transcript::Eta;
 
 /// A split participant's frontend claim over `[private inputs | pads]`.
-pub struct SplitClaim<E> {
+pub(crate) struct SplitClaim<E> {
     /// The layer rows, unbatched: on this field's native cells with mixed
     /// storage, on its values with pure foreign storage.
     rows: (Vec<PolygeroLinearTerm<E>>, Vec<E>),
     /// The input equation `<w, v> = t` over the values.
-    pub claim: LinearClaim<E>,
+    pub(crate) claim: LinearClaim<E>,
 }
 
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
@@ -173,6 +173,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     }
     /// The whole claim of a pure-foreign participant, whose target is public:
     /// the batched claim `claim` over its foreign values.
+    #[cfg(test)]
     fn pure_claim(&self, claim: LinearClaim<F::E>) -> Result<ModularClaim<F::E>, String> {
         let split = self.split()?;
         if split.mask.is_some() || claim.weights.len() != split.map.entries().len() {
@@ -194,6 +195,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         })
     }
 }
+#[cfg(test)]
 impl<E> SplitClaim<E> {
     /// The number of pure-foreign row weights: one per layer row, one for the
     /// input equation.
@@ -206,7 +208,7 @@ impl<E> SplitClaim<E> {
     /// with a public target. The weights are internal to this step
     /// (transcript I8). Mixed storage takes `eta` instead (`open`,
     /// `receive`).
-    pub fn batch<const W: usize, F>(
+    pub(crate) fn batch<const W: usize, F>(
         self,
         t: &mut Bound<'_, FrontendPart<'_, W, F>>,
         f: &F,
@@ -227,24 +229,24 @@ impl<E> SplitClaim<E> {
 /// A split participant's reduction, before its split challenge. Only the
 /// prover holds one: it carries the private values and R.
 #[cfg(any(test, feature = "prover"))]
-pub struct PendingSplit<E> {
-    pub claim: SplitClaim<E>,
+pub(crate) struct PendingSplit<E> {
+    pub(crate) claim: SplitClaim<E>,
     pub(crate) values: Vec<E>,
     pub(crate) mask: Option<E>,
 }
 /// The two outputs of a mixed split: this field's statement (the layer rows
 /// and the native row) and the foreign claim for the adapter.
 #[must_use]
-pub struct SplitOutput<E> {
-    pub statement: LinearStatement<E>,
-    pub foreign: ModularClaim<E>,
+pub(crate) struct SplitOutput<E> {
+    pub(crate) statement: LinearStatement<E>,
+    pub(crate) foreign: ModularClaim<E>,
 }
 
 #[cfg(any(test, feature = "prover"))]
 impl<E> PendingSplit<E> {
     /// Accept `eta`, send the split message `mu` on the frontend's session,
     /// and return `mu` with both outputs, all built from this `eta` and `mu`.
-    pub fn open<const W: usize, F>(
+    pub(crate) fn open<const W: usize, F>(
         self,
         t: &mut Bound<'_, FrontendPart<'_, W, F>>,
         eta: Challenge<Eta<E>>,
@@ -266,7 +268,7 @@ impl<E> PendingSplit<E> {
 impl<E> SplitClaim<E> {
     /// Accept `eta`, absorb the proof's split message `mu` on the frontend's
     /// session, and return both outputs, built from this `eta` and `mu`.
-    pub fn receive<const W: usize, F>(
+    pub(crate) fn receive<const W: usize, F>(
         self,
         t: &mut Bound<'_, FrontendPart<'_, W, F>>,
         eta: Challenge<Eta<E>>,
@@ -314,7 +316,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     }
     /// Values of the foreign claim's terms, in term order, ending with R.
     #[cfg(any(test, feature = "prover"))]
-    pub fn foreign_values(&self, pending: &PendingSplit<F::E>) -> Result<Vec<F::E>, String> {
+    pub(crate) fn foreign_values(&self, pending: &PendingSplit<F::E>) -> Result<Vec<F::E>, String> {
         let split = self.split()?;
         let mut out: Vec<_> = split
             .map

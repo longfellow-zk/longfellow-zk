@@ -152,14 +152,15 @@ impl<E> Default for StageWeights<E> {
 /// hands them in as a `Challenge` (transcript I8); only `top_weights` builds
 /// them. They carry the schedule they were drawn with, so the sumcheck that
 /// accepts them reuses it rather than deriving it again.
-pub struct TopWeights<E> {
+pub(crate) struct TopWeights<E> {
     weights: StageWeights<E>,
     schedule: Schedule,
 }
+#[cfg(test)]
 impl<E> TopWeights<E> {
     /// The output weights of the top stage, or the input weights of a
     /// frontend with no layers.
-    pub fn outputs(&self) -> &[E] {
+    pub(crate) fn outputs(&self) -> &[E] {
         &self.weights.outputs
     }
 }

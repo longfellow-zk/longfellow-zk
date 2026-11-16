@@ -59,13 +59,16 @@ fn run<
     let (com, bytes, commit, prove) = {
         let mut ts = Transcript::for_test(b"polygero/kernel/bench");
         let commit_start = Instant::now();
-        let (prover, com) =
-            JointPolygeroProver::commit(&mut ts.bound_for_test(&param), (witness, ()), &mut rng)
-                .unwrap();
+        let (prover, com) = JointPolygeroProver::commit_for_test(
+            &mut ts.bound_for_test(&param),
+            (witness, ()),
+            &mut rng,
+        )
+        .unwrap();
         let commit = commit_start.elapsed();
         let prove_start = Instant::now();
         let proof = prover
-            .prove(&mut ts.bound_for_test(&param), prover_statements)
+            .prove_for_test(&mut ts.bound_for_test(&param), prover_statements)
             .unwrap();
         let prove = prove_start.elapsed();
         let bytes = param.write(&proof, ts).unwrap().into_bytes();
@@ -74,7 +77,7 @@ fn run<
     let verify_start = Instant::now();
     let decoded_proof = param.read(&mut bytes.as_slice()).unwrap();
     let mut tv = Transcript::for_test(b"polygero/kernel/bench");
-    let verifier = JointPolygeroVerifier::receive(&mut tv.bound_for_test(&param), &com);
+    let verifier = JointPolygeroVerifier::receive_for_test(&mut tv.bound_for_test(&param), &com);
     verifier
         .verify(tv, &param, statements, decoded_proof)
         .unwrap();

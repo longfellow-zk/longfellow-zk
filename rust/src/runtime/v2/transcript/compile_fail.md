@@ -90,38 +90,6 @@ use longfellow_zk::runtime::v2::transcript::TranscriptRef;
 fn bad(t: TranscriptRef<'_>) { t.append_final_seal(vec![]); }
 ```
 
-Receiving a joint commitment transfers ownership of the session:
-
-```compile_fail,E0382
-use longfellow_zk::runtime::v2::{
-    proto::polygero::PolygeroCommitment,
-    transcript::Transcript,
-    zk::joint::{Fields, JointParam, Responses},
-};
-fn bad<L: Fields>(p: JointParam<L>, root: &PolygeroCommitment,
-                  responses: Responses<L>, t: Transcript) {
-    let session = p.receive(root, responses, t);
-    drop(t);
-}
-```
-
-Late authentication cannot take a replacement transcript:
-
-```compile_fail,E0061
-use longfellow_zk::runtime::v2::{
-    proto::polygero::JointPolygeroProof,
-    transcript::Transcript,
-    zk::{
-        joint::{Bodies, Fields, Statements},
-        JointVerifier,
-    },
-};
-fn bad<L: Fields>(v: JointVerifier<L>, equations: Statements<L>,
-                  proof: &JointPolygeroProof<Bodies<L>>, mut other: Transcript) {
-    v.finish(equations, proof, &mut other);
-}
-```
-
 The field in a v2 context comes from its domain, rather than an independent
 struct member:
 

@@ -35,7 +35,7 @@ use crate::{
 /// prover used. They must be fixed before the caller draws `top`: derive
 /// them only from data the transcript already binds, never from this proof's
 /// own messages.
-pub fn reduce<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+pub(crate) fn reduce<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
     proof: &CircuitProof<W, F>,
     top: Challenge<TopWeights<F::E>>,
@@ -261,7 +261,11 @@ impl std::error::Error for ZkVerificationError {}
 /// Check the split frontend proof of `t`'s part from its top weights `top`
 /// and reduce its constraints to the claim its storage discharges
 /// (`split_claim`), before the split challenge.
-pub fn reduce_split<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+pub(crate) fn reduce_split<
+    const W: usize,
+    F: ZkField<W> + PackingField,
+    D: EvaluationDomain<W, F>,
+>(
     t: &mut Bound<'_, FrontendPart<'_, W, F>>,
     proof: &SumcheckProof<W, F>,
     top: Challenge<TopWeights<F::E>>,

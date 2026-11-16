@@ -343,14 +343,16 @@ pub struct PolygeroLinearTerm<E> { pub c: usize, pub w: usize, pub k: E }
 
 // One field's encoded rows and the geometry they were encoded for (prover).
 pub struct FieldState<E> { /* geom: PolygeroGeometry, rows: Vec<Vec<E>> */ }
+// Both role states are public only in testonly builds; elsewhere only the
+// crate's drivers hold them.
 pub struct JointPolygeroProver<S> { /* session stamp, states, column oracle; not Clone */ }
 impl<S> JointPolygeroProver<S> {
-    pub fn commit<L: Participants<States = S>>(
+    pub(crate) fn commit<L: Participants<States = S>>(
         t: &mut Bound<'_, JointPolygeroParam<L>>,
         witnesses: L::Witnesses,                    // moved: released before Merkle construction
         rng: &mut impl PrivateRandom,               // I7
     ) -> Result<(Self, PolygeroCommitment), PolygeroError>;      // sends Commitment
-    pub fn prove<L: Participants<States = S>>(
+    pub(crate) fn prove<L: Participants<States = S>>(
         self,                                       // I4: one opening per commitment
         t: &mut Bound<'_, JointPolygeroParam<L>>,   // checked against the stamp
         statements: L::Statements,                  // I3: the weights are drawn here
@@ -358,7 +360,7 @@ impl<S> JointPolygeroProver<S> {
 }
 pub struct JointPolygeroVerifier<L: Participants> { /* session stamp, root */ }
 impl<L: Participants> JointPolygeroVerifier<L> {
-    pub fn receive(t: &mut Bound<'_, JointPolygeroParam<L>>, root: &PolygeroCommitment) -> Self;
+    pub(crate) fn receive(t: &mut Bound<'_, JointPolygeroParam<L>>, root: &PolygeroCommitment) -> Self;
     pub(crate) fn reduce(
         self,
         t: &mut Bound<'_, JointPolygeroParam<L>>,   // checked against the stamp
@@ -377,7 +379,15 @@ impl<L: Participants> JointPolygeroParam<L> {
     pub fn read<'a>(&self, bytes: &mut &'a [u8])
         -> Result<Unverified<'a, JointPolygeroProof<L::Bodies>>, PolygeroError>;
 }
+// tests only: the `_for_test` entry points (testonly) run the crate-private
+// steps on a bare session (`Transcript::bound_for_test`); `verify` is
+// #[cfg(any(test, feature = "testonly"))]
+impl<S> JointPolygeroProver<S> {
+    pub fn commit_for_test<L: Participants<States = S>>(..) -> ..;   // commit
+    pub fn prove_for_test<L: Participants<States = S>>(self, ..) -> ..; // prove
+}
 impl<L: Participants> JointPolygeroVerifier<L> {
+    pub fn receive_for_test(..) -> Self;          // receive
     pub fn verify(self, transcript: Transcript, param: &JointPolygeroParam<L>,
                   statements: L::Statements,
                   proof: Unverified<'_, JointPolygeroProof<L::Bodies>>)
