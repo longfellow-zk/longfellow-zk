@@ -1,6 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! The prover's heap: built once from the leaves, it opens any set of them.
-use super::{hash, heap::mark_paths_to_root};
+use super::{
+    hash,
+    heap::{frontier_child, mark_paths_to_root},
+};
 use crate::runtime::v2::proto::Digest;
 
 /// Representation of a built, immutable Merkle heap.
@@ -43,15 +46,11 @@ impl MerkleHeap {
 
         // Traverse internal nodes from bottom to top
         for i in (1..self.num_leaves).rev() {
-            if is_node_on_path[i] {
-                // If only one of the children is on the path, the other child's
-                // digest must be included in the proof so the
-                // verifier can compute the parent digest.
-                if is_node_on_path[2 * i] && !is_node_on_path[2 * i + 1] {
-                    proof.push(self.layers[2 * i + 1]);
-                } else if !is_node_on_path[2 * i] && is_node_on_path[2 * i + 1] {
-                    proof.push(self.layers[2 * i]);
-                }
+            // If only one of the children is on the path, the other child's
+            // digest must be included in the proof so the verifier can
+            // compute the parent digest.
+            if let Some(child) = frontier_child(&is_node_on_path, i) {
+                proof.push(self.layers[child]);
             }
         }
         proof

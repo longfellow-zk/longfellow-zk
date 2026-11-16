@@ -49,6 +49,15 @@ pub(super) fn mark_paths_to_root(
     Ok(is_node_on_path)
 }
 
+/// The child of internal node `i` whose digest the frontier supplies, if
+/// exactly one of its children is on a path (`is_node_on_path` from
+/// `mark_paths_to_root`); `i` itself is then on a path.
+pub(super) fn frontier_child(is_node_on_path: &[bool], i: usize) -> Option<usize> {
+    let (left, right) = (is_node_on_path[2 * i], is_node_on_path[2 * i + 1]);
+    // The off-path child: the right one when the left is on a path.
+    (left != right).then_some(2 * i + usize::from(left))
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::runtime::v2) enum MerkleError {
     DuplicateLeafIndex { index: usize },

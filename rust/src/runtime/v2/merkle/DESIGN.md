@@ -91,7 +91,9 @@ proof (transcript I2).
 non-path siblings of path nodes, in decreasing heap index. The verifier
 consumes it exactly: a missing or extra digest rejects, so no opening has a
 second encoding.
-*Enforced by:* `verify_proof` returns `OpeningError::ProofLengthMismatch` unless the
+*Enforced by:* `generate_proof` and `verify_proof` take each frontier
+position from one helper, `frontier_child` (`heap.rs`); `verify_proof`
+returns `OpeningError::ProofLengthMismatch` unless the
 traversal consumes every frontier digest (runtime); the test
 `duplicate_opening_indices_and_noncanonical_frontiers_reject`;
 `Merkle.Heap.frontier`.

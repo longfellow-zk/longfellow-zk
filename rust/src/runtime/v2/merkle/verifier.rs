@@ -4,7 +4,7 @@ use std::fmt;
 
 use super::{
     hash,
-    heap::{mark_paths_to_root, MerkleError},
+    heap::{frontier_child, mark_paths_to_root, MerkleError},
 };
 use crate::runtime::v2::proto::Digest;
 
@@ -30,26 +30,15 @@ pub(in crate::runtime::v2) fn verify_proof(
 
     // 1. Populate sibling nodes from the proof path
     for i in (1..num_leaves).rev() {
-        if is_node_on_path[i] {
-            if is_node_on_path[2 * i] && !is_node_on_path[2 * i + 1] {
-                if proof_idx >= proof.len() {
-                    return Err(OpeningError::ProofLengthMismatch {
-                        expected: proof_idx + 1,
-                        found: proof.len(),
-                    });
-                }
-                computed_nodes[2 * i + 1] = Some(proof[proof_idx]);
-                proof_idx += 1;
-            } else if !is_node_on_path[2 * i] && is_node_on_path[2 * i + 1] {
-                if proof_idx >= proof.len() {
-                    return Err(OpeningError::ProofLengthMismatch {
-                        expected: proof_idx + 1,
-                        found: proof.len(),
-                    });
-                }
-                computed_nodes[2 * i] = Some(proof[proof_idx]);
-                proof_idx += 1;
-            }
+        if let Some(child) = frontier_child(&is_node_on_path, i) {
+            let digest = proof
+                .get(proof_idx)
+                .ok_or(OpeningError::ProofLengthMismatch {
+                    expected: proof_idx + 1,
+                    found: proof.len(),
+                })?;
+            computed_nodes[child] = Some(*digest);
+            proof_idx += 1;
         }
     }
 
