@@ -118,12 +118,12 @@ pub mod mdoc {
     pub use runtime::{find_zk_spec, find_zk_spec_by_hex, v2, ZkSpecRef, LONGFELLOW_V2};
 
     cfg_compiler! {
-        pub mod artifacts;
         pub mod circuits;
         pub mod compile;
         pub mod development_provider;
     }
     cfg_testonly! {
+        pub mod artifacts;
         pub mod testcases;
     }
 }
