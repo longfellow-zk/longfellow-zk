@@ -114,13 +114,13 @@ impl StorageMap {
 /// pads, a foreign private input is accepted and a foreign pad is rejected.
 #[test]
 fn mixed_storage_keeps_every_pad_native() {
-    use super::{Group, Split};
+    use super::{Group, MixedStorage};
     let g = Group { start: 5, width: 1 };
-    let r = Some(Group {
+    let r = Group {
         start: 6,
         width: 256,
-    });
-    let split = |v| Split::new(StorageMap::new(4, &[(v, g)]).unwrap(), r, 2, 4);
+    };
+    let split = |v| MixedStorage::new(StorageMap::new(4, &[(v, g)]).unwrap(), r, 2, 4);
     assert!(split(1).is_ok());
     for pad in [2, 3] {
         assert_eq!(
@@ -128,4 +128,43 @@ fn mixed_storage_keeps_every_pad_native() {
             "mixed storage keeps every pad native"
         );
     }
+}
+
+/// Each split mode takes only maps of its kind: mixed storage needs a native
+/// value, pure-foreign storage stores every value foreign, and neither takes
+/// a map with no foreign value or one that does not cover the values.
+#[test]
+fn split_modes_take_only_maps_of_their_kind() {
+    use super::{Group, MixedStorage};
+    let g = |start| Group { start, width: 1 };
+    let r = Group {
+        start: 100,
+        width: 256,
+    };
+    let pure = StorageMap::new(2, &[(0, g(5)), (1, g(6))]).unwrap();
+    let mixed = StorageMap::new(2, &[(0, g(5))]).unwrap();
+    let native = StorageMap::new(2, &[]).unwrap();
+    assert_eq!(
+        MixedStorage::new(pure.clone(), r, 2, 2).err().unwrap(),
+        "mixed storage needs a native value"
+    );
+    assert!(MixedStorage::new(mixed.clone(), r, 2, 2).is_ok());
+    assert_eq!(
+        mixed.check_pure(2).err().unwrap(),
+        "pure foreign storage stores every value foreign"
+    );
+    assert!(pure.check_pure(2).is_ok());
+    for check in [
+        MixedStorage::new(native.clone(), r, 2, 2).map(drop),
+        native.check_pure(2),
+    ] {
+        assert_eq!(
+            check.err().unwrap(),
+            "storage map has no foreign value; use native storage"
+        );
+    }
+    assert_eq!(
+        pure.check_pure(3).err().unwrap(),
+        "storage map does not cover the participant's values"
+    );
 }

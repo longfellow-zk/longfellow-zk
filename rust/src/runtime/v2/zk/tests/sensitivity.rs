@@ -36,12 +36,12 @@ use crate::{
         },
         v2::{
             proto::{polygero::PolygeroConfig, zk::ZkProofGeometry},
-            transcript::{Opened, Statement, ZkStatement},
+            transcript::{Header, Opened, Statement, ZkStatement},
             zk::{
                 joint::{CircuitParticipant, FrontendPart},
-                split::value_count,
-                storage::{Group, Run, Split, Storage, StorageMap},
-                ZkProofStatement, ZkVerifier,
+                split::{value_count, MixedSplit},
+                storage::{Group, MixedStorage, Run, Storage, StorageMap},
+                write_joint_geometry, ZkProofStatement, ZkVerifier,
             },
         },
     },
@@ -109,7 +109,13 @@ fn standalone(
     let d = BinaryInterpolatorFactory::full_field(&f);
     let verifier = ZkVerifier::new(circuit, config, &d).unwrap();
     let statement = verifier.statement(CONTEXT, &[true]).unwrap();
-    let cells = statement.part.participant.backend.layout.fields_for_test();
+    let cells = statement
+        .part
+        .participant
+        .frontend
+        .backend
+        .layout
+        .fields_for_test();
     (statement_bytes(&statement), verifier.geometry(), cells)
 }
 
@@ -207,7 +213,8 @@ fn proof_geometry_fields_are_absorbed() {
         cells;
     // Written: the private input count, alone and through the circuit.
     assert_ne!(
-        edited(&circuit(), |p| p.backend.layout.private_inputs += 1),
+        edited(&circuit(), |p| p.frontend.backend.layout.private_inputs +=
+            1),
         base
     );
     {
@@ -225,7 +232,7 @@ fn proof_geometry_fields_are_absorbed() {
     assert_eq!((masks, degree), (129, 128));
     // Written: the pad count, alone and through the circuit's layers.
     assert_ne!(
-        edited(&circuit(), |p| p.backend.layout.pad_cells += 1),
+        edited(&circuit(), |p| p.frontend.backend.layout.pad_cells += 1),
         base
     );
     let (_, other) = geometry_of(9, &[8, 8]);
@@ -266,7 +273,7 @@ fn packing_descriptor_fields_are_absorbed() {
         // and, for a basis other than the native one, the coordinate inverse.
         assert!(other.fields_for_test().4.is_some());
         let bytes = edited(&circuit, |participant| {
-            participant.backend.parameters = other
+            participant.frontend.backend.parameters = other
         });
         assert_ne!(bytes, base, "basis element {j}");
     }
@@ -299,26 +306,44 @@ fn prime_circuit(p: &P256Field, ninput: usize) -> Circuit<P256Field> {
     Circuit::from_raw(p, raw)
 }
 
-/// The statement of a split P-256 participant of `circuit` whose values
+/// A standalone statement of a mixed split participant: `ZkStatement`, then
+/// the frontend's `Circuit`, `CommitmentLayout`, `JointGeometry` and
+/// `PublicInputs`, in the order and with the writers of `ZkProofStatement`.
+struct SplitStatement<'a> {
+    identity: ZkStatement<'a>,
+    part: FrontendPart<'a, 4, P256Field, MixedSplit<4, P256Field>>,
+}
+impl<'a> Statement for SplitStatement<'a> {
+    type Identity = ZkStatement<'a>;
+    fn identity(&self) -> &ZkStatement<'a> {
+        &self.identity
+    }
+    fn write(&self, h: &mut Header<'_>) {
+        self.part.write_circuits(h);
+        self.part.write_layout(h);
+        write_joint_geometry(h, CONFIG);
+        self.part.write_public(h);
+    }
+}
+
+/// The statement of a mixed split P-256 participant of `circuit` whose values
 /// `foreign` are bit groups and whose mask R is `mask`, and its storage.
 fn split_statement(
     circuit: &Circuit<P256Field>,
     foreign: &[(usize, Group)],
     mask: Group,
-) -> (Vec<u8>, Split) {
+) -> (Vec<u8>, MixedStorage) {
     let p = P256Field::new();
     let p2 = Fp2Field::new(&p);
     let d = QuadraticExtensionFftInterpolatorFactory::new(&p, &p2, p2.omega(), p2.omega_order());
     let storage = StorageMap::new(value_count(circuit).unwrap(), foreign).unwrap();
-    let participant =
-        CircuitParticipant::with_storage(circuit, storage, Some(mask), CONFIG, &d).unwrap();
+    let participant = MixedSplit::new(circuit, storage, mask, CONFIG, &d).unwrap();
     let public = [p.one()];
-    let statement = ZkProofStatement {
+    let statement = SplitStatement {
         identity: ZkStatement { context: CONTEXT },
         part: FrontendPart::new(&participant, &[circuit], &public).unwrap(),
-        geometry: ZkProofGeometry::new(participant.geometry(), CONFIG).unwrap(),
     };
-    let split = participant.fields_for_test().7.clone().unwrap();
+    let split = participant.fields_for_test().2.clone();
     (statement_bytes(&statement), split)
 }
 
@@ -385,25 +410,25 @@ fn storage_fields_are_absorbed() {
     let group = |start, width| Group::new(start, width).unwrap();
     let mask = group(100, 256);
     let (base, split) = split_statement(&circuit, &[(1, group(10, 8))], mask);
-    let Split {
+    let MixedStorage {
         map,
         mask: r,
         mask_cell,
     } = &split;
     let (entries, native) = map.fields_for_test();
     let runs = map.runs();
-    let [r_start, r_width] = r.unwrap().fields_for_test();
-    // Split.mask, written: R's start and width.
+    let [r_start, r_width] = r.fields_for_test();
+    // MixedStorage.mask, written: R's start and width.
     for other in [group(r_start + 1, r_width), group(r_start, r_width - 1)] {
         let (bytes, s) = split_statement(&circuit, &[(1, group(10, 8))], other);
-        assert_eq!(s.mask, Some(other));
+        assert_eq!(s.mask, other);
         assert_ne!(bytes, base, "mask {other:?}");
     }
     // StorageMap.entries, each element: every private value but the
     // foreign one made foreign too, and the foreign one's group (start and
     // width, each written in the stored runs). The foreign value cannot
     // become native: a split needs a foreign value. Pads cannot become
-    // foreign: mixed storage keeps every pad native (`Split::new`).
+    // foreign: mixed storage keeps every pad native (`MixedStorage::new`).
     let private = circuit.raw.ninput - circuit.raw.npublic_input;
     assert!(matches!(entries[1], Storage::Foreign(_)));
     assert!(entries[private..]
@@ -426,7 +451,7 @@ fn storage_fields_are_absorbed() {
         assert_ne!(bytes, base, "foreign {foreign:?}");
         let other = s.map.runs();
         covered.extend(changed_run_fields(&runs, &other).unwrap_or_default());
-        // StorageMap.native and Split.mask_cell, derived: the native count,
+        // StorageMap.native and MixedStorage.mask_cell, derived: the native count,
         // and R's cell after every native value, move with the entries.
         if foreign.len() > 1 {
             assert_ne!(

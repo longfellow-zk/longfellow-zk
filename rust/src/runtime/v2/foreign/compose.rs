@@ -14,9 +14,9 @@
 //! 5. the joint opening of both statements.
 //!
 //! Scope: the driver composes exactly one GF(2^128) host and one degree-one
-//! prime participant with mixed storage. `CircuitParticipant` also supports
-//! pure-foreign storage, but this driver always supplies the split mask R and
-//! so rejects it. Other shapes need a new driver.
+//! prime participant with mixed storage (`MixedSplit`). Pure-foreign storage
+//! (`PureSplit`) is a type of its own, which this driver does not take. Other
+//! shapes need a new driver.
 use super::{adapter::AdapterMode, reserved::ReservedSuffix};
 use crate::{
     core::proto::v2::Circuit,
@@ -30,6 +30,7 @@ use crate::{
             transcript::{Header, SetupMessage, Statement},
             zk::{
                 joint::{CircuitParticipant, FrontendPart, JointParam, SelectedField},
+                split::MixedSplit,
                 storage::{Group, Storage, StorageMap},
                 write_joint_geometry, CircuitInput,
             },
@@ -55,8 +56,7 @@ type Fields<'s, const W: usize, F, DH, DS> = (
 ///
 /// The host is a GF(2^128) participant; the split participant is a
 /// degree-one prime participant whose storage is mixed: some values native,
-/// the others bit groups of the host's private inputs. Pure-foreign storage
-/// is rejected, since the driver always supplies the split mask R.
+/// the others bit groups of the host's private inputs (`MixedSplit`).
 pub(crate) struct Composition<'a, const W: usize, F: ZkField<W> + PackingField, DH, DS, M>
 where
     DH: EvaluationDomain<H, Host>,
@@ -67,7 +67,7 @@ where
     /// The interpolation domains of the host and of the split participant.
     domains: (&'a DH, &'a DS),
     host: CircuitParticipant<H, Host>,
-    split: CircuitParticipant<W, F>,
+    split: MixedSplit<W, F>,
     /// R and the mode's pads after the host circuit's inputs, filled by the
     /// prover.
     #[cfg_attr(not(any(test, feature = "prover")), allow(dead_code))]
@@ -115,8 +115,7 @@ where
             joint,
             domains.0,
         )?;
-        let split =
-            CircuitParticipant::with_storage(split_circuit, storage, Some(mask), joint, domains.1)?;
+        let split = MixedSplit::new(split_circuit, storage, mask, joint, domains.1)?;
         Ok(Self {
             host_circuit,
             split_circuit,
@@ -186,7 +185,7 @@ where
     identity: I,
     composition: &'s Composition<'s, W, F, DH, DS, M>,
     host: FrontendPart<'s, H, Host>,
-    split: FrontendPart<'s, W, F>,
+    split: FrontendPart<'s, W, F, MixedSplit<W, F>>,
     geometry: ComposedGeometry,
 }
 impl<const W: usize, F, DH, DS, M, I> ComposedStatement<'_, W, F, DH, DS, M, I>

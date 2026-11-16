@@ -176,44 +176,65 @@ pub(crate) struct ModularClaim<E> {
     pub(crate) target: E,
 }
 
-/// Storage of a participant whose values are not all native.
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Split {
-    pub(crate) map: StorageMap,
-    /// Bits of R in the binary commitment; absent for pure foreign storage.
-    pub(crate) mask: Option<Group>,
-    /// Physical cell of R: after every native value.
-    pub(crate) mask_cell: usize,
-}
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-impl Split {
-    /// Validate a storage map over `values` values, the first `private` of
-    /// them private inputs and the rest pads, and derive its split layout.
-    pub(crate) fn new(
-        map: StorageMap,
-        mask: Option<Group>,
-        private: usize,
-        values: usize,
-    ) -> Result<Self, String> {
-        if map.entries().len() != values {
+impl StorageMap {
+    /// Check that this map covers a split participant's `values` values
+    /// and stores at least one of them foreign: a map with no foreign value
+    /// is native storage, which needs no map.
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    fn check_split(&self, values: usize) -> Result<(), String> {
+        if self.entries.len() != values {
             return Err("storage map does not cover the participant's values".into());
         }
-        if !map
-            .entries()
+        if !self
+            .entries
             .iter()
             .any(|s| matches!(s, Storage::Foreign(_)))
         {
             return Err("storage map has no foreign value; use native storage".into());
         }
-        let pure = map.is_pure_foreign();
-        if pure != mask.is_none() {
-            return Err("a mask is required exactly when some values are native".into());
+        Ok(())
+    }
+    /// Check that this map stores every one of a pure-foreign participant's
+    /// `values` values as bits of the binary commitment.
+    #[cfg(test)]
+    pub(crate) fn check_pure(&self, values: usize) -> Result<(), String> {
+        self.check_split(values)?;
+        if !self.is_pure_foreign() {
+            return Err("pure foreign storage stores every value foreign".into());
         }
-        if !pure
-            && map.entries()[private..]
-                .iter()
-                .any(|s| !matches!(s, Storage::Native(_)))
+        Ok(())
+    }
+}
+
+/// Mixed storage: some values native, the others bit groups of the binary
+/// commitment, every pad native, and the split mask R, whose bits are `mask`
+/// in the binary commitment and whose cell follows every native value.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct MixedStorage {
+    pub(crate) map: StorageMap,
+    /// Bits of R in the binary commitment.
+    pub(crate) mask: Group,
+    /// Physical cell of R: after every native value.
+    pub(crate) mask_cell: usize,
+}
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+impl MixedStorage {
+    /// Validate a storage map over `values` values, the first `private` of
+    /// them private inputs and the rest pads, and derive its split layout.
+    pub(crate) fn new(
+        map: StorageMap,
+        mask: Group,
+        private: usize,
+        values: usize,
+    ) -> Result<Self, String> {
+        map.check_split(values)?;
+        if map.is_pure_foreign() {
+            return Err("mixed storage needs a native value".into());
+        }
+        if map.entries()[private..]
+            .iter()
+            .any(|s| !matches!(s, Storage::Native(_)))
         {
             return Err("mixed storage keeps every pad native".into());
         }

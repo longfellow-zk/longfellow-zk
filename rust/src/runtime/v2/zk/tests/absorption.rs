@@ -28,19 +28,19 @@ use crate::{
             transcript::{Opened, ZkStatement, ZK_PROTOCOL_ID},
             witness_selection::witness_count,
             zk::{
-                joint::FrontendPart,
+                joint::{FrontendPart, Participant, StorageLayout},
                 packing_commitment::{PackingCommitment, PackingLayout},
-                storage::{Group, Run, Split, StorageMap},
+                storage::{Group, MixedStorage, Run, StorageMap},
                 InputLayout, ZkProofStatement, ZkProver, ZkVerifier,
             },
         },
     },
 };
 
-/// The split storage a `CommitmentLayout` describes, rebuilt from its runs
+/// The storage map a `CommitmentLayout` describes, rebuilt from its runs
 /// alone: `private` private inputs then `pads` pads, the stored runs' values
-/// as bit groups, every other value native in value order, and R's bits.
-fn rebuild_split(layout: &Layout, private: usize, pads: usize) -> Split {
+/// as bit groups and every other value native in value order.
+fn rebuild_map(layout: &Layout, private: usize, pads: usize) -> StorageMap {
     let values = usize::try_from(layout.values()).unwrap();
     assert_eq!(values, private + pads, "the runs cover every value");
     let mut foreign = Vec::new();
@@ -71,16 +71,10 @@ fn rebuild_split(layout: &Layout, private: usize, pads: usize) -> Split {
         (native, stored),
         (layout.native.clone(), layout.stored.clone())
     );
-    let mask = if map.is_pure_foreign() {
-        assert_eq!(layout.mask, [0, 0], "pure foreign storage has no mask");
-        None
-    } else {
-        Some(Group::new(layout.mask[0] as usize, layout.mask[1] as usize).unwrap())
-    };
-    Split::new(map, mask, private, values).unwrap()
+    map
 }
 
-impl<const W: usize, F: ZkField<W> + PackingField> FrontendPart<'_, W, F> {
+impl<const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>> FrontendPart<'_, W, F, P> {
     /// Check this frontend part, as the verifier reads it, against its
     /// decoded statement values: the IDs of its circuits, its commitment
     /// layout and its public inputs, under the profile `config` and with
@@ -95,8 +89,9 @@ impl<const W: usize, F: ZkField<W> + PackingField> FrontendPart<'_, W, F> {
         virtual_inputs: usize,
     ) -> CircuitProofGeometry {
         let (participant, circuits, values) = self.fields_for_test();
-        let (geometry, prover_config, param, backend, id, additional_ids, inputs, storage) =
-            participant.fields_for_test();
+        let (geometry, prover_config, backend, id, additional_ids, inputs) =
+            participant.frontend().fields_for_test();
+        let (param, storage) = (participant.param_for_test(), participant.storage());
         let PackingCommitment {
             parameters,
             layout: cells,
@@ -129,7 +124,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> FrontendPart<'_, W, F> {
         let shared = InputLayout::new(circuits, virtual_inputs).unwrap();
         assert_eq!(shared, *inputs, "input layout");
         let sumcheck = circuit_geometry(circuits).unwrap();
-        let commits = participant.commits();
+        let commits = !matches!(storage, StorageLayout::Pure(_));
         let (private, pads) = (layout.private as usize, layout.pads as usize);
         if commits {
             assert_eq!(pads, sumcheck.pad_count(), "pad cells");
@@ -138,21 +133,29 @@ impl<const W: usize, F: ZkField<W> + PackingField> FrontendPart<'_, W, F> {
             assert_eq!([layout.private, layout.pads, layout.masks], [0; 3]);
         }
         // The storage map, R's bits and R's cell (after every native value).
+        let (committed, pad_count) = (shared.committed(), sumcheck.pad_count());
         let mask_cells = match storage {
-            None => {
+            StorageLayout::Native => {
                 assert!(layout.native.is_empty() && layout.stored.is_empty());
                 assert_eq!(layout.mask, [0, 0]);
-                assert_eq!(private, shared.committed(), "committed private inputs");
+                assert_eq!(private, committed, "committed private inputs");
                 0
             }
-            Some(split) => {
-                let rebuilt = rebuild_split(layout, shared.committed(), sumcheck.pad_count());
-                assert_eq!(rebuilt, *split, "split storage");
-                if commits {
-                    assert_eq!(private + pads, layout.native_cells() as usize);
-                    assert_eq!(split.mask_cell, layout.native_cells() as usize);
-                }
-                usize::from(split.mask.is_some())
+            StorageLayout::Mixed(split) => {
+                let map = rebuild_map(layout, committed, pad_count);
+                let mask = Group::new(layout.mask[0] as usize, layout.mask[1] as usize).unwrap();
+                let rebuilt =
+                    MixedStorage::new(map, mask, committed, committed + pad_count).unwrap();
+                assert_eq!(rebuilt, *split, "mixed storage");
+                assert_eq!(private + pads, layout.native_cells() as usize);
+                assert_eq!(split.mask_cell, layout.native_cells() as usize);
+                1
+            }
+            StorageLayout::Pure(map) => {
+                let rebuilt = rebuild_map(layout, committed, pad_count);
+                assert_eq!(rebuilt, *map, "pure foreign storage");
+                assert_eq!(layout.mask, [0, 0], "pure foreign storage has no mask");
+                0
             }
         };
         // The commitment layout from the absorbed counts and degree, then
@@ -167,7 +170,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> FrontendPart<'_, W, F> {
         let rebuilt = CircuitProofGeometry::new(sumcheck, degree, nw).unwrap();
         assert_eq!(rebuilt, *geometry, "circuit geometry");
         assert_eq!(
-            param.as_ref().map(|p| p.geometry()),
+            param.map(|p| p.geometry()),
             commits.then(|| PolygeroGeometry::new(nw, config).unwrap()),
             "Polygero geometry"
         );

@@ -169,7 +169,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
 
     let independent_param = JointParam::new((
         SelectedField::new(
-            prover.participant.backend.layout.witness_count,
+            prover.participant.frontend.backend.layout.witness_count,
             geometry.config(),
             &domain,
         )
@@ -211,7 +211,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let state = numerical.fork_for_test().bytes(32);
     assert_eq!(state, independent.fork_for_test().bytes(32));
     assert_ne!(state, different_execution.bytes(32));
-    let layout = prover.participant.backend.layout.clone();
+    let layout = prover.participant.frontend.backend.layout.clone();
     let pads = geometry
         .circuit()
         .sumcheck()
@@ -240,7 +240,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let verifier_backend = PackingCommitment::new(f.clone(), layout, Binary128Extension).unwrap();
     let commitment = reference.commitment.clone();
     let (packing, native) = PackingCommitment::prove::<2>(
-        &mut reference.joint.bound(&prover.participant.backend),
+        &mut reference.joint.bound(&prover.participant.frontend.backend),
         reference.state.packing,
         source,
     )

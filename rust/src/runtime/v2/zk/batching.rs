@@ -2,10 +2,11 @@
 //! Batch the complete masked sumcheck rows into one authenticated linear claim.
 //!
 //! Fresh independent row weights cover every layer equation and the final
-//! input equation. The pure split step (`split::SplitClaim::batch`) draws
+//! input equation. The pure split step (`split::pure::PureClaim::batch`) draws
 //! them after every frontend message and uses them at once (transcript I8);
 //! the resulting claim is reconstructed locally by both parties, and derived
 //! coefficients are not absorbed.
+#[cfg(test)]
 use crate::{
     core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
@@ -26,9 +27,11 @@ pub(crate) struct LinearClaim<E> {
 /// The unbatched rows of a frontend over its values `[private inputs |
 /// pads]`: the compiled layer rows `A*v + b = 0` and the input equation
 /// `<w, v> = t`.
+#[cfg(test)]
 pub(crate) type Rows<E> = ((Vec<PolygeroLinearTerm<E>>, Vec<E>), LinearClaim<E>);
 
 /// The rows of `circuit` on `public` from its reduced `constraints`.
+#[cfg(test)]
 pub(crate) fn rows<const W: usize, F: RuntimeField<W> + SerializableField>(
     circuit: &Circuit<F>,
     public: &[F::E],

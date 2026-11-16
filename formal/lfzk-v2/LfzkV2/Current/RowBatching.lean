@@ -29,7 +29,7 @@ theorem holds_get_iff (rows : List (LinearRow Value F)) (values : Value → F) :
     exact h _ (List.get_mem rows i)
 
 /-- The dense modular claim `<weights, v> = target` over every value, with a
-public target: `ModularClaim` of `zk::split::pure_claim` before its terms
+public target: `ModularClaim` of `zk::split::pure::PureSplit::claim` before its terms
 are mapped to bit groups. -/
 structure Claim (Value F : Type) where
   weights : Value → F

@@ -17,14 +17,14 @@ use crate::{
                 witness_selection::{FingerprintResponse, FINGERPRINTS},
                 zk::{CircuitProof, CircuitProofGeometry, ZkProof},
             },
-            sumcheck::{self, SumcheckPads},
+            sumcheck::{self, symbolic::Constraints, SumcheckPads},
             transcript::{Bound, EncodedProof, Transcript},
             zk::{
                 context::private_input_count,
-                joint::{CircuitParticipant, FrontendPart, JointParam},
+                joint::{CircuitParticipant, Frontend, FrontendPart, JointParam, Participant},
                 packing_commitment::{prover::PackingState, PackingCommitment},
-                split::PendingSplit,
-                storage::{Split, Storage},
+                split::{MixedSplit, PendingSplit},
+                storage::{MixedStorage, Storage},
                 CircuitInput, InputLayout, JointProver, VirtualInputs, ZkProofStatement,
             },
         },
@@ -32,45 +32,46 @@ use crate::{
 };
 
 /// The participant a prover state was prepared by: its circuits, profile,
-/// geometry, input layout and storage. Identities compare these values, not
-/// the participant objects: two participants that agree on all of them have
-/// equal identities and may finish each other's states.
-struct Identity {
+/// geometry, input layout and storage `S` (`()` for native storage).
+/// Identities compare these values, not the participant objects: two
+/// participants that agree on all of them have equal identities and may
+/// finish each other's states.
+pub(super) struct Identity<S> {
     id: [u8; 32],
     additional_ids: Vec<[u8; 32]>,
     config: PolygeroConfig,
     geometry: CircuitProofGeometry,
     inputs: InputLayout,
-    storage: Option<Split>,
+    storage: S,
 }
-impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
-    fn identity(&self) -> Identity {
+impl<const W: usize, F: ZkField<W> + PackingField> Frontend<W, F> {
+    pub(super) fn identity<S>(&self, storage: S) -> Identity<S> {
         Identity {
             id: self.id,
             additional_ids: self.additional_ids.clone(),
             config: self.config,
             geometry: self.geometry.clone(),
             inputs: self.inputs,
-            storage: self.storage.clone(),
+            storage,
         }
     }
-    /// Whether this participant matches the one that prepared the state that
-    /// recorded `identity`.
-    fn prepared(&self, identity: &Identity) -> bool {
+    /// Whether this frontend, with `storage`, matches the participant that
+    /// prepared the state that recorded `identity`.
+    pub(super) fn prepared<S: PartialEq>(&self, identity: &Identity<S>, storage: &S) -> bool {
         let Identity {
             id,
             additional_ids,
             config,
             geometry,
             inputs,
-            storage,
+            storage: prepared,
         } = identity;
         *id == self.id
             && *additional_ids == self.additional_ids
             && *config == self.config
             && *geometry == self.geometry
             && *inputs == self.inputs
-            && *storage == self.storage
+            && prepared == storage
     }
 }
 
@@ -79,7 +80,7 @@ pub(crate) struct CircuitState<const W: usize, F: ZkField<W> + PackingField> {
     private: Vec<CircuitInput<F>>,
     pads: SumcheckPads<W, F>,
     packing: PackingState<F::E>,
-    participant: Identity,
+    participant: Identity<()>,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     /// Own, validate and pack typed inputs before sampling any masks. The returned
@@ -89,19 +90,16 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         private: Vec<CircuitInput<F>>,
         rng: &mut impl PrivateRandom,
     ) -> Result<(CircuitState<W, F>, Vec<F::E>), String> {
-        let inputs = self.backend.prepare_inputs(&private)?;
-        let (pads, suffix) = sumcheck::sample_pads(
-            self.geometry.sumcheck(),
-            rng,
-            self.backend.parameters.field(),
-        );
-        let (packing, witness) = self.backend.prepare(inputs, suffix, rng);
+        let p = &self.frontend;
+        let inputs = p.backend.prepare_inputs(&private)?;
+        let (pads, suffix) = sumcheck::sample_pads(p.geometry.sumcheck(), rng, p.field());
+        let (packing, witness) = p.backend.prepare(inputs, suffix, rng);
         Ok((
             CircuitState {
                 private,
                 pads,
                 packing,
-                participant: self.identity(),
+                participant: p.identity(()),
             },
             witness,
         ))
@@ -127,9 +125,9 @@ pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField>(
     virtual_inputs: &VirtualInputs<F::E>,
 ) -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String> {
     let part = t.part();
-    let p = part.participant;
+    let p = part.frontend();
     virtual_inputs.validate(&p.inputs)?;
-    if !p.prepared(&state.participant) {
+    if !p.prepared(&state.participant, &()) {
         return Err("commitment belongs to another participant".into());
     }
     state
@@ -167,7 +165,7 @@ pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField>(
         f,
     )?;
     let (packing, statement) = PackingCommitment::prove::<W>(
-        &mut t.project(|q| &q.participant.backend),
+        &mut t.project(|q| &q.participant.frontend.backend),
         state.packing,
         statement,
     )?;
@@ -285,37 +283,39 @@ fn prepare_inputs<E: Clone>(public: &[E], private: Vec<E>, nvirtual: usize) -> V
 #[cfg(test)]
 mod tests;
 
-/// Prover state of a split participant between commitment and reduction.
+/// Prover state of a mixed split participant between commitment and
+/// reduction.
 pub(crate) struct SplitState<const W: usize, F: ZkField<W>> {
     pads: SumcheckPads<W, F>,
     /// `[private inputs | pads]`, in value order.
     values: Vec<F::E>,
-    mask: Option<F::E>,
-    participant: Identity,
+    /// The split mask R.
+    mask: F::E,
+    participant: Identity<MixedStorage>,
 }
-impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
+impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
     /// Sample pads and return the native witness `[native private inputs |
-    /// pads | R]`, which is empty for pure foreign storage. `mask` is R, present
-    /// exactly when some values are native.
-    pub(crate) fn prepare_split(
+    /// pads | R]`; `mask` is R.
+    pub(crate) fn prepare(
         &self,
         private: Vec<CircuitInput<F>>,
-        mask: Option<F::E>,
+        mask: F::E,
         rng: &mut impl PrivateRandom,
     ) -> Result<(SplitState<W, F>, Vec<F::E>), String> {
-        let split = self.split()?;
-        if mask.is_some() != split.mask.is_some() || private.len() != self.inputs.committed() {
+        let p = &self.frontend;
+        if private.len() != p.inputs.committed() {
             return Err("split witness shape".into());
         }
-        let f = self.backend.parameters.field();
-        let mut values = self
+        let f = p.field();
+        let mut values = p
             .backend
             .parameters
             .extension()
             .into_input_elements(f, private);
-        let (pads, suffix) = sumcheck::sample_pads(self.geometry.sumcheck(), rng, f);
+        let (pads, suffix) = sumcheck::sample_pads(p.geometry.sumcheck(), rng, f);
         values.extend(suffix);
-        let mut witness: Vec<_> = split
+        let mut witness: Vec<_> = self
+            .storage
             .map
             .entries()
             .iter()
@@ -324,42 +324,50 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
             .map(|(_, v)| v.clone())
             .collect();
         // R follows every native value.
-        witness.extend(mask.clone());
+        witness.push(mask.clone());
         Ok((
             SplitState {
                 pads,
                 values,
                 mask,
-                participant: self.identity(),
+                participant: p.identity(self.storage.clone()),
             },
             witness,
         ))
     }
 }
-/// Run the split frontend of `t`'s part, which draws its top weights on
-/// entry, and reduce its constraints to the claim its storage discharges (`split_claim`),
-/// before the split challenge.
-pub(crate) fn prove_split<const W: usize, F: ZkField<W> + PackingField>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
-    state: SplitState<W, F>,
-) -> Result<(SumcheckProof<W, F>, PendingSplit<F::E>), String> {
+/// Run the sumcheck of a split frontend of `t`'s part over `[public |
+/// private inputs]`, the private inputs leading `values`; it draws its top
+/// weights on entry. Every split storage mode runs its frontend here.
+pub(super) fn prove_values<const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>>(
+    t: &mut Bound<'_, FrontendPart<'_, W, F, P>>,
+    values: &[F::E],
+    pads: SumcheckPads<W, F>,
+) -> Result<(SumcheckProof<W, F>, Constraints<F::E>), String> {
     let part = t.part();
-    let p = part.participant;
-    p.split()?;
-    if !p.prepared(&state.participant) {
-        return Err("split state belongs to another participant".into());
-    }
-    let f = part.field();
     let mut inputs = part.public.to_vec();
-    inputs.extend_from_slice(&state.values[..p.inputs.committed()]);
-    let (proof, constraints) = sumcheck::evaluate_and_prove_circuits(
+    inputs.extend_from_slice(&values[..part.frontend().inputs.committed()]);
+    sumcheck::evaluate_and_prove_circuits(
         part.circuits(),
         inputs,
-        state.pads,
+        pads,
         &mut t.transcript(),
-        f,
-    )?;
-    let claim = CircuitParticipant::split_claim(t, constraints)?;
+        part.field(),
+    )
+}
+/// Run the mixed split frontend of `t`'s part and reduce its constraints to
+/// the claim its storage discharges (`split_claim`), before the split
+/// challenge.
+pub(crate) fn prove_split<const W: usize, F: ZkField<W> + PackingField>(
+    t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>,
+    state: SplitState<W, F>,
+) -> Result<(SumcheckProof<W, F>, PendingSplit<F::E>), String> {
+    let p = t.part().participant;
+    if !p.frontend.prepared(&state.participant, &p.storage) {
+        return Err("split state belongs to another participant".into());
+    }
+    let (proof, constraints) = prove_values(t, &state.values, state.pads)?;
+    let claim = MixedSplit::split_claim(t, constraints)?;
     Ok((
         proof,
         PendingSplit {

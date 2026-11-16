@@ -55,9 +55,9 @@ This module discharges the modular claims:
   and the joint opening. Its proof body is `proto::composed::ComposedProof`;
   an application wraps it in its own envelope (mdoc: `MDA7` and the final
   seal). The driver composes exactly one GF(2^128) host and one degree-one
-  prime participant with mixed storage. `CircuitParticipant` also supports
-  pure-foreign storage, but this driver always supplies the split mask R and
-  so rejects it. Other shapes need a new driver.
+  prime participant with mixed storage (`zk::split::MixedSplit`).
+  Pure-foreign storage is another participant type (`PureSplit`, tests only),
+  which this driver does not take. Other shapes need a new driver.
 - `word`: three types.
   - `Word<N>`: the integer quotient, used only inside the adapter.
   - `Otp<N>`: the committed one-time pad, built only by the prover from

@@ -45,7 +45,7 @@ where
 
         let param = c.param()?;
         let (state_host, w_host) = c.host.prepare(host_private, rng)?;
-        let (state_split, w_split) = c.split.prepare_split(split_private, Some(mask), rng)?;
+        let (state_split, w_split) = c.split.prepare(split_private, mask, rng)?;
         let (mut joint, commitment, fingerprints) =
             param.commit((w_host, (w_split, ())), transcript, rng)?;
 
@@ -54,7 +54,7 @@ where
         // frontend's last combine answer.
         let mut ts = joint.bound(&this.split);
         let (split_sumcheck, pending) = zk::prove_split(&mut ts, state_split)?;
-        let values = c.split.foreign_values(&pending)?;
+        let values = c.split.foreign_values(&pending);
         let (mu, split) = pending.open(&mut ts)?;
 
         // Adapter rounds, whose conversion pair follows the split message,

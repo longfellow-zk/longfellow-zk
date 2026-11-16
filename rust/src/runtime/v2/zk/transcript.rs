@@ -5,7 +5,7 @@
 //! prover message. Sumcheck, packing and witness selection send their own
 //! messages after it.
 use super::{
-    joint::{CircuitParticipant, FrontendPart},
+    joint::{CircuitParticipant, Frontend, FrontendPart, Participant, StorageLayout},
     storage::{Group, Run},
     CircuitInput,
 };
@@ -60,19 +60,34 @@ impl<F: SerializableField> SetupMessage for CircuitMessage<'_, F> {}
 ///
 /// The packing masks follow from the descriptor's degree, and the
 /// committed cell count `nw` from all of these.
-struct LayoutMessage<'a, const W: usize, F: ZkField<W> + PackingField>(
-    &'a CircuitParticipant<W, F>,
-);
+struct LayoutMessage<'a, const W: usize, F: ZkField<W> + PackingField> {
+    frontend: &'a Frontend<W, F>,
+    storage: StorageLayout<'a>,
+}
 impl<const W: usize, F: ZkField<W> + PackingField> Message for LayoutMessage<'_, W, F> {
     const TAG: Tag = Tag::CommitmentLayout;
     fn encode(&self, e: &mut Encoder<'_>) {
-        let p = self.0;
+        let p = self.frontend;
         let f = p.backend.parameters.field();
         let layout = &p.backend.layout;
-        let (private, pads, masks) = if p.commits() {
-            (layout.private_inputs, layout.pad_cells, FINGERPRINTS)
-        } else {
-            (0, 0, 0)
+        // A pure-foreign participant commits nothing.
+        let (private, pads, masks, split_map, mask) = match &self.storage {
+            StorageLayout::Native => (
+                layout.private_inputs,
+                layout.pad_cells,
+                FINGERPRINTS,
+                None,
+                Group::EMPTY,
+            ),
+            StorageLayout::Mixed(split) => (
+                layout.private_inputs,
+                layout.pad_cells,
+                FINGERPRINTS,
+                Some(&split.map),
+                split.mask,
+            ),
+            #[cfg(test)]
+            StorageLayout::Pure(map) => (0, 0, 0, Some(*map), Group::EMPTY),
         };
         e.nats(&[
             f.field_id() as u64,
@@ -82,10 +97,9 @@ impl<const W: usize, F: ZkField<W> + PackingField> Message for LayoutMessage<'_,
         ]);
         e.bytes(&p.backend.parameters.descriptor());
         let (mut native, mut stored) = (Vec::new(), Vec::new());
-        let mut mask = Group::EMPTY;
-        if let Some(split) = &p.storage {
+        if let Some(map) = split_map {
             // `runs` is in value order, so each list is in increasing first value.
-            for run in split.map.runs() {
+            for run in map.runs() {
                 match run {
                     Run::Native { first, count, cell } => {
                         native.extend([first, count, cell].map(|x| x as u64))
@@ -98,7 +112,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> Message for LayoutMessage<'_,
                     } => stored.extend([first, count, start, width].map(|x| x as u64)),
                 }
             }
-            mask = split.mask.unwrap_or(Group::EMPTY);
         }
         e.nats(&native);
         e.nats(&stored);
@@ -134,21 +147,25 @@ impl<F: RegisteredField> Message for PublicInputsMessage<'_, F> {
 }
 impl<F: RegisteredField> SetupMessage for PublicInputsMessage<'_, F> {}
 
-impl<const W: usize, F: ZkField<W> + PackingField> FrontendPart<'_, W, F> {
+impl<const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>> FrontendPart<'_, W, F, P> {
     /// One `Circuit` message per circuit of this frontend, primary first.
-    pub fn write_circuits(&self, h: &mut Header<'_>) {
+    pub(crate) fn write_circuits(&self, h: &mut Header<'_>) {
         for c in self.circuits() {
             h.send(&CircuitMessage(*c));
         }
     }
-    /// This frontend's `CommitmentLayout`.
-    pub fn write_layout(&self, h: &mut Header<'_>) {
-        h.send(&LayoutMessage(self.participant));
+    /// This frontend's `CommitmentLayout`, written alike for every storage
+    /// mode from its frontend and its storage.
+    pub(crate) fn write_layout(&self, h: &mut Header<'_>) {
+        h.send(&LayoutMessage {
+            frontend: self.frontend(),
+            storage: self.participant.storage(),
+        });
     }
     /// This frontend's `PublicInputs`.
-    pub fn write_public(&self, h: &mut Header<'_>) {
+    pub(crate) fn write_public(&self, h: &mut Header<'_>) {
         h.send(&PublicInputsMessage {
-            f: self.participant.backend.parameters.field(),
+            f: self.field(),
             inputs: &self.public,
         });
     }
@@ -179,7 +196,7 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField> ZkProofStatement<'a, W, F
         circuit: &'a Circuit<F>,
         public: &'a [CircuitInput<F>],
     ) -> Result<Self, String> {
-        let profile = participant.polygero()?.config();
+        let profile = participant.polygero().config();
         Ok(Self {
             identity: ZkStatement { context },
             part: FrontendPart::new(participant, &[circuit], public)?,

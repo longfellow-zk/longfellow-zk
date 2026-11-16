@@ -102,7 +102,7 @@ prover, its values) to the adapter, the adapter's leaves to the host
 frontend. Each value is an argument of the call that draws the next
 challenge, so it is fixed before that challenge. Two weight vectors open no
 sub-protocol, because the step that draws them uses them in the same call:
-the pure-foreign row weights (`SplitClaim::batch`) and the Polygero batching
+the pure-foreign row weights (`PureClaim::batch`) and the Polygero batching
 weights (the joint opening, `JointProver::finish` or `JointVerifier::finish`,
 on both fields' statements).
 *Enforced by:* the draws are inside these entry points, none of which takes
@@ -123,9 +123,10 @@ only. Pure-foreign storage is specified (the zk layer implements its row
 batching, and Lean models it as `RowBatching`, `PureHandoff` and
 `PureComposition`), but a pure-foreign composition is future work, and no
 application may use it until its application model charges those events.
-*Enforced by:* `Composition::new` builds the split participant with a mask
-group, which `Split::new` rejects for pure-foreign storage (runtime); the
-role-trace test (transcript I9); `check_mdoc_round_shapes`.
+*Enforced by:* the composition's split participant is a `MixedSplit`,
+which always has R's mask group, and pure-foreign storage is another type,
+`PureSplit`, compiled for tests only (type); `MixedStorage::new` rejects a
+map with no native value (runtime); the role-trace test (transcript I9); `check_mdoc_round_shapes`.
 
 **I3. Each adapter input is fixed before the challenge that follows it.**
 The modular claim is a function of the statement, the split frontend's
@@ -209,7 +210,7 @@ modular claim (coefficients `2^r` on its bits). Its bits carry no range
 check, because only their residue modulo `p` enters the claim. Pure-foreign
 storage has no R: its claim's target is public, so it hides nothing.
 *Enforced by:* R is not a parameter of `ComposedStatement::prove` (type), and
-`Split::new` requires R's mask group exactly for mixed storage (runtime);
+only `MixedSplit`, the mixed storage type, has R's mask group (type);
 `Handoff.product_handoff` (Lean) proves that the two copies of R agree
 modulo `p` outside the counted rescaling event.
 
@@ -565,7 +566,7 @@ The split's side is owned by `zk::split` and called by the driver. For mixed
 storage, the prover's `PendingSplit::open` draws eta, sends `SplitOpening`
 and returns `mu`, the `ModularClaim` and the prime statement; the
 verifier's `SplitClaim::receive` draws the same eta and sends the proof's
-`mu`. For pure-foreign storage, `SplitClaim::batch`
+`mu`. For pure-foreign storage (tests only), `PureClaim::batch`
 draws the row weights (`elements(F, L+1)`) and uses them, sends nothing and
 returns the `ModularClaim` with its public target. `Eta<E>` is private to
 `zk::split`; `zk::split::transcript::eta` (a `nonzero(F)` draw) builds it.
@@ -578,7 +579,7 @@ The frontends draw their top weights themselves, on their `Bound`.
 | Drawing the conversion pair before `mu` is sent | I1: the adapter draws it on entry and takes the claim that `open` or `receive` returns after sending `mu` |
 | Drawing the host top weights before the masked quotients | I1: the host frontend draws them on entry and takes the leaves the adapter returns after sending its quotients |
 | The driver drawing a challenge for a sub-protocol, or handing it to another | I1, I2: no entry point takes a challenge; the role-trace test compares both roles' traces |
-| Batching mixed-storage rows, or splitting pure-foreign storage with eta | I2: the driver composes mixed storage only; `SplitClaim::batch` rejects mixed storage, and only `open` and `receive` take `Eta` |
+| Batching mixed-storage rows, or splitting pure-foreign storage with eta | I2: the driver composes mixed storage only; `PureClaim::batch` takes only a `PureSplit`'s part and `open` and `receive` only a `MixedSplit`'s (type) |
 | Leaves that depend on the host sumcheck's challenges | I3: leaves are computed before the host top weights are drawn, from the claim, conversion and message only |
 | A zero conversion challenge or eta | I4: `Conversion` and `Eta` exist only from `nonzero` draws |
 | Encoding with caller-chosen conversion challenges, such as one repeated | I4: `P256Plan::encode` is crate-private; `P256Mode` passes only the drawn `Conversion` |
@@ -593,8 +594,8 @@ The frontends draw their top weights themselves, on their `Bound`.
 | A leaf whose source is public or virtual | `VirtualInputs::validate` and `compile_packed` reject it |
 | A per-proof circuit | I7: `fragment` takes no challenge; its ID is in the statement |
 | Reusing R, or a caller-chosen R | I8: R is sampled inside `ComposedStatement::prove` |
-| A foreign sumcheck pad in mixed storage | `Split::new` rejects it: mixed storage keeps every pad native |
-| A mask without native values, or native values without a mask | `Split::new`: a mask is required exactly when some values are native |
+| A foreign sumcheck pad in mixed storage | `MixedStorage::new` rejects it: mixed storage keeps every pad native |
+| A mask without native values, or native values without a mask | `MixedStorage::new` rejects a map with no native value, and only `MixedSplit` has a mask (type); `StorageMap::check_pure` rejects a native value in pure-foreign storage |
 | Tree sizes that overflow | `TreeShape::virtual_inputs` uses `checked_mul`; `fragment` bounds the width by `u32::MAX` |
 | Prover-only data in a verifier build | `Word`, `Otp::sample`, `MaskedWord::mask`, `sample_pads`, `write_pads`, `prove` and quotient accumulation are `cfg(prover)` |
 

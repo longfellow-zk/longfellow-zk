@@ -166,13 +166,13 @@ serialized, and no intermediate dense input-weight vectors are cached.
 ## Storage
 
 A participant's value vector is `[private inputs | pads]`. By default every
-value is a native cell of its own commitment. `CircuitParticipant::with_storage`
-takes a `StorageMap` (`storage.rs`) that marks some values foreign: bits in the
-binary commitment. The participant then derives its commitment layout from the
-map.
+value is a native cell of its own commitment (`CircuitParticipant`). A
+`StorageMap` (`storage.rs`) marks some values foreign: bits in the binary
+commitment. Each storage mode is its own participant type, which derives its
+commitment layout from the map (`split.rs`):
 
-- Mixed storage commits `[native private inputs | pads | R]`, and every pad
-  is native. The layer rows read only pads, so they go to this field's
+- Mixed storage (`MixedSplit`) commits `[native private inputs | pads | R]`,
+  and every pad is native. The layer rows read only pads, so they go to this field's
   Polygero participant unchanged. Only the input equation `<w, v> = t` reads
   foreign values. A fresh nonzero `eta` and one masked message
   `mu = eta*<w_F, v_F> + R` split it (`split.rs`) into two parts:
@@ -180,9 +180,10 @@ map.
     rows;
   - a modular claim `<eta*w_F, v_F> + R_bits = mu (mod p)` over foreign bit
     groups.
-- Pure foreign storage commits nothing. Fresh weights batch every layer row
-  and the input equation into one modular claim with a public target
-  (`batching.rs`).
+- Pure foreign storage (`PureSplit`, in `split/pure.rs`, compiled for tests
+  only until a driver uses it) commits nothing. Fresh weights batch every
+  layer row and the input equation into one modular claim with a public
+  target (`batching.rs`).
 
 The [foreign storage layer](../foreign/README.md) discharges modular claims.
 A split participant's `CommitmentLayout` in the statement carries its storage

@@ -45,9 +45,8 @@ carried by the packing descriptor:
 | Packed circuit, packing degree `d > 1` | `ceil(p / d) + pad cells + (d + 1)` packing masks |
 | Mixed storage (mdoc prime) | `p + pad cells + 1` (the split mask R) |
 
-These are the counts `PackingLayout::witness_count` and
-`CircuitParticipant::with_storage` produce (`runtime/v2/zk/joint.rs`,
-`runtime/v2/zk/packing_commitment.rs`). The Polygero witness width is
+These are the counts `PackingLayout::witness_count` and `MixedSplit::new`
+produce (`runtime/v2/zk/split.rs`, `runtime/v2/zk/packing_commitment.rs`). The Polygero witness width is
 `nw_i = n_i + FINGERPRINTS` (`witness_count` in `fields.rs`), and the masks
 are its last two cells, at indices `n_i` and `n_i + 1`.
 

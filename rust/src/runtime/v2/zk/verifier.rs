@@ -17,9 +17,9 @@ use crate::{
             sumcheck::{self, symbolic::Constraints},
             transcript::{Bound, Opened, Unverified, VerifiedProof},
             zk::{
-                joint::{CircuitParticipant, FrontendPart, JointParam},
+                joint::{CircuitParticipant, FrontendPart, JointParam, Participant},
                 packing_commitment::PackingCommitment,
-                split::SplitClaim,
+                split::{MixedSplit, SplitClaim},
                 Authenticated, CircuitInput, VirtualInputs, ZkProofStatement,
             },
         },
@@ -57,11 +57,19 @@ fn sumcheck_constraints<const W: usize, F: ZkField<W> + PackingField>(
     sumcheck: &SumcheckProof<W, F>,
     virtual_inputs: &VirtualInputs<F::E>,
 ) -> Result<Constraints<F::E>, String> {
+    virtual_inputs.validate(&t.part().frontend().inputs)?;
+    reduce_values(t, sumcheck)
+}
+/// Check the sumcheck proof of a frontend of `t`'s part, drawing its top
+/// weights, and derive its constraints. Every storage mode checks its
+/// frontend here.
+pub(super) fn reduce_values<const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>>(
+    t: &mut Bound<'_, FrontendPart<'_, W, F, P>>,
+    sumcheck: &SumcheckProof<W, F>,
+) -> Result<Constraints<F::E>, String> {
     let part = t.part();
-    let p = part.participant;
-    virtual_inputs.validate(&p.inputs)?;
     sumcheck
-        .validate(p.geometry.sumcheck())
+        .validate(part.frontend().geometry.sumcheck())
         .map_err(|e| e.to_string())?;
     sumcheck::derive_constraints_for_circuits(
         part.circuits(),
@@ -79,7 +87,7 @@ fn pack_constraints<const W: usize, F: ZkField<W> + PackingField>(
     virtual_inputs: &VirtualInputs<F::E>,
 ) -> Result<LinearStatement<F::E>, String> {
     let part = t.part();
-    let p = part.participant;
+    let p = part.frontend();
     let f = part.field();
     let pads = p
         .geometry
@@ -94,7 +102,7 @@ fn pack_constraints<const W: usize, F: ZkField<W> + PackingField>(
         f,
     )?;
     PackingCommitment::reduce::<W>(
-        &mut t.project(|q| &q.participant.backend),
+        &mut t.project(|q| &q.participant.frontend.backend),
         statement,
         packing,
     )
@@ -113,10 +121,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
     ) -> Result<Self, ZkVerificationError> {
         let participant = CircuitParticipant::new(&[&circuit], 0, config, domain)
             .map_err(ZkVerificationError::InvalidStatement)?;
-        let profile = participant
-            .polygero()
-            .map_err(ZkVerificationError::InvalidStatement)?
-            .config();
+        let profile = participant.polygero().config();
         let geometry = ZkProofGeometry::new(participant.geometry(), profile)
             .map_err(|e| ZkVerificationError::InvalidStatement(e.to_string()))?;
         Ok(Self {
@@ -237,21 +242,13 @@ impl fmt::Display for ZkVerificationError {
 
 impl std::error::Error for ZkVerificationError {}
 
-/// Check the split frontend proof of `t`'s part, drawing its top weights,
-/// and reduce its constraints to the claim its storage discharges
+/// Check the mixed split frontend proof of `t`'s part, drawing its top
+/// weights, and reduce its constraints to the claim its storage discharges
 /// (`split_claim`), before the split challenge.
 pub(crate) fn reduce_split<const W: usize, F: ZkField<W> + PackingField>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+    t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>,
     proof: &SumcheckProof<W, F>,
 ) -> Result<SplitClaim<F::E>, String> {
-    let part = t.part();
-    let p = part.participant;
-    p.split()?;
-    proof
-        .validate(p.geometry.sumcheck())
-        .map_err(|e| e.to_string())?;
-    let f = part.field();
-    let constraints =
-        sumcheck::derive_constraints_for_circuits(part.circuits(), proof, &mut t.transcript(), f)?;
-    CircuitParticipant::split_claim(t, constraints)
+    let constraints = reduce_values(t, proof)?;
+    MixedSplit::split_claim(t, constraints)
 }

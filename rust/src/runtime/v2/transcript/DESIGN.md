@@ -129,7 +129,7 @@ adapter call that draws the conversion pair. Likewise the Polygero batching
 weights are drawn by the joint opening (`JointProver::finish`,
 `JointVerifier::finish`, through Polygero's `prove` and `reduce`), which
 takes each field's equations, typed per field, and the row weights of
-pure-foreign storage by the pure split step (`SplitClaim::batch`), which
+pure-foreign storage by the pure split step (`PureClaim::batch`), which
 takes the frontend's claim; so the weights batch exactly the system the call
 was given, and no other can be substituted. Each `LinearStatement` also
 carries the stamp of the session that derived it, and the joint opening

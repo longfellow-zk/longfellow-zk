@@ -41,7 +41,7 @@ pub(super) fn eta<F: SupportsSampling>(t: &mut TranscriptRef<'_>, f: &F) -> Eta<
 
 /// The `count` pure-foreign row weights rho_0..rho_L: one per layer row,
 /// then one for the input equation. Only the pure split step,
-/// `SplitClaim::batch`, draws them, right after the split frontend, and uses
+/// `pure::PureClaim::batch`, draws them, right after the split frontend, and uses
 /// them at once: they read further from the frontend's last answer (its last
 /// combine, after alpha and the input assertions; transcript I7), with no
 /// message or boundary of their own.

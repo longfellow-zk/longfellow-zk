@@ -120,8 +120,9 @@ verifier replay are preserved by the numbered-strand oracle transport.
 
 The selected joint boundary belongs to `runtime::v2::zk`, in `runtime/v2/zk`.
 Witness selection and Polygero are sibling protocols underneath it. The zk
-layer also owns storage maps (`zk::storage`) and the split of a mixed
-participant's input equation (`zk::split`). `foreign::adapter` supplies the
+layer also owns storage maps (`zk::storage`) and the participant types of
+the split storage modes with the split of a mixed participant's input
+equation (`zk::split`: `MixedSplit`, and `PureSplit` for tests). `foreign::adapter` supplies the
 fixed product-tree fragment and the P-256 mode (`AdapterMode`, `P256Mode`), and
 `foreign::compose` drives a binary host participant and one split prime
 participant; its body is `proto::composed::ComposedProof`. Mdoc supplies the

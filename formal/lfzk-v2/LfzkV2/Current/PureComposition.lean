@@ -16,7 +16,7 @@ variable {B I J SlotB PadB Value PadN G : Type} [Field B] [Fintype B] [Decidable
   [Algebra (ZMod 2) B] [Fintype I] [DecidableEq I] [Fintype J] [Fintype Value] [CommGroup G]
 variable {p bits M K : ℕ} [Fact p.Prime]
 
-/-- `zk::split::pure_claim`: the prime frontend's compiled rows, the layer
+/-- `zk::split::pure::PureClaim::batch`: the prime frontend's compiled rows, the layer
 rows then the input equation, batched with the row weights. -/
 def claim (n : Frontend.Prime (ZMod p) Value PadN) (rho : Fin n.rows.length → ZMod p) :
     RowBatching.Claim Value (ZMod p) :=

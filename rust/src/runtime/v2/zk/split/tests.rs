@@ -7,17 +7,24 @@ use crate::{
         proto::v2::{Circuit, Layer, Linear, RawCircuitBuilder, Stream},
     },
     runtime::{
-        algebra::{p256::P256Field, range_interpolation::ScalarInterpolatorFactory, RuntimeField},
+        algebra::{
+            p256::P256Field, packing::PackingField, range_interpolation::ScalarInterpolatorFactory,
+            RuntimeField, ZkField,
+        },
         random::DeterministicRng,
         v2::{
-            polygero::LinearStatement,
+            polygero::{LinearStatement, PolygeroParam},
             proto::polygero::PolygeroConfig,
             transcript::Transcript,
             zk::{
                 self,
-                joint::{CircuitParticipant, FrontendPart},
-                split::value_count,
-                storage::{Group, StorageMap},
+                joint::{Frontend, FrontendPart, Participant},
+                split::{
+                    pure::{self, PureSplit},
+                    transcript::Eta,
+                    value_count, MixedSplit,
+                },
+                storage::{Group, MixedStorage, StorageMap},
             },
         },
     },
@@ -49,8 +56,9 @@ const CONFIG: PolygeroConfig = PolygeroConfig {
 };
 
 /// A participant that commits nothing has no Polygero backend (zk I11,
-/// audit Z1): it cannot join a joint commitment, and its geometry has no
-/// committed cells, not the two fingerprint masks of an empty field.
+/// audit Z1): a `PureSplit` has no parameter and no `participant`, so it
+/// cannot join a joint commitment, and its geometry has no committed cells,
+/// not the two fingerprint masks of an empty field.
 #[test]
 fn pure_foreign_participant_cannot_join_the_joint_backend() {
     let f = P256Field::new();
@@ -61,16 +69,14 @@ fn pure_foreign_participant_cannot_join_the_joint_backend() {
         .map(|i| (i, Group::new(i * 256, 256).unwrap()))
         .collect();
     let storage = StorageMap::new(n, &groups).unwrap();
-    let part = CircuitParticipant::with_storage(&c, storage, None, CONFIG, &domain).unwrap();
-    assert!(!part.commits());
-    assert!(part.participant(&domain).is_err());
+    let part = PureSplit::new(&c, storage, CONFIG, &domain).unwrap();
+    assert!(part.param_for_test().is_none());
     assert_eq!(part.geometry().nw(), 0);
     // A mixed participant still joins, with its native cells, R and the
     // fingerprint masks.
     let mixed = StorageMap::new(n, &[(0, Group::new(7, 1).unwrap())]).unwrap();
-    let mask = Some(Group::new(20, 256).unwrap());
-    let joined = CircuitParticipant::with_storage(&c, mixed, mask, CONFIG, &domain).unwrap();
-    assert!(joined.commits());
+    let mask = Group::new(20, 256).unwrap();
+    let joined = MixedSplit::new(&c, mixed, mask, CONFIG, &domain).unwrap();
     let selected = joined.participant(&domain).unwrap();
     assert_eq!(selected.geometry().nw, joined.geometry().nw());
     assert!(zk::joint::JointParam::new((selected, ())).is_ok());
@@ -86,18 +92,12 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     let mask_group = Group::new(20, 256).unwrap();
     let values = value_count(&c).unwrap();
     let storage = StorageMap::new(values, &[(0, shared)]).unwrap();
-    let part =
-        CircuitParticipant::with_storage(&c, storage, Some(mask_group), CONFIG, &domain).unwrap();
-    assert!(part.commits());
+    let part = MixedSplit::new(&c, storage, mask_group, CONFIG, &domain).unwrap();
     let source = f.one();
     let native = f.zero();
     let mask = f.u64_to_element(17);
     let (state, witness) = part
-        .prepare_split(
-            vec![source, native],
-            Some(mask),
-            &mut DeterministicRng::new(42),
-        )
+        .prepare(vec![source, native], mask, &mut DeterministicRng::new(42))
         .unwrap();
     // Native cells: the native private input, then the pads, then R.
     assert_eq!(witness[0], native);
@@ -117,16 +117,16 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     .unwrap();
     assert_eq!(reduction.claim.claim.weights, checked.claim.weights);
     assert_eq!(reduction.claim.claim.target, checked.claim.target);
-    let eta = f.u64_to_element(19);
-    let mu = part.split_message(&reduction, &eta, &f).unwrap();
+    let eta = Eta(f.u64_to_element(19));
+    let mu = part.split_message(&reduction, &eta).unwrap();
     // Foreign claim: eta*w_0*source + R = mu, over the shared group and R.
-    let foreign = part.foreign_claim(&checked, &eta, &mu, &f).unwrap();
+    let foreign = part.foreign_claim(&checked, &eta, &mu).unwrap();
     assert_eq!(foreign.terms.len(), 2);
     assert_eq!(
         (foreign.terms[0].0, foreign.terms[1].0),
         (shared, mask_group)
     );
-    let values = part.foreign_values(&reduction).unwrap();
+    let values = part.foreign_values(&reduction);
     let mut sum = f.zero();
     for ((_, k), v) in foreign.terms.iter().zip(&values) {
         f.fma(&mut sum, k, v);
@@ -141,7 +141,7 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
         rows.iter().all(|x| f.is_zero(x))
     };
     let statement = part
-        .split_statement(checked, &eta, &mu, tv.session_for_test(), &f)
+        .split_statement(checked, &eta, &mu, tv.session_for_test())
         .unwrap();
     // The layer rows, unbatched, then the split row.
     assert_eq!(statement.b.len(), c.raw.layers.len() + 1);
@@ -162,11 +162,11 @@ fn mixed_split_authenticates_native_rows_and_foreign_values() {
     )
     .unwrap();
     let mu = f.addf(
-        &f.mulf(&eta, &f.mulf(&claim.claim.weights[0], &source)),
+        &f.mulf(&eta.0, &f.mulf(&claim.claim.weights[0], &source)),
         &mask,
     );
     let statement = part
-        .split_statement(claim, &eta, &mu, t.session_for_test(), &f)
+        .split_statement(claim, &eta, &mu, t.session_for_test())
         .unwrap();
     assert!(!holds(&statement, &witness));
 }
@@ -180,44 +180,29 @@ fn pure_foreign_storage_commits_nothing_and_claims_every_value() {
     let group = |i: usize| Group::new(256 * i, 256).unwrap();
     let foreign: Vec<_> = (0..values).map(|i| (i, group(i))).collect();
     let storage = StorageMap::new(values, &foreign).unwrap();
-    // A mask is required exactly when some values are native.
-    assert!(CircuitParticipant::with_storage(
-        &c,
-        storage.clone(),
-        Some(group(values)),
-        CONFIG,
-        &domain
-    )
-    .is_err());
-    let part = CircuitParticipant::with_storage(&c, storage, None, CONFIG, &domain).unwrap();
-    assert!(!part.commits());
-    let private = vec![f.u64_to_element(5), f.zero()];
-    let (_, witness) = part
-        .prepare_split(private, None, &mut DeterministicRng::new(7))
-        .unwrap();
-    assert!(witness.is_empty());
+    // Each mode takes only its own maps: mixed storage needs a native value,
+    // and pure-foreign storage takes no native one.
+    assert!(MixedSplit::new(&c, storage.clone(), group(values), CONFIG, &domain).is_err());
+    let mixed = StorageMap::new(values, &foreign[1..]).unwrap();
+    assert!(PureSplit::new(&c, mixed, CONFIG, &domain).is_err());
+    let part = PureSplit::new(&c, storage, CONFIG, &domain).unwrap();
     let public = [f.one()];
     let frontend = FrontendPart::new(&part, &[&c], &public).unwrap();
     let run = || {
-        let (state, _) = part
-            .prepare_split(
+        let state = part
+            .prepare(
                 vec![f.u64_to_element(5), f.zero()],
-                None,
                 &mut DeterministicRng::new(7),
             )
             .unwrap();
         let mut tp = Transcript::for_test(b"pure");
         let mut tv = tp.fork_for_test();
         let mut prover = tp.bound(&frontend);
-        let (proof, pending) = zk::prove_split(&mut prover, state).unwrap();
+        let (proof, pending) = pure::prove(&mut prover, state).unwrap();
         let mut verifier = tv.bound(&frontend);
-        let claim = zk::reduce_split(&mut verifier, &proof).unwrap();
+        let claim = pure::reduce(&mut verifier, &proof).unwrap();
         assert_eq!(pending.claim.claim.weights, claim.claim.weights);
         assert_eq!(pending.claim.claim.target, claim.claim.target);
-        // No mask: the mixed split's message and native row do not apply.
-        let eta = f.one();
-        assert!(part.split_message(&pending, &eta, &f).is_err());
-        assert!(part.foreign_claim(&claim, &eta, &eta, &f).is_err());
         // `batch` reads its row weights from the frontend's last stream, as
         // `elements(F, L+1)` (transcript I7), and nothing else.
         let count = pending.claim.row_weight_count();
@@ -256,7 +241,7 @@ fn open_and_receive_draw_eta_and_agree() {
     let values = value_count(&c).unwrap();
     let storage = StorageMap::new(values, &[(0, Group::new(7, 1).unwrap())]).unwrap();
     let mask = Group::new(20, 256).unwrap();
-    let part = CircuitParticipant::with_storage(&c, storage, Some(mask), CONFIG, &domain).unwrap();
+    let part = MixedSplit::new(&c, storage, mask, CONFIG, &domain).unwrap();
     let public = [f.one()];
     let frontend = FrontendPart::new(&part, &[&c], &public).unwrap();
     assert!(std::ptr::eq(frontend.participant, &part));
@@ -265,9 +250,9 @@ fn open_and_receive_draw_eta_and_agree() {
     // Both roles draw eta on entry to the split, right after the frontend.
     let run = || {
         let (state, _) = part
-            .prepare_split(
+            .prepare(
                 vec![f.one(), f.zero()],
-                Some(f.u64_to_element(17)),
+                f.u64_to_element(17),
                 &mut DeterministicRng::new(42),
             )
             .unwrap();
@@ -303,18 +288,18 @@ fn split_state_proves_only_for_its_own_participant() {
     let domain = ScalarInterpolatorFactory::new(&f, 128);
     let c = small_circuit(&f);
     let values = value_count(&c).unwrap();
-    let mask = Some(Group::new(20, 256).unwrap());
+    let mask = Group::new(20, 256).unwrap();
     let participant = |start| {
         let storage = StorageMap::new(values, &[(0, Group::new(start, 1).unwrap())]).unwrap();
-        CircuitParticipant::with_storage(&c, storage, mask, CONFIG, &domain).unwrap()
+        MixedSplit::new(&c, storage, mask, CONFIG, &domain).unwrap()
     };
     let (own, other) = (participant(7), participant(8));
     assert_eq!(own.geometry(), other.geometry());
-    let prove = |part: &CircuitParticipant<4, P256Field>| {
+    let prove = |part: &MixedSplit<4, P256Field>| {
         let (state, _) = own
-            .prepare_split(
+            .prepare(
                 vec![f.one(), f.zero()],
-                Some(f.u64_to_element(17)),
+                f.u64_to_element(17),
                 &mut DeterministicRng::new(42),
             )
             .unwrap();
@@ -328,4 +313,18 @@ fn split_state_proves_only_for_its_own_participant() {
         "split state belongs to another participant"
     );
     prove(&own).unwrap();
+}
+
+impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
+    /// Every field, in declaration order: the frontend, the Polygero
+    /// parameter and the storage. The pattern is exhaustive, so a new field
+    /// does not compile until the statement tests cover it.
+    pub(crate) fn fields_for_test(&self) -> (&Frontend<W, F>, &PolygeroParam, &MixedStorage) {
+        let Self {
+            frontend,
+            param,
+            storage,
+        } = self;
+        (frontend, param, storage)
+    }
 }

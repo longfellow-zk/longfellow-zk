@@ -2,9 +2,12 @@
 //! Selected joint commitments and circuit metadata for v2 composition.
 use std::borrow::Cow;
 
+#[cfg(test)]
+use super::storage::StorageMap;
 use super::{
-    context::{prepare_circuit_layout, prepare_parameter, CircuitInput},
+    context::{prepare_circuit_layout, CircuitInput},
     packing_commitment::PackingCommitment,
+    storage::MixedStorage,
     InputLayout,
 };
 use crate::{
@@ -24,7 +27,6 @@ use crate::{
                 polygero::{PolygeroConfig, PolygeroGeometry},
                 zk::CircuitProofGeometry,
             },
-            sumcheck::circuit_geometry,
             witness_selection,
         },
     },
@@ -50,9 +52,12 @@ impl<'a, const W: usize, F: ZkField<W> + RegisteredField, D: EvaluationDomain<W,
     /// Derive the augmented backend geometry from the original frontend cells.
     #[cfg(test)]
     pub(crate) fn new(cells: usize, config: PolygeroConfig, domain: &'a D) -> Result<Self, String> {
-        Self::from_parameter(prepare_parameter(cells, config, domain)?, domain)
+        Self::from_parameter(
+            super::context::prepare_parameter(cells, config, domain)?,
+            domain,
+        )
     }
-    fn from_parameter(param: PolygeroParam, domain: &'a D) -> Result<Self, String> {
+    pub(super) fn from_parameter(param: PolygeroParam, domain: &'a D) -> Result<Self, String> {
         let geometry = param.geometry();
         Ok(Self {
             selection: witness_selection::Field::new(param, domain)?,
@@ -117,30 +122,64 @@ impl<L: Fields> JointParam<L> {
 /// A participant's field must be registered (`RegisteredField`), never
 /// `FieldID::None`, and this value of it must be the field its ID names: the
 /// transcript identifies the field by `F::ID` alone.
-fn check_registered<F: RegisteredField>(f: &F) -> Result<(), String> {
+pub(super) fn check_registered<F: RegisteredField>(f: &F) -> Result<(), String> {
     if F::ID == FieldID::None || f.field_id() != F::ID || f.serialized_size_bytes() != F::BYTES {
         return Err("v2 participant field is not registered".into());
     }
     Ok(())
 }
 
-/// A circuit's packing and commitment layout, independent of the participant list.
-/// The statement absorbs it (`CommitmentLayout`) before any prover message.
-/// Input packing stays here; the lower-level Polygero participant only knows
-/// full-field witness cells and affine constraints over them.
-pub struct CircuitParticipant<const W: usize, F: ZkField<W> + PackingField> {
+/// What every participant has, whatever its storage: its circuits' IDs, its
+/// proof geometry, its profile, its shared input layout and its field's
+/// packing and commitment layout. The statement absorbs it
+/// (`CommitmentLayout`) before any prover message. Input packing stays
+/// here; the lower-level Polygero participant only knows full-field witness
+/// cells and affine constraints over them.
+pub(crate) struct Frontend<const W: usize, F: ZkField<W> + PackingField> {
     pub(super) geometry: CircuitProofGeometry,
     #[cfg(any(test, feature = "prover"))]
     pub(super) config: PolygeroConfig,
-    /// The Polygero parameter of the committed cells; `None` for a
-    /// participant that commits nothing (pure foreign storage).
-    param: Option<PolygeroParam>,
     pub(super) backend: PackingCommitment<F>,
     pub(super) id: [u8; 32],
     pub(super) additional_ids: Vec<[u8; 32]>,
     pub(super) inputs: InputLayout,
-    /// Values not all native: the split layout. `None` is all native.
-    pub(super) storage: Option<super::storage::Split>,
+}
+impl<const W: usize, F: ZkField<W> + PackingField> Frontend<W, F> {
+    /// Check that `circuits` are this frontend's circuits, in order, and
+    /// that `public` inputs fit the primary circuit.
+    fn validate_circuits(&self, circuits: &[&Circuit<F>], public: usize) -> Result<(), String> {
+        let (circuit, others) = circuits.split_first().ok_or("empty circuit list")?;
+        if public != circuit.raw.npublic_input {
+            return Err("public inputs length mismatch".into());
+        }
+        if circuit.id != self.id
+            || self.additional_ids.len() != others.len()
+            || self
+                .additional_ids
+                .iter()
+                .zip(others)
+                .any(|(id, c)| *id != c.id)
+        {
+            return Err("circuit statement mismatch".into());
+        }
+        if InputLayout::new(circuits, self.inputs.virtual_count())? != self.inputs {
+            return Err("shared input layout mismatch".into());
+        }
+        Ok(())
+    }
+    /// The field of this frontend's circuits and commitment, the field of
+    /// the domain its participant was built with.
+    pub(crate) fn field(&self) -> &F {
+        self.backend.parameters.field()
+    }
+}
+
+/// A participant with all its values native: a circuit list whose private
+/// inputs, sumcheck pads and packing masks it commits itself.
+pub struct CircuitParticipant<const W: usize, F: ZkField<W> + PackingField> {
+    pub(super) frontend: Frontend<W, F>,
+    /// The Polygero parameter of the committed cells.
+    param: PolygeroParam,
 }
 impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     /// Prove `circuits` as one layered sumcheck; `circuits[0]` is the primary
@@ -172,128 +211,75 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
         // when this circuit will join a larger participant list.
         SelectedField::from_parameter(param.clone(), domain)?;
         Ok(Self {
-            geometry,
-            #[cfg(any(test, feature = "prover"))]
-            config,
-            param: Some(param),
-            backend,
-            id: circuit.id,
-            additional_ids: others.iter().map(|c| c.id).collect(),
-            inputs: InputLayout::new(circuits, virtual_inputs)?,
-            storage: None,
-        })
-    }
-    /// A single-circuit participant whose values `[private inputs | pads]` are
-    /// stored as `storage` says. With some native values (mixed storage), it
-    /// commits `[native private inputs | pads | R]` and `mask` holds R's bits
-    /// in the binary commitment. With none (pure foreign storage), it commits
-    /// nothing and `mask` is `None`.
-    pub(crate) fn with_storage<D: EvaluationDomain<W, F>>(
-        circuit: &Circuit<F>,
-        storage: super::storage::StorageMap,
-        mask: Option<super::storage::Group>,
-        config: PolygeroConfig,
-        domain: &D,
-    ) -> Result<Self, String> {
-        check_registered(domain.field())?;
-        let extension = domain.field().packing_extension();
-        if domain.field().is_binary() || extension.degree() != 1 {
-            return Err("split storage requires a degree-one prime frontend".into());
-        }
-        let sc_geom = circuit_geometry(&[circuit])?;
-        let inputs = InputLayout::new(&[circuit], 0)?;
-        let private = inputs.committed();
-        let values = private
-            .checked_add(sc_geom.pad_count())
-            .ok_or("split layout overflow")?;
-        let split = super::storage::Split::new(storage, mask, private, values)?;
-        // Mixed storage commits its native values in value order (native
-        // private inputs, then pads), then R; pure foreign storage commits
-        // nothing and has no Polygero parameter, masks or rows.
-        let (committed, pads) = if split.mask.is_some() {
-            let pads = sc_geom.pad_count();
-            (split.map.native_cells() - pads, pads)
-        } else {
-            (0, 0)
-        };
-        let layout = super::packing_commitment::PackingLayout::new(committed, pads, 1)?;
-        let param = match split.mask {
-            Some(_) => {
-                let cells = prepare_parameter(layout.witness_count + 1, config, domain)?;
-                SelectedField::from_parameter(cells.clone(), domain)?;
-                Some(cells)
-            }
-            None => None,
-        };
-        let nw = param.as_ref().map_or(0, |p| p.geometry().nw);
-        Ok(Self {
-            geometry: CircuitProofGeometry::new(sc_geom, 1, nw).map_err(|e| e.to_string())?,
-            #[cfg(any(test, feature = "prover"))]
-            config,
+            frontend: Frontend {
+                geometry,
+                #[cfg(any(test, feature = "prover"))]
+                config,
+                backend,
+                id: circuit.id,
+                additional_ids: others.iter().map(|c| c.id).collect(),
+                inputs: InputLayout::new(circuits, virtual_inputs)?,
+            },
             param,
-            backend: PackingCommitment::new(domain.field().clone(), layout, extension)?,
-            id: circuit.id,
-            additional_ids: Vec::new(),
-            inputs,
-            storage: Some(split),
         })
-    }
-    /// Whether this participant commits any cells to the joint opening.
-    pub fn commits(&self) -> bool {
-        !self.storage.as_ref().is_some_and(|s| s.mask.is_none())
-    }
-    /// Check that `circuits` are this participant's circuits, in order, and
-    /// that `public` inputs fit the primary circuit.
-    pub(super) fn validate_circuits(
-        &self,
-        circuits: &[&Circuit<F>],
-        public: usize,
-    ) -> Result<(), String> {
-        let (circuit, others) = circuits.split_first().ok_or("empty circuit list")?;
-        if public != circuit.raw.npublic_input {
-            return Err("public inputs length mismatch".into());
-        }
-        if circuit.id != self.id
-            || self.additional_ids.len() != others.len()
-            || self
-                .additional_ids
-                .iter()
-                .zip(others)
-                .any(|(id, c)| *id != c.id)
-        {
-            return Err("circuit statement mismatch".into());
-        }
-        if InputLayout::new(circuits, self.inputs.virtual_count())? != self.inputs {
-            return Err("shared input layout mismatch".into());
-        }
-        Ok(())
     }
     pub fn geometry(&self) -> CircuitProofGeometry {
-        self.geometry.clone()
+        self.frontend.geometry.clone()
     }
     /// The field of this participant's circuits and commitment, the field of
     /// the domain it was built with.
     pub(crate) fn field(&self) -> &F {
-        self.backend.parameters.field()
+        self.frontend.field()
     }
-    fn param(&self) -> Result<&PolygeroParam, String> {
-        self.param
-            .as_ref()
-            .ok_or_else(|| "participant commits nothing".into())
-    }
-    /// The Polygero geometry of this participant's committed cells; an
-    /// error if it commits nothing.
-    pub(super) fn polygero(&self) -> Result<PolygeroGeometry, String> {
-        Ok(self.param()?.geometry())
+    /// The Polygero geometry of this participant's committed cells.
+    pub(super) fn polygero(&self) -> PolygeroGeometry {
+        self.param.geometry()
     }
     /// This participant as a field of the joint commitment, over `domain`,
-    /// the domain it was built with. A participant that commits nothing (pure
-    /// foreign storage) has none: the call fails.
+    /// the domain it was built with.
     pub(crate) fn participant<'a, D: EvaluationDomain<W, F>>(
         &'a self,
         domain: &'a D,
     ) -> Result<SelectedField<'a, W, F, D>, String> {
-        SelectedField::from_parameter(self.param()?.clone(), domain)
+        SelectedField::from_parameter(self.param.clone(), domain)
+    }
+}
+
+/// How a participant stores its values `[private inputs | pads]`, as its
+/// statement's `CommitmentLayout` describes them.
+pub(crate) enum StorageLayout<'a> {
+    /// Every value in the participant's own commitment.
+    Native,
+    /// Some values as bit groups of the binary commitment, the rest and R in
+    /// the participant's own commitment (`split::MixedSplit`).
+    Mixed(&'a MixedStorage),
+    /// Every value as a bit group of the binary commitment; the participant
+    /// commits nothing (`split::PureSplit`, tests only until a driver uses it).
+    #[cfg(test)]
+    Pure(&'a StorageMap),
+}
+
+/// A participant of one storage mode: native (`CircuitParticipant`), mixed
+/// (`split::MixedSplit`) or pure foreign (`split::PureSplit`). The frontend
+/// steps that every mode shares read its `Frontend`; the statement writes
+/// every mode alike from its `Frontend` and its `StorageLayout`.
+pub(crate) trait Participant<const W: usize, F: ZkField<W> + PackingField> {
+    fn frontend(&self) -> &Frontend<W, F>;
+    fn storage(&self) -> StorageLayout<'_>;
+    /// The Polygero parameter of the committed cells, if it commits any.
+    #[cfg(test)]
+    fn param_for_test(&self) -> Option<&PolygeroParam>;
+}
+impl<const W: usize, F: ZkField<W> + PackingField> Participant<W, F> for CircuitParticipant<W, F> {
+    fn frontend(&self) -> &Frontend<W, F> {
+        &self.frontend
+    }
+    fn storage(&self) -> StorageLayout<'_> {
+        StorageLayout::Native
+    }
+    #[cfg(test)]
+    fn param_for_test(&self) -> Option<&PolygeroParam> {
+        Some(&self.param)
     }
 }
 
@@ -301,20 +287,30 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
 /// circuit first, as at construction) and the primary circuit's public
 /// inputs, checked against each other once. A frontend reads its circuits
 /// and public inputs only from here, through its `Bound` (transcript I2).
-pub struct FrontendPart<'a, const W: usize, F: ZkField<W> + PackingField> {
-    pub(super) participant: &'a CircuitParticipant<W, F>,
+/// `P` is the participant's storage mode, so a step for one mode takes
+/// only that mode's parts.
+pub(crate) struct FrontendPart<
+    'a,
+    const W: usize,
+    F: ZkField<W> + PackingField,
+    P = CircuitParticipant<W, F>,
+> {
+    pub(super) participant: &'a P,
     circuits: Vec<&'a Circuit<F>>,
     /// The public inputs as elements of the circuit's field.
     pub(super) public: Cow<'a, [F::E]>,
 }
-impl<'a, const W: usize, F: ZkField<W> + PackingField> FrontendPart<'a, W, F> {
-    pub fn new(
-        participant: &'a CircuitParticipant<W, F>,
+impl<'a, const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>>
+    FrontendPart<'a, W, F, P>
+{
+    pub(crate) fn new(
+        participant: &'a P,
         circuits: &[&'a Circuit<F>],
         public: &'a [CircuitInput<F>],
     ) -> Result<Self, String> {
-        participant.validate_circuits(circuits, public.len())?;
-        let parameters = &participant.backend.parameters;
+        let frontend = participant.frontend();
+        frontend.validate_circuits(circuits, public.len())?;
+        let parameters = &frontend.backend.parameters;
         Ok(Self {
             participant,
             circuits: circuits.to_vec(),
@@ -323,6 +319,10 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField> FrontendPart<'a, W, F> {
                 .input_elements(parameters.field(), public),
         })
     }
+    /// The participant's frontend: what every storage mode shares.
+    pub(crate) fn frontend(&self) -> &'a Frontend<W, F> {
+        self.participant.frontend()
+    }
     /// The circuits of this frontend, primary first.
     pub(super) fn circuits(&self) -> &[&'a Circuit<F>] {
         &self.circuits
@@ -330,7 +330,7 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField> FrontendPart<'a, W, F> {
     /// The field of this frontend, its participant's: the one field the
     /// frontend's steps compute in.
     pub(crate) fn field(&self) -> &'a F {
-        self.participant.field()
+        self.frontend().field()
     }
 }
 

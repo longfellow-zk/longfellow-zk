@@ -35,11 +35,11 @@ the committed range.
 
 **Output.** After the frontend's messages, each participant holds:
 
-| Storage | Output | Consumer |
+| Storage (participant type) | Output | Consumer |
 |---|---|---|
-| native (any `d`) | `LinearStatement`: rows `sum_w A[c,w]*w + b[c] = 0` over its committed cells | joint Polygero, with witness selection's two fingerprint rows appended |
-| mixed | `LinearStatement` (layer rows and one native row) and one `ModularClaim` | joint Polygero; foreign adapter |
-| pure foreign | one `ModularClaim` with a public target | foreign adapter |
+| native (`CircuitParticipant`, any `d`) | `LinearStatement`: rows `sum_w A[c,w]*w + b[c] = 0` over its committed cells | joint Polygero, with witness selection's two fingerprint rows appended |
+| mixed (`split::MixedSplit`) | `LinearStatement` (layer rows and one native row) and one `ModularClaim` | joint Polygero; foreign adapter |
+| pure foreign (`split::pure::PureSplit`, tests only) | one `ModularClaim` with a public target | foreign adapter |
 
 A `ModularClaim` is `sum_i k_i * val(G_i) = target (mod p)`, where each `G_i`
 is a bit group of the binary input array and `val` reads it least
@@ -65,8 +65,9 @@ none for `d = 1`. Fingerprint masks are `FINGERPRINTS = 2`, appended by
 witness selection after every frontend cell. Every position is a function of
 the `Circuit` and `CommitmentLayout` messages, and both roles derive it from
 the same object that wrote those messages.
-*Enforced by:* `PackingLayout::new` and `Split::new` are the only
-constructors (private fields); `witness_selection::witness_count`; the
+*Enforced by:* `PackingLayout::new` and `MixedStorage::new` are the only
+constructors (private fields), and each storage mode is its own
+participant type, with only the fields its cells need (type); `witness_selection::witness_count`; the
 statement is encoded from the participant object the frontend reads
 (transcript I2). Lean `CellLayout.selected` covers only the last step: witness
 selection appends its two masks after every frontend cell
@@ -103,7 +104,7 @@ message (transcript I8); eta is drawn by `PendingSplit::open` and
 `SplitClaim::receive` on entry, right after the frontend's last answer. A
 frontend's virtual-input definitions are an argument of the call that draws
 its top weights, so they are fixed before them. The pure-foreign row weights
-are drawn by the pure split step itself (`SplitClaim::batch`), at the
+are drawn by the pure split step itself (`PureClaim::batch`), at the
 frontend's last boundary, and used in the same call. The Polygero batching
 weights are drawn and consumed by the opening itself: `JointProver::finish`
 and `JointVerifier::finish` take each field's frontend equations
@@ -178,8 +179,10 @@ nonzero `eta` and one message `mu = eta*<w_F, v_F> + R` into the native row
 and the modular claim, both produced by the one call that sends or receives
 `mu`. R is uniform in `F`, committed as a native cell and as bits in the
 binary commitment, and used nowhere else.
-*Enforced by:* `Split::new` (pads native; a mask exactly when some value is
-native); `PendingSplit::open` and `SplitClaim::receive` consume the claim and
+*Enforced by:* `MixedStorage::new` (pads native, some value native, R's
+bits given); `MixedSplit` is the only participant type with a mask, and
+`prove_split`, `reduce_split`, `open` and `receive` take only its parts
+(type); `PendingSplit::open` and `SplitClaim::receive` consume the claim and
 return both outputs (type); Lean `Prime.Claim.rows`, `Handoff.split_handoff`.
 
 **I10. Storage maps are canonical.** Each value has exactly one storage.
@@ -201,11 +204,13 @@ parameter, no fingerprint masks and no rows, and its `CircuitProofGeometry` has
 `PureComposition`), but no application may use pure-foreign storage until
 its application model charges those events. The composition driver
 (`foreign::compose::Composition`) supports mixed storage only; a
-pure-foreign composition is future work.
-*Enforced by:* `Split::mask` is `None` exactly for pure storage, and
-`SplitClaim::batch`, the only step that draws and uses row weights, rejects
-mixed storage before it draws them (runtime); `participant()` fails for pure storage, so
-it cannot join a `JointParam` (runtime; test
+pure-foreign composition is future work, and the pure path is compiled for
+tests only.
+*Enforced by:* pure-foreign storage is its own participant type,
+`PureSplit`, whose map `StorageMap::check_pure` checks and which has no
+Polygero parameter and no `participant()`, so it cannot join a
+`JointParam`; `PureClaim::batch`, the only step that draws and uses row
+weights, takes only a `PureSplit`'s part (type; test
 `pure_foreign_participant_cannot_join_the_joint_backend`); Lean
 `ApplicationCharging` (no row batching in the mdoc schedule).
 
@@ -233,14 +238,14 @@ listed for position only.
 | Commit | prover | `Commitment` | Bytes(32) root |
 | | draw | fingerprint coefficients, per field | 2 x Elements(F, cells) |
 | | prover | `FingerprintResponse`, per field | Elements(F, 2) |
-| Frontend | draw | top weights (*input*) | sumcheck |
+| Frontend | draw | top weights (*leading*, drawn by the sumcheck) | sumcheck |
 | | prover | `SumcheckRound` x logw, `SumcheckCross`, `SumcheckClaims`, per layer | sumcheck |
 | Packing, `d > 1` | prover | `PackingU` | Elements(F, d) in the participant's field |
 | | draw | packing challenges | d independent elements(F) |
 | | prover | `PackingA` | Elements(F, 1) |
-| Split, mixed | draw | eta (*input*), after the last stage's alpha and input assertions | nonzero(F) |
+| Split, mixed | draw | eta (*leading*, drawn by `open` and `receive`), after the last stage's alpha and input assertions | nonzero(F) |
 | | prover | `SplitOpening` | Elements(F, 1): mu |
-| Batching, pure | draw | rho, drawn and used by `SplitClaim::batch`, after the last stage's alpha and input assertions | elements(F, L+1) |
+| Batching, pure | draw | rho, drawn and used by `PureClaim::batch`, after the last stage's alpha and input assertions | elements(F, L+1) |
 | Authenticate | draw | Polygero batching weights, drawn and used inside `finish`, after the last frontend message | joint Polygero |
 | | prover, draw | `PolygeroResponse` per field, then t column indices | joint Polygero |
 
@@ -256,7 +261,7 @@ Polygero batching weights. In mdoc the order is: commit, prime frontend, eta,
 `SplitOpening`,
 the adapter's conversion pair and `P256AdapterQuotients`, the host frontend
 over the hash circuit and the adapter fragment, `PackingU`, `PackingA`, then
-joint Polygero. For pure foreign storage, `SplitClaim::batch` draws rho at
+joint Polygero. For pure foreign storage, `PureClaim::batch` draws rho at
 the frontend's last boundary, before the adapter's conversion pair, from the
 same stream;
 no composition runs this schedule (I11).
@@ -374,24 +379,40 @@ pub(crate) fn write_joint_geometry(h: &mut Header<'_>, config: PolygeroConfig); 
 pub type CircuitInput<F> = BaseElement<<F as PackingField>::Packing>;
 
 // zk::joint
-pub struct CircuitParticipant<const W: usize, F> { .. }   // geometry, layout, storage
+// what every storage mode shares: circuit IDs, geometry, profile, input layout, packing
+pub(crate) struct Frontend<const W: usize, F> { .. }
+pub struct CircuitParticipant<const W: usize, F> { .. }   // native: a Frontend and its Polygero parameter
 impl CircuitParticipant<W, F> {
     pub fn new(circuits: &[&Circuit<F>], virtual_inputs: usize,
                config: PolygeroConfig, domain: &D) -> Result<Self, String>; // the proof's one profile (I12)
-    pub(crate) fn with_storage(circuit: &Circuit<F>, storage: StorageMap, mask: Option<Group>,
-                               config: PolygeroConfig, domain: &D) -> Result<Self, String>;
-    pub fn commits(&self) -> bool;                       // false for pure foreign storage
     pub fn geometry(&self) -> CircuitProofGeometry;           // written as Circuit/CommitmentLayout (I1)
     pub(crate) fn field(&self) -> &F;                    // the domain's field at construction
-    pub(crate) fn participant(&'a self, domain: &'a D)
-        -> Result<SelectedField<'a, W, F, D>, String>;   // fails for pure foreign storage (I11)
+    pub(crate) fn participant(&'a self, domain: &'a D) -> Result<SelectedField<'a, W, F, D>, String>;
 }
-pub struct FrontendPart<'a, const W: usize, F> { .. }    // participant, circuits, public inputs
-impl FrontendPart<'a, W, F> {
-    pub fn new(participant: &'a CircuitParticipant<W, F>, circuits: &[&'a Circuit<F>],
-               public: &'a [CircuitInput<F>]) -> Result<Self, String>;   // I3: checked once
+// the statement writes every storage mode alike, from its Frontend and StorageLayout
+pub(crate) enum StorageLayout<'a> { Native, Mixed(&'a MixedStorage), #[cfg(test)] Pure(&'a StorageMap) }
+pub(crate) trait Participant<const W: usize, F> {
+    fn frontend(&self) -> &Frontend<W, F>;
+    fn storage(&self) -> StorageLayout<'_>;
+}
+// P: the participant's storage mode, so each step takes only its mode's parts
+pub(crate) struct FrontendPart<'a, const W: usize, F, P = CircuitParticipant<W, F>> { .. }
+impl<P: Participant<W, F>> FrontendPart<'a, W, F, P> {   // participant, circuits, public inputs
+    pub(crate) fn new(participant: &'a P, circuits: &[&'a Circuit<F>],
+                      public: &'a [CircuitInput<F>]) -> Result<Self, String>;   // I3: checked once
+    pub(crate) fn frontend(&self) -> &'a Frontend<W, F>;
     pub(crate) fn field(&self) -> &'a F;              // the participant's: every frontend step's field
 }
+// zk::split: mixed storage, R's bits at its MixedStorage's mask group (I9)
+pub(crate) struct MixedSplit<const W: usize, F> { .. }   // a Frontend, its Polygero parameter, its MixedStorage
+impl MixedSplit<W, F> {
+    pub(crate) fn new(circuit: &Circuit<F>, map: StorageMap, mask: Group,
+                      config: PolygeroConfig, domain: &D) -> Result<Self, String>;
+    pub(crate) fn geometry(&self) -> CircuitProofGeometry;
+    pub(crate) fn participant(&'a self, domain: &'a D) -> Result<SelectedField<'a, W, F, D>, String>;
+}
+// zk::split::pure, tests only until a driver uses it (I11): no parameter, no participant()
+pub(crate) struct PureSplit<const W: usize, F> { .. }    // a Frontend and its all-foreign StorageMap
 // the joint commitment, crate-private: witness selection, below it, is too
 pub(crate) struct SelectedField<'a, const W: usize, F, D> { .. }
 pub(crate) trait Fields: Clone { .. }                     // (SelectedField, Tail) ... ()
@@ -406,10 +427,12 @@ impl<L: Fields> JointParam<L> {
 impl CircuitParticipant<W, F> {
     pub(crate) fn prepare(&self, private: Vec<CircuitInput<F>>, rng: &mut impl PrivateRandom)
         -> Result<(CircuitState<W, F>, Vec<F::E>), String>;
-    pub(crate) fn prepare_split(&self, private: Vec<CircuitInput<F>>, mask: Option<F::E>,
-                                rng: &mut impl PrivateRandom) -> Result<(SplitState<W, F>, Vec<F::E>), String>;
-    pub(crate) fn foreign_values(&self, pending: &PendingSplit<F::E>)
-        -> Result<Vec<F::E>, String>;                    // claim term order, R last
+}
+impl MixedSplit<W, F> {
+    // mask is R; the witness is [native private inputs | pads | R]
+    pub(crate) fn prepare(&self, private: Vec<CircuitInput<F>>, mask: F::E,
+                          rng: &mut impl PrivateRandom) -> Result<(SplitState<W, F>, Vec<F::E>), String>;
+    pub(crate) fn foreign_values(&self, pending: &PendingSplit<F::E>) -> Vec<F::E>;  // claim term order, R last
 }
 impl<L: Fields> JointParam<L> {
     pub(crate) fn commit(&self, witnesses: Witnesses<L>, transcript: Transcript,
@@ -425,12 +448,12 @@ impl<S, C, R> JointProver<S, C, R> {
 pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: CircuitState<W, F>,
                     virtual_inputs: &VirtualInputs<F::E>)    // I4: fixed before the top weights
     -> Result<(CircuitProof<W, F>, LinearStatement<F::E>), String>;
-pub(crate) fn prove_split(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: SplitState<W, F>)
+pub(crate) fn prove_split(t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>, state: SplitState<W, F>)
     -> Result<(SumcheckProof<W, F>, PendingSplit<F::E>), String>;
 pub(crate) struct PendingSplit<E> { pub(crate) claim: SplitClaim<E>, .. }
 impl<E> PendingSplit<E> {
     // draws eta (I4), then sends SplitOpening (I9)
-    pub(crate) fn open(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>)
+    pub(crate) fn open(self, t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>)
         -> Result<(E, SplitOutput<E>), String>;
 }
 
@@ -451,21 +474,22 @@ impl Authenticated {
 }
 pub(crate) fn reduce(t: &mut Bound<'_, FrontendPart<'_, W, F>>, proof: &CircuitProof<W, F>,
                      virtual_inputs: &VirtualInputs<F::E>) -> Result<LinearStatement<F::E>, String>;
-pub(crate) fn reduce_split(t: &mut Bound<'_, FrontendPart<'_, W, F>>, proof: &SumcheckProof<W, F>)
+pub(crate) fn reduce_split(t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>,
+                           proof: &SumcheckProof<W, F>)
     -> Result<SplitClaim<F::E>, String>;
 impl<E> SplitClaim<E> {
     // draws eta (I4), then absorbs SplitOpening (I9)
-    pub(crate) fn receive(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>, mu: &E)
+    pub(crate) fn receive(self, t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>, mu: &E)
         -> Result<SplitOutput<E>, String>;
 }
 
 // zk::split (crate-private), both roles; the draws live in zk::split::transcript (transcript I9)
-pub(crate) struct SplitClaim<E> { pub(crate) claim: LinearClaim<E>, .. }  // rows unbatched
-impl<E> SplitClaim<E> {
-    // pure foreign only (I11), tests only until a driver uses it:
-    // draws rho = elements(F, L+1) and uses it (I4)
-    #[cfg(test)]
-    pub(crate) fn batch(self, t: &mut Bound<'_, FrontendPart<'_, W, F>>)
+pub(crate) struct SplitClaim<E> { pub(crate) claim: LinearClaim<E>, .. }  // mixed; rows unbatched
+// zk::split::pure, tests only: the pure frontend (pure::prove, pure::reduce) and its batching
+pub(crate) struct PureClaim<E> { pub(crate) claim: LinearClaim<E>, .. }   // rows unbatched
+impl<E> PureClaim<E> {
+    // draws rho = elements(F, L+1) and uses it (I4, I11)
+    pub(crate) fn batch(self, t: &mut Bound<'_, FrontendPart<'_, W, F, PureSplit<W, F>>>)
         -> Result<ModularClaim<E>, String>;
 }
 // private to zk::split: nonzero, built only by eta, which open and receive call
@@ -534,10 +558,10 @@ How the API carries the invariants:
 | A zero eta, which would drop the foreign part of the input equation | I4: `Eta` comes only from `nonzero(F)` |
 | Native row and modular claim built from different `eta` or `mu` | I9: one call returns both |
 | Sending `mu` without absorbing it, or absorbing a different value | I9: `open` and `receive` send `SplitOpening` themselves |
-| A pad stored foreign in mixed storage, so a layer row would read a foreign value | I9: `Split::new` rejects it |
+| A pad stored foreign in mixed storage, so a layer row would read a foreign value | I9: `MixedStorage::new` rejects it |
 | Two storage maps with the same statement encoding | I10: canonical maximal runs |
 | Committing virtual inputs, or letting the primary circuit read them | I8: `InputLayout::new`, `compile_packed` substitution |
-| Batching mixed-storage rows, so the native row depends on `rho` | I11: `SplitClaim::batch` rejects mixed storage |
+| Batching mixed-storage rows, so the native row depends on `rho` | I11: `PureClaim::batch` takes only a `PureSplit`'s part (type) |
 | Treating a reduced `LinearStatement` as acceptance | I7: only `Authenticated::check_seal` returns a `VerifiedProof`, and only `finish` returns an `Authenticated` |
 | Dropping a coefficient or a zero row when lowering constraints | I5: the compiler keeps every term; compile tests and Lean |
 | Reusing a prover state across proofs or participants | `CircuitState` and `SplitState` are consumed; `prove` and `prove_split` compare the participant each recorded with the part's |

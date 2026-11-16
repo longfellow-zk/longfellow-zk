@@ -290,7 +290,7 @@ fn binary_circuits_authenticate_one_shared_input() {
         let mut rng = DeterministicRng::new(77);
         let (state, w) = p.prepare(private.to_vec(), &mut rng).unwrap();
         // Circuit multiplicity changes pads, but never duplicates the packed input.
-        assert_eq!(p.backend.layout.private_inputs, 3);
+        assert_eq!(p.frontend.backend.layout.private_inputs, 3);
         let param =
             crate::runtime::v2::zk::joint::JointParam::new((p.participant(&domain).unwrap(), ()))
                 .unwrap();
@@ -503,8 +503,11 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
         t: 8,
     };
     let p = CircuitParticipant::new(&[&main, &fragment], 1, config, &domain).unwrap();
-    assert_eq!(p.backend.layout.private_inputs, 3);
-    assert_eq!((p.inputs.committed_end, p.inputs.ninput), (4, 5));
+    assert_eq!(p.frontend.backend.layout.private_inputs, 3);
+    assert_eq!(
+        (p.frontend.inputs.committed_end, p.frontend.inputs.ninput),
+        (4, 5)
+    );
     // x[1] = 1, so c0 + c1 = 1 makes the virtual entry one.
     let c0 = f.u128_to_element(7);
     let definition = |c0| VirtualInputs {
@@ -575,7 +578,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     assert!(CircuitParticipant::new(&[&fragment, &main], 1, config, &domain).is_err());
 }
 
-impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
+impl<const W: usize, F: ZkField<W> + PackingField> Frontend<W, F> {
     /// Every field, in declaration order. The pattern is exhaustive, so a new
     /// field does not compile until the statement tests cover it.
     #[allow(clippy::type_complexity)]
@@ -584,43 +587,28 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     ) -> (
         &CircuitProofGeometry,
         &PolygeroConfig,
-        &Option<PolygeroParam>,
         &PackingCommitment<F>,
         &[u8; 32],
         &[[u8; 32]],
         &InputLayout,
-        &Option<crate::runtime::v2::zk::storage::Split>,
     ) {
         let Self {
             geometry,
             config,
-            param,
             backend,
             id,
             additional_ids,
             inputs,
-            storage,
         } = self;
-        (
-            geometry,
-            config,
-            param,
-            backend,
-            id,
-            additional_ids,
-            inputs,
-            storage,
-        )
+        (geometry, config, backend, id, additional_ids, inputs)
     }
 }
 
-impl<'a, const W: usize, F: ZkField<W> + PackingField> FrontendPart<'a, W, F> {
+impl<'a, const W: usize, F: ZkField<W> + PackingField, P> FrontendPart<'a, W, F, P> {
     /// Every field, in declaration order: the participant, the circuits and
     /// the public inputs. The pattern is exhaustive, so a new field does not
     /// compile until the statement tests cover it.
-    pub(crate) fn fields_for_test(
-        &self,
-    ) -> (&'a CircuitParticipant<W, F>, &[&'a Circuit<F>], &[F::E]) {
+    pub(crate) fn fields_for_test(&self) -> (&'a P, &[&'a Circuit<F>], &[F::E]) {
         let Self {
             participant,
             circuits,
