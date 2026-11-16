@@ -6,7 +6,6 @@ use super::sha256msg_eval::run_corruptor_test;
 use crate::{
     circuits::{
         bitvec::{BitvecIO, BitvecLogic},
-        sha256::constants::INITIAL,
         sha256msg::{
             allocate_given, concrete::given, evaluate_given, pad_sha256_message, Derived, Sha256Msg,
         },
@@ -41,7 +40,7 @@ fn sha_reference_and_rehashed_padding_attacks() {
     // padding. A hash mismatch must not be the reason these are rejected.
     for len in [0, 1, 55, 56, 63, 64, 119, 120, 183] {
         let message = vec![0x53; len];
-        let original = given(&message, &INITIAL, 3).unwrap();
+        let original = given(&message, 3).unwrap();
         let end = original.nblocks * 64;
         let mut positions = vec![len, end - 8, end - 1];
         if len + 1 < end - 8 {
@@ -81,7 +80,7 @@ fn sha_reference_and_rehashed_padding_attacks() {
 fn every_padding_byte_and_length_bit() {
     let f = Gf2_128Field::new();
     for len in [0, 1, 55, 56, 63, 64, 119, 120, 183] {
-        let original = given(&vec![0x35; len], &INITIAL, 3).unwrap();
+        let original = given(&vec![0x35; len], 3).unwrap();
         for position in len..192 {
             let mut changed = original.clone();
             changed.padded_preimage[position] ^= 1;
@@ -134,7 +133,7 @@ fn compiled_v2_sha_matches_reference_and_rejects_rehashed_padding() {
     let circuit = segment_circuit_v2(&fc, circuit);
     for length in [0, 1, 55, 56, 63, 64, 119, 120, 183] {
         let message: Vec<_> = (0..length).map(|i| (i * 37 + length) as u8).collect();
-        let mut good = given(&message, &INITIAL, 3).unwrap();
+        let mut good = given(&message, 3).unwrap();
         let reference = Sha2Reference::digest(&message);
         good.expected_hash = std::array::from_fn(|i| {
             u32::from_be_bytes(reference[4 * i..4 * i + 4].try_into().unwrap())

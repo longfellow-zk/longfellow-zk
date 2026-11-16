@@ -3,7 +3,6 @@ use sha2::{Digest, Sha256};
 
 use super::*;
 use crate::{
-    circuits::sha256::constants::INITIAL,
     compile::{
         algebra::{gf2_128::Gf2_128Field, CompileNat},
         compiler::{compile_v2, segment_circuit_v2},
@@ -399,7 +398,7 @@ fn sha256_matches_independent_reference_at_padding_boundaries() {
     for length in [0, 1, 55, 56, 63, 64, 119, 120, K_MSO_PREIMAGE_LEN - 9] {
         let message: Vec<_> = (0..length).map(|i| (i % 251) as u8).collect();
         let reference = Sha256::digest(&message);
-        let mut given = sha256msg::given(&message, &INITIAL, K_MAX_SHA_BLOCKS).unwrap();
+        let mut given = sha256msg::given(&message, K_MAX_SHA_BLOCKS).unwrap();
         let expected = std::array::from_fn(|i| {
             u32::from_be_bytes(reference[4 * i..4 * i + 4].try_into().unwrap())
         });

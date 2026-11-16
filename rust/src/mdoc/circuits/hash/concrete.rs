@@ -87,8 +87,7 @@ pub struct ConcreteGiven<N> {
 
 pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiven<N> {
     let cose_sha_wit =
-        crate::circuits::sha256msg::given(&hash_input.cbor_mso, &INITIAL, K_MAX_SHA_BLOCKS)
-            .unwrap();
+        crate::circuits::sha256msg::given(&hash_input.cbor_mso, K_MAX_SHA_BLOCKS).unwrap();
     let signed_bytes = cose_sha_wit.padded_preimage;
     let nblocks = cose_sha_wit.nblocks;
 
@@ -107,7 +106,7 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
     let mut attribute_given = Vec::with_capacity(hash_input.attrs.len());
     for a in &hash_input.attrs {
         let attr_sha_wit =
-            crate::circuits::sha256msg::given(&a.cbor_issuer_signed_item, &INITIAL, 2).unwrap();
+            crate::circuits::sha256msg::given(&a.cbor_issuer_signed_item, 2).unwrap();
         attribute_given.push(ConcreteAttrGiven {
             padded_preimage: attr_sha_wit.padded_preimage,
             unpadded_preimage_len: a.cbor_issuer_signed_item.len(),

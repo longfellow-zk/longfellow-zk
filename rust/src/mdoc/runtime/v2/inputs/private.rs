@@ -19,7 +19,6 @@ use sha2::{Digest, Sha256};
 use crate::{
     circuits::{
         ecdsa2::{try_witness, Derived, Given},
-        sha256::constants::INITIAL,
         sha256msg::{derived, given},
     },
     core::algebra::{
@@ -74,7 +73,7 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     builder.push_nat256(&parsed.device_pk.1);
 
     // 2. preimage (MSO preimage - bytes as bits) + preimage.len
-    let mso_sha_in = given(&parsed.cbor_mso, &INITIAL, K_MAX_SHA_BLOCKS)
+    let mso_sha_in = given(&parsed.cbor_mso, K_MAX_SHA_BLOCKS)
         .map_err(|_| MdocProverErrorCode::TaggedMsoTooBig)?;
     let requested = request
         .attributes()
@@ -176,7 +175,7 @@ fn push_witness_attrs(
         if pa.cbor_issuer_signed_item.len() > K_MAX_ATTR_CBOR_LEN {
             return Err(MdocProverErrorCode::AttributeTooLong);
         }
-        let attr_sha_in = given(&pa.cbor_issuer_signed_item, &INITIAL, K_MAX_ATTR_SHA_BLOCKS)
+        let attr_sha_in = given(&pa.cbor_issuer_signed_item, K_MAX_ATTR_SHA_BLOCKS)
             .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
         // The signed MSO holds `bstr(SHA-256(item))` at the digest offset, as
         // the hash circuit checks; an item the issuer did not sign fails here.

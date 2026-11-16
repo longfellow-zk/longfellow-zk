@@ -17,7 +17,6 @@ use crate::{
     circuits::{
         bitvec::{Bitvec, BitvecLogic},
         boolean::Boolean,
-        sha256::constants::INITIAL,
         sha256msg::{
             concrete::{given, ConcreteGiven},
             Derived, Given, Sha256Msg,
@@ -40,7 +39,7 @@ pub(super) fn run_corruptor_test<'a, const MAX_BLOCKS: usize>(
     let bv = BitvecLogic::new(&l);
     let boolean = Boolean::new(&l);
 
-    let mut given = given(message, &INITIAL, MAX_BLOCKS).unwrap();
+    let mut given = given(message, MAX_BLOCKS).unwrap();
     let mut derived = crate::circuits::sha256msg::concrete::derived(&given, MAX_BLOCKS);
 
     corrupt(&mut given, &mut derived);
@@ -114,7 +113,7 @@ fn test_exploit_nblocks_too_large() {
 
     let nblocks_val = 2; // out of bounds (> max_blocks = 1)
 
-    let given = given(&[0u8; 55], &INITIAL, 1).unwrap();
+    let given = given(&[0u8; 55], 1).unwrap();
     let derived = crate::circuits::sha256msg::concrete::derived(&given, 1);
 
     let expected_hash = Bitvec::<_, 256>::new(vec![boolean.falseb(); 256]);
@@ -147,7 +146,7 @@ fn test_exploit_nblocks_zero() {
 
     let nblocks_val = 0; // out of bounds (< 1)
 
-    let given = given(&[0u8; 55], &INITIAL, 1).unwrap();
+    let given = given(&[0u8; 55], 1).unwrap();
     let derived = crate::circuits::sha256msg::concrete::derived(&given, 1);
 
     let expected_hash = Bitvec::<_, 256>::new(vec![boolean.falseb(); 256]);

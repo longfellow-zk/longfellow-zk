@@ -26,18 +26,15 @@ pub struct ConcreteGiven {
     pub expected_hash: [u32; 8],
 }
 
-pub fn given(
-    preimage: &[u8],
-    expected_hash: &[u32; 8],
-    max_blocks: usize,
-) -> Result<ConcreteGiven, String> {
+/// The circuit's given inputs for the SHA-256 of `preimage`, padded to
+/// `max_blocks` blocks: the padded message, its block count and length, and
+/// its digest `expected_hash`. The hash starts from the standard initial
+/// state `INITIAL`, as `derived` and the circuit do.
+pub fn given(preimage: &[u8], max_blocks: usize) -> Result<ConcreteGiven, String> {
     let (nblocks, length_bytes, padded_preimage) = pad_sha256_message(preimage, max_blocks)?;
-    let sha_derived = sha256_msg_derived(&padded_preimage, expected_hash, max_blocks);
-    let final_expected_hash = if nblocks > 0 {
-        sha_derived[nblocks - 1].h1
-    } else {
-        *expected_hash
-    };
+    let sha_derived = sha256_msg_derived(&padded_preimage, &INITIAL, max_blocks);
+    // Padding takes at least one block.
+    let final_expected_hash = sha_derived[nblocks - 1].h1;
     Ok(ConcreteGiven {
         padded_preimage,
         nblocks,

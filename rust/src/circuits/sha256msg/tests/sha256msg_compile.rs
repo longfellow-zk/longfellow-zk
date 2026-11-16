@@ -19,7 +19,6 @@ use crate::{
     circuits::{
         analog_adder::FieldWrappingSum,
         bitvec::{BitvecIO, BitvecLogic},
-        sha256::constants::INITIAL,
         sha256msg::{allocate_given, concrete::given, Derived, Sha256Msg},
     },
     compile::{
@@ -62,7 +61,7 @@ fn test_compile_sha256msg_for_field<
         )
     });
 
-    let mut given = given(message, &INITIAL, MAX_BLOCKS).unwrap();
+    let mut given = given(message, MAX_BLOCKS).unwrap();
     let reference_words = std::array::from_fn(|i| {
         u32::from_be_bytes(reference_hash[4 * i..4 * i + 4].try_into().unwrap())
     });
@@ -111,7 +110,7 @@ fn test_compile_sha256msg_tampering() {
     let fr = crate::runtime::algebra::p256::P256Field::new();
     let message = b"hello world";
     let const_max_blocks = 2;
-    let given_orig = given(message, &INITIAL, const_max_blocks).unwrap();
+    let given_orig = given(message, const_max_blocks).unwrap();
     let derived_orig = crate::circuits::sha256msg::concrete::derived(&given_orig, const_max_blocks);
 
     let (circuit, _stats, symbols) = super::compile(&fc, |iologic| {

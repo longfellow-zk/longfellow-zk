@@ -15,7 +15,7 @@
 //! Longfellow v1 private assignment encoding.
 
 use crate::{
-    circuits::sha256::{constants::INITIAL, Derived},
+    circuits::sha256::Derived,
     core::algebra::{AlgebraicField, Nat, SupportsNatConversions, SupportsU64Conversions},
     mdoc::{
         cbor::mdoc::ParsedMdoc,
@@ -87,8 +87,7 @@ pub(in crate::mdoc::runtime::v1) fn push_witness_hash<N: Nat<4>>(
     }
 
     let max_mso_blocks = max_shablocks(version);
-    let mso_sha_in =
-        crate::circuits::sha256msg::given(&parsed.cbor_mso, &INITIAL, max_mso_blocks).unwrap();
+    let mso_sha_in = crate::circuits::sha256msg::given(&parsed.cbor_mso, max_mso_blocks).unwrap();
     let mso_sha_witness = crate::circuits::sha256msg::derived(&mso_sha_in, max_mso_blocks);
     let signed_bytes = &mso_sha_in.padded_preimage;
     let nblocks = mso_sha_in.nblocks;
@@ -129,7 +128,7 @@ fn push_witness_attrs<N: Nat<4>>(
         }
 
         let attr_sha_in =
-            crate::circuits::sha256msg::given(&pa.cbor_issuer_signed_item, &INITIAL, 2).unwrap();
+            crate::circuits::sha256msg::given(&pa.cbor_issuer_signed_item, 2).unwrap();
         let attr_sha_witness = crate::circuits::sha256msg::derived(&attr_sha_in, 2);
         builder.push_raw_bytes(&attr_sha_in.padded_preimage);
         push_legacy_sha_witness(builder, &attr_sha_witness.sha_derived[0]);
