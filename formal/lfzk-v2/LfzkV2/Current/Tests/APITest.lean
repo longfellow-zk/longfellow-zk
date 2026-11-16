@@ -30,6 +30,7 @@ import LfzkV2.Current.Tests.StrandAuthentication
 import LfzkV2.Current.Tests.StrandExecution
 import LfzkV2.Current.Tests.StrandWindow
 import LfzkV2.Current.Tests.StrandRoleSampling
+import LfzkV2.Current.Tests.RustSampler
 import LfzkV2.Current.Tests.StrandLocalCharges
 import LfzkV2.Current.Tests.StrandBackendCharges
 import LfzkV2.Current.Tests.StrandCharges
