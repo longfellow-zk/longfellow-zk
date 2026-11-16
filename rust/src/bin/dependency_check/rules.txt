@@ -81,6 +81,7 @@ runtime/v2/transcript: core/algebra runtime/algebra runtime/v2/proto/tags
 runtime/v2/witness_selection: core/algebra runtime/algebra runtime/random runtime/v2/polygero runtime/v2/transcript runtime/v2/proto/polygero runtime/v2/proto/tags runtime/v2/proto/witness_selection
 runtime/v2/zk: core/algebra core/proto runtime/algebra runtime/random runtime/v2/dual_packing runtime/v2/polygero runtime/v2/sumcheck runtime/v2/transcript runtime/v2/witness_selection runtime/v2/proto/dual_packing runtime/v2/proto/polygero runtime/v2/proto/sumcheck runtime/v2/proto/tags runtime/v2/proto/witness_selection runtime/v2/proto/zk
 bin/dependency_check:
+bin/precommit:
 bin/zk_tool: mdoc/development_provider mdoc/proto mdoc/runtime runtime/v2/proto/merkle runtime/v2/proto/polygero
 util:
 

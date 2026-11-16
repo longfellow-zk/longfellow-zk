@@ -145,8 +145,9 @@ profiles an application chose (for example in `mdoc::proto`).
   `cargo run --release --features tooling --bin zk_tool -- certify-hahn --formal ../formal`
   and `... -- check-profiles --protocol polygero --check-lean ../formal`; and
   `formal/scripts/check_mdoc_round_shapes.rs` and the formal source audit
-  `formal/scripts/audit.rs` (both built with `rustc --edition 2024 -O`). Lean
-  comments that name Rust files must follow file moves.
+  `formal/scripts/audit.rs` (both built with `rustc --edition 2024 -O`);
+  `precommit --formal` runs them all. Lean comments that name Rust files must
+  follow file moves.
 
 ## Workflow
 
@@ -164,20 +165,43 @@ profiles an application chose (for example in `mdoc::proto`).
 
 ## Before every commit
 
-From `rust/`:
+From `rust/`, run the checklist runner:
+
+```sh
+cargo run --release --features tooling --bin precommit
+```
+
+It prints one line per step and stops at the first failing step
+(`--keep-going` runs them all); each step's output is in
+`target/precommit/<step>.log`, and `--help` lists the options. Its steps are:
 
 1. `cargo +nightly fmt`, then
    `rustfmt +nightly --edition 2021 --config skip_children=true $(git ls-files 'src/*.rs' 'benches/*.rs')`
    (`cargo fmt` does not reach modules declared inside the `cfg_*!` macros).
-2. `cargo run --release --features tooling --bin dependency_check`
+2. The role and feature builds, warning-free: `cargo check --lib --bins
+   --no-default-features` with each role and feature set, then the tests
+   without mdoc (`--lib --tests --no-default-features --features
+   testonly,tooling`), `--features testonly,tooling --tests --benches --bins`
+   and `--all-targets`.
+3. `cargo run --release --features tooling --bin dependency_check`
    (needs `rustup component add rust-analyzer`).
-3. The role and feature builds from `.github/workflows/production_ci.yml`,
-   warning-free. When architecture-specific code changes (`runtime/algebra/arch`,
-   limbs, `cfg(target_arch)`), also build for every backend, since x86-64 does
-   not compile the others: `--target aarch64-unknown-linux-gnu`,
+4. The standalone prover and verifier, v1 and v2, pull no compiler crate
+   (`cargo tree -e normal --no-default-features`; see "Prover and verifier").
+5. `cargo clippy --all-targets` reports no more warnings for any target than
+   the base commit: `--base REV`, by default `HEAD` when the working tree has
+   changes and `HEAD^` when it has none; or the counts given with
+   `--clippy-counts`.
+6. `cargo test --release --features testonly,tooling`, and the doctests on
+   nightly, which also check `compile_fail` error codes:
+   `cargo +nightly test --release --features testonly,tooling --doc`.
+7. When architecture-specific code changes since the base (`runtime/algebra/arch`,
+   limbs, `cfg(target_arch)`), or with `--cross`, the builds for every backend,
+   since x86-64 does not compile the others: `--target aarch64-unknown-linux-gnu`,
    `--target armv7-unknown-linux-gnueabihf` with and without
    `--features arm-neon`, `--target i686-unknown-linux-gnu`, and the
    `force-generic-arch` and `limb32` features.
-4. `cargo test --release --features testonly,tooling`, and the doctests on
-   nightly, which also check `compile_fail` error codes:
-   `cargo +nightly test --release --features testonly,tooling --doc`.
+8. The code outside `rust/` that builds against the crate (see "Workflow"):
+   the `formal/lfzk-v1/scripts` inspectors and `check_mdoc_round_shapes`.
+9. With `--formal`, the formal checks of "Formal development": `lake build`,
+   `lake build SecurityAudit`, `formal/scripts/audit.rs`, `certify-hahn` with
+   a fresh cache, and `check-profiles`.

@@ -162,3 +162,8 @@ required-features = ["tooling", "mdoc"]
 name = "dependency_check"
 path = "src/bin/dependency_check/main.rs"
 required-features = ["tooling"]
+
+[[bin]]
+name = "precommit"
+path = "src/bin/precommit/main.rs"
+required-features = ["tooling"]
