@@ -178,9 +178,9 @@ profiles an application chose (for example in `mdoc::proto`).
   `cargo run --release -p longfellow-zk-tools --bin zk_tool -- certify-hahn --formal ../formal`
   and `... -- check-profiles --protocol polygero --check-lean ../formal`
   (both `lake build` the certificate modules they import and check the
-  generated numeric files against `lake env`); and
-  `formal/scripts/check_mdoc_round_shapes.rs` and the formal source audit
-  `formal/scripts/audit.rs` (both built with `rustc --edition 2024 -O`);
+  generated numeric files against `lake env`); from `formal/scripts`
+  `cargo run --release --bin check_mdoc_round_shapes`; and the formal source
+  audit `formal/scripts/audit.rs` (built with `rustc --edition 2024 -O`);
   `precommit --formal` runs them all. Lean comments that name Rust files must
   follow file moves.
 
@@ -196,7 +196,8 @@ profiles an application chose (for example in `mdoc::proto`).
 - Code outside `rust/` that builds against the crate must keep working:
   `formal/lfzk-v1/scripts` (`cargo build --release`, then run
   `inspect-v7-profile` and `inspect-v7-assertions`) and
-  `formal/scripts/mdoc_round_shapes.rs` (through `check_mdoc_round_shapes`).
+  `formal/scripts` (`cargo test --release`, then run
+  `check_mdoc_round_shapes`).
 
 ## Before every commit
 

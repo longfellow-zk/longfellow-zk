@@ -72,10 +72,10 @@ are witness selection, the two frontend openings (the prime top weights after
 the fingerprint responses, the host top weights after the adapter's masked
 quotients), the adapter's conversion, packing, joint Polygero batching and the
 shared opening. The split challenge `eta` is drawn from the prime frontend's
-last combine answer. From `formal/`, build and run the check with
-`rustc --edition 2024 scripts/check_mdoc_round_shapes.rs -o /tmp/mdoc-round-shapes`
-and `/tmp/mdoc-round-shapes`. The approximation takes a supported-shape witness
-and derives the round bound internally.
+last combine answer. The check is a Cargo binary that links the crate in
+`../rust` by path; run it from `formal/scripts` with
+`cargo run --release --bin check_mdoc_round_shapes`. The approximation takes a
+supported-shape witness and derives the round bound internally.
 
 Here `r` is the number of rounds: one per transcript boundary, the first draw
 after a message, which ends a node with `ROUND`. The final seal

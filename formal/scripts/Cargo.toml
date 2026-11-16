@@ -1,0 +1,17 @@
+[package]
+name = "longfellow-formal-scripts"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Checks of the formal sources against the current Rust crate. `audit.rs`
+# depends on nothing and is built with `rustc` directly.
+[workspace]
+
+[dependencies]
+# The default features: the mdoc compiler and runtime.
+longfellow-zk = { path = "../../rust" }
+
+[[bin]]
+name = "check_mdoc_round_shapes"
+path = "check_mdoc_round_shapes.rs"

@@ -671,13 +671,10 @@ fn script(cx: &Context, log: &mut Log, source: &str) -> Result<PathBuf, Outcome>
     }
 }
 
-/// Run a compiled script at the repository root; it passes when it
+/// Run a compiled formal script at the repository root; it passes when it
 /// succeeds, and reports its last line.
 fn run_script(cx: &Context, log: &mut Log, binary: &Path) -> Outcome {
-    let mut command = cx.command(&cx.root, binary);
-    // The scripts build the crate into `rust/target` themselves.
-    command.env_remove("CARGO_TARGET_DIR");
-    let run = log.run(&mut command);
+    let run = log.run(&mut cx.command(&cx.root, binary));
     if run.success {
         Outcome::Passed(tail(&run.output, 1))
     } else {
@@ -688,11 +685,21 @@ fn run_script(cx: &Context, log: &mut Log, binary: &Path) -> Outcome {
     }
 }
 
+/// `formal/scripts`, a Cargo package that links the crate by path: the
+/// tests of its `MdocRoundShape.lean` parser, then `check_mdoc_round_shapes`
+/// against the current compiler.
 fn round_shapes(cx: &Context, log: &mut Log) -> Outcome {
-    match script(cx, log, "formal/scripts/check_mdoc_round_shapes.rs") {
-        Ok(binary) => run_script(cx, log, &binary),
-        Err(outcome) => outcome,
+    let scripts = cx.root.join("formal/scripts");
+    let target = cx.work.join("round-shapes");
+    for args in [["test", "--release"], ["build", "--release"]] {
+        let mut command = cx.command(&scripts, "cargo");
+        command.env("CARGO_TARGET_DIR", &target).args(args);
+        let run = log.run(&mut command);
+        if !run.success || !diagnostics(&run.output, 1).is_empty() {
+            return Outcome::Failed(format!("cargo {} not clean", args[0]), why(&run));
+        }
     }
+    run_script(cx, log, &target.join("release/check_mdoc_round_shapes"))
 }
 
 fn source_audit(cx: &Context, log: &mut Log) -> Outcome {

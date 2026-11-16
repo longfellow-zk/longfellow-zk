@@ -36,6 +36,7 @@ jobs:
               # Programs outside rust/ that the checks build against the crate.
               - 'formal/lfzk-v1/scripts/**'
               - 'formal/scripts/*.rs'
+              - 'formal/scripts/Cargo.*'
               - 'formal/lfzk-v2/LfzkV2/Current/MdocRoundShape.lean'
 
   build-and-test:
