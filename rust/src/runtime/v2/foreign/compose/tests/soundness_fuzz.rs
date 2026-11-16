@@ -17,7 +17,7 @@
 //! The cases are drawn from a fixed seed.
 use super::*;
 use crate::runtime::v2::{
-    transcript::cheat,
+    transcript::{cheat, Unverified},
     zk::joint::tests::soundness_fuzz::{build, generate, satisfied, GenCircuit, Sm},
 };
 
@@ -188,7 +188,11 @@ fn cheating_provers_of_false_random_compositions_are_rejected() {
                 Prover::FromHostBits => cheat::cheating_from_host_bits(prove),
             }
             .map_err(|e| format!("prover: {e}"))?;
-            Ok(ComposedStatement::reduce_and_authenticate(Opened::new(&statement), &proof).is_ok())
+            let unsealed = Unverified::unsealed_for_test(proof);
+            Ok(
+                ComposedStatement::reduce_and_authenticate(Opened::new(&statement), unsealed)
+                    .is_ok(),
+            )
         };
         let honest = attempt(&host_bits, &split_inputs, Prover::Honest, 100 + case as u64);
         assert_eq!(

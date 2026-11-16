@@ -472,11 +472,11 @@ impl ComposedStatement<'_, F, DH, DS, M, I> {
                  host_private: Vec<CircuitInput<Gf2_128Field>>,
                  split_private: Vec<CircuitInput<F>>, rng: &mut impl PrivateRandom)
         -> Result<(ComposedProof<Gf2_128Field, F, M::Message>, Transcript), String>;
-    // Not complete verification: the caller checks the complete proof's seal
-    // with the returned Authenticated (mdoc's run_mdoc_verifier, zk I7).
-    pub(crate) fn reduce_and_authenticate(session: Opened<'_, Self>,
-        proof: &ComposedProof<Gf2_128Field, F, M::Message>)
-        -> Result<Authenticated, String>;
+    // Not complete verification: the returned Authenticated keeps `proof`,
+    // whose seal the caller checks with it (mdoc's run_mdoc_verifier, zk I7).
+    pub(crate) fn reduce_and_authenticate<'p, P>(session: Opened<'_, Self>,
+        proof: Unverified<'p, P>) -> Result<Authenticated<'p, P>, String>
+    where P: AsRef<ComposedProof<Gf2_128Field, F, M::Message>> + JointOpening<..>;
 }
 impl Opened<'_, ComposedStatement<'_, ..>> {
     pub(crate) fn geometry(&mut self) -> Bound<'_, ComposedGeometry>;   // for MdocProof::read

@@ -28,7 +28,7 @@ use crate::{
         v2::{
             proto::{polygero::PolygeroConfig, zk::ZkProof},
             sumcheck::eval_circuit,
-            transcript::{Transcript, SEAL_BYTES},
+            transcript::{Opened, Transcript, SEAL_BYTES},
             zk::{ZkProver, ZkVerifier},
         },
     },
@@ -369,10 +369,13 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 // Both roles end in one transcript state: the prover's seal
                 // checks on the authenticated session.
                 let statement = verifier.statement(LABEL, &witness_inputs[..1]).unwrap();
-                let mut session = Transcript::new(&statement);
-                let parsed =
-                    ZkProof::read(&proof_bytes, &session.bound(&statement.geometry), &f).unwrap();
-                assert!(reduce(&decoded_proof).unwrap().check_seal(parsed).is_ok());
+                let mut session = Opened::new(&statement);
+                let parsed = ZkProof::read(&proof_bytes, &session.geometry(), &f).unwrap();
+                assert!(verifier
+                    .reduce(session, parsed, &interpolation)
+                    .unwrap()
+                    .check_seal()
+                    .is_ok());
 
                 for slot in 0..2 {
                     let mut tampered_claim = decoded_proof.clone();

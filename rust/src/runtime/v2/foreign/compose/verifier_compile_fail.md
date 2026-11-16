@@ -10,9 +10,10 @@ it (transcript I1 to I4):
   (mode ID, Q, tree shape, pads); `JointGeometry` (the profile); both
   fields' `PublicInputs`. The parsing geometry, the input layouts and the
   mode's claim widths are derived from these.
-- `proof`: the body, parsed against the geometry the statement wrote; each
-  interactive field is absorbed as its prover message where it is sent.
-  The application's complete reader checks the seal over every byte.
+- `proof`: the complete proof, whose body was parsed against the geometry
+  the statement wrote; each interactive field is absorbed as its prover
+  message where it is sent. The returned `Authenticated` keeps it, and its
+  `check_seal` checks the seal over every byte.
 
 The evaluation domains are the composition's own; the transcript does not
 absorb them, and each participant rejects a domain other than the one it

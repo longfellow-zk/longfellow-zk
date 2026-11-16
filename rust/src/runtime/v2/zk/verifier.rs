@@ -10,7 +10,7 @@ use crate::{
             polygero::LinearStatement,
             proto::{
                 dual_packing::PackingProof,
-                polygero::PolygeroConfig,
+                polygero::{FieldProof, JointPolygeroProof, PolygeroConfig},
                 sumcheck::SumcheckProof,
                 zk::{CircuitProof, ZkProof, ZkProofGeometry},
             },
@@ -20,7 +20,7 @@ use crate::{
                 joint::{CircuitParticipant, FrontendPart, JointParam, Participant},
                 packing_commitment::PackingCommitment,
                 split::{MixedSplit, SplitClaim},
-                Authenticated, CircuitInput, VirtualInputs, ZkProofStatement,
+                Authenticated, CircuitInput, JointOpening, VirtualInputs, ZkProofStatement,
             },
         },
     },
@@ -107,6 +107,11 @@ fn pack_constraints<F: ZkField + PackingField>(
         packing,
     )
 }
+impl<F: ZkField> JointOpening<(FieldProof<F::E>, ())> for ZkProof<F> {
+    fn opening(&self) -> &JointPolygeroProof<(FieldProof<F::E>, ())> {
+        &self.com_proof
+    }
+}
 /// A standalone verifier of one circuit under one Polygero profile.
 pub struct ZkVerifier<F: ZkField + PackingField> {
     circuit: Circuit<F>,
@@ -164,16 +169,16 @@ impl<F: ZkField + PackingField> ZkVerifier<F> {
         proof: Unverified<'_, ZkProof<F>>,
         domain: &D,
     ) -> Result<VerifiedProof, ZkVerificationError> {
-        self.reduce(session, &proof, domain)?
-            .check_seal(proof)
+        self.reduce(session, proof, domain)?
+            .check_seal()
             .map_err(|e| ZkVerificationError::InvalidTranscriptSeal(e.into()))
     }
-    pub(crate) fn reduce<D: EvaluationDomain<F>>(
+    pub(crate) fn reduce<'p, D: EvaluationDomain<F>>(
         &self,
         session: Opened<'_, ZkProofStatement<'_, F>>,
-        proof: &ZkProof<F>,
+        proof: Unverified<'p, ZkProof<F>>,
         domain: &D,
-    ) -> Result<Authenticated, ZkVerificationError> {
+    ) -> Result<Authenticated<'p, ZkProof<F>>, ZkVerificationError> {
         let (statement, t) = session.into_parts();
         if !std::ptr::eq(statement.part.participant, &self.participant) {
             return Err(ZkVerificationError::InvalidStatement(
@@ -197,7 +202,7 @@ impl<F: ZkField + PackingField> ZkVerifier<F> {
         let linear = pack_constraints(&mut frontend, constraints, &proof.packing, &none)
             .map_err(ZkVerificationError::InvalidPacking)?;
         verifier
-            .finish((linear, ()), &proof.com_proof)
+            .finish((linear, ()), proof)
             .map_err(ZkVerificationError::PolygeroVerification)
     }
 }

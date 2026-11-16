@@ -322,7 +322,7 @@ is unchanged (tests).
 | 4. Public inputs | `PublicInputs::derive` (I1) | none |
 | 5. Statement | `transcript::statement(&composition, &request, &public)`, then `Opened::new(&statement)` | `GeneralFailure` |
 | 6. Parse | `MdocProof::read(proof, &session.geometry(), &gf2, &p256)` (I6, I7, I8) | `HashParsingFailure` |
-| 7. Reduce and open | `ComposedStatement::reduce_and_authenticate(session, &proof.body)` | `GeneralFailure` |
+| 7. Reduce and open | `ComposedStatement::reduce_and_authenticate(session, proof)` | `GeneralFailure` |
 | 8. Seal | `Authenticated::check_seal` | `GeneralFailure` |
 
 The prover runs steps 1 to 5 identically, with `document::parse` and both
@@ -561,14 +561,15 @@ MdocProof { body }.write(statement.geometry(), &gf2, &p256, t)
 // verifier
 let mut session = Opened::new(&statement);
 let proof = MdocProof::read(bytes, &session.geometry(), &gf2, &p256)?;
-ComposedStatement::reduce_and_authenticate(session, &proof.body)?.check_seal(proof)
+ComposedStatement::reduce_and_authenticate(session, proof)?.check_seal()
 ```
 
 The statement holds the public inputs, so a role cannot prove or verify
 against inputs other than those it absorbed (transcript I2). `MdocProof::write`
-consumes the transcript, so a proof is sealed once. `check_seal` consumes the
-`Authenticated` session, which only the joint opening returns, and the
-`Unverified` proof, so acceptance has one path.
+consumes the transcript, so a proof is sealed once. The joint opening takes
+the `Unverified` proof and returns an `Authenticated` that keeps it with the
+session; `check_seal` consumes both, so acceptance has one path and the seal
+is checked on the proof whose opening was authenticated.
 `ComposedStatement::reduce_and_authenticate` stops before the seal and is
 crate-private, so `run_mdoc_verifier` is the only public mdoc verifier. The
 prover and verifier modules deny `print_stdout`, `print_stderr` and

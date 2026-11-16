@@ -15,7 +15,7 @@ use crate::runtime::{
         fp2::Fp2Field, p256::P256Field,
         range_interpolation::QuadraticExtensionFftInterpolatorFactory, SupportsFFT,
     },
-    v2::transcript::cheat::cheating,
+    v2::transcript::{cheat::cheating, Unverified},
 };
 
 pub(crate) struct Sm(pub(crate) u64);
@@ -344,7 +344,8 @@ where
             let mut v = param.receive(&root, responses, t);
             let part = FrontendPart::new(&p, &components, &public)?;
             let statement = zk::reduce(&mut v.bound(&part), &proof, &VirtualInputs::none())?;
-            v.finish((statement, ()), &opening).map(|_| ())
+            v.finish((statement, ()), Unverified::unsealed_for_test(&opening))
+                .map(|_| ())
         };
         if let Err(e) = attempt(&inputs, false, 1000 + case as u64) {
             panic!("case {case}: honest proof rejected: {e} (depths {depths:?}, widths {widths:?}, npublic {npublic})");

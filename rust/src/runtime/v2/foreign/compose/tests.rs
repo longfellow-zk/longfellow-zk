@@ -23,8 +23,8 @@ use crate::{
         random::DeterministicRng,
         v2::{
             foreign::{adapter::p256::P256Mode, word::MaskedWord},
-            proto::polygero::PolygeroConfig,
-            transcript::{Opened, ZkStatement},
+            proto::{composed::ComposedProof, polygero::PolygeroConfig},
+            transcript::{Opened, Unverified, ZkStatement},
             zk::{
                 split::value_count,
                 storage::{Group, StorageMap},
@@ -113,8 +113,12 @@ fn composition_round_trip_rejects_tampering() {
             &mut DeterministicRng::new(5),
         )
     };
-    let verify =
-        |proof: &_| ComposedStatement::reduce_and_authenticate(Opened::new(&statement), proof);
+    let verify = |proof: &ComposedProof<_, _, _>| {
+        ComposedStatement::reduce_and_authenticate(
+            Opened::new(&statement),
+            Unverified::unsealed_for_test(proof.clone()),
+        )
+    };
 
     let (proof, mut tp) = prove(bits.clone()).unwrap();
     let mut tv = verify(&proof).unwrap().into_transcript();

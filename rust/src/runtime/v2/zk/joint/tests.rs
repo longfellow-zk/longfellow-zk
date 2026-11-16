@@ -14,7 +14,7 @@ use crate::{
         v2::{
             proto::{dual_packing::PackingProof, zk::CircuitProof},
             sumcheck::eval_circuit,
-            transcript::{SessionStamp, Transcript},
+            transcript::{SessionStamp, Transcript, Unverified},
             zk::{self, VirtualInputs},
         },
     },
@@ -79,7 +79,7 @@ fn selected_joint_wrapper_supports_three_typed_fields() {
         let tv = Transcript::for_test(b"zk-v2/selected-three-fields");
         let mut verifier = param.clone().receive(&root, responses, tv);
         let verifier_equations = statements(verifier.bound(&()).session());
-        verifier.finish(verifier_equations, &proof)
+        verifier.finish(verifier_equations, Unverified::unsealed_for_test(&proof))
     };
     let mut tv = verify(responses.clone()).unwrap().into_transcript();
     assert_eq!(tp.bytes(32), tv.bytes(32));
@@ -162,19 +162,27 @@ fn finish_rejects_equations_derived_on_another_session() {
         .session_for_test();
     assert_eq!(
         forked_verifier
-            .finish(derived(verifier_fork), &proof)
+            .finish(
+                derived(verifier_fork),
+                Unverified::unsealed_for_test(&proof)
+            )
             .err()
             .unwrap(),
         ERROR
     );
     let verifier_fixed = (LinearStatement::new(vec![], vec![]), ());
     assert_eq!(
-        receive().finish(verifier_fixed, &proof).err().unwrap(),
+        receive()
+            .finish(verifier_fixed, Unverified::unsealed_for_test(&proof))
+            .err()
+            .unwrap(),
         ERROR
     );
     let mut verifier = receive();
     let verifier_equations = derived(verifier.bound(&()).session());
-    verifier.finish(verifier_equations, &proof).unwrap();
+    verifier
+        .finish(verifier_equations, Unverified::unsealed_for_test(&proof))
+        .unwrap();
 }
 fn circuits<F: RuntimeField + SerializableField>(f: &F) -> (Circuit<F>, Circuit<F>) {
     let layer = |nw, q, l| {
@@ -309,7 +317,7 @@ fn binary_circuits_authenticate_one_shared_input() {
                 candidate,
                 &VirtualInputs::none(),
             )?;
-            v.finish((statement, ()), &opening)
+            v.finish((statement, ()), Unverified::unsealed_for_test(&opening))
                 .map(|_| ())
                 .map_err(|e| e.to_string())
         };
@@ -390,7 +398,7 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     )
     .unwrap();
     let mut tv = v
-        .finish((statement, ()), &opening)
+        .finish((statement, ()), Unverified::unsealed_for_test(&opening))
         .unwrap()
         .into_transcript();
     assert_eq!(tp.bytes(32), tv.bytes(32));
@@ -538,7 +546,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
             &proof,
             definition,
         )?;
-        v.finish((statement, ()), &opening)
+        v.finish((statement, ()), Unverified::unsealed_for_test(&opening))
             .map(|_| ())
             .map_err(|e| e.to_string())
     };

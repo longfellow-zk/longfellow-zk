@@ -71,9 +71,9 @@ pub fn run_mdoc_verifier(
         // The proof is parsed against the geometry the statement absorbed.
         let decoded = super::proto::MdocProof::read(proof_bytes, &session.geometry(), &gf2, &p256)
             .map_err(|_| MdocVerifierErrorCode::HashParsingFailure)?;
-        super::link::Statement::reduce_and_authenticate(session, &decoded.body)
+        super::link::Statement::reduce_and_authenticate(session, decoded)
             .map_err(gen_err)?
-            .check_seal(decoded)
+            .check_seal()
             .map_err(|_| MdocVerifierErrorCode::GeneralFailure)
     })
 }

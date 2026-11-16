@@ -72,7 +72,7 @@ pub use transcript::ZkProofStatement;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod constraint_compiler;
 cfg_prover! { mod joint_prover; pub(crate) use joint_prover::JointProver; }
-cfg_verifier! { mod joint_verifier; pub(crate) use joint_verifier::Authenticated; }
+cfg_verifier! { mod joint_verifier; pub(crate) use joint_verifier::{Authenticated, JointOpening}; }
 cfg_prover! {
     mod prover;
     pub(crate) use prover::{prove, prove_split};

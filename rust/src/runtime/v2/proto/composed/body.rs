@@ -40,6 +40,14 @@ pub(crate) struct ComposedProof<H: SerializableField, S: SerializableField, M> {
     pub(crate) polygero:
         JointPolygeroProof<(FieldProof<ElementOf<H>>, (FieldProof<ElementOf<S>>, ()))>,
 }
+/// A bare body, for tests that authenticate one without an application's
+/// envelope.
+#[cfg(test)]
+impl<H: SerializableField, S: SerializableField, M> AsRef<Self> for ComposedProof<H, S, M> {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
 #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
 impl<H: SerializableField, S: SerializableField, M: AdapterMessage> ComposedProof<H, S, M> {
     /// Bytes of every body field before the frontier and its count (proto

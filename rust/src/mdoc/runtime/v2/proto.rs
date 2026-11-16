@@ -9,8 +9,9 @@ use crate::runtime::v2::transcript::EncodedProof;
 use crate::runtime::v2::transcript::Transcript;
 #[cfg(any(test, feature = "verifier"))]
 use crate::runtime::v2::{
-    proto::polygero::codec::checked_body,
+    proto::polygero::{codec::checked_body, JointPolygeroProof},
     transcript::{Bound, Unverified, SEAL_BYTES},
+    zk::JointOpening,
 };
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::{
@@ -37,6 +38,21 @@ type Body = ComposedProof<Gf2_128Field, P256Field, [MaskedQuotient; 2]>;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) struct MdocProof {
     pub(crate) body: Body,
+}
+/// The composed body, which the verifier reduces and authenticates.
+#[cfg(any(test, feature = "verifier"))]
+impl AsRef<Body> for MdocProof {
+    fn as_ref(&self) -> &Body {
+        &self.body
+    }
+}
+#[cfg(any(test, feature = "verifier"))]
+impl<B> JointOpening<B> for MdocProof
+where Body: JointOpening<B>
+{
+    fn opening(&self) -> &JointPolygeroProof<B> {
+        self.body.opening()
+    }
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl MdocProof {

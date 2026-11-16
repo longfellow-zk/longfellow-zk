@@ -25,7 +25,7 @@ use crate::{
                 composed::ComposedGeometry,
                 tests::statement::{Identity, Statement},
             },
-            transcript::{Opened, SetupMessage, ZkStatement, ZK_PROTOCOL_ID},
+            transcript::{Opened, SetupMessage, Unverified, ZkStatement, ZK_PROTOCOL_ID},
             zk::{
                 split::value_count,
                 storage::{Group, StorageMap},
@@ -169,5 +169,6 @@ fn composed_statement_round_trip() {
     session
         .statement()
         .check_absorbed_for_test(&d, |mode| mode.check_absorbed_for_test(&d));
-    ComposedStatement::reduce_and_authenticate(session, &proof).unwrap();
+    ComposedStatement::reduce_and_authenticate(session, Unverified::unsealed_for_test(proof))
+        .unwrap();
 }

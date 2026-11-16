@@ -153,14 +153,16 @@ public transcript accessor (type); Lean `ZkJoint`, `FingerprintRows`.
 
 **I7. A frontend output is not an acceptance decision.** `LinearStatement`
 and `ModularClaim` are `#[must_use]` claims. Acceptance requires
-`JointVerifier::finish`, which returns `Authenticated`, and then
-`Authenticated::check_seal`, which checks the complete proof's seal on the
-authenticated session and alone returns its `VerifiedProof` (transcript
-I10).
+`JointVerifier::finish`, which takes the `Unverified` complete proof,
+checks its joint opening and returns an `Authenticated` that keeps the
+proof, and then `Authenticated::check_seal`, which checks the seal of that
+proof on the authenticated session and alone returns its `VerifiedProof`
+(transcript I10).
 *Enforced by:* `Authenticated` is obtainable only from `finish`; the
 verifier's transcript leaves the joint handle only inside it and never
 leaves `Authenticated` outside tests, so the seal can be checked only on an
-authenticated session (type).
+authenticated session; `check_seal` takes no proof, so it checks the seal
+of the proof whose opening `finish` checked (type).
 
 **I8. Virtual inputs are substituted, never committed and never absorbed.**
 The primary circuit ends before the virtual suffix and cannot read it. Each
@@ -470,12 +472,14 @@ impl<L: Fields> JointParam<L> {
 impl<L: Fields> JointVerifier<L> {
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P>;
     // I4: each field's equations, derived on this session; draws the batching weights
-    pub(crate) fn finish(self, equations: Statements<L>, proof: &JointPolygeroProof<Bodies<L>>)
-        -> Result<Authenticated, String>;                // I7
+    pub(crate) fn finish<'a, P: JointOpening<Bodies<L>>>(self, equations: Statements<L>,
+        proof: Unverified<'a, P>) -> Result<Authenticated<'a, P>, String>; // I7
 }
-impl Authenticated {
+// a complete proof holding a joint opening: ZkProof, ComposedProof, MdocProof
+pub(crate) trait JointOpening<B> { fn opening(&self) -> &JointPolygeroProof<B>; }
+impl<P> Authenticated<'_, P> {
     // the seal of the proof whose opening this authenticated, on its session (I7)
-    pub(crate) fn check_seal<P>(self, proof: Unverified<'_, P>) -> Result<VerifiedProof, &'static str>;
+    pub(crate) fn check_seal(self) -> Result<VerifiedProof, &'static str>;
 }
 pub(crate) fn reduce(t: &mut Bound<'_, FrontendPart<'_, F>>, proof: &CircuitProof<F>,
                      virtual_inputs: &VirtualInputs<F::E>) -> Result<LinearStatement<F::E>, String>;

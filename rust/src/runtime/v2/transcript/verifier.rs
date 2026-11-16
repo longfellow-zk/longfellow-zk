@@ -77,3 +77,11 @@ impl<'a, P> Unverified<'a, P> {
         })
     }
 }
+#[cfg(test)]
+impl<P> Unverified<'static, P> {
+    /// `body` without proof bytes, for tests that authenticate a body they
+    /// built or changed: its seal check fails.
+    pub(crate) fn unsealed_for_test(body: P) -> Self {
+        Self { body, encoded: &[] }
+    }
+}

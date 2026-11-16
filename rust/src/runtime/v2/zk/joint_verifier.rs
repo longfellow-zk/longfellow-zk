@@ -8,26 +8,45 @@ use crate::runtime::v2::{
 };
 
 /// Evidence that a joint opening authenticated every frontend equation on
-/// the verifier's session, which it keeps. It is not complete verification:
-/// only its `check_seal`, which consumes the session, turns the proof into a
+/// the verifier's session. It keeps the session and the complete proof whose
+/// opening it checked. It is not complete verification: only its
+/// `check_seal`, which consumes both, turns that proof into a
 /// `VerifiedProof` (zk I7, transcript I10).
-pub(crate) struct Authenticated {
+pub(crate) struct Authenticated<'a, P> {
     transcript: Transcript,
+    proof: Unverified<'a, P>,
     _selection: witness_selection::Authenticated,
 }
-impl Authenticated {
-    /// Check the seal of `proof`, the complete proof whose opening this
-    /// authenticated, on the authenticated session (transcript I10).
-    pub(crate) fn check_seal<P>(
-        self,
-        proof: Unverified<'_, P>,
-    ) -> Result<VerifiedProof, &'static str> {
-        self.transcript.check_seal(proof)
+impl<P> Authenticated<'_, P> {
+    /// Check the seal of the complete proof whose opening this authenticated,
+    /// on the authenticated session (transcript I10).
+    pub(crate) fn check_seal(self) -> Result<VerifiedProof, &'static str> {
+        self.transcript.check_seal(self.proof)
     }
     /// The authenticated session, for tests that read it directly.
     #[cfg(test)]
     pub(crate) fn into_transcript(self) -> Transcript {
         self.transcript
+    }
+}
+
+/// A complete proof, which holds the joint opening `JointVerifier::finish`
+/// checks.
+pub(crate) trait JointOpening<B> {
+    fn opening(&self) -> &JointPolygeroProof<B>;
+}
+/// A bare opening, for tests that check one without a complete proof.
+#[cfg(test)]
+impl<B> JointOpening<B> for JointPolygeroProof<B> {
+    fn opening(&self) -> &JointPolygeroProof<B> {
+        self
+    }
+}
+/// A borrowed proof, for tests that check one they keep.
+#[cfg(test)]
+impl<B, P: JointOpening<B>> JointOpening<B> for &P {
+    fn opening(&self) -> &JointPolygeroProof<B> {
+        (**self).opening()
     }
 }
 
@@ -70,33 +89,36 @@ impl<L: Fields> JointVerifier<L> {
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P> {
         self.transcript.bound(part)
     }
-    /// Check the opening `proof` against `equations`, each field's frontend
+    /// Check the joint opening of `proof`, the complete proof, against
+    /// `equations`, each field's frontend
     /// equations, derived on this session, in participant order (for mdoc,
     /// the host's, then the split participant's). Call it right after the
     /// last frontend message of every participant. It consumes the session:
     /// it rejects equations derived on another session, attaches each field's
     /// fingerprint equations, draws the Polygero batching weights at the
     /// current boundary (transcript I8), absorbs each field's response, draws
-    /// the columns and checks the opening. The caller still checks the
-    /// complete proof's seal (`Authenticated::check_seal`).
+    /// the columns and checks the opening. The caller still checks the seal
+    /// of `proof`, which the returned `Authenticated` keeps
+    /// (`Authenticated::check_seal`).
     ///
     /// It takes every field's equations, in their types: a list without the
     /// split participant's, or none, does not compile.
-    pub(crate) fn finish(
+    pub(crate) fn finish<'a, P: JointOpening<Bodies<L>>>(
         mut self,
         equations: Statements<L>,
-        proof: &JointPolygeroProof<Bodies<L>>,
-    ) -> Result<Authenticated, String>
+        proof: Unverified<'a, P>,
+    ) -> Result<Authenticated<'a, P>, String>
     where
         L::Selection: witness_selection::VerifierFields,
     {
         let selection = self.selection.finish(
             &mut self.transcript.bound(&self.param.selection),
             equations,
-            proof,
+            proof.opening(),
         )?;
         Ok(Authenticated {
             transcript: self.transcript,
+            proof,
             _selection: selection,
         })
     }

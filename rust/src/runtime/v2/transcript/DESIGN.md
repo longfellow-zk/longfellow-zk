@@ -153,10 +153,12 @@ with the whole proof body and ends with the seal terminator. Its first PRF
 block is appended to the proof, and complete verification requires it.
 *Enforced by:* `VerifiedProof` is obtained only from the seal check, which
 takes the `Unverified` proof and the session by value. Outside the
-transcript the check is reached only through `zk::Authenticated::check_seal`,
-and an `Authenticated` exists only after the joint opening check (zk I7),
-so no seal is checked on an unauthenticated session (type). The
-bare Polygero `verify` of tests checks its opening before its seal.
+transcript the check is reached only through `zk::Authenticated::check_seal`.
+An `Authenticated` exists only after the joint opening check of the
+`Unverified` proof it keeps (zk I7), so no seal is checked on an
+unauthenticated session, nor on a proof other than the one whose opening
+was checked (type). The bare Polygero `verify` of tests checks the opening
+of its `Unverified` proof before that proof's seal.
 
 **I11. Proof bytes hold only prover data.** One version magic at the
 outermost layer (`MDA7` for mdoc). The proof contains no nested magic and no

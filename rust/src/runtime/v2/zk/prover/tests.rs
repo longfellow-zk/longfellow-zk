@@ -285,9 +285,9 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     let mut session = Transcript::new(&statement);
     let parsed = ZkProof::read(&actual, &session.bound(&statement.geometry), &f).unwrap();
     assert!(independent_verifier
-        .finish(equations, &expected.com_proof)
+        .finish(equations, parsed)
         .unwrap()
-        .check_seal(parsed)
+        .check_seal()
         .is_ok());
 }
 

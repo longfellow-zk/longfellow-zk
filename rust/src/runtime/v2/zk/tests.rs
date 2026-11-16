@@ -34,7 +34,7 @@ use crate::{
                 zk::ZkProof,
             },
             sumcheck::circuit_geometry,
-            transcript::{EncodedProof, Opened, Transcript},
+            transcript::{EncodedProof, Opened, Transcript, Unverified},
             zk::CircuitInput,
         },
     },
@@ -253,7 +253,8 @@ fn exercise<F: ZkField + crate::runtime::algebra::packing::PackingField, D: Eval
     }
     let verify = |inputs: Vec<CircuitInput<F>>, candidate: &ZkProof<F>| {
         let statement = v.statement(CONTEXT, &inputs).map_err(|e| e.to_string())?;
-        v.reduce(Opened::new(&statement), candidate, &bounded)
+        let unsealed = Unverified::unsealed_for_test(candidate.clone());
+        v.reduce(Opened::new(&statement), unsealed, &bounded)
             .map_err(|e| e.to_string())
     };
     verify(public.clone(), &decoded).unwrap();
@@ -293,7 +294,11 @@ fn exercise<F: ZkField + crate::runtime::algebra::packing::PackingField, D: Eval
 
         let other_statement = other_verifier.statement(CONTEXT, &public).unwrap();
         other_verifier
-            .reduce(Opened::new(&other_statement), &other_proof, &bounded)
+            .reduce(
+                Opened::new(&other_statement),
+                Unverified::unsealed_for_test(other_proof),
+                &bounded,
+            )
             .unwrap();
     }
     let bad_public = vec![base.zero()];
@@ -378,12 +383,17 @@ fn exercise<F: ZkField + crate::runtime::algebra::packing::PackingField, D: Eval
         use super::ZkVerificationError as E;
         let rejected = |candidate: &ZkProof<F>| {
             let own = v.statement(CONTEXT, &public).unwrap();
-            v.reduce(Opened::new(&own), candidate, &bounded).err()
+            let unsealed = Unverified::unsealed_for_test(candidate.clone());
+            v.reduce(Opened::new(&own), unsealed, &bounded).err()
         };
         let other = ZkVerifier::new(circuit(f), config, &bounded).unwrap();
         let other_statement = other.statement(CONTEXT, &public).unwrap();
         let wrong = v
-            .reduce(Opened::new(&other_statement), &decoded, &bounded)
+            .reduce(
+                Opened::new(&other_statement),
+                Unverified::unsealed_for_test((*decoded).clone()),
+                &bounded,
+            )
             .err();
         assert!(matches!(wrong, Some(E::InvalidStatement(_))), "{wrong:?}");
         let mut short_sumcheck = (*decoded).clone();
@@ -498,9 +508,10 @@ pub(super) fn reduce_standalone<
     public: &[CircuitInput<F>],
     proof: &ZkProof<F>,
     domain: &D,
-) -> Result<super::Authenticated, super::ZkVerificationError> {
+) -> Result<super::Authenticated<'static, ZkProof<F>>, super::ZkVerificationError> {
     let statement = verifier.statement(context, public)?;
-    verifier.reduce(Opened::new(&statement), proof, domain)
+    let unsealed = Unverified::unsealed_for_test(proof.clone());
+    verifier.reduce(Opened::new(&statement), unsealed, domain)
 }
 /// Parse a complete proof against the geometry of its statement.
 pub(super) fn read_standalone<F: ZkField + crate::runtime::algebra::packing::PackingField>(
