@@ -54,7 +54,11 @@ storage every split value, sumcheck pads included, is a foreign bit group.
 **Claim proven.** There are private inputs `h` of `C_H` and `s` of `C_S`
 such that `C_H(x_H, h)` and `C_S(x_S, s)` hold, where each foreign value of
 `s` equals, modulo `p`, the integer whose little-endian bits are its group
-in `h`.
+in `h`. Each foreign group is at most 255 bits wide (I6), below the bit
+length of `p`, so its integer is canonical and the equality modulo `p` is
+equality with that integer. The prover derives its quotients from the
+canonical values, so it could not prove a true claim whose group held an
+integer `>= p`; the composition rejects such a group.
 
 **Claim handed on.** Affine statements over the committed cells, which the
 joint Polygero opening authenticates:
@@ -76,11 +80,13 @@ pure:   sum_v c_v * value(G_v)                         = target  (mod p)
         c_v, target          from the row weights, for every value v
 ```
 
-where `value(G)` is the integer of the bits in group `G`. The pure-foreign
-coefficients and target are those `PureClaim::batch` makes from the
-frontend's claim (`frontend_claim`): with layer rows `A_c*v + b_c = 0` and
-row weights `rho_0..rho_L`, `c = sum_c rho_c*A_c - rho_L*w_priv +
-rho_L*k_pads` and `target = -(sum_c rho_c*b_c + rho_L*t)`.
+where `value(G)` is the integer of the bits in group `G`, below `p` for a
+foreign value (I6). R's group is 256 bits wide; the prover writes R's
+canonical bits. The pure-foreign coefficients and target are those
+`PureClaim::batch` makes from the frontend's claim (`frontend_claim`): with
+layer rows `A_c*v + b_c = 0` and row weights `rho_0..rho_L`, `c = sum_c
+rho_c*A_c - rho_L*w_priv + rho_L*k_pads` and `target = -(sum_c rho_c*b_c +
+rho_L*t)`.
 The target is public. The adapter ends with the fragment's assertions: for
 each tree `t` in `{0, 1}`, the product of the tree's virtual leaves is one.
 The host sumcheck proves those assertions.
@@ -183,15 +189,18 @@ mdoc's const assertion `SHARED_BITS + MASK_BITS <= 1 << QUOTIENT_BITS`;
 The host circuit is archived at its natural width. R and the pads lie in a
 `ReservedSuffix` that starts at the host circuit's `ninput`; the leaves
 start at the suffix's end. Every foreign group lies in the host private
-range. Each sumcheck component reads only its own input prefix, so `C_H`
-cannot address R, the pads or the leaves. The mode writes `Q`, the tree
+range and is at most the mode's `MAX_VALUE_BITS` wide, 255 for P-256, so
+it cannot hold an integer `>= p` (Claim proven). Each sumcheck component
+reads only its own input prefix, so `C_H` cannot address R, the pads or the
+leaves. The mode writes `Q`, the tree
 count, the virtual leaves per tree and the positions of the quotient pads into
 the statement as its `AdapterLayout` (transcript I3), from the same
 geometry it then uses. R's position is in the split participant's
 `CommitmentLayout`.
-*Enforced by:* `ReservedSuffix::new(ninput)`, the group check in
-`Composition::new` and `InputLayout::new` (runtime); the mode writes
-`AdapterLayout` from the geometry it then uses (`AdapterMode::write_layout`);
+*Enforced by:* `ReservedSuffix::new(ninput)`, the group checks in
+`Composition::new` (position and width) and `InputLayout::new` (runtime);
+the mode writes `AdapterLayout` from the geometry it then uses
+(`AdapterMode::write_layout`);
 the sumcheck prefix read (structural); `HashCircuit.readDisjoint` and
 `MdocWitness.hashChecks_prefix` (Lean).
 
@@ -500,6 +509,7 @@ pub(crate) struct BitGroup<const N: usize>(Group);      // a typed N-bit word
 // runtime::v2::foreign::adapter
 pub(crate) trait AdapterMode<F: SerializableField>: Sized {
     const MASK_BITS: usize;                 // width of R's group, mixed storage
+    const MAX_VALUE_BITS: usize;            // widest foreign value group (I6); P256Mode: 255
     type Pads;                              // committed one-time pads, prover only
     type Message: AdapterMessage;           // P256Mode: [MaskedWord<Q>; 2], tag P256AdapterQuotients
     fn new(widths: Vec<usize>, npublic: usize, suffix: &mut ReservedSuffix) -> Result<Self, String>;
@@ -595,6 +605,7 @@ The frontends draw their top weights themselves, on their `Bound`.
 | Two encodings of one masked word | I5, I9: `MaskedWord::read` rejects padding bits; the Bits payload is the wire bytes |
 | The host circuit reading R, a pad or a leaf | I6: reserved bits start at its `ninput`; sumcheck prefix reads |
 | A foreign group in the public prefix or outside the host circuit | I6: `Composition::new` rejects it |
+| A foreign group wide enough to hold an integer `>= p`, whose true claims the prover cannot prove | I6: `Composition::new` rejects a group wider than `MAX_VALUE_BITS` |
 | A mode whose geometry differs from the absorbed one | I6: the mode writes `AdapterLayout` from its own geometry |
 | A leaf whose source is public or virtual | `VirtualInputs::validate` and `compile_packed` reject it |
 | A per-proof circuit | I7: `fragment` takes no challenge; its ID is in the statement |

@@ -72,8 +72,9 @@ This module discharges the modular claims:
 The adapter uses the coordinate prime p, not the ECDSA scalar order. Two
 independent nonzero full-field challenges `alpha` rescale the foreign claim
 after `mu` is fixed. Write each rescaled bit coefficient as `A_i` and the target
-as `C`, both canonical modulo p. Honest bits satisfy `sum A_i*b_i = C + k*p` for
-a quotient `k < 2^10`.
+as `C`, both canonical modulo p. Each foreign group is at most 255 bits wide,
+so a true claim's bits are the canonical value. Honest bits satisfy
+`sum A_i*b_i = C + k*p` for a quotient `k < 2^10`.
 
 With `M = 2^128-1`, the fixed generator `g` satisfies `g^(-p) = X`, so each tree
 checks:

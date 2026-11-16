@@ -81,7 +81,8 @@ where
     M: AdapterMode<F>,
 {
     /// `storage` covers the split circuit's values `[private inputs | pads]`.
-    /// Its foreign values must be private inputs of the host circuit. The
+    /// Its foreign values must be private inputs of the host circuit, in
+    /// groups at most `M::MAX_VALUE_BITS` wide. The
     /// split mask R and the mode's pads follow the host circuit's inputs.
     /// `joint` is the one Polygero profile both fields commit under.
     pub(crate) fn new(
@@ -97,6 +98,11 @@ where
             if let Storage::Foreign(g) = s {
                 if g.start() < npublic || g.end() > ninput {
                     return Err("foreign values must be private host inputs".into());
+                }
+                if g.width() > M::MAX_VALUE_BITS {
+                    return Err(
+                        "a foreign group is wide enough to hold a noncanonical value".into(),
+                    );
                 }
                 widths.push(g.width());
             }

@@ -288,6 +288,8 @@ pub(crate) struct P256Mode<const Q: usize> {
 }
 impl<const Q: usize> super::AdapterMode<P256Field> for P256Mode<Q> {
     const MASK_BITS: usize = 256;
+    /// Below the 256-bit length of p: no group holds an integer `>= p`.
+    const MAX_VALUE_BITS: usize = 255;
     type Pads = [crate::runtime::v2::foreign::word::Otp<Q>; 2];
     type Message = [MaskedWord<Q>; 2];
     fn new(

@@ -212,6 +212,13 @@ pub(crate) fn fragment(
 pub(crate) trait AdapterMode<F: SerializableField>: Sized {
     /// Bits of the split mask R in the binary witness.
     const MASK_BITS: usize;
+    /// The widest foreign value group the mode accepts (foreign I6). The
+    /// prover computes the mode's message from each value's canonical
+    /// representative, so a group must be too narrow to hold an integer at
+    /// or above the modulus: then its bits are the canonical value whenever
+    /// they equal the value modulo the prime. R's group is exempt, because
+    /// the prover writes R's canonical bits itself.
+    const MAX_VALUE_BITS: usize;
     /// Committed one-time pads, built only by the prover.
     type Pads;
     /// The published message.

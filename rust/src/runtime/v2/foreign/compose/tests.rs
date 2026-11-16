@@ -180,3 +180,35 @@ fn foreign_values_must_be_private_host_inputs() {
         );
     }
 }
+
+/// A foreign group must be too narrow to hold an integer at or above p
+/// (foreign I6): 255 bits are accepted, 256 rejected, because the prover
+/// could not prove a true claim whose 256 bits encode p or more.
+#[test]
+fn foreign_groups_cannot_hold_noncanonical_values() {
+    let gf2 = Gf2_128Field::new();
+    let p = P256Field::new();
+    let p2 = Fp2Field::new(&p);
+    let host_domain = BinaryInterpolatorFactory::full_field(&gf2);
+    let split_domain =
+        QuadraticExtensionFftInterpolatorFactory::new(&p, &p2, p2.omega(), p2.omega_order());
+    let host = circuit(&gf2, 1 + 256, vec![gf2.one()], &[(0, 0), (1, 0)]);
+    let split = circuit(&p, 3, vec![p.one(), p.mone()], &[(1, 0), (2, 1)]);
+    let compose = |width| {
+        let shared = Group::new(1, width).unwrap();
+        let storage = StorageMap::new(value_count(&split).unwrap(), &[(0, shared)]).unwrap();
+        Composition::<P256Field, _, _, Mode>::new(
+            &host,
+            &split,
+            storage,
+            CONFIG,
+            (&host_domain, &split_domain),
+        )
+        .err()
+    };
+    assert!(compose(255).is_none());
+    assert_eq!(
+        compose(256).unwrap(),
+        "a foreign group is wide enough to hold a noncanonical value"
+    );
+}
