@@ -396,11 +396,12 @@ establish that a cryptographic implementation satisfies their premises.
   the bare Polygero body codec and standalone verify, and
   `Transcript::bound_for_test` exist only in test builds (`testonly`), and the
   transcript does not bind them. The traits `Statement`, `SetupMessage` and
-  `Message` are open, and an implementation outside the crate is trusted. No
-  prove, verify or read entry point accepts an outside `Statement`; the
-  composition driver accepts any `SetupMessage` as its identity message
-  (`Composition::statement`), so an application's identity encoding is
-  trusted.
+  `Message` are open, but no prove, verify or read entry point accepts an
+  outside `Statement`. The composition (`foreign`) and its statement
+  constructor `Composition::statement` are crate-private, so the
+  composition's identity message comes only from an application inside the
+  crate (mdoc's `Identity`): an application's identity encoding is trusted
+  crate code.
 - **Efficiency and implementation.** Extraction uses mathematical finite
   search; no polynomial-time extractor bound is proved. The explicit public
   simulator has no witness argument, but its running time is not formally
