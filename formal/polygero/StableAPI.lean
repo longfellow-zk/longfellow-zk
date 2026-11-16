@@ -55,9 +55,12 @@ import polygero.Precious
 
 /-! Precious Polygero API. Names and signatures below are frozen until explicit
 further user order. Do not regenerate fingerprints to accommodate an API change.
-These fingerprints cover universe parameters and types, including binder names
-and implicitness and public data constructors/projections. Mathematical proof
-bodies remain free to improve. See STABLE_API.md for the paper correspondence.
+These fingerprints (`signatureFingerprint`, in `Precious`) cover a
+declaration's universe parameters and type, with binder types, order and
+implicitness; they erase binder names and do not reach into other
+declarations. A public data constructor or projection is frozen only by its
+own entry below. Mathematical proof bodies remain free to improve. See
+STABLE_API.md for the paper correspondence.
 -/
 
 

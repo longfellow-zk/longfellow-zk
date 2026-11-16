@@ -203,8 +203,10 @@ end LfzkV2.Current.Tests
 
 open Lean Elab Command
 
-/- Audit every declaration imported from the surviving V2 implementation
-and generic component modules, rather than a historical endpoint whitelist. -/
+/- Audit every declaration this test imports from the `LfzkV2` modules,
+rather than a historical endpoint whitelist. The shared components
+(`TranscriptV2`, `SumcheckV2`, `Merkle`, `Bcs`, `Survival` and the others)
+are outside this filter; `scripts/Audit.lean` audits every module. -/
 run_cmd do
   let env ← getEnv
   let modules := env.header.moduleNames
@@ -220,4 +222,4 @@ run_cmd do
       unless #[``propext, ``Classical.choice, ``Quot.sound].contains ax do
         throwError "Unexpected axiom {ax} in {name}"
     checked := checked+1
-  logInfo m!"Audited {checked} current V2 and shared component declarations: standard Lean axioms only."
+  logInfo m!"Audited {checked} LfzkV2 declarations: standard Lean axioms only."

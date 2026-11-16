@@ -211,17 +211,40 @@ including programmed-leaf and failure branches. No support certificate or
 execution hypothesis is passed to the theorem.
 
 Axiom guards on every new bridge and composition endpoint allow only
-`propext`, `Classical.choice` and `Quot.sound`. No recursion/heartbeat limit
-was raised. The generic leaf-table lift accepts the caller's equality
+`propext`, `Classical.choice` and `Quot.sound`. Some modules raise elaboration
+limits, which bound the elaborator's search and not what the kernel accepts:
+
+- `maxHeartbeats 0` with `maxRecDepth 100000` in the parameter certificates
+  `LfzkV2.Current.Parameters.Rate7` and its `Active`, `Binary` and `Prime`
+  modules, which evaluate certificate tables, as do the certificate modules
+  under `parameters/` and `polygero/Benchmarks/`;
+- file-wide `maxHeartbeats` in `LfzkV2.Current.ZeroKnowledge`:
+  1400000 in `CompleteFrontendSetup`; 1000000 in `FrontendSimulationParsed`,
+  `FrontendSimulationMessages`, `FrontendSimulationWrites`,
+  `FrontendSimulationSystem`, `FrontendFullSatisfaction` and
+  `FrontendSetupAnswerTape`; 800000 in `FrontendRuntimeStatement`,
+  `FrontendBodyWrites` and `FrontendFullCoupling`; and 1000000 in
+  `Bcs.QueryRoleCompiler`;
+- per-declaration `maxHeartbeats` on
+  `Mdoc.Soundness.event_implies_extraction_failure` (400000) and in
+  `ZeroKnowledge.FrontendHonestRunRows` (800000); `Mdoc.Soundness` also sets
+  the default 200000 file-wide;
+- `maxRecDepth` between 2048 and 10000 in 36 other `LfzkV2.Current`
+  modules, among them the mdoc setup, witness and frontend-simulation
+  modules.
+
+The v1, Ligero, Polygero and ECDSA libraries raise limits in their own
+modules. The generic leaf-table lift accepts the caller's equality
 decision, avoiding normalization of two different function-space enumerations.
 Finite supports are used through membership lemmas rather than expanding
 their exhaustive enumerations during theorem matching.
 
 `Mdoc.OracleWindow` covers the leaf domains for every digest-selected public
 setup. Domain separation proves that varying these coordinates preserves
-setup and metadata. `Mdoc.SetupSupport.program_result` identifies the
-four actual setup hash calls, including the joint-context preimage selected
-by earlier answers. Their finite support is included in the complete window.
+setup and metadata. `Mdoc.SetupSupport.program_result` identifies the one
+actual setup hash call, the adapter fragment identifier, which the statement
+binds in its `Circuit` message. Its finite support is included in the
+complete window.
 `Mdoc.ZeroKnowledge.real_extend` and `simulate_extend` establish the
 pointwise support property for the setup-derived experiments themselves.
 Averaging the complementary coordinates adds no error. The concrete budget
