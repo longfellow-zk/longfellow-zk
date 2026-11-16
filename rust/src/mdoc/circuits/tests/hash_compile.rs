@@ -31,8 +31,8 @@ use crate::{
         cbor::{encode_cbor_string, test_utils::parse_test_data},
         circuits::{
             hash::{
-                allocate, derived, given, hash_input_of_parsed_mdoc, ConcreteDerived,
-                ConcreteGiven, MdocHash,
+                allocate, derived, given, hash_input_of_parsed_mdoc, ConcreteGiven, Derived,
+                MdocHash,
             },
             MdocHashCompileField,
         },
@@ -103,7 +103,7 @@ fn push_nat<FR: RuntimeField, N: Nat<4>>(
 
 fn make_hash_inputs<FR>(
     given: &ConcreteGiven<CompileNat<4>>,
-    derived: &ConcreteDerived,
+    derived: &Derived<u32>,
     fr: &FR,
 ) -> Vec<FR::E>
 where

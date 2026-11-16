@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::shape::{AttrDerived, Derived};
 use crate::{
-    circuits::{sha256::constants::INITIAL, sha256msg::sha256_msg_derived},
+    circuits::{
+        sha256::constants::INITIAL,
+        sha256msg::{sha256_msg_derived, Derived as MsgDerived},
+    },
     core::algebra::Nat,
     mdoc::{
         cbor::{
@@ -68,11 +72,6 @@ pub struct ConcreteAttrGiven {
 }
 
 #[derive(Clone, Debug)]
-pub struct ConcreteAttrDerived {
-    pub sha_derived: crate::circuits::sha256msg::Derived<u32>,
-}
-
-#[derive(Clone, Debug)]
 pub struct ConcreteGiven<N> {
     pub hash_input: HashInput<N>,
     pub preimage: MsoPreimageBytes,
@@ -84,12 +83,6 @@ pub struct ConcreteGiven<N> {
     pub value_digests_offset_in_preimage: u16,
     pub namespace_offset_in_preimage: u16,
     pub attribute_given: Vec<ConcreteAttrGiven>,
-}
-
-#[derive(Clone, Debug)]
-pub struct ConcreteDerived {
-    pub attribute_derived: Vec<ConcreteAttrDerived>,
-    pub sha_derived: crate::circuits::sha256msg::Derived<u32>,
 }
 
 pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiven<N> {
@@ -151,24 +144,19 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
     }
 }
 
-pub fn derived<const W: usize, N: Nat<W>>(given: &ConcreteGiven<N>) -> ConcreteDerived {
-    let cose_sha_derived = crate::circuits::sha256msg::Derived {
-        sha_derived: sha256_msg_derived(&given.preimage.value, &INITIAL, K_MAX_SHA_BLOCKS),
+pub fn derived<const W: usize, N: Nat<W>>(given: &ConcreteGiven<N>) -> Derived<u32> {
+    let message = |preimage: &[u8], nblocks| MsgDerived {
+        sha_derived: sha256_msg_derived(preimage, &INITIAL, nblocks),
     };
-
-    let mut attribute_witnesses = Vec::with_capacity(given.attribute_given.len());
-    for ag in &given.attribute_given {
-        let attr_sha_derived = crate::circuits::sha256msg::Derived {
-            sha_derived: sha256_msg_derived(&ag.padded_preimage, &INITIAL, 2),
-        };
-        attribute_witnesses.push(ConcreteAttrDerived {
-            sha_derived: attr_sha_derived,
-        });
-    }
-
-    ConcreteDerived {
-        attribute_derived: attribute_witnesses,
-        sha_derived: cose_sha_derived,
+    Derived {
+        attribute_derived: given
+            .attribute_given
+            .iter()
+            .map(|a| AttrDerived {
+                sha_derived: message(&a.padded_preimage, 2),
+            })
+            .collect(),
+        sha_derived: message(&given.preimage.value, K_MAX_SHA_BLOCKS),
     }
 }
 

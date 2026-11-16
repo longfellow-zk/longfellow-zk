@@ -13,8 +13,10 @@
 // limitations under the License.
 
 mod circuit;
+mod shape;
 
-pub use circuit::{AttrDerived, AttrGiven, Derived, Given, HashBytes, MdocHash};
+pub use circuit::{AttrGiven, Given, HashBytes, MdocHash};
+pub use shape::{AttrDerived, Derived};
 
 cfg_compiler! {
     mod allocate;
@@ -27,8 +29,8 @@ cfg_testonly! {
 
     pub use self::{
         concrete::{
-            derived, given, hash_input_of_parsed_mdoc, AttrInput, ConcreteAttrDerived,
-            ConcreteAttrGiven, ConcreteDerived, ConcreteGiven, ConcreteHashBytes, HashInput,
+            derived, given, hash_input_of_parsed_mdoc, AttrInput, ConcreteAttrGiven,
+            ConcreteGiven, ConcreteHashBytes, HashInput,
         },
         evaluate::{evaluate_derived, evaluate_given},
     };

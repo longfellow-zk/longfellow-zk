@@ -17,15 +17,16 @@
 //! stay adjacent, matching the runtime assignment encoder.
 use crate::{
     circuits::{
-        bitvec::{BitvecIO, BitvecLogic},
+        bitvec::{BitvecIO, BitvecLogic, V32},
         boolean::BooleanIO,
         sha256msg,
     },
     compile::logic::LogicIO,
     mdoc::{
         circuits::{
-            hash::circuit::{
-                AttrDerived, AttrGiven, AttrPreimageBytes, Derived, Given, MsoPreimageBytes,
+            hash::{
+                circuit::{AttrGiven, AttrPreimageBytes, Given, MsoPreimageBytes},
+                shape::{AttrDerived, Derived},
             },
             mso_attribute::{AttrSlice, DisclosedAttribute, FieldLocator},
         },
@@ -42,7 +43,7 @@ pub fn allocate<L: LogicIO>(
     logic: &L,
     num_attrs: usize,
     pos: &mut usize,
-) -> (Given<L>, Derived<L>, usize) {
+) -> (Given<L>, Derived<V32<L>>, usize) {
     let bv = BitvecLogic::new(logic);
     let io = BitvecIO::new(&bv);
     let boolean_io = BooleanIO::new(logic);
@@ -139,7 +140,7 @@ pub fn allocate<L: LogicIO>(
 fn allocate_attribute<L: LogicIO>(
     io: &BitvecIO<L>,
     pos: &mut usize,
-) -> (AttrGiven<L>, AttrDerived<L>) {
+) -> (AttrGiven<L>, AttrDerived<V32<L>>) {
     let preimage = AttrPreimageBytes {
         data: std::array::from_fn(|_| io.next::<8>(pos)),
         len: io.next::<K_ATTR_INDEX_BITS>(pos),

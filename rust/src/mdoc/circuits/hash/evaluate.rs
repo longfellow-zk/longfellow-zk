@@ -14,14 +14,17 @@
 
 use super::{
     circuit::{
-        AttrDerived as WireAttrDerived, AttrGiven as WireAttrGiven,
-        AttrPreimageBytes as WireAttrPreimageBytes, Derived as WireDerived, Given as WireGiven,
+        AttrGiven as WireAttrGiven, AttrPreimageBytes as WireAttrPreimageBytes, Given as WireGiven,
         MsoPreimageBytes as WireMsoPreimageBytes,
     },
-    concrete::{ConcreteDerived, ConcreteGiven},
+    concrete::ConcreteGiven,
+    shape::Derived,
 };
 use crate::{
-    circuits::{bitvec::BitvecLogic, boolean::Boolean},
+    circuits::{
+        bitvec::{BitvecLogic, V32},
+        boolean::Boolean,
+    },
     compile::{algebra::CompileNat, logic::LogicIO},
     core::algebra::Nat,
     mdoc::{
@@ -196,18 +199,7 @@ pub fn evaluate_given<L: LogicIO>(
 pub fn evaluate_derived<L: LogicIO>(
     _logic: &L,
     bv: &BitvecLogic<L>,
-    derived: &ConcreteDerived,
-) -> WireDerived<L> {
-    let mut attribute_derived = Vec::with_capacity(derived.attribute_derived.len());
-    for a in &derived.attribute_derived {
-        let sha_derived = a.sha_derived.map(|&w| bv.of_u32(w));
-        attribute_derived.push(WireAttrDerived { sha_derived });
-    }
-
-    let sha_derived = derived.sha_derived.map(|&w| bv.of_u32(w));
-
-    WireDerived {
-        attribute_derived,
-        sha_derived,
-    }
+    derived: &Derived<u32>,
+) -> Derived<V32<L>> {
+    derived.map(|&w| bv.of_u32(w))
 }

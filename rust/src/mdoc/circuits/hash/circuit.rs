@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::shape::Derived;
 use crate::{
     circuits::{
         analog_adder::AnalogAdder,
@@ -65,10 +66,6 @@ use crate::mdoc::{
     proto::hash::constants::{K_TIMESTAMP_DIGITS, K_TIMESTAMP_LEN},
 };
 
-pub struct AttrDerived<L: Logic> {
-    pub sha_derived: crate::circuits::sha256msg::Derived<V32<L>>,
-}
-
 pub struct Given<L: LogicIO> {
     pub disclosed_attributes: Vec<DisclosedAttribute<L>>,
     pub now: [V8<L>; K_TIMESTAMP_DIGITS.len()],
@@ -86,11 +83,6 @@ pub struct Given<L: LogicIO> {
     pub value_digests_offset_in_preimage: HashIndex<L>,
     pub namespace_offset_in_preimage: HashIndex<L>,
     pub attribute_given: Vec<AttrGiven<L>>,
-}
-
-pub struct Derived<L: LogicIO> {
-    pub attribute_derived: Vec<AttrDerived<L>>,
-    pub sha_derived: crate::circuits::sha256msg::Derived<V32<L>>,
 }
 
 pub struct MdocHash<'a, L: LogicIO>
@@ -123,7 +115,7 @@ where L::F: MdocHashCompileField
     pub fn assert_valid_presentation(
         &self,
         given: &Given<L>,
-        derived: &Derived<L>,
+        derived: &Derived<V32<L>>,
     ) -> L::Assertions {
         assert_eq!(
             given.disclosed_attributes.len(),
@@ -155,7 +147,7 @@ where L::F: MdocHashCompileField
     fn assert_mso_sha256_hash(
         &self,
         given: &Given<L>,
-        derived: &Derived<L>,
+        derived: &Derived<V32<L>>,
         preimage: &[V8<L>],
     ) -> L::Assertions {
         let preimage_len_64 = self
@@ -510,7 +502,7 @@ where L::F: MdocHashCompileField
     fn assert_attributes(
         &self,
         given: &Given<L>,
-        derived: &Derived<L>,
+        derived: &Derived<V32<L>>,
         preimage: &[V8<L>],
     ) -> L::Assertions {
         let zz = self.bv.zero::<8>();
