@@ -14,6 +14,8 @@ use integer::Int256;
 use transcript::Conversion;
 
 use super::{Leaf, TreeInstance, TreeShape};
+#[cfg(test)]
+use crate::runtime::v2::transcript::cheat;
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::{random::PrivateRandom, v2::foreign::word::Word};
 use crate::{
@@ -185,7 +187,14 @@ impl<const Q: usize> P256Plan<Q> {
                 #[cfg(any(test, feature = "prover"))]
                 let value = values.map(|v| to_int(p, &v[j]));
                 #[cfg(any(test, feature = "prover"))]
-                if value.is_some_and(|v| (group.width()..256).any(|r| integer::bit(&v, r))) {
+                let exceeds =
+                    value.is_some_and(|v| (group.width()..256).any(|r| integer::bit(&v, r)));
+                // A cheating test prover (`transcript::cheat`) goes on.
+                #[cfg(test)]
+                #[allow(clippy::shadow_reuse)]
+                let exceeds = exceeds && !cheat::active();
+                #[cfg(any(test, feature = "prover"))]
+                if exceeds {
                     return Err("P256 adapter value exceeds its group".into());
                 }
                 for r in 0..group.width() {
@@ -208,7 +217,15 @@ impl<const Q: usize> P256Plan<Q> {
         let quotients = if values.is_some() {
             let mut out = [Word::new(0)?; 2];
             for (tree, c) in targets.into_iter().enumerate() {
-                if !integer::subtract_word(&mut sums[tree], &c) {
+                let nonnegative = integer::subtract_word(&mut sums[tree], &c);
+                // A cheating test prover sends the low Q bits of whatever the
+                // division gives.
+                #[cfg(test)]
+                if cheat::active() {
+                    out[tree] = Word::new(integer::divide(&sums[tree]).0[0] & ((1 << Q) - 1))?;
+                    continue;
+                }
+                if !nonnegative {
                     return Err("P256 adapter negative quotient".into());
                 }
                 let (q, rem) = integer::divide(&sums[tree]);
