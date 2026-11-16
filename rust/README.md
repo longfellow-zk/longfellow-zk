@@ -564,8 +564,12 @@ compiler. The default features are `verifier`, `prover`, `compiler`, `mdoc`, and
 | `bench-memory` | Benchmark allocation tracking |
 
 Feature gates are placed high in the module tree. The `cfg_compiler!`,
-`cfg_prover!`, `cfg_verifier!`, `cfg_prover_or_compiler!`, and
-`cfg_testonly!` macros in `src/lib.rs` group conditional declarations.
+`cfg_prover!`, `cfg_verifier!`, `cfg_role!` (any proof role, through the
+private `_role` feature that `prover` and `verifier` enable),
+`cfg_prover_or_compiler!`, and `cfg_testonly!` macros in `src/lib.rs` group
+conditional declarations. Role and phase gates sit only on module
+declarations: an item that needs a role lives in a file of that role, in its
+own `impl` block or role trait.
 
 ## Building and testing
 
@@ -657,6 +661,9 @@ rust-analyzer's index and checks it against
 - that no prover file uses a verifier file or the reverse;
 - the symbol rules in `rules.txt` (for example where transcript framing and
   the final seal may be used);
+- that a library file without a role gates no item, only module
+  declarations, on a proof role or the compile phase (a few modules are
+  exempt until they are next edited);
 - the compile/run-time split, the prover/verifier contract layers
   (`runtime::v1::proto`, `runtime::v2::proto`) and the test-only `evaluate`
   bridges, which are defined in the checker's code rather than in
