@@ -9,7 +9,6 @@ the binary window does not depend on any challenge. Trace and
 primitive-generator checks remain the actual checks performed by the
 application decoder. -/
 noncomputable section
-set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 4096
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.ParserApplication
 open SumcheckV2 ApplicationSetup ConcreteSetup
@@ -79,6 +78,7 @@ theorem packing_pair : ProtocolWrites.packingPair proof.body = some proof.body.p
 omit [DecidableEq B] in
 theorem packing_degree : (G).packingDegree = binary.description.degree := rfl
 
+set_option backward.isDefEq.respectTransparency false in
 omit [DecidableEq B] in
 theorem binary_success (native : PrimeData prime C) (generator : Bˣ) : ∃ data,
     ApplicationPrefix.readBinary binary.description native generator (packing_degree binary prime primePlan) id id samples.binary samples.binaryNonzero

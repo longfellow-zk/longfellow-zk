@@ -11,7 +11,6 @@ namespace LfzkV2.Current.ZeroKnowledge.Frontend.AnswerTape
 open SumcheckV2
 open scoped Classical
 set_option maxHeartbeats 1000000
-set_option backward.isDefEq.respectTransparency false
 variable {g : Geometry} {fields : Fields} {Advice Authentication Key Base C F Pad : Type} [Field F]
 variable (side : Side) (field : fields side ≃ F)
 variable (base : (i : Fin g.roles.length) → (Fin (i.val+1) → ProtocolWrites.Fresh g fields Advice) →

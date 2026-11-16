@@ -7,7 +7,6 @@ suffix. The circuit is fixed; the per-proof virtual definitions are
 substituted into the final input equation, which is exactly the source
 equation passed to the packing protocol. -/
 noncomputable section
-set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 2048
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.CompletePacking
 open SumcheckV2 ApplicationSetup ConcreteSetup

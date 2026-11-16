@@ -9,7 +9,6 @@ constructed here with the runtime's fixed field projections, advice decoder,
 generator and row counts. None of these callbacks is an assumed equality
 with an independently supplied verifier. -/
 noncomputable section
-set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 4096
 set_option maxHeartbeats 800000
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.RuntimeStatement
@@ -64,6 +63,7 @@ local notation "past" => Input.priorAnswers
   (TranscriptV2.Chain.point (Replay.Encoding.chain E (RuntimeVerifier.Public.initialLink Cfg))
     proof H (Fin.val (Geometry.batchingIndex G))) H
 
+set_option backward.isDefEq.respectTransparency false in
 theorem success
     (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)
     (trace : ∀ i, DualPacking.ArtinSchreier.traceF (F := B) (ZMod 2) (proof.body.packing.1 i) = 0) :

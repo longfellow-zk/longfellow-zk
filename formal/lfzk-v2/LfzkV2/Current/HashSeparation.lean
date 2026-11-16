@@ -11,7 +11,6 @@ separation `ReadDisjoint` is a theorem: the hash's input-boundary fragments
 read only its own input prefix, and its later fragments read only wires
 outside the adapter's arrays, by type. It is never a premise. -/
 noncomputable section
-set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 4096
 namespace LfzkV2.Current.HashCircuit
 open SumcheckV2 Layered Adapter.Circuit Adapter.ProductTree Adapter.Fragment

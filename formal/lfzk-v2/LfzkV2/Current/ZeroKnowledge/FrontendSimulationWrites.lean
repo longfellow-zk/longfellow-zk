@@ -11,7 +11,6 @@ namespace LfzkV2.Current.ZeroKnowledge.Frontend.SimulationWrites
 open SumcheckV2 ApplicationSetup ConcreteSetup
 open scoped Classical
 set_option maxHeartbeats 1000000
-set_option backward.isDefEq.respectTransparency false
 
 section Readers
 variable {g : Geometry} {fields : Fields} {Advice Authentication Key Base C F Pad : Type}

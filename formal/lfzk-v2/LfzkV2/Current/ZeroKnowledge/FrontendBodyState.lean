@@ -8,7 +8,6 @@ namespace LfzkV2.Current.ZeroKnowledge.Frontend.BodyState
 
 open SumcheckV2 ApplicationSetup ConcreteSetup
 open scoped Classical
-set_option backward.isDefEq.respectTransparency false
 
 variable {B Key Base C : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
 local notation "P" => Adapter.Mdoc.P

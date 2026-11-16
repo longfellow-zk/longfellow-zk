@@ -11,7 +11,6 @@ noncomputable section
 namespace LfzkV2.Current.ZeroKnowledge.SHAOracleWindowProbability
 open LigeroFamily
 open scoped Classical
-set_option backward.isDefEq.respectTransparency false
 attribute [local irreducible] StatClose probOf
 
 variable {Raw Answer R S View : Type}

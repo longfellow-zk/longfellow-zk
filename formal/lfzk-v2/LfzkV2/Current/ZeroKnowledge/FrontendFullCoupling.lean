@@ -9,7 +9,6 @@ fingerprints. Only the coupling recovers private cells; the public
 simulator remains the forward sampler in `CompleteSimulation`.
 -/
 noncomputable section
-set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 4096
 set_option maxHeartbeats 800000
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.FullCoupling

@@ -6,7 +6,6 @@ compiled with this proof's virtual definitions substituted. The dedicated
 fingerprint masks are retained in that vector and absent from these frontend
 equations. -/
 noncomputable section
-set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 4096
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.HonestRows
 open SumcheckV2 ApplicationSetup ConcreteSetup DualPacking.ArtinSchreier

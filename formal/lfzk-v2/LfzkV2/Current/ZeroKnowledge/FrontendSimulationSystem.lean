@@ -8,7 +8,6 @@ noncomputable section
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.SimulationSystem
 open SumcheckV2 ApplicationSetup Application ConcreteSetup
 open scoped Classical
-set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 4096
 set_option maxHeartbeats 1000000
 variable {B C : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
@@ -55,6 +54,7 @@ theorem initial_answer :
     metadata request root H initial coins] at answer
   exact answer
 
+set_option backward.isDefEq.respectTransparency false in
 omit [DecidableEq B] in
 theorem binary_handoff_values (primeData : PrimeData prime C)
     (data : BinaryData binary.description primeData (MdocRuntime.generator binary.basis))

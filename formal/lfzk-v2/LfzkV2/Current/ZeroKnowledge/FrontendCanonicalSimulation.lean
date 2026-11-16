@@ -11,7 +11,6 @@ namespace LfzkV2.Current.ZeroKnowledge.Frontend.CanonicalSimulation
 
 open SumcheckV2 ApplicationSetup ConcreteSetup
 open scoped Classical
-set_option backward.isDefEq.respectTransparency false
 variable {B C : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
 local notation "P" => Adapter.Mdoc.P
 variable (binary : BinaryCircuit B) (prime : PrimePublic P 768)

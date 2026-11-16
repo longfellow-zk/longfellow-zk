@@ -12,7 +12,6 @@ namespace LfzkV2.Current.ZeroKnowledge.FrontendCanonicalRows
 open Application ApplicationSetup ConcreteSetup Frontend SumcheckV2
 open scoped Classical
 set_option maxRecDepth 4096
-set_option backward.isDefEq.respectTransparency false
 variable {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
 local notation "N" => Adapter.Mdoc.P
 variable (binary : BinaryCircuit B) (prime : PrimePublic N 768)
@@ -88,6 +87,7 @@ def hashTruth (coins : Coins) (request : Request) (root : Digest) : Prop :=
   HonestAdapter.hashChecks b p primePlan samples writer H
     (HonestRunRows.native b p primePlan samples writer H first.2 raw) (original request) source
 
+set_option backward.isDefEq.respectTransparency false in
 theorem exists_satisfied (coins : Coins) (request : Request) (root : Digest)
     (pivotOne : binary.basis 0 = 1)
     (primitive : Current.Adapter.Mdoc.generatorCheck (MdocRuntime.polynomialX binary.basis) = true)

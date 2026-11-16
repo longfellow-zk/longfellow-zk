@@ -6,7 +6,6 @@ The ordinary circuit truth hypotheses imply the actual compiler rows at
 the physical cell addresses. Fingerprints use those same cells, including
 all later pads and the two dedicated masks. -/
 noncomputable section
-set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 4096
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.HonestRows
 open SumcheckV2 ApplicationSetup ConcreteSetup
@@ -109,6 +108,7 @@ theorem prime_claim
         (circuitPadValues prime.circuit tape.prime) selection (.inl other)) = 0 :=
   (prime_split binary prime primePlan samples base H state original remaining tape selection valid).2
 
+set_option backward.isDefEq.respectTransparency false in
 omit [Fintype B] [DecidableEq B] in
 /-- The complete honest prime statement: the layer rows, then the native row. -/
 theorem prime_handoff
@@ -156,6 +156,7 @@ theorem binary_fingerprints
   apply (FingerprintRows.rows_iff _ _ _ _ _).mpr
   rw [CompleteHonest.binaryCandidate_project]
 
+set_option backward.isDefEq.respectTransparency false in
 omit [Fintype B] [DecidableEq B] in
 theorem prime_project (remaining : Fin prime.remaining → P) (tape : CompleteHonest.Tape binary prime) (masks : P × P) :
     FingerprintRows.project

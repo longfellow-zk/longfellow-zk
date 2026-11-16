@@ -10,7 +10,6 @@ noncomputable section
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.FullSatisfaction
 open SumcheckV2 ApplicationSetup Application ConcreteSetup
 open scoped Classical
-set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 4096
 set_option maxHeartbeats 1000000
 variable {B C : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]

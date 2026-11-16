@@ -13,7 +13,6 @@ namespace LfzkV2.Current.MdocWitness
 open Application ApplicationSetup ConcreteSetup SumcheckV2
 open scoped Classical
 set_option maxRecDepth 4096
-set_option backward.isDefEq.respectTransparency false
 
 variable {B : Type} [Field B] [Algebra (ZMod 2) B]
 
@@ -47,6 +46,7 @@ theorem hashChecks_prefix (binary : BinaryCircuit B) (left right : Cube binary.i
   HashCircuit.checks_prefix (bd binary).shape (binary.others.withComponent 0) binary.carry
     ((binary.above.withComponent 0).algebraic) (bd binary).read (bd binary).read left right same
 
+set_option backward.isDefEq.respectTransparency false in
 /-- Committed positions of the hash prefix, as public or private indices. -/
 theorem hashIndex_committed (binary : BinaryCircuit B) (x : Fin binary.hashWidth) :
     ∃ j, (bd binary).inputIndex j = binary.hashIndex x ∧

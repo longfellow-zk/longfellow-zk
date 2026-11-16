@@ -5,7 +5,6 @@ reconstruct the staged compiler inputs from its public messages, so the
 canonical parser bridge can consume these rows without a satisfaction
 certificate or a second computation of the honest circuit. -/
 noncomputable section
-set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 4096
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.HonestRunRows
 open SumcheckV2 ApplicationSetup ConcreteSetup

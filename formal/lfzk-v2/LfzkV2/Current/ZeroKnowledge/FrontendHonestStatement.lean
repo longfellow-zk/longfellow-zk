@@ -5,7 +5,6 @@ authenticated by the joint backend. Every cell, including the dedicated
 fingerprint masks, is read from the actual physical layout. No backend
 satisfaction premise is supplied to this construction. -/
 noncomputable section
-set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 4096
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.HonestStatement
 open SumcheckV2 ApplicationSetup ConcreteSetup

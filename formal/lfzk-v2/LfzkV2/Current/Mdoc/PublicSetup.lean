@@ -13,7 +13,6 @@ namespace LfzkV2.Current.Mdoc.PublicSetup
 open Application ApplicationSetup ConcreteSetup
 open scoped Classical
 set_option maxRecDepth 4096
-set_option backward.isDefEq.respectTransparency false
 
 variable {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
 variable (binary : BinaryCircuit B) (prime : PrimeCircuit)

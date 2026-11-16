@@ -9,7 +9,6 @@ noncomputable section
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.SimulationParsed
 open SumcheckV2 ApplicationSetup ConcreteSetup
 open scoped Classical
-set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 4096
 set_option maxHeartbeats 1000000
 
@@ -95,6 +94,7 @@ theorem prime_frontend (data : PrimeData prime C)
   unfold PrimeData.frontend
   rw [spec.2.2.1,spec.2.2.2.1,spec.2.2.2.2,payload]
 
+set_option backward.isDefEq.respectTransparency false in
 omit [DecidableEq B] in
 /-- The parser's split claim is the simulator's: both are computed from the
 same prime messages by the same compiler, with no challenge. -/
@@ -148,6 +148,7 @@ theorem challenge_values :
   rw [tape,ranks.2.2.2] at packing
   exact ⟨primeValues.2,conversion,packing⟩
 
+set_option backward.isDefEq.respectTransparency false in
 omit [DecidableEq B] in
 theorem binary_frontend_rows (primeData : PrimeData prime C)
     (parsedPrime : ApplicationPrefix.readPrime prime id samples.prime samples.primeNonzero samples.fallback point

@@ -15,7 +15,6 @@ See `Mdoc.OracleSoundness` for the conditioning and filtered-trace identities. -
 noncomputable section
 set_option maxRecDepth 4096
 set_option maxHeartbeats 200000
-set_option backward.isDefEq.respectTransparency false
 namespace LfzkV2.Current.Mdoc.Soundness
 open Application ApplicationSetup RuntimeAdaptive Bcs.FiniteProbability Merkle.RandomOracle TranscriptV2
 open scoped Classical
@@ -128,6 +127,7 @@ def event (G : Raw → Digest) : Prop :=
     Valid binary prime bounds (view G).original.1.request w
 
 -- The decoded split-claim system makes this unfolding slightly larger.
+set_option backward.isDefEq.respectTransparency false in
 set_option maxHeartbeats 400000 in
 theorem event_implies_extraction_failure (G : Raw → Digest) (bad : event binary prime cantor scalars ids bounds outside body fits sample G) :
     Mdoc.OracleSoundness.event binary prime cantor scalars ids bounds body outside fits sample G := by

@@ -5,7 +5,6 @@ sampled scalar and two two-byte OTPs. Only ten bits of each pad are consumed by
 the circuit; the six high bits of each are an independent inert coordinate.
 The trusted ordinary hash checks are kept separate below. -/
 noncomputable section
-set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 4096
 namespace LfzkV2.Current.ZeroKnowledge.Frontend.HonestAdapter
 open SumcheckV2 ApplicationSetup ConcreteSetup

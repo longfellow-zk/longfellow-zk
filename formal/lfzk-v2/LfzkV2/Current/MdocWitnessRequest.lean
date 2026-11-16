@@ -5,7 +5,6 @@ import LfzkV2.Current.MdocWitness
 independent of oracle probability and of the concrete runtime configuration. -/
 noncomputable section
 set_option maxRecDepth 4096
-set_option backward.isDefEq.respectTransparency false
 namespace LfzkV2.Current.MdocWitness
 open Application ApplicationSetup ConcreteSetup RuntimeAdaptive
 open scoped Classical
