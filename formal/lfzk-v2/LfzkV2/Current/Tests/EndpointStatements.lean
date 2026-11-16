@@ -2,6 +2,7 @@ import LfzkV2.Current.Mdoc.Soundness
 import LfzkV2.Current.Mdoc.ZeroKnowledge
 import LfzkV2.Current.Mdoc.VerifierPrivacy
 import LfzkV2.Current.Mdoc.Completeness
+import LfzkV2.Current.Mdoc.Rust
 
 /-! Pin the exact statements of the public endpoints. Each fingerprint hashes
 an endpoint's type together with the type and body of every project
@@ -9,8 +10,9 @@ definition it depends on, transitively; proofs and external libraries are
 excluded. Any change to what an endpoint states, including a change to a
 definition it mentions, fails this module until the pinned value is updated
 after review. The pins cover the four endpoints (soundness, zero knowledge,
-simulator acceptance and completeness), and each of them must reach the
-definitions that carry its meaning (`required`). Axiom and connectivity
+simulator acceptance and completeness) and their corollaries at the Rust
+challenge reader (`Mdoc.Rust`), and each of them must reach the definitions
+that carry its meaning (`required`). Axiom and connectivity
 checks live in `Tests.MdocSoundness`. -/
 namespace LfzkV2.Current.Tests.EndpointStatements
 open Lean Elab Command
@@ -47,26 +49,31 @@ def fingerprint (env : Environment) (root : Name) : UInt64 × NameSet := Id.run 
 /-- Reviewed statement fingerprints. Update a value only after reviewing the
 statement change it reflects. -/
 def pinned : List (Name × UInt64) := [
-  (``Current.Mdoc.Soundness.ratio_le, 10271962915227233831),
-  (``Current.Mdoc.Soundness.linear_ratio_le, 3670172431106102078),
-  (``Current.Mdoc.Soundness.averaged_ratio_le, 12362558543377397298),
-  (``Current.Mdoc.Soundness.averaged_linear_ratio_le, 3817715135635243613),
-  (``Current.Mdoc.Soundness.averaged_nonvacuous, 12915421525106166562),
-  (``Current.Mdoc.Soundness.averaged_polynomial_ratio_le, 17302797817049045406),
-  (``Current.Mdoc.Soundness.averaged_mdoc_approximation, 7039672695333304793),
+  (``Current.Mdoc.Soundness.ratio_le, 12513049308035022),
+  (``Current.Mdoc.Soundness.linear_ratio_le, 8149359971269711468),
+  (``Current.Mdoc.Soundness.averaged_ratio_le, 1343762886749493020),
+  (``Current.Mdoc.Soundness.averaged_linear_ratio_le, 2199048693965618856),
+  (``Current.Mdoc.Soundness.averaged_nonvacuous, 15240982601471283804),
+  (``Current.Mdoc.Soundness.averaged_polynomial_ratio_le, 327645463245882727),
+  (``Current.Mdoc.Soundness.averaged_mdoc_approximation, 5162694118443197585),
   (``Current.Mdoc.ZeroKnowledge.statClose, 11089277535653201106),
   (``Current.Mdoc.ZeroKnowledge.statClose_at_query_budget, 3608117319759410495),
   (``Current.Mdoc.VerifierPrivacy.acceptance_probability, 17334613443263901531),
-  (``Current.Mdoc.Completeness.rawReal_some_accepts, 15513187212161813640)]
+  (``Current.Mdoc.Completeness.rawReal_some_accepts, 15513187212161813640),
+  (``Current.Mdoc.Soundness.averaged_ratio_le_rust, 10790887318093611518),
+  (``Current.Mdoc.ZeroKnowledge.statClose_rust, 9355581669937741965),
+  (``Current.Mdoc.VerifierPrivacy.acceptance_probability_rust, 11679471597644133134)]
 
-/-- Definitions each of the four endpoints must reach: its event or
-experiment, its witness premises and the setup it is stated for. -/
+/-- Definitions each endpoint must reach: its event or experiment, its
+witness premises, the setup it is stated for and, for a deployed corollary,
+the Rust reader. -/
 def required : List (Name × List Name) := [
   (``Current.Mdoc.Soundness.averaged_ratio_le,
     [``Soundness.Rate7.failureBound, ``Soundness.Rate7.polygeroConstant,
       ``Current.Mdoc.Soundness.event, ``Current.Mdoc.Soundness.Valid,
       ``Current.Mdoc.Soundness.extract, ``MdocWitness.HashValid, ``MdocWitness.HashChecks,
-      ``ConcreteAdapterTopology.Others, ``MdocIdentifiers.setup, ``MdocIdentifiers.fragmentId]),
+      ``ConcreteAdapterTopology.Others, ``MdocIdentifiers.setup, ``MdocIdentifiers.fragmentId,
+      ``Protocol.Sampler, ``Protocol.SamplerLaws]),
   (``Current.Mdoc.ZeroKnowledge.statClose,
     [``Current.Mdoc.ZeroKnowledge.honest, ``Current.Mdoc.ZeroKnowledge.simulate,
       ``Current.Mdoc.ZeroKnowledge.window, ``Current.Mdoc.ZeroKnowledge.Reachable,
@@ -81,7 +88,23 @@ def required : List (Name × List Name) := [
       ``MdocWitness.HashValid, ``MdocIdentifiers.fragmentId]),
   (``Current.Mdoc.Completeness.rawReal_some_accepts,
     [``StrandVerifier.verify, ``ZeroKnowledge.StrandCanonicalExecution.rawReal,
-      ``MdocWitness.HashValid, ``ZeroKnowledge.Frontend.CompleteHonest.primeInputs])]
+      ``MdocWitness.HashValid, ``ZeroKnowledge.Frontend.CompleteHonest.primeInputs]),
+  -- The deployed corollaries must reach the Rust reader itself: its lazy
+  -- block reading, its role programs and the exact draws.
+  (``Current.Mdoc.Soundness.averaged_ratio_le_rust,
+    [``Current.Mdoc.Soundness.event, ``Soundness.Rate7.failureBound,
+      ``Protocol.RustSampler.sampler, ``Protocol.RustSampler.lazySampler,
+      ``Protocol.RustSampler.kindProg, ``Protocol.RustSampler.gfBits, ``Protocol.RustSampler.fp,
+      ``Protocol.RustSampler.fpNonzero, ``Protocol.RustSampler.natDec,
+      ``Protocol.RustSampler.Prog.choices, ``OpeningFisherYates.ordered,
+      ``Protocol.RustSampler.rustBlocks]),
+  (``Current.Mdoc.ZeroKnowledge.statClose_rust,
+    [``Current.Mdoc.ZeroKnowledge.honest, ``Current.Mdoc.ZeroKnowledge.simulate,
+      ``Protocol.RustSampler.lazySampler, ``Protocol.RustSampler.kindProg,
+      ``Protocol.RustSampler.rustBlocks]),
+  (``Current.Mdoc.VerifierPrivacy.acceptance_probability_rust,
+    [``Current.Mdoc.VerifierPrivacy.afterVerifier, ``Protocol.RustSampler.lazySampler,
+      ``Protocol.RustSampler.kindProg, ``Protocol.RustSampler.rustBlocks])]
 
 run_cmd do
   let env ← getEnv

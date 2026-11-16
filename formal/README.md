@@ -185,10 +185,17 @@ does not enlarge the adversary's query budget. Transparent application/opening t
 Polygero and auxiliary hash costs spend disjoint slots of the stopped original
 query budget. Sampler residuals are averaged before the raw hash bound.
 
-The theorem assumes a classical ideal SHA oracle and the approved ideal
-joint role-block sampling law. Requested coordinates are uniform jointly,
-with the specified nonzero scalars and openings without replacement.
-Rejected sampler bytes are outside the requested analysis. Trusted fields,
+The theorem assumes a classical ideal SHA oracle. It takes the challenge
+reader as one [`Protocol.Sampler`](lfzk-v2/LfzkV2/Current/Protocol/Sampling.lean)
+per coin: a reader of whole role blocks from a boundary's PRF stream whose
+values are each read by equally many streams. Its deployed corollary
+[`Mdoc.Soundness.averaged_ratio_le_rust`](lfzk-v2/LfzkV2/Current/Mdoc/Rust.lean)
+fixes the reader to the Rust reader,
+[`Protocol.RustSampler.sampler`](lfzk-v2/LfzkV2/Current/Protocol/RustSampler.lean),
+and has no sampler premise: the model reads each role's draws in Rust's order
+and byte widths, with Rust's rejection of out-of-range and zero values, lazily
+from the PRF blocks up to Rust's counter limit, and proves the balanced law,
+positive fibers and an abort bound. Trusted fields,
 canonical scalar codecs, trusted application circuits and static public
 resource bounds are explicit model inputs. Rust correspondence is established
 through source review and tests; machine-level refinement and extractor
@@ -273,7 +280,9 @@ typed protocol setup to soundness, privacy and honest execution. The
 oracle-selected privacy setup is proved equal to that concrete setup.
 Privacy and conditional completeness use `Protocol.ExecutionSampler`, which
 contains only the executable callback; sampler balance is required separately
-by soundness. `Protocol.Execution.PublicView` names the proof, observer result
+by soundness. [`Mdoc.ZeroKnowledge.statClose_rust`](lfzk-v2/LfzkV2/Current/Mdoc/Rust.lean)
+and `Mdoc.VerifierPrivacy.acceptance_probability_rust` instantiate them with the
+Rust reader. `Protocol.Execution.PublicView` names the proof, observer result
 and before/after traces without exposing private prover execution.
 
 These are ideal-oracle bounds. No numerical SHA-256-to-random-oracle
@@ -289,10 +298,13 @@ establish that a cryptographic implementation satisfies their premises.
 - **Classical ideal oracle and ideal sampling.** One SHA random oracle has
   independent uniform 256-bit answers at distinct byte inputs and consistent
   repeated answers. Canonical domain separation and the oracle-coordinate
-  split are proved. Requested role blocks have the approved joint uniform
-  law, including nonzero coordinates and sampling without replacement.
-  Rejected bytes are outside the requested analysis. Finite-decoder balance
-  is explicit in the conditional sampler lemmas. The current soundness
+  split are proved. The soundness endpoints take a reader with the balanced
+  role-block law (`Protocol.Sampler`); for the Rust reader
+  (`Protocol.RustSampler`) the law, nonzero coordinates and ordered openings
+  without replacement are proved from its byte-level draws, so the deployed
+  corollaries in `Mdoc.Rust` have no sampling premise. The binary field and
+  its packing basis, which fixes the bit order, remain model inputs, as does
+  each frontend role's coordinate order (`FrontendSchedule`). The current soundness
   and numbered-strand privacy endpoints use this single-SHA model. The
   numbered-strand privacy coupling preserves the supplied physical readers,
   including their failure branches; it does not need a separate uniformity

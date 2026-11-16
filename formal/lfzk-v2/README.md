@@ -22,8 +22,9 @@ all-`Q` linear bound and the mdoc approximation are stated once, in the
 [formal README](../README.md#v2-extraction-soundness), together with a
 top-down [proof map](../README.md#proof-map). The endpoints are
 `Mdoc.Soundness.averaged_ratio_le`, `averaged_linear_ratio_le`,
-`averaged_nonvacuous` and `averaged_mdoc_approximation`; the exact rational
-bound is `LfzkV2.Current.Soundness.Rate7.failureBound`.
+`averaged_nonvacuous` and `averaged_mdoc_approximation`, and
+`Mdoc.Soundness.averaged_ratio_le_rust` at the Rust challenge reader; the exact
+rational bound is `LfzkV2.Current.Soundness.Rate7.failureBound`.
 
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
 457/461/466/469 rounds. `MdocRoundShape.rounds_eq` derives the total from each
@@ -58,8 +59,11 @@ The ordinary rate-1/7 profile is `(k,s,n,t)=(349,12,2443,84)`. Its
 are checked internally. The theorem derives verifier acceptance, application
 failure coverage, query charging, the role maximum, and one shared Merkle
 explanation. The proof derives execution correspondence, failure coverage and coding-error
-budgets internally. The approved ideal joint sampling law remains an explicit
-assumption.
+budgets internally. The endpoints take the challenge reader as a
+`Protocol.Sampler`, with the balanced role-block law; the deployed corollaries
+in [`Mdoc.Rust`](LfzkV2/Current/Mdoc/Rust.lean) fix it to the Rust reader
+([`Protocol.RustSampler`](LfzkV2/Current/Protocol/RustSampler.lean)), for which
+the law is proved.
 
 The mdoc specialization fixes the canonical quotient-advice parser (two
 `MaskedWord<10>`, two bytes each, with zero padding enforced), degree-128
@@ -101,12 +105,12 @@ protocol domain. `setup_merge` and `parameters_merge` identify public
 metadata computed through that same oracle. Conditioning on complementary
 answers and averaging them adds zero error.
 
-Requested role blocks satisfy the approved ideal joint sampling law.
+Requested role blocks satisfy the balanced sampling law of the endpoint's
+`Protocol.Sampler`; the Rust reader proves it from its byte-level draws.
 [`StrandRoleSampling`](LfzkV2/Current/StrandRoleSampling.lean) and
 [`StrandSampling`](LfzkV2/Current/StrandSampling.lean) retain all coordinates
 within one round together. Nonzero field elements and ordered openings have
-their specified distributions. Rejected bytes are outside the requested
-analysis. The scalar codecs, field laws, trusted circuits and public layout
+their specified distributions. The scalar codecs, field laws, trusted circuits and public layout
 bounds are explicit. Source audit and tests connect Rust to this mathematical
 verifier; mechanized Rust refinement and extractor complexity remain open.
 

@@ -60,7 +60,9 @@ The proof path has the following checked boundaries, listed bottom-up; the
    check is added.
 
 The input includes trusted circuit descriptions, canonical field codecs,
-static capacity certificates, and the approved ideal joint role sampler. Runtime
+static capacity certificates, and a challenge reader with the balanced role
+sampling law (`Protocol.Sampler`); `averaged_ratio_le_rust` fixes it to the
+Rust reader, for which the law is proved. Runtime
 acceptance, query order, column agreement and the final failure cover are
 derived. Axiom checks on the endpoint and correspondence lemmas report only
 `propext`, `Classical.choice` and `Quot.sound`.
@@ -68,7 +70,7 @@ derived. Axiom checks on the endpoint and correspondence lemmas report only
 The oracle assumption is a classical ideal SHA oracle with uniform
 independent answers at distinct byte inputs and consistent repeated answers.
 The role-block sampling law includes nonzero elements and openings without
-replacement. Rejected bytes are outside the requested analysis. See the
+replacement. See the
 [full model boundary](README.md#assumptions-and-remaining-correspondence-obligations)
 for trusted circuit/field inputs, finite-search extraction and Rust source
 correspondence.

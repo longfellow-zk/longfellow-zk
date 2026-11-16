@@ -1,6 +1,7 @@
 import LfzkV2.Current.Mdoc.Soundness
 import LfzkV2.Current.Mdoc.VerifierPrivacy
 import LfzkV2.Current.Mdoc.Completeness
+import LfzkV2.Current.Mdoc.Rust
 import LfzkV2.Current.Tests.ProofAudit
 
 /-! Declaration-level regression guard. Sharing a file with live definitions
@@ -84,6 +85,7 @@ run_cmd ProofAudit.standardAxioms #[``Mdoc.Soundness.averaged_ratio_le,
   ``Mdoc.Soundness.averaged_linear_ratio_le, ``Mdoc.Soundness.averaged_nonvacuous,
   ``Mdoc.Soundness.averaged_mdoc_approximation, ``Mdoc.ZeroKnowledge.statClose,
   ``Mdoc.ZeroKnowledge.statClose_at_query_budget, ``Mdoc.VerifierPrivacy.acceptance_probability,
-  ``Mdoc.Completeness.rawReal_some_accepts]
+  ``Mdoc.Completeness.rawReal_some_accepts, ``Mdoc.Soundness.averaged_ratio_le_rust,
+  ``Mdoc.ZeroKnowledge.statClose_rust, ``Mdoc.VerifierPrivacy.acceptance_probability_rust]
 
 end LfzkV2.Current.Tests.RuntimeBoundary
