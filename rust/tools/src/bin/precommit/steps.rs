@@ -652,14 +652,21 @@ fn inspectors(cx: &Context, log: &mut Log) -> Outcome {
     Outcome::Passed(last)
 }
 
-/// Compile a standalone formal script into the work directory.
-fn script(cx: &Context, log: &mut Log, source: &str) -> Result<PathBuf, Outcome> {
+/// Compile a standalone formal script into the work directory: the script,
+/// or with `tests` its unit tests.
+fn script(cx: &Context, log: &mut Log, source: &str, tests: bool) -> Result<PathBuf, Outcome> {
     let stem = Path::new(source).file_stem().unwrap_or_default();
-    let binary = cx.work.join(stem);
+    let mut name = stem.to_owned();
+    if tests {
+        name.push("-tests");
+    }
+    let binary = cx.work.join(name);
     let mut rustc = cx.command(&cx.root, "rustc");
-    rustc
-        .args(["--edition", "2024", "-O", source, "-o"])
-        .arg(&binary);
+    rustc.args(["--edition", "2024", "-O"]);
+    if tests {
+        rustc.arg("--test");
+    }
+    rustc.args([source, "-o"]).arg(&binary);
     let run = log.run(&mut rustc);
     if run.success {
         Ok(binary)
@@ -702,8 +709,17 @@ fn round_shapes(cx: &Context, log: &mut Log) -> Outcome {
     run_script(cx, log, &target.join("release/check_mdoc_round_shapes"))
 }
 
+/// The unit tests of `formal/scripts/audit.rs`, then the audit.
 fn source_audit(cx: &Context, log: &mut Log) -> Outcome {
-    match script(cx, log, "formal/scripts/audit.rs") {
+    const AUDIT: &str = "formal/scripts/audit.rs";
+    let tests = match script(cx, log, AUDIT, true) {
+        Ok(binary) => binary,
+        Err(outcome) => return outcome,
+    };
+    if let failed @ Outcome::Failed(..) = run_script(cx, log, &tests) {
+        return failed;
+    }
+    match script(cx, log, AUDIT, false) {
         Ok(binary) => run_script(cx, log, &binary),
         Err(outcome) => outcome,
     }

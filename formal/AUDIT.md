@@ -101,8 +101,9 @@ Three review passes cover the current soundness path.
 The endpoint tests and native Rust library tests are source-correspondence
 checks. The current composition, transcript and sumcheck test aggregates each
 directly import every test module in their respective test directories;
-the source audit rejects future omissions. `scripts/Audit.lean` imports the
-default component roots and audits their declarations, including generic
+the source audit rejects future omissions. `scripts/Audit.lean` imports every
+tracked Lean module, and the source audit fails on any it does not reach; it
+audits the declarations of every module of this package, including generic
 survival, coding-theory, ECDSA and circuit components. Its axiom collection is
 transitive. Application endpoint barrels import the current soundness, privacy and honest
 runtime modules. Standalone sampling, readback, transport and paper components
@@ -284,13 +285,14 @@ sumcheck libraries, dual packing, the four V1 116-bit endpoints, the V2 endpoint
 and the Polygero API/dependency checks. `scripts/build.sh` uses Lake's default
 concurrency. There is no separate certificate build requirement.
 
-The Rust source scanner strips nested Lean comments and strings before
-rejecting unchecked proof constructs and kernel-check bypass options. It also
-validates local Markdown links in the formal and Rust documentation. The Lean audit inspects every
-imported declaration owned by the V1/V2, sumcheck, dual-packing, witness-selection,
-chained-transcript, BCS, Merkle, Polygero,
-runtime-Hahn, runtime-profile and imported example modules, including private
-helpers.
+The Rust source scanner strips nested Lean comments, strings and character
+literals before rejecting unchecked proof constructs and kernel-check bypass
+options, and, outside the native-evaluation allowance, code the kernel does
+not check (`implemented_by`, `extern`, `csimp`, `opaque` and `partial`, except
+the listed `partial` metaprograms). It fails on a file it cannot lex. It also
+validates local Markdown links in the formal and Rust documentation. The Lean
+audit inspects every imported declaration owned by a module of this package
+(an object file in the package's build directory), including private helpers.
 V2 and the other audited non-V1 modules permit only `propext`,
 `Classical.choice`, and `Quot.sound`. V1 numerical rows retain the documented
 native-evaluation allowance, including their imported legacy numerical

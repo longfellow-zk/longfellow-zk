@@ -171,7 +171,13 @@ profiles an application chose (for example in `mdoc::proto`).
   `examples.Ligero.Longfellow.*`, which keep the documented native-evaluation
   allowance that `formal/scripts/Audit.lean` checks and reports separately.
   Nothing new may join it: `formal/scripts/audit.rs` rejects native
-  evaluation in any other module, from the same list of roots.
+  evaluation in any other module, from the same list of roots, and there
+  also code the kernel does not check (`@[implemented_by]`, `@[extern]`,
+  `@[csimp]`, `opaque`, `partial`; the `partial` metaprograms it lists
+  excepted).
+- `formal/scripts/Audit.lean` checks the axioms of every declaration in
+  every module of the package it imports, and `audit.rs` fails on any tracked
+  Lean file outside its import closure: import a new module there.
 - Lean must agree with Rust. After changes to circuits, parameters, or files
   the formal sources cite, run from `formal/` `lake build` and
   `lake build SecurityAudit`; from `rust/`
@@ -243,5 +249,5 @@ It prints one line per step and stops at the first failing step
 8. The code outside `rust/` that builds against the crate (see "Workflow"):
    the `formal/lfzk-v1/scripts` inspectors and `check_mdoc_round_shapes`.
 9. With `--formal`, the formal checks of "Formal development": `lake build`,
-   `lake build SecurityAudit`, `formal/scripts/audit.rs`, `certify-hahn`, and
-   `check-profiles`.
+   `lake build SecurityAudit`, `formal/scripts/audit.rs` and its unit tests,
+   `certify-hahn`, and `check-profiles`.

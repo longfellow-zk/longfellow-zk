@@ -1,5 +1,7 @@
-//! Scan repository Lean sources for unchecked proof constructs and check local
-//! Markdown links in the formal and Rust documentation. Run inside the repo.
+//! Scan repository Lean sources for unchecked proof constructs and code the
+//! kernel does not check, check that `scripts/Audit.lean` imports every tracked
+//! Lean module, and check local Markdown links in the formal and Rust
+//! documentation. Run inside the repo; `rustc --test` builds its tests.
 //! It also pins the offline Hahn certificate sources under `parameters/`, and
 //! checks that the Lean names and Rust test names the Rust designs cite exist.
 use std::{
@@ -9,64 +11,125 @@ use std::{
     process::Command,
 };
 
-fn code(source: &str) -> String {
-    let mut bytes = source.as_bytes().to_vec();
-    let (mut i, mut depth, mut line, mut string) = (0, 0, false, false);
-    while i < bytes.len() {
-        if bytes[i] == b'\n' {
-            line = false;
-            i += 1;
-            continue;
-        }
-        if line {
-            bytes[i] = b' ';
-            i += 1;
-            continue;
-        }
-        if string {
-            if bytes[i] == b'\\' && i + 1 < bytes.len() {
-                bytes[i] = b' ';
-                bytes[i + 1] = b' ';
-                i += 2;
-                continue;
+/// Whether `c` continues a Lean identifier, so that a following `'` is part
+/// of the name (`h'`) rather than the start of a character literal.
+fn lean_identifier_char(c: char) -> bool {
+    c.is_alphanumeric() || "_'!?".contains(c)
+}
+
+/// The length of the character literal starting at `chars[i] == '\''`, or
+/// `None` when the quote does not open one (a prime in a name, a lifetime).
+/// The literal holds one character or one escape: `\x` and two hex digits,
+/// `\u` and four hex digits or braces (`\u{...}`), or `\` and one character.
+fn char_literal(chars: &[char], i: usize) -> Option<usize> {
+    let body = i + 1;
+    let end = match *chars.get(body)? {
+        '\'' | '\n' => return None,
+        '\\' => match *chars.get(body + 1)? {
+            'x' => body + 4,
+            'u' if chars.get(body + 2) == Some(&'{') => {
+                body + 2 + chars[body + 2..].iter().position(|&c| c == '}')? + 1
             }
-            if bytes[i] == b'"' {
-                string = false;
+            'u' => body + 6,
+            _ => body + 2,
+        },
+        _ => body + 1,
+    };
+    (chars.get(end) == Some(&'\'')).then_some(end + 1 - i)
+}
+
+/// Lean source with comments, string literals and character literals blanked,
+/// keeping line breaks. `Err` when a comment or literal runs to the end of the
+/// file: Lean accepts no such file, so the lexer would have lost its place.
+fn lean_code(source: &str) -> Result<String, String> {
+    let chars: Vec<char> = source.chars().collect();
+    let mut out: Vec<char> = chars.clone();
+    let blank = |out: &mut Vec<char>, from: usize, to: usize| {
+        for c in &mut out[from..to] {
+            if *c != '\n' {
+                *c = ' ';
             }
-            bytes[i] = b' ';
-            i += 1;
-            continue;
         }
-        if i + 1 < bytes.len() && bytes[i..i + 2] == *b"/-" {
-            depth += 1;
-            bytes[i] = b' ';
-            bytes[i + 1] = b' ';
-            i += 2;
-            continue;
-        }
-        if depth > 0 {
-            if i + 1 < bytes.len() && bytes[i..i + 2] == *b"-/" {
-                depth -= 1;
-                bytes[i] = b' ';
-                bytes[i + 1] = b' ';
-                i += 2;
-                continue;
+    };
+    let starts = |i: usize, text: &str| {
+        text.chars()
+            .enumerate()
+            .all(|(k, c)| chars.get(i + k) == Some(&c))
+    };
+    let mut i = 0;
+    while i < chars.len() {
+        let previous = i.checked_sub(1).map(|p| chars[p]);
+        if starts(i, "--") {
+            let end = chars[i..]
+                .iter()
+                .position(|&c| c == '\n')
+                .map_or(chars.len(), |n| i + n);
+            blank(&mut out, i, end);
+            i = end;
+        } else if starts(i, "/-") {
+            let (mut depth, mut j) = (1, i + 2);
+            while depth > 0 {
+                if j >= chars.len() {
+                    return Err(format!("unterminated comment from character {i}"));
+                }
+                if starts(j, "/-") {
+                    depth += 1;
+                    j += 2;
+                } else if starts(j, "-/") {
+                    depth -= 1;
+                    j += 2;
+                } else {
+                    j += 1;
+                }
             }
-            bytes[i] = b' ';
+            blank(&mut out, i, j);
+            i = j;
+        } else if chars[i] == 'r'
+            && !previous.is_some_and(lean_identifier_char)
+            && matches!(
+                chars.get(i + 1 + chars[i + 1..].iter().take_while(|&&c| c == '#').count()),
+                Some('"')
+            )
+        {
+            // A raw string: r"...", r#"..."#, and so on.
+            let hashes = chars[i + 1..].iter().take_while(|&&c| c == '#').count();
+            let close: String = std::iter::once('"')
+                .chain(std::iter::repeat_n('#', hashes))
+                .collect();
+            let open = i + 2 + hashes;
+            let end = (open..chars.len())
+                .find(|&j| starts(j, &close))
+                .ok_or_else(|| format!("unterminated raw string from character {i}"))?
+                + 1
+                + hashes;
+            blank(&mut out, i, end);
+            i = end;
+        } else if chars[i] == '"' {
+            let mut j = i + 1;
+            while j < chars.len() && chars[j] != '"' {
+                j += if chars[j] == '\\' { 2 } else { 1 };
+            }
+            if j >= chars.len() {
+                return Err(format!("unterminated string from character {i}"));
+            }
+            blank(&mut out, i, j + 1);
+            i = j + 1;
+        } else if chars[i] == '\''
+            && !previous.is_some_and(lean_identifier_char)
+            && let Some(length) = char_literal(&chars, i)
+        {
+            blank(&mut out, i, i + length);
+            i += length;
+        } else {
             i += 1;
-            continue;
         }
-        if i + 1 < bytes.len() && bytes[i..i + 2] == *b"--" {
-            line = true;
-            continue;
-        }
-        if bytes[i] == b'"' {
-            string = true;
-            bytes[i] = b' ';
-        }
-        i += 1;
     }
-    String::from_utf8(bytes).unwrap()
+    Ok(out.into_iter().collect())
+}
+
+/// `lean_code` for sources Lean accepts; a lexing failure blanks nothing.
+fn code(source: &str) -> String {
+    lean_code(source).unwrap_or_else(|_| source.to_owned())
 }
 
 fn imports(source: &str) -> Vec<String> {
@@ -104,6 +167,45 @@ fn unchecked_constructs(source: &str) -> Vec<(usize, &str)> {
         .collect()
 }
 
+/// Constructs that substitute code the kernel does not check for a
+/// declaration's definition, or that admit no kernel definition at all:
+/// `@[implemented_by]`, `@[extern]` and `@[csimp]` (as attributes or through
+/// `attribute [...]`), `opaque` constants and `partial` definitions. They are
+/// allowed only with the native-evaluation allowance.
+fn trusted_code(source: &str) -> Vec<(usize, &str)> {
+    source
+        .lines()
+        .enumerate()
+        .flat_map(|(line, text)| {
+            text.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '\'')
+                .filter(|word| {
+                    matches!(
+                        *word,
+                        "implemented_by" | "extern" | "csimp" | "opaque" | "partial"
+                    )
+                })
+                .map(move |word| (line + 1, word))
+        })
+        .collect()
+}
+
+/// Files whose elaboration-time checks use `partial def` traversals, and why
+/// that is sound: Lean compiles a `partial def` to an opaque constant the
+/// kernel cannot unfold, so no proof depends on its behaviour, and no proof
+/// runs it, since native evaluation is rejected outside the legacy allowance.
+/// Only `partial` is accepted there; the other constructs `trusted_code`
+/// finds are not.
+const PARTIAL_METAPROGRAMS: &[(&str, &str)] = &[
+    (
+        "formal/polygero/APITest.lean",
+        "`proofDependencies` walks the constants a precious theorem uses",
+    ),
+    (
+        "formal/polygero/Precious.lean",
+        "`eraseBinderNames` normalizes signatures before fingerprinting",
+    ),
+];
+
 /// Modules whose numerical facts keep the documented native-evaluation
 /// allowance; `scripts/Audit.lean` accepts native axioms from exactly these.
 /// No other module may use native evaluation. `scripts.Audit` names
@@ -125,7 +227,10 @@ fn native_evaluation(source: &str) -> Vec<(usize, &'static str)> {
         let words: Vec<_> = text
             .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '\'' && c != '.')
             .collect();
-        if words.iter().any(|w| w.split('.').any(|part| part == "native_decide")) {
+        if words
+            .iter()
+            .any(|w| w.split('.').any(|part| part == "native_decide"))
+        {
             found.push((line + 1, "native_decide"));
         }
         if words.iter().any(|w| {
@@ -281,6 +386,39 @@ fn check_current_boundaries(dependencies: &BTreeMap<String, Vec<String>>) -> usi
     failures
 }
 
+/// The module `scripts/Audit.lean` defines; `lake build SecurityAudit` checks
+/// the axioms of every declaration in its import closure.
+const AXIOM_AUDIT: &str = "scripts.Audit";
+
+/// Every tracked Lean module must be in the import closure of the axiom
+/// audit, so that `lake build SecurityAudit` builds it and checks the axioms
+/// of its declarations. `dependencies` maps each tracked module to its
+/// imports. Returns the number of failures.
+fn check_audit_coverage(dependencies: &BTreeMap<String, Vec<String>>) -> usize {
+    let mut reached = BTreeSet::new();
+    let mut pending = vec![AXIOM_AUDIT];
+    while let Some(module) = pending.pop() {
+        if reached.insert(module) {
+            pending.extend(
+                dependencies
+                    .get(module)
+                    .into_iter()
+                    .flatten()
+                    .map(String::as_str),
+            );
+        }
+    }
+    let mut failures = 0;
+    for module in dependencies.keys() {
+        if !reached.contains(module.as_str()) {
+            eprintln!(
+                "{module}: tracked Lean module outside the axiom audit; import it in formal/scripts/Audit.lean"
+            );
+            failures += 1;
+        }
+    }
+    failures
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -384,6 +522,97 @@ mod tests {
             "LfzkV2.Current.Protocol.ExecutionSampler"
         ));
     }
+
+    #[test]
+    fn character_literals_do_not_hide_the_rest_of_a_lean_file() {
+        for literal in [
+            "'\"'",
+            "'\\''",
+            "'\\\\'",
+            "'\\\"'",
+            "'\\x22'",
+            "'\\u0022'",
+            "'é'",
+            "'x'",
+        ] {
+            let source = format!("def quote : Char := {literal}\ntheorem bad : False := sorry\n");
+            assert_eq!(
+                unchecked_constructs(&lean_code(&source).unwrap()),
+                [(2, "sorry")],
+                "{literal}"
+            );
+        }
+        let source = "theorem t (h' : p) (h'' : q) : p := h'\ndef s := \"it's\"\ndef c := ['a', '\"']\naxiom a : False\n";
+        assert_eq!(unchecked_constructs(&code(source)), [(4, "axiom")]);
+        let source = "def s := r#\"a \" b\"#\ndef r := r\"\\\"\ntheorem bad : False := sorry\n";
+        assert_eq!(unchecked_constructs(&code(source)), [(3, "sorry")]);
+    }
+
+    #[test]
+    fn a_literal_or_comment_left_open_is_a_lexing_failure() {
+        for source in [
+            "def s := \"open",
+            "/- open /- nested -/",
+            "def s := r#\"open\"",
+        ] {
+            assert!(lean_code(source).is_err(), "{source}");
+        }
+        for source in ["let s = \"open", "/* open", "let s = r#\"open\""] {
+            assert!(rust_code(source).is_err(), "{source}");
+        }
+    }
+
+    #[test]
+    fn rust_character_literals_and_lifetimes_keep_the_lexer_in_place() {
+        let source = "fn f<'a>(x: &'a str) -> char { let _ = (b'\"', '\\'', '\"', br#\"\"\"#); '\\u{22}' }\nfn visible_after_quotes() {}\n";
+        let code = rust_code(source).unwrap();
+        assert!(identifiers(&code).any(|word| word == "visible_after_quotes"));
+        assert!(!code.contains('"'));
+        let quote = "fn quote() -> char { '\"' }\nfn visible_after_quote() {}\n";
+        assert!(identifiers(&rust_code(quote).unwrap()).any(|word| word == "visible_after_quote"));
+        let labelled = "'outer: loop { break 'outer; }\nfn visible() {}\n";
+        assert!(identifiers(&rust_code(labelled).unwrap()).any(|word| word == "visible"));
+    }
+
+    #[test]
+    fn code_the_kernel_does_not_check_is_found() {
+        for (source, word) in [
+            ("@[implemented_by fastF] def f := 0", "implemented_by"),
+            ("@[extern \"lean_f\"] opaque f : Nat", "extern"),
+            ("attribute [csimp] f_eq", "csimp"),
+            ("opaque f : Nat", "opaque"),
+            ("partial def loop : Nat → Nat := loop", "partial"),
+        ] {
+            assert!(
+                trusted_code(&code(source)).iter().any(|&(_, w)| w == word),
+                "{source}"
+            );
+        }
+        for source in [
+            "-- partial def loop",
+            "/- @[implemented_by g] -/ def f := 0",
+            "def s := \"opaque\"",
+            "theorem partial_sum_le : True := trivial",
+            "def opaque_view := 0",
+        ] {
+            assert!(trusted_code(&code(source)).is_empty(), "{source}");
+        }
+    }
+
+    #[test]
+    fn every_tracked_module_must_reach_the_axiom_audit() {
+        let mut graph = BTreeMap::from([
+            (
+                AXIOM_AUDIT.to_owned(),
+                vec!["A".to_owned(), "Mathlib".to_owned()],
+            ),
+            ("A".to_owned(), vec!["B".to_owned()]),
+            ("B".to_owned(), vec![]),
+        ]);
+        assert_eq!(check_audit_coverage(&graph), 0);
+        graph.insert("Orphan".to_owned(), vec!["A".to_owned()]);
+        assert_eq!(check_audit_coverage(&graph), 1);
+    }
 }
 
 fn main() {
@@ -410,6 +639,7 @@ fn main() {
         .filter(|p| !p.is_empty() && Path::new(p).is_file())
         .collect();
     let (mut lean_count, mut link_count, mut failures) = (0, 0, 0);
+    let mut partial_metaprograms = BTreeSet::new();
     let (citation_failures, citation_count) = check_design_citations(&paths);
     failures += citation_failures;
     let mut roots = vec!["formal/".to_owned()];
@@ -471,7 +701,14 @@ fn main() {
         }
         if name.starts_with("formal/") && name.ends_with(".lean") {
             lean_count += 1;
-            let source = code(&fs::read_to_string(path).unwrap());
+            let raw = fs::read_to_string(path).unwrap();
+            // A file the lexer loses its place in is scanned whole, comments
+            // and strings included.
+            let source = lean_code(&raw).unwrap_or_else(|error| {
+                eprintln!("{name}: cannot lex: {error}");
+                failures += 1;
+                raw.clone()
+            });
             if name.starts_with("formal/lfzk-v2/LfzkV2/Current/")
                 && !name.contains("/Tests/")
                 && source
@@ -489,13 +726,29 @@ fn main() {
                 .unwrap();
             let module = relative.trim_end_matches(".lean").replace('/', ".");
             assert!(
-                dependencies.insert(module.clone(), imports(&source)).is_none(),
+                dependencies
+                    .insert(module.clone(), imports(&source))
+                    .is_none(),
                 "duplicate Lean module"
             );
             if !native_evaluation_allowed(&module) {
                 for (line, route) in native_evaluation(&source) {
                     eprintln!(
                         "{name}:{line}: native evaluation ({route}) outside the legacy allowance"
+                    );
+                    failures += 1;
+                }
+            }
+            if !native_evaluation_allowed(&module) {
+                for (line, word) in trusted_code(&source) {
+                    if word == "partial"
+                        && PARTIAL_METAPROGRAMS.iter().any(|(file, _)| *file == name)
+                    {
+                        partial_metaprograms.insert(name);
+                        continue;
+                    }
+                    eprintln!(
+                        "{name}:{line}: {word}: code the kernel does not check, outside the legacy allowance"
                     );
                     failures += 1;
                 }
@@ -535,6 +788,13 @@ fn main() {
         }
     }
     failures += check_current_boundaries(&dependencies);
+    failures += check_audit_coverage(&dependencies);
+    for (file, _) in PARTIAL_METAPROGRAMS {
+        if !partial_metaprograms.contains(file) {
+            eprintln!("{file}: listed in PARTIAL_METAPROGRAMS but defines no partial metaprogram");
+            failures += 1;
+        }
+    }
     check_hahn_certificate_sources();
     println!(
         "Scanned {lean_count} Lean sources, {link_count} local documentation links and \
@@ -649,38 +909,65 @@ fn check_hahn_certificate_sources() {
             "application certificate belongs in the separate mdoc facade: {generic}"
         );
     }
-    assert!(fs::read_to_string(protocol.join("MdocJointProfile.lean"))
-        .unwrap()
-        .lines()
-        .any(|line| line == "import LfzkV2.Current.Parameters.Rate7"));
+    assert!(
+        fs::read_to_string(protocol.join("MdocJointProfile.lean"))
+            .unwrap()
+            .lines()
+            .any(|line| line == "import LfzkV2.Current.Parameters.Rate7")
+    );
 }
-/// Rust source with comments and string literals blanked, like `code` for Lean.
-fn rust_code(source: &str) -> String {
-    let bytes = source.as_bytes();
-    let mut out = bytes.to_vec();
-    let mut i = 0;
-    let blank = |out: &mut Vec<u8>, from: usize, to: usize| {
-        for b in &mut out[from..to] {
-            if *b != b'\n' {
-                *b = b' ';
+/// Rust source with comments, string and character literals blanked, like
+/// `lean_code` for Lean; `Err` when a comment or literal runs to the end of
+/// the file. A quote after a letter is a byte or C literal only after the
+/// prefix `b` or `c`, and `'a` without a closing quote is a lifetime or label.
+fn rust_code(source: &str) -> Result<String, String> {
+    let chars: Vec<char> = source.chars().collect();
+    let mut out = chars.clone();
+    let blank = |out: &mut Vec<char>, from: usize, to: usize| {
+        for c in &mut out[from..to] {
+            if *c != '\n' {
+                *c = ' ';
             }
         }
     };
-    while i < bytes.len() {
-        if bytes[i..].starts_with(b"//") {
-            let end = bytes[i..]
+    let starts = |i: usize, text: &str| {
+        text.chars()
+            .enumerate()
+            .all(|(k, c)| chars.get(i + k) == Some(&c))
+    };
+    let identifier = |c: char| c.is_alphanumeric() || c == '_';
+    // Whether a literal may start at `i`: after no identifier, or after a
+    // lone literal prefix such as `b` in `b'x'` or `br"..."`.
+    let literal_start = |i: usize, prefixes: &[&str]| {
+        let word = chars[..i]
+            .iter()
+            .rev()
+            .take_while(|&&c| identifier(c))
+            .count();
+        word == 0
+            || prefixes
                 .iter()
-                .position(|&b| b == b'\n')
-                .map_or(bytes.len(), |n| i + n);
+                .any(|prefix| chars[i - word..i].iter().copied().eq(prefix.chars()))
+    };
+    let mut i = 0;
+    while i < chars.len() {
+        if starts(i, "//") {
+            let end = chars[i..]
+                .iter()
+                .position(|&c| c == '\n')
+                .map_or(chars.len(), |n| i + n);
             blank(&mut out, i, end);
             i = end;
-        } else if bytes[i..].starts_with(b"/*") {
+        } else if starts(i, "/*") {
             let (mut depth, mut j) = (1, i + 2);
-            while j < bytes.len() && depth > 0 {
-                if bytes[j..].starts_with(b"/*") {
+            while depth > 0 {
+                if j >= chars.len() {
+                    return Err(format!("unterminated comment from character {i}"));
+                }
+                if starts(j, "/*") {
                     depth += 1;
                     j += 2;
-                } else if bytes[j..].starts_with(b"*/") {
+                } else if starts(j, "*/") {
                     depth -= 1;
                     j += 2;
                 } else {
@@ -689,39 +976,44 @@ fn rust_code(source: &str) -> String {
             }
             blank(&mut out, i, j);
             i = j;
-        } else if bytes[i] == b'r'
-            && (i == 0 || !(bytes[i - 1].is_ascii_alphanumeric() || bytes[i - 1] == b'_'))
-            && bytes[i + 1..].starts_with(b"#")
-            || bytes[i..].starts_with(b"r\"")
-                && (i == 0 || !(bytes[i - 1].is_ascii_alphanumeric() || bytes[i - 1] == b'_'))
+        } else if chars[i] == 'r'
+            && literal_start(i, &["b", "c"])
+            && chars.get(i + 1 + chars[i + 1..].iter().take_while(|&&c| c == '#').count())
+                == Some(&'"')
         {
-            // A raw string: r"...", r#"..."#, and so on.
-            let hashes = bytes[i + 1..].iter().take_while(|&&b| b == b'#').count();
-            let open = i + 1 + hashes;
-            if bytes.get(open) != Some(&b'"') {
-                i += 1;
-                continue;
-            }
-            let mut close = b"\"".to_vec();
-            close.extend(std::iter::repeat_n(b'#', hashes));
-            let end = (open + 1..bytes.len())
-                .find(|&j| bytes[j..].starts_with(&close))
-                .map_or(bytes.len(), |j| j + close.len());
+            // A raw string: r"...", r#"..."#, br"...", and so on.
+            let hashes = chars[i + 1..].iter().take_while(|&&c| c == '#').count();
+            let close: String = std::iter::once('"')
+                .chain(std::iter::repeat_n('#', hashes))
+                .collect();
+            let end = (i + 2 + hashes..chars.len())
+                .find(|&j| starts(j, &close))
+                .ok_or_else(|| format!("unterminated raw string from character {i}"))?
+                + 1
+                + hashes;
             blank(&mut out, i, end);
             i = end;
-        } else if bytes[i] == b'"' {
+        } else if chars[i] == '"' {
             let mut j = i + 1;
-            while j < bytes.len() && bytes[j] != b'"' {
-                j += if bytes[j] == b'\\' { 2 } else { 1 };
+            while j < chars.len() && chars[j] != '"' {
+                j += if chars[j] == '\\' { 2 } else { 1 };
             }
-            let end = (j + 1).min(bytes.len());
-            blank(&mut out, i, end);
-            i = end;
+            if j >= chars.len() {
+                return Err(format!("unterminated string from character {i}"));
+            }
+            blank(&mut out, i, j + 1);
+            i = j + 1;
+        } else if chars[i] == '\''
+            && literal_start(i, &["b"])
+            && let Some(length) = char_literal(&chars, i)
+        {
+            blank(&mut out, i, i + length);
+            i += length;
         } else {
             i += 1;
         }
     }
-    String::from_utf8_lossy(&out).into_owned()
+    Ok(out.into_iter().collect())
 }
 
 fn identifiers(text: &str) -> impl Iterator<Item = &str> {
@@ -857,6 +1149,7 @@ fn test_citation(span: &str) -> Option<&str> {
 /// number of citations checked.
 fn check_design_citations(paths: &BTreeSet<&str>) -> (usize, usize) {
     let (mut lean, mut rust) = (BTreeSet::new(), BTreeSet::new());
+    let mut failures = 0;
     for name in paths {
         let path = Path::new(name);
         let is_lean = name.starts_with("formal/") && name.ends_with(".lean");
@@ -872,10 +1165,16 @@ fn check_design_citations(paths: &BTreeSet<&str>) -> (usize, usize) {
         if is_lean {
             lean_declarations(&code(&source), &mut lean);
         } else {
-            rust.extend(identifiers(&rust_code(&source)).map(str::to_owned));
+            match rust_code(&source) {
+                Ok(code) => rust.extend(identifiers(&code).map(str::to_owned)),
+                Err(error) => {
+                    eprintln!("{name}: cannot lex: {error}");
+                    failures += 1;
+                }
+            }
         }
     }
-    let (mut failures, mut checked) = (0, 0);
+    let mut checked = 0;
     for name in paths {
         if !(name.starts_with("rust/") && name.ends_with("/DESIGN.md")) {
             continue;
