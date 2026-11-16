@@ -11,36 +11,32 @@
 /// An untyped bit group: `width` consecutive binary inputs from `start`.
 ///
 /// Constructors check that `start + width` fits, so `end` never overflows and
-/// writers need no per-write range arithmetic. A group cannot be written as a
-/// literal:
-///
-/// ```compile_fail,E0451
-/// use longfellow_zk::runtime::v2::zk::storage::Group;
-/// let _ = Group { start: usize::MAX - 2, width: 4 };
-/// ```
+/// writers need no per-write range arithmetic. Its fields are private, so
+/// only the constructors build one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Group {
+pub(crate) struct Group {
     start: usize,
     width: usize,
 }
 impl Group {
     /// The empty group at position 0.
-    pub const EMPTY: Self = Self { start: 0, width: 0 };
+    pub(crate) const EMPTY: Self = Self { start: 0, width: 0 };
     /// `width` bits from `start`; rejects a group whose end overflows.
-    pub fn new(start: usize, width: usize) -> Result<Self, String> {
+    #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
+    pub(crate) fn new(start: usize, width: usize) -> Result<Self, String> {
         start.checked_add(width).ok_or("bit group end overflows")?;
         Ok(Self { start, width })
     }
-    pub fn start(&self) -> usize {
+    pub(crate) fn start(&self) -> usize {
         self.start
     }
-    pub fn width(&self) -> usize {
+    pub(crate) fn width(&self) -> usize {
         self.width
     }
-    pub fn end(&self) -> usize {
+    pub(crate) fn end(&self) -> usize {
         self.start + self.width
     }
-    pub fn bit(&self, j: usize) -> usize {
+    pub(crate) fn bit(&self, j: usize) -> usize {
         assert!(j < self.width);
         self.start + j
     }
@@ -48,11 +44,11 @@ impl Group {
 
 /// A typed position of an N-bit word in the binary input array.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct BitGroup<const N: usize> {
+pub(crate) struct BitGroup<const N: usize> {
     start: usize,
 }
 impl<const N: usize> BitGroup<N> {
-    pub fn group(self) -> Group {
+    pub(crate) fn group(self) -> Group {
         Group {
             start: self.start,
             width: N,
@@ -63,25 +59,25 @@ impl<const N: usize> BitGroup<N> {
 /// Allocator for the reserved suffix that follows the format circuit's inputs.
 /// Allocation order is the witness order: `bits` places values accordingly.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ReservedSuffix {
+pub(crate) struct ReservedSuffix {
     start: usize,
     end: usize,
 }
 impl ReservedSuffix {
     /// `format_width` is the format circuit's `ninput`.
-    pub fn new(format_width: usize) -> Self {
+    pub(crate) fn new(format_width: usize) -> Self {
         Self {
             start: format_width,
             end: format_width,
         }
     }
     /// The next N-bit word; rejects a suffix whose end would overflow.
-    pub fn word<const N: usize>(&mut self) -> Result<BitGroup<N>, String> {
+    pub(crate) fn word<const N: usize>(&mut self) -> Result<BitGroup<N>, String> {
         let start = self.advance(N)?;
         Ok(BitGroup { start })
     }
     /// The next `width` bits; rejects a suffix whose end would overflow.
-    pub fn group(&mut self, width: usize) -> Result<Group, String> {
+    pub(crate) fn group(&mut self, width: usize) -> Result<Group, String> {
         let start = self.advance(width)?;
         Ok(Group { start, width })
     }
@@ -94,20 +90,24 @@ impl ReservedSuffix {
             .ok_or("reserved suffix end overflows")?;
         Ok(start)
     }
-    pub fn start(&self) -> usize {
+    #[cfg(test)]
+    pub(crate) fn start(&self) -> usize {
         self.start
     }
-    pub fn end(&self) -> usize {
+    pub(crate) fn end(&self) -> usize {
         self.end
     }
-    pub fn len(&self) -> usize {
+    #[cfg(any(test, feature = "prover"))]
+    pub(crate) fn len(&self) -> usize {
         self.end - self.start
     }
-    pub fn is_empty(&self) -> bool {
+    #[cfg(test)]
+    pub(crate) fn is_empty(&self) -> bool {
         self.start == self.end
     }
     /// A zeroed witness segment for the whole suffix.
-    pub fn witness(&self) -> ReservedWitness<'_> {
+    #[cfg(any(test, feature = "prover"))]
+    pub(crate) fn witness(&self) -> ReservedWitness<'_> {
         ReservedWitness {
             suffix: self,
             bits: vec![false; self.len()],
@@ -116,12 +116,14 @@ impl ReservedSuffix {
 }
 
 /// The prover's values for a reserved suffix, written by typed position.
-pub struct ReservedWitness<'a> {
+#[cfg(any(test, feature = "prover"))]
+pub(crate) struct ReservedWitness<'a> {
     suffix: &'a ReservedSuffix,
     bits: Vec<bool>,
 }
+#[cfg(any(test, feature = "prover"))]
 impl ReservedWitness<'_> {
-    pub fn set(
+    pub(crate) fn set(
         &mut self,
         group: Group,
         bits: impl IntoIterator<Item = bool>,
@@ -137,14 +139,14 @@ impl ReservedWitness<'_> {
         self.bits[at..at + group.width].copy_from_slice(&bits);
         Ok(())
     }
-    pub fn into_bits(self) -> Vec<bool> {
+    pub(crate) fn into_bits(self) -> Vec<bool> {
         self.bits
     }
 }
 
 /// Where one value of a foreign-capable frontend lives.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Storage {
+pub(crate) enum Storage {
     /// Cell index in this frontend's own commitment.
     Native(usize),
     /// The bits of a prime-field value in the binary commitment.
@@ -154,14 +156,15 @@ pub enum Storage {
 /// Storage of a frontend's value vector `[private inputs | sumcheck pads]`.
 /// Native cells are numbered densely in vector order.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StorageMap {
+pub(crate) struct StorageMap {
     entries: Vec<Storage>,
     native: usize,
 }
 impl StorageMap {
     /// Store values listed in `foreign` (value index, group) as bits in the
     /// binary commitment; all others natively.
-    pub fn new(values: usize, foreign: &[(usize, Group)]) -> Result<Self, String> {
+    #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
+    pub(crate) fn new(values: usize, foreign: &[(usize, Group)]) -> Result<Self, String> {
         let mut entries: Vec<Option<Group>> = vec![None; values];
         for &(v, group) in foreign {
             let slot = entries.get_mut(v).ok_or("foreign value index")?;
@@ -182,13 +185,13 @@ impl StorageMap {
             .collect();
         Ok(Self { entries, native })
     }
-    pub fn entries(&self) -> &[Storage] {
+    pub(crate) fn entries(&self) -> &[Storage] {
         &self.entries
     }
-    pub fn native_cells(&self) -> usize {
+    pub(crate) fn native_cells(&self) -> usize {
         self.native
     }
-    pub fn is_pure_foreign(&self) -> bool {
+    pub(crate) fn is_pure_foreign(&self) -> bool {
         self.native == 0
     }
 }
@@ -196,7 +199,7 @@ impl StorageMap {
 /// A maximal run of consecutive values stored alike. Runs are the storage
 /// map's layout parameters as they are bound to the transcript.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Run {
+pub(crate) enum Run {
     /// Values `first..first+count` in native cells `cell..cell+count`.
     Native {
         first: usize,
@@ -215,7 +218,7 @@ pub enum Run {
 impl StorageMap {
     /// The map as maximal runs, in value order. The encoding is canonical:
     /// equal maps give equal runs.
-    pub fn runs(&self) -> Vec<Run> {
+    pub(crate) fn runs(&self) -> Vec<Run> {
         let mut runs: Vec<Run> = Vec::new();
         for (v, s) in self.entries.iter().enumerate() {
             let extended = match (runs.last_mut(), s) {
@@ -271,7 +274,7 @@ impl StorageMap {
 /// Splitting a frontend's claim produces it; the cross-field adapter proves it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use = "The modular claim must be discharged by the cross-field adapter."]
-pub struct ModularClaim<E> {
+pub(crate) struct ModularClaim<E> {
     pub(crate) terms: Vec<(Group, E)>,
     pub(crate) target: E,
 }

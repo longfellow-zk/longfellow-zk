@@ -33,7 +33,7 @@ use crate::{
 
 /// One frontend's full committed cell vector. The sibling selection protocol
 /// owns the two extra masks; they are never logical circuit inputs.
-pub struct SelectedField<'a, const W: usize, F: ZkField<W> + RegisteredField, D> {
+pub(crate) struct SelectedField<'a, const W: usize, F: ZkField<W> + RegisteredField, D> {
     selection: witness_selection::Field<'a, W, F, D>,
     geometry: PolygeroGeometry,
 }
@@ -49,7 +49,8 @@ impl<'a, const W: usize, F: ZkField<W> + RegisteredField, D: EvaluationDomain<W,
     SelectedField<'a, W, F, D>
 {
     /// Derive the augmented backend geometry from the original frontend cells.
-    pub fn new(cells: usize, config: PolygeroConfig, domain: &'a D) -> Result<Self, String> {
+    #[cfg(test)]
+    pub(crate) fn new(cells: usize, config: PolygeroConfig, domain: &'a D) -> Result<Self, String> {
         Self::from_parameter(prepare_parameter(cells, config, domain)?, domain)
     }
     fn from_parameter(param: PolygeroParam, domain: &'a D) -> Result<Self, String> {
@@ -61,8 +62,9 @@ impl<'a, const W: usize, F: ZkField<W> + RegisteredField, D: EvaluationDomain<W,
     }
 }
 
+#[cfg(test)]
 impl<const W: usize, F: ZkField<W> + RegisteredField, D> SelectedField<'_, W, F, D> {
-    pub fn geometry(&self) -> PolygeroGeometry {
+    pub(crate) fn geometry(&self) -> PolygeroGeometry {
         self.geometry
     }
 }
@@ -71,7 +73,7 @@ impl<const W: usize, F: ZkField<W> + RegisteredField, D> SelectedField<'_, W, F,
 /// supplies frontend metadata; all fingerprint arithmetic stays in its sibling.
 /// The statement holds every layout (transcript I3), so the list absorbs
 /// nothing.
-pub trait Fields: Clone {
+pub(crate) trait Fields: Clone {
     type Selection: witness_selection::Fields;
     fn selection(&self) -> Self::Selection;
 }
@@ -87,25 +89,28 @@ impl<'a, const W: usize, F: ZkField<W> + RegisteredField, D: EvaluationDomain<W,
         (self.0.selection.clone(), self.1.selection())
     }
 }
-pub type Witnesses<L> = witness_selection::Witnesses<<L as Fields>::Selection>;
-pub type Statements<L> = witness_selection::Statements<<L as Fields>::Selection>;
-pub type Bodies<L> = witness_selection::Bodies<<L as Fields>::Selection>;
-pub type Coefficients<L> = <<L as Fields>::Selection as witness_selection::Fields>::Coefficients;
-pub type Responses<L> = <<L as Fields>::Selection as witness_selection::Fields>::Responses;
+#[cfg(any(test, feature = "prover"))]
+pub(crate) type Witnesses<L> = witness_selection::Witnesses<<L as Fields>::Selection>;
+pub(crate) type Statements<L> = witness_selection::Statements<<L as Fields>::Selection>;
+pub(crate) type Bodies<L> = witness_selection::Bodies<<L as Fields>::Selection>;
+#[cfg(any(test, feature = "prover"))]
+pub(crate) type Coefficients<L> =
+    <<L as Fields>::Selection as witness_selection::Fields>::Coefficients;
+pub(crate) type Responses<L> = <<L as Fields>::Selection as witness_selection::Fields>::Responses;
 
 /// Zk-v2 owns the composition: receipt and commitment select the witness before
 /// any frontend challenge, and completion necessarily authenticates those rows.
 #[derive(Clone)]
-pub struct JointParam<L: Fields> {
+pub(crate) struct JointParam<L: Fields> {
     pub(super) selection: witness_selection::Param<L::Selection>,
 }
 impl<L: Fields> JointParam<L> {
-    pub fn new(fields: L) -> Result<Self, String> {
+    pub(crate) fn new(fields: L) -> Result<Self, String> {
         Ok(Self {
             selection: witness_selection::Param::new(fields.selection())?,
         })
     }
-    pub fn config(&self) -> PolygeroConfig {
+    pub(crate) fn config(&self) -> PolygeroConfig {
         self.selection.config()
     }
 }
@@ -184,7 +189,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     /// commits `[native private inputs | pads | R]` and `mask` holds R's bits
     /// in the binary commitment. With none (pure foreign storage), it commits
     /// nothing and `mask` is `None`.
-    pub fn with_storage<D: EvaluationDomain<W, F>>(
+    pub(crate) fn with_storage<D: EvaluationDomain<W, F>>(
         circuit: &Circuit<F>,
         storage: super::storage::StorageMap,
         mask: Option<super::storage::Group>,
@@ -279,7 +284,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     }
     /// This participant as a field of the joint commitment. A participant
     /// that commits nothing (pure foreign storage) has none: the call fails.
-    pub fn participant<'a, D: EvaluationDomain<W, F>>(
+    pub(crate) fn participant<'a, D: EvaluationDomain<W, F>>(
         &'a self,
         ctx: &ZkContext<'a, W, F, D>,
     ) -> Result<SelectedField<'a, W, F, D>, String> {

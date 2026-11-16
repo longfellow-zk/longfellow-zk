@@ -156,7 +156,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> FrontendPart<'_, W, F> {
 
 /// The `JointGeometry` of a proof: its one Polygero profile, the `config`
 /// of the geometry its proof is parsed and verified against.
-pub fn write_joint_geometry(h: &mut Header<'_>, config: PolygeroConfig) {
+pub(crate) fn write_joint_geometry(h: &mut Header<'_>, config: PolygeroConfig) {
     h.send(&JointGeometryMessage(config));
 }
 

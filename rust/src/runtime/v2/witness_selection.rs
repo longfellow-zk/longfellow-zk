@@ -25,7 +25,9 @@ mod fields;
 mod transcript;
 
 pub(in crate::runtime::v2) use fields::witness_count;
-pub use fields::{Bodies, Field, Fields, Param, Statements, Witnesses};
+#[cfg(any(test, feature = "prover"))]
+pub(crate) use fields::Witnesses;
+pub(crate) use fields::{Bodies, Field, Fields, Param, Statements};
 
 impl<
         'a,
@@ -107,5 +109,5 @@ impl<
     }
 }
 
-cfg_prover! { mod prover; pub(crate) use prover::{commit, Prover}; pub use prover::ProverFields; }
+cfg_prover! { mod prover; pub(crate) use prover::{commit, Prover, ProverFields}; }
 cfg_verifier! { mod verifier; pub(crate) use verifier::{Authenticated, Verifier}; }

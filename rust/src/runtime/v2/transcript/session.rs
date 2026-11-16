@@ -73,6 +73,7 @@ impl<'a> Statement for ZkStatement<'a> {
 }
 
 /// A ready session. It never implements RandomEngine, PrivateRandom or Clone.
+#[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
 pub struct Transcript {
     strand: Strand,
     #[cfg(any(test, feature = "prover", feature = "verifier"))]

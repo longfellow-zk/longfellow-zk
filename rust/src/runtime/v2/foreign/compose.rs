@@ -57,7 +57,7 @@ type Fields<'s, const W: usize, F, DH, DS> = (
 /// degree-one prime participant whose storage is mixed: some values native,
 /// the others bit groups of the host's private inputs. Pure-foreign storage
 /// is rejected, since the driver always supplies the split mask R.
-pub struct Composition<'a, const W: usize, F: ZkField<W> + PackingField, DH, DS, M>
+pub(crate) struct Composition<'a, const W: usize, F: ZkField<W> + PackingField, DH, DS, M>
 where
     DH: EvaluationDomain<H, Host>,
     DS: EvaluationDomain<W, F>,
@@ -68,6 +68,9 @@ where
     split_ctx: ZkContext<'a, W, F, DS>,
     host: CircuitParticipant<H, Host>,
     split: CircuitParticipant<W, F>,
+    /// R and the mode's pads after the host circuit's inputs, filled by the
+    /// prover.
+    #[cfg_attr(not(any(test, feature = "prover")), allow(dead_code))]
     suffix: ReservedSuffix,
     /// R's bits in the host witness, written by the prover.
     #[cfg_attr(not(any(test, feature = "prover")), allow(dead_code))]
@@ -85,7 +88,7 @@ where
     /// Its foreign values must be private inputs of the host circuit. The
     /// split mask R and the mode's pads follow the host circuit's inputs.
     /// `joint` is the one Polygero profile both fields commit under.
-    pub fn new(
+    pub(crate) fn new(
         host_circuit: &'a Circuit<Host>,
         split_circuit: &'a Circuit<F>,
         storage: StorageMap,
@@ -138,7 +141,7 @@ where
             (self.split.participant(&self.split_ctx)?, ()),
         ))
     }
-    pub fn geometry(&self) -> Result<ComposedGeometry, String> {
+    pub(crate) fn geometry(&self) -> Result<ComposedGeometry, String> {
         let param = self.param()?;
         ComposedGeometry::new(self.host.geometry(), self.split.geometry(), param.config())
             .map_err(|e| e.to_string())
@@ -146,7 +149,6 @@ where
     /// The composition's statement on these public inputs: the application's
     /// `identity` message, both frontends and the geometry the proof is
     /// parsed against.
-    #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
     pub(crate) fn statement<'s, I: SetupMessage>(
         &'s self,
         identity: I,
@@ -166,10 +168,12 @@ where
         })
     }
     /// The bits after the host circuit's inputs: R, then the mode's pads.
-    pub fn reserved(&self) -> &ReservedSuffix {
+    #[cfg(test)]
+    pub(crate) fn reserved(&self) -> &ReservedSuffix {
         &self.suffix
     }
-    pub fn mode(&self) -> &M {
+    #[cfg(test)]
+    pub(crate) fn mode(&self) -> &M {
         &self.mode
     }
 }
@@ -201,7 +205,6 @@ where
     /// The geometry the statement writes, which the proof is parsed against.
     /// The prover seals against it.
     #[cfg(any(test, feature = "prover"))]
-    #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
     pub(crate) fn geometry(&self) -> &ComposedGeometry {
         &self.geometry
     }

@@ -492,15 +492,22 @@ pub mod provider {
 pub fn decompress_circuits(compressed: &[u8], p256: &P256Field, gf2: &Gf2_128Field)
     -> Result<(Circuit<P256Field>, Circuit<Gf2_128Field>), String>;   // IDs recomputed
 
-pub struct MdocProof<F1, F2> { pub body: ComposedProof<2, F1, 4, F2, [MaskedQuotient; 2]> }
-impl MdocProof<F1, F2> {
-    pub fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ComposedGeometry>, f1: &F1, f2: &F2)
-        -> Result<Unverified<'a, Self>, String>;              // I6, I7, I8
-    pub(crate) fn write(&self, g: &ComposedGeometry, f1: &F1, f2: &F2, transcript: Transcript)
-        -> Result<EncodedProof, String>;                      // seals (transcript I10); prover only
-}
+pub struct MdocProofGeometry { pub body: ComposedGeometry }      // from proof_geometry
+pub fn proof_geometry(spec: &ZkSpecStruct, signature: &Circuit<P256Field>,
+    hash: &Circuit<Gf2_128Field>) -> Result<MdocProofGeometry, String>;
+// testonly: the sizes of a proof's body parts, for the benchmarks' size report
+// (host = hash circuit, split = signature circuit, message = masked quotients)
+pub fn proof_sizes(bytes: &[u8], geometry: &MdocProofGeometry) -> Result<BodySizes, String>;
 
 // Internal: mdoc::runtime::v2
+pub(crate) type MaskedQuotient = MaskedWord<{ QUOTIENT_BITS }>;
+pub(crate) struct MdocProof<F1, F2> { pub(crate) body: ComposedProof<2, F1, 4, F2, [MaskedQuotient; 2]> }
+impl MdocProof<F1, F2> {
+    pub(crate) fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ComposedGeometry>, f1: &F1, f2: &F2)
+        -> Result<Unverified<'a, Self>, String>;              // I6, I7, I8; verifier
+    pub(crate) fn write(&self, g: &ComposedGeometry, f1: &F1, f2: &F2, transcript: Transcript)
+        -> Result<EncodedProof, String>;                      // seals (transcript I10); prover
+}
 pub(super) struct Request<'a> { /* spec, parsed issuer key, checked strings and attributes */ }
 impl<'a> Request<'a> {
     pub(super) fn check(spec: &'a ZkSpecStruct, pkx: &str, pky: &str, transcript: &'a [u8],

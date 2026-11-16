@@ -114,11 +114,11 @@ call. No caller holds the weights, so none can pair them with another system.
 Eta has type `Eta<E>`, whose only constructor is its `nonzero(F)` draw
 (`split::transcript::eta`), so a zero eta cannot be represented.
 *Enforced by:* `Bound::accept` (runtime, both roles); `Challenge` is
-move-only, `Eta` has no public constructor, `LinearStatement` has no public
+move-only, `Eta` is built only by its draw, `LinearStatement` has no public
 constructor outside tests and tools, and `finish` takes every field's
-equations in their types (type; `compile_fail` doctests on
-`LinearStatement` and `JointVerifier::finish`); the stamp check (runtime;
-test `finish_rejects_equations_derived_on_another_session`).
+equations in their types (type; a `compile_fail` doctest on
+`LinearStatement`); the stamp check (runtime; test
+`finish_rejects_equations_derived_on_another_session`).
 
 **I5. One constraint form, compiled by shared code.** Every row is
 `sum_w A[c,w]*w + b[c] = 0`. Coefficients, constants, explicit zeros and
@@ -183,7 +183,7 @@ Native cells are numbered densely in value order. `runs()` returns maximal
 runs, so equal maps give equal runs and the statement's run encoding is
 injective.
 *Enforced by:* `StorageMap::new` (runtime); `Group` fields are private and
-its end cannot overflow (type, `compile_fail,E0451` doctest); test
+its end cannot overflow (type); test
 `storage_runs_are_maximal_and_canonical`.
 
 **I11. Row batching exists only for pure foreign storage, and covers every
@@ -364,9 +364,11 @@ Composed proofs place the same `circuit_proof` and `split_opening` fields in
 // runtime::v2::zk: setup, shared by both roles
 pub struct ZkContext<'a, const W: usize, F, D> { .. }   // field = domain.field()
 impl ZkContext<'a, W, F, D> { pub fn new(domain: &'a D) -> Self; pub fn field(&self) -> &'a F; }
-pub struct VirtualInput<E> { pub source: usize, pub constant: E, pub coefficient: E }
-pub struct VirtualInputs<E> { pub entries: Vec<VirtualInput<E>> }
-impl<E> VirtualInputs<E> { pub fn none() -> Self; }
+// virtual inputs, crate-private: only the composition driver defines them
+pub(crate) struct VirtualInput<E> { pub(crate) source: usize, pub(crate) constant: E, pub(crate) coefficient: E }
+pub(crate) struct VirtualInputs<E> { pub(crate) entries: Vec<VirtualInput<E>> }
+impl<E> VirtualInputs<E> { pub(crate) fn none() -> Self; }
+pub(crate) fn write_joint_geometry(h: &mut Header<'_>, config: PolygeroConfig);  // JointGeometry
 pub type CircuitInput<F> = BaseElement<<F as PackingField>::Packing>;
 
 // zk::joint
@@ -374,11 +376,11 @@ pub struct CircuitParticipant<const W: usize, F> { .. }   // geometry, layout, s
 impl CircuitParticipant<W, F> {
     pub fn new(circuits: &[&Circuit<F>], virtual_inputs: usize,
                config: PolygeroConfig, ctx: &ZkContext<'_, W, F, D>) -> Result<Self, String>; // the proof's one profile (I12)
-    pub fn with_storage(circuit: &Circuit<F>, storage: StorageMap, mask: Option<Group>,
-                        config: PolygeroConfig, ctx: &ZkContext<'_, W, F, D>) -> Result<Self, String>;
+    pub(crate) fn with_storage(circuit: &Circuit<F>, storage: StorageMap, mask: Option<Group>,
+                               config: PolygeroConfig, ctx: &ZkContext<'_, W, F, D>) -> Result<Self, String>;
     pub fn commits(&self) -> bool;                       // false for pure foreign storage
     pub fn geometry(&self) -> CircuitProofGeometry;           // written as Circuit/CommitmentLayout (I1)
-    pub fn participant(&self, ctx: &ZkContext<'a, W, F, D>)
+    pub(crate) fn participant(&self, ctx: &ZkContext<'a, W, F, D>)
         -> Result<SelectedField<'a, W, F, D>, String>;   // fails for pure foreign storage (I11)
 }
 pub struct FrontendPart<'a, const W: usize, F> { .. }    // participant, circuits, public inputs
@@ -386,12 +388,13 @@ impl FrontendPart<'a, W, F> {
     pub fn new(participant: &'a CircuitParticipant<W, F>, circuits: &[&'a Circuit<F>],
                public: &'a [CircuitInput<F>]) -> Result<Self, String>;   // I3: checked once
 }
-pub struct SelectedField<'a, const W: usize, F, D> { .. }
-pub trait Fields: Clone { .. }                            // (SelectedField, Tail) ... ()
-pub struct JointParam<L: Fields> { .. }
+// the joint commitment, crate-private: witness selection, below it, is too
+pub(crate) struct SelectedField<'a, const W: usize, F, D> { .. }
+pub(crate) trait Fields: Clone { .. }                     // (SelectedField, Tail) ... ()
+pub(crate) struct JointParam<L: Fields> { .. }
 impl<L: Fields> JointParam<L> {
-    pub fn new(fields: L) -> Result<Self, String>;
-    pub fn config(&self) -> PolygeroConfig;
+    pub(crate) fn new(fields: L) -> Result<Self, String>;
+    pub(crate) fn config(&self) -> PolygeroConfig;
 }
 pub(crate) fn top_weights(t: &mut Bound<'_, FrontendPart<'_, W, F>>)
     -> Result<Challenge<TopWeights<F::E>>, String>;     // I4
@@ -456,7 +459,7 @@ impl<E> SplitClaim<E> {
                           mu: &E, f: &F) -> Result<SplitOutput<E>, String>; // absorbs SplitOpening (I9)
 }
 
-// zk::split, both roles; the draws live in zk::split::transcript (transcript I9)
+// zk::split (crate-private), both roles; the draws live in zk::split::transcript (transcript I9)
 pub(crate) struct SplitClaim<E> { pub(crate) claim: LinearClaim<E>, .. }  // rows unbatched
 impl<E> SplitClaim<E> {
     // pure foreign only (I11), tests only until a driver uses it:
@@ -470,7 +473,7 @@ pub(crate) fn eta(t: &mut Bound<'_, P>, f: &F) -> Challenge<Eta<F::E>>;  // nonz
 #[must_use] pub(crate) struct SplitOutput<E> { pub(crate) statement: LinearStatement<E>,
                                                pub(crate) foreign: ModularClaim<E> }
 pub(crate) struct LinearClaim<E> { pub(crate) weights: Vec<E>, pub(crate) target: E }  // zk::batching
-#[must_use] pub struct ModularClaim<E> { pub(crate) terms: Vec<(Group, E)>, pub(crate) target: E }  // zk::storage
+#[must_use] pub(crate) struct ModularClaim<E> { pub(crate) terms: Vec<(Group, E)>, pub(crate) target: E }  // zk::storage, crate-private
 
 // zk: standalone single-circuit proof
 impl ZkProver<W, F> {
@@ -581,8 +584,8 @@ Zero knowledge:
 
 ## Open questions
 
-1. **Provenance of virtual inputs.** `VirtualInputs` are plain data; I8 rests
-   on the caller deriving them from bound values. Recommendation: give
-   `VirtualInputs` a crate-private constructor used only by
-   `foreign::adapter`, which derives the leaves from the accepted conversion
+1. **Provenance of virtual inputs.** `VirtualInputs` are plain crate-private
+   data; I8 rests on the in-crate caller deriving them from bound values.
+   Recommendation: give `VirtualInputs` a constructor that only
+   `foreign::adapter` can call, which derives the leaves from the accepted conversion
    pair and the sent `P256AdapterQuotients`.

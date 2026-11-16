@@ -59,6 +59,6 @@ pub(super) fn row_weights<F: SupportsSampling>(
 
 /// Send the split message before any adapter challenge. The split's derived
 /// weights are reconstructed by both roles and never absorbed.
-pub fn send_mu<F: RegisteredField>(t: &mut TranscriptRef<'_>, mu: &F::E, f: &F) {
+pub(crate) fn send_mu<F: RegisteredField>(t: &mut TranscriptRef<'_>, mu: &F::E, f: &F) {
     t.send(&OpeningMessage { f, mu });
 }

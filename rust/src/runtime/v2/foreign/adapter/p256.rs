@@ -8,7 +8,7 @@
 //! `g^(S - C) = X^(-k)`, where `g^(-p) = X` and the honest quotient
 //! `k = (S - C) / p` is below `2^Q`.
 mod integer;
-pub mod transcript;
+pub(crate) mod transcript;
 
 use integer::Int256;
 use transcript::Conversion;
@@ -61,38 +61,19 @@ pub(crate) fn to_int(p: &P256Field, value: &P256Element) -> Int256 {
 
 /// A P-256 adapter instance whose quotients are `Word<Q>`.
 ///
-/// Its encoder takes the conversion challenges as plain field elements and
-/// is crate-private; applications reach it only through `P256Mode`, whose
-/// rounds draw the challenges from the transcript:
-///
-/// ```compile_fail,E0624
-/// use longfellow_zk::runtime::{
-///     algebra::{
-///         gf2_128::Gf2_128Field,
-///         p256::{P256Element, P256Field},
-///     },
-///     v2::{foreign::adapter::p256::P256Plan, zk::storage::ModularClaim},
-/// };
-/// fn chosen(
-///     plan: &P256Plan<10>,
-///     claim: &ModularClaim<P256Element>,
-///     alpha: &[P256Element; 2],
-///     p: &P256Field,
-///     f: &Gf2_128Field,
-/// ) {
-///     let _ = plan.encode(claim, alpha, None, p, f);
-/// }
-/// ```
+/// Its encoder takes the conversion challenges as plain field elements;
+/// only `P256Mode`, whose rounds draw the challenges from the transcript,
+/// calls it.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct P256Plan<const Q: usize> {
+pub(crate) struct P256Plan<const Q: usize> {
     widths: Vec<usize>,
     bits: usize,
 }
 impl<const Q: usize> P256Plan<Q> {
-    pub const TREES: usize = 2;
+    pub(crate) const TREES: usize = 2;
     /// `widths` are the claim's bit-group widths, in term order. The quotient
     /// of each tree is below the number of bits, which must fit in `Q` bits.
-    pub fn new(widths: Vec<usize>) -> Result<Self, String> {
+    pub(crate) fn new(widths: Vec<usize>) -> Result<Self, String> {
         let bits = widths
             .iter()
             .try_fold(0usize, |n, &w| {
@@ -107,7 +88,7 @@ impl<const Q: usize> P256Plan<Q> {
         }
         Ok(Self { widths, bits })
     }
-    pub fn shape(&self) -> TreeShape {
+    pub(crate) fn shape(&self) -> TreeShape {
         TreeShape {
             trees: Self::TREES,
             leaves: self.bits + Q,
@@ -296,16 +277,8 @@ impl<const Q: usize> P256Encoded<Q> {
 /// The adapter's conversion pair and masked quotients enter the transcript
 /// only through the mode: `draw_conversion` stamps the pair as the mode's
 /// input challenge and `prove` and `verify` send the quotients. The raw
-/// steps are not public:
-///
-/// ```compile_fail,E0432
-/// use longfellow_zk::runtime::v2::foreign::adapter::p256::transcript::conversion;
-/// ```
-///
-/// ```compile_fail,E0603
-/// use longfellow_zk::runtime::v2::foreign::adapter::p256::transcript::send_quotients;
-/// ```
-pub struct P256Mode<const Q: usize> {
+/// steps are private to its transcript module.
+pub(crate) struct P256Mode<const Q: usize> {
     plan: P256Plan<Q>,
     otp: [BitGroup<Q>; 2],
     shape: TreeShape,

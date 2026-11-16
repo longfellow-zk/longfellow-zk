@@ -23,7 +23,7 @@
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod dual_packing;
 
-pub mod foreign;
+pub(crate) mod foreign;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(super) mod merkle;
 
@@ -35,6 +35,6 @@ pub mod sumcheck;
 
 pub mod transcript;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub mod witness_selection;
+pub(crate) mod witness_selection;
 
 pub mod zk;

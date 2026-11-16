@@ -39,7 +39,11 @@ pub use circuits::decompress_circuits;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub use circuits::proof_geometry;
 pub use error::{MdocProverErrorCode, MdocVerifierErrorCode};
-pub use proto::{MaskedQuotient, MdocProof, MdocProofGeometry};
+#[cfg(feature = "testonly")]
+pub use proto::proof_sizes;
+#[cfg(test)]
+pub(crate) use proto::MdocProof;
+pub use proto::MdocProofGeometry;
 pub use zk_spec::{
     find_zk_spec, find_zk_spec_by_hex, is_supported_version, PolygeroParameters, ZkSpecStruct,
     NUM_ZK_SPECS, SUPPORTED_CIRCUIT_VERSIONS, SYSTEM_ID, ZK_SPECS,

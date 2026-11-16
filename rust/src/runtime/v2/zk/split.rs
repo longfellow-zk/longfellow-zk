@@ -38,7 +38,7 @@ use crate::{
     },
 };
 
-pub mod transcript;
+pub(crate) mod transcript;
 use transcript::Eta;
 
 /// A split participant's frontend claim over `[private inputs | pads]`.
@@ -333,7 +333,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
 
 /// Number of values `[private inputs | pads]` of a split participant for
 /// `circuit`; a storage map must cover exactly this many.
-pub fn value_count<F: SerializableField>(circuit: &Circuit<F>) -> Result<usize, String> {
+#[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
+pub(crate) fn value_count<F: SerializableField>(circuit: &Circuit<F>) -> Result<usize, String> {
     let private = circuit
         .raw
         .ninput

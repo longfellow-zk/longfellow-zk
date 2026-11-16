@@ -20,7 +20,6 @@ where
     /// verification: the caller must check the complete proof's final seal
     /// with the returned `Authenticated`, as `run_mdoc_verifier` does.
     #[doc = include_str!("verifier_compile_fail.md")]
-    #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
     pub(crate) fn reduce_and_authenticate(
         session: Opened<'_, Self>,
         proof: &ComposedProof<H, Host, W, F, M::Message>,
@@ -62,7 +61,6 @@ where
 {
     /// The session, bound to the geometry its statement wrote, which the
     /// proof is parsed against (transcript I2).
-    #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
     pub(crate) fn geometry(&mut self) -> Bound<'_, ComposedGeometry> {
         self.bound(|s| &s.geometry)
     }

@@ -89,7 +89,7 @@ through `Bound<'_, Param<L>>` (transcript I2). Witness selection absorbs no
 layout, identity, context or label of its own (transcript I3).
 *Enforced by:* no witness selection function takes a layout, field identity
 or circuit parameter, and `Field::new(param, domain)` takes no identity
-(type; a compile_fail doctest); the statement is encoded from the
+(type); the statement is encoded from the
 participant the field is built from (zk I1).
 
 **I3. Coefficients follow the commitment and nothing else.** The `Commitment`
@@ -271,19 +271,19 @@ impl<E> FingerprintResponse<E> {
         -> io::Result<Self>;           // only the complete readers call it (proto I2)
 }
 
-// runtime::v2::witness_selection
+// runtime::v2::witness_selection, crate-private: the zk joint wrapper drives it
 pub(in crate::runtime::v2) fn witness_count(cells: usize) -> Result<usize, String>; // n + 2
 /// Message tag 33: one Elements(F, 2) value, in transcript.rs. Holds a reference to its field.
 struct ResponseMessage<'a, F: RegisteredField> { f: &'a F, response: &'a FingerprintResponse<F::E> }
 
 /// One field of the list, built from its augmented Polygero parameter; n = nw - 2 (I1, I2).
-pub struct Field<'a, const W: usize, F, D> { backend: Participant<'a, W, F, D>, f: &'a F, cells: usize }
+pub(crate) struct Field<'a, const W: usize, F, D> { backend: Participant<'a, W, F, D>, f: &'a F, cells: usize }
 impl Field<'a, W, F, D> {
-    pub fn new(param: PolygeroParam, domain: &'a D) -> Result<Self, String>;
+    pub(crate) fn new(param: PolygeroParam, domain: &'a D) -> Result<Self, String>;
 }
 
 /// Typed list (Field, Tail) ending in (); sealed. Keeps each field's element type.
-pub trait Fields: Sealed + Clone {
+pub(crate) trait Fields: Sealed + Clone {
     type Backend: Participants + Clone;
     type Coefficients;                 // ([Vec<F::E>; 2], Tail::Coefficients), derived, not serialized
     type Responses: Clone;             // (FingerprintResponse<F::E>, Tail::Responses)
@@ -295,19 +295,19 @@ pub trait Fields: Sealed + Clone {
                     responses: &Self::Responses, session: &SessionStamp)
         -> Result<Statements<Self>, String>;                                         // I1, I5, I6
 }
-pub type Witnesses<L>  = <<L as Fields>::Backend as Participants>::Witnesses;
-pub type Statements<L> = <<L as Fields>::Backend as Participants>::Statements;
-pub type Bodies<L>     = <<L as Fields>::Backend as Participants>::Bodies;
+pub(crate) type Witnesses<L>  = <<L as Fields>::Backend as Participants>::Witnesses;
+pub(crate) type Statements<L> = <<L as Fields>::Backend as Participants>::Statements;
+pub(crate) type Bodies<L>     = <<L as Fields>::Backend as Participants>::Bodies;
 
 /// Statement part: the field list and the joint Polygero parameter.
-pub struct Param<L: Fields> { fields: L, backend: JointPolygeroParam<L::Backend> }
+pub(crate) struct Param<L: Fields> { fields: L, backend: JointPolygeroParam<L::Backend> }
 impl<L: Fields> Param<L> {
     pub(crate) fn new(fields: L) -> Result<Self, String>;  // only zk's JointParam::new builds one
-    pub fn config(&self) -> PolygeroConfig;
+    pub(crate) fn config(&self) -> PolygeroConfig;
 }
 
 // prover role
-pub trait ProverFields: Fields { /* validate_witnesses, append_masks, responses */ }
+pub(crate) trait ProverFields: Fields { /* validate_witnesses, append_masks, responses */ }
 pub(crate) struct Prover<S, C, R> { backend: JointPolygeroProver<S>, session: SessionStamp,
                                     coefficients: C, responses: R }
 // JointParam::commit only

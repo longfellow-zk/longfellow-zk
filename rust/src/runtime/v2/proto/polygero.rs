@@ -174,6 +174,7 @@ impl<E> FieldProof<E> {
     pub fn payload_bytes<F: SerializableField<E = E>>(&self, f: &F) -> usize {
         (self.h.len() + self.z.len() + self.rows.len()) * f.serialized_size_bytes()
     }
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn validate(&self, g: &PolygeroGeometry) -> Result<()> {
         g.validate()?;
         if [self.h.len(), self.z.len()] != g.response_lengths() || self.rows.len() != g.t * g.nrow()
@@ -184,6 +185,7 @@ impl<E> FieldProof<E> {
     }
     /// Bytes of the interactive response (H, then Z) and of the terminal
     /// rows of a valid geometry; None if they overflow.
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn wire_lengths(g: &PolygeroGeometry, width: usize) -> Option<[usize; 2]> {
         let [h, z] = g.response_lengths();
         Some([
@@ -192,6 +194,7 @@ impl<E> FieldProof<E> {
         ])
     }
     /// The interactive response: H, then Z.
+    #[cfg(any(test, feature = "prover"))]
     pub(crate) fn write_response<F: SerializableField<E = E>>(
         &self,
         out: &mut Vec<u8>,
@@ -205,6 +208,7 @@ impl<E> FieldProof<E> {
         Ok(())
     }
     /// The terminal rows u, m, witness, f*, t values each in query order.
+    #[cfg(any(test, feature = "prover"))]
     pub(crate) fn write_rows<F: SerializableField<E = E>>(
         &self,
         out: &mut Vec<u8>,
@@ -255,10 +259,12 @@ fn read_values<F: SerializableField>(bytes: &mut &[u8], n: usize, f: &F) -> Resu
     }
     (0..n).map(|_| read_field(bytes, f)).collect()
 }
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 fn invalid(message: &str) -> Error {
     Error::new(ErrorKind::InvalidData, message)
 }
 /// Validate the shared authentication shape before reading or hashing columns.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(in crate::runtime::v2) fn validate_opening(p: &MerkleProof, t: usize, n: usize) -> Result<()> {
     if t == 0
         || t > n
@@ -308,12 +314,14 @@ pub(crate) fn checked_body(
 }
 impl<B> JointPolygeroProof<B> {
     /// Bytes of the opening before its frontier: one nonce per column.
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn fixed_opening_len(t: usize) -> Option<usize> {
         t.checked_mul(NONCE_LEN)
     }
     /// Write each field's response, then each field's rows, then the nonces,
     /// then the frontier (its count, then its digests): the last field of
     /// every body.
+    #[cfg(any(test, feature = "prover"))]
     pub(crate) fn write_to_buf<E: From<Error>>(
         &self,
         out: &mut Vec<u8>,

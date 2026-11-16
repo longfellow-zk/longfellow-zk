@@ -17,9 +17,10 @@ use crate::{
     },
 };
 
-pub type Witnesses<L> = <<L as Fields>::Backend as BackendParticipants>::Witnesses;
-pub type Statements<L> = <<L as Fields>::Backend as BackendParticipants>::Statements;
-pub type Bodies<L> = <<L as Fields>::Backend as BackendParticipants>::Bodies;
+#[cfg(any(test, feature = "prover"))]
+pub(crate) type Witnesses<L> = <<L as Fields>::Backend as BackendParticipants>::Witnesses;
+pub(crate) type Statements<L> = <<L as Fields>::Backend as BackendParticipants>::Statements;
+pub(crate) type Bodies<L> = <<L as Fields>::Backend as BackendParticipants>::Bodies;
 
 /// The first `cells` positions belong to the frontend. The trailing two masks
 /// are owned by this protocol and never become field-valued circuit inputs.
@@ -32,17 +33,12 @@ pub(in crate::runtime::v2) fn witness_count(cells: usize) -> Result<usize, Strin
 /// One field of the fingerprinted witness: its Polygero participant, its
 /// field and its frontend cell count. It takes no separate field identity:
 /// the statement's `CommitmentLayout` names the field (transcript I3).
-///
-/// ```compile_fail,E0061
-/// use longfellow_zk::runtime::{
-///     algebra::{p256::P256Field, range_interpolation::ScalarInterpolatorFactory},
-///     v2::{polygero::PolygeroParam, witness_selection::Field},
-/// };
-/// fn bad(p: PolygeroParam, d: &ScalarInterpolatorFactory<'_, 4, P256Field>) {
-///     let _ = Field::new(p, d, b"identity".to_vec());
-/// }
-/// ```
-pub struct Field<'a, const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling, D> {
+pub(crate) struct Field<
+    'a,
+    const W: usize,
+    F: RuntimeField<W> + RegisteredField + SupportsSampling,
+    D,
+> {
     pub(super) backend: Participant<'a, W, F, D>,
     pub(super) f: &'a F,
     pub(super) cells: usize,
@@ -68,7 +64,7 @@ impl<
     /// `param` describes the augmented commitment, including this protocol's
     /// two cells. Frontends obtain its count with witness_count(original_count).
     /// Arithmetic fields need no packing capability.
-    pub fn new(param: PolygeroParam, domain: &'a D) -> Result<Self, String> {
+    pub(crate) fn new(param: PolygeroParam, domain: &'a D) -> Result<Self, String> {
         let cells = param
             .geometry()
             .nw
@@ -82,7 +78,7 @@ impl<
     }
 }
 mod sealed {
-    pub trait Sealed {}
+    pub(crate) trait Sealed {}
     impl Sealed for () {}
     impl<H, T: Sealed> Sealed for (H, T) {}
 }
@@ -90,7 +86,7 @@ mod sealed {
 /// Typed lists `(Field, Tail)` ending in `()` preserve every field's element
 /// type. Separate binding and sampling passes fix the entire public layout
 /// before drawing any coefficient, including across different fields.
-pub trait Fields: sealed::Sealed + Clone {
+pub(crate) trait Fields: sealed::Sealed + Clone {
     type Backend: BackendParticipants + Clone;
     type Coefficients;
     type Responses: Clone;
@@ -124,7 +120,7 @@ impl Fields for () {
 }
 
 #[derive(Clone)]
-pub struct Param<L: Fields> {
+pub(crate) struct Param<L: Fields> {
     pub(super) fields: L,
     pub(super) backend: JointPolygeroParam<L::Backend>,
 }
@@ -136,7 +132,7 @@ impl<L: Fields> Param<L> {
         let backend = JointPolygeroParam::new(fields.backend()).map_err(|e| e.to_string())?;
         Ok(Self { fields, backend })
     }
-    pub fn config(&self) -> PolygeroConfig {
+    pub(crate) fn config(&self) -> PolygeroConfig {
         self.backend.config()
     }
 }

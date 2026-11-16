@@ -13,7 +13,7 @@
 //! The modulus-specific encoder (`p256`, wrapping mode) only computes leaf
 //! coefficients, targets and honest quotients. `AdapterMode` packages an
 //! encoder with its rounds, pads and message for the composition driver.
-pub mod p256;
+pub(crate) mod p256;
 
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::{random::PrivateRandom, v2::zk::storage::ReservedWitness};
@@ -37,27 +37,27 @@ use crate::{
 
 /// Number of trees and leaves per tree; it fixes the fragment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct TreeShape {
-    pub trees: usize,
-    pub leaves: usize,
+pub(crate) struct TreeShape {
+    pub(crate) trees: usize,
+    pub(crate) leaves: usize,
 }
 impl TreeShape {
     /// The number of virtual inputs, `trees * leaves`; None if it overflows.
-    pub fn virtual_inputs(&self) -> Option<usize> {
+    pub(crate) fn virtual_inputs(&self) -> Option<usize> {
         self.trees.checked_mul(self.leaves)
     }
 }
 
 /// One tree leaf `constant + coefficient * input[source]`.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Leaf {
-    pub source: usize,
-    pub constant: Gf2_128,
-    pub coefficient: Gf2_128,
+pub(crate) struct Leaf {
+    pub(crate) source: usize,
+    pub(crate) constant: Gf2_128,
+    pub(crate) coefficient: Gf2_128,
 }
 impl Leaf {
     /// A data leaf `1 + b * (power - 1)`, given `power - 1`.
-    pub fn data(source: usize, power_minus_one: Gf2_128, f: &Gf2_128Field) -> Self {
+    pub(crate) fn data(source: usize, power_minus_one: Gf2_128, f: &Gf2_128Field) -> Self {
         Self {
             source,
             constant: f.one(),
@@ -66,7 +66,7 @@ impl Leaf {
     }
     /// A quotient leaf `power^(m xor o)` for public bit `m` and committed pad
     /// bit `o`: affine in `o` with coefficients chosen by `m`.
-    pub fn quotient(source: usize, power: Gf2_128, m: bool, f: &Gf2_128Field) -> Self {
+    pub(crate) fn quotient(source: usize, power: Gf2_128, m: bool, f: &Gf2_128Field) -> Self {
         Self {
             source,
             constant: if m { power } else { f.one() },
@@ -76,14 +76,14 @@ impl Leaf {
 }
 
 /// One tree's leaves and the value their product must equal.
-pub struct TreeInstance {
-    pub leaves: Vec<Leaf>,
-    pub target: Gf2_128,
+pub(crate) struct TreeInstance {
+    pub(crate) leaves: Vec<Leaf>,
+    pub(crate) target: Gf2_128,
 }
 
 /// Fold each target into its tree's first leaf and emit the virtual inputs in
 /// fragment order: tree-major, leaves in order.
-pub fn virtual_inputs(
+pub(crate) fn virtual_inputs(
     shape: TreeShape,
     trees: Vec<TreeInstance>,
     f: &Gf2_128Field,
@@ -123,7 +123,7 @@ pub fn virtual_inputs(
 ///
 /// The fragment shares the binary participant's public prefix and input array;
 /// its virtual inputs start at `virtual_start`, after the reserved suffix.
-pub fn fragment(
+pub(crate) fn fragment(
     npublic: usize,
     virtual_start: usize,
     shape: TreeShape,
@@ -209,7 +209,7 @@ pub fn fragment(
 /// same transcript data. Its virtual leaves must depend only on the claim, the
 /// mode's own challenges and its published message, all fixed before the host
 /// sumcheck begins.
-pub trait AdapterMode<F: SerializableField>: Sized {
+pub(crate) trait AdapterMode<F: SerializableField>: Sized {
     /// Bits of the split mask R in the binary witness.
     const MASK_BITS: usize;
     /// Committed one-time pads, built only by the prover.

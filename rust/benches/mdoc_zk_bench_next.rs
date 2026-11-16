@@ -28,7 +28,7 @@ use longfellow_zk::{
         circuits::cbor::test_utils::parse_test_data,
         v2::{self as runtime, req_attr, run_mdoc_prover_inner, run_mdoc_verifier},
     },
-    runtime::random::DeterministicRng,
+    runtime::{random::DeterministicRng, v2::proto::composed::BodySizes},
 };
 fn main() {
     let attributes = std::env::var("MDOC_BENCH_ATTRIBUTES")
@@ -222,43 +222,25 @@ fn report_profiles(circuits: &[u8], spec: &runtime::ZkSpecStruct) -> runtime::Md
 
 /// Measure actual serialized proof bodies and adapter messages.
 fn report_proof_sizes(bytes: &[u8], geometry: &runtime::MdocProofGeometry) {
-    use longfellow_zk::runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field};
     use sha2::{Digest, Sha256};
-    let binary = Gf2_128Field::new();
-    let prime = P256Field::new();
-    // Size reporting only: any session can carry the geometry.
-    let mut session = longfellow_zk::runtime::v2::transcript::Transcript::for_test(b"sizes");
-    let decoded = runtime::MdocProof::read(
-        bytes,
-        &session.bound_for_test(&geometry.body),
-        &binary,
-        &prime,
-    )
-    .unwrap();
-    let (proof, geometry) = (&decoded.body, &geometry.body);
-    let mut hash = Vec::new();
-    proof
-        .host
-        .write_to_buf(&mut hash, geometry.host(), &binary)
-        .unwrap();
-    let signature = proof
-        .split
-        .write(geometry.split().sumcheck(), &prime)
-        .unwrap();
-    let polygero = &proof.polygero;
-    let (nonces, frontier) = polygero.authentication_bytes();
-    let hash_payload = polygero.bodies().0.payload_bytes(&binary);
-    let signature_payload = polygero.bodies().1 .0.payload_bytes(&prime);
+    // The hash circuit is the host, the signature circuit the split
+    // participant; the adapter message is the masked quotients.
+    let BodySizes {
+        host: hash_reduction,
+        split: signature_reduction,
+        host_payload: hash_payload,
+        split_payload: signature_payload,
+        nonces,
+        frontier,
+        message: masked,
+    } = runtime::proof_sizes(bytes, geometry).unwrap();
     let shared_bytes = hash_payload + signature_payload + nonces + frontier;
-    let masked = proof.message.len() * runtime::MaskedQuotient::BYTES;
     assert_eq!(
         bytes.len(),
-        32 + masked + 36 + 96 + hash.len() + signature.len() + shared_bytes + 32
+        32 + masked + 36 + 96 + hash_reduction + signature_reduction + shared_bytes + 32
     );
     eprintln!(
-        "  SHA/hash reduction: {} bytes; signature reduction: {} bytes",
-        hash.len(),
-        signature.len()
+        "  SHA/hash reduction: {hash_reduction} bytes; signature reduction: {signature_reduction} bytes"
     );
     eprintln!("  Shared Polygero: {shared_bytes} bytes (hash={hash_payload}, signature={signature_payload}, nonces={nonces}, frontier={frontier})");
     eprintln!("  Witness fingerprints: 96 bytes (binary=32, signature=64)");

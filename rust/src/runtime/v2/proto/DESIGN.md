@@ -68,23 +68,18 @@ types have no wire form (type); a test that the proof length equals
 
 **I2. The bound geometry drives parsing.** Every public reader takes its
 geometry as `&Bound<'_, G>`, so the verifier parses the proof against exactly
-the geometry the statement absorbed. The public readers are the complete
-ones, `ZkProof::read` and `MdocProof::read`. Every component reader
-(sumcheck, circuit, fingerprint, composed body, Polygero bodies, Merkle,
-adapter message) is crate-private, is compiled only in role builds and
-tests, and is called only by the complete readers, which pass it
-sub-geometries read through `g.part()`. The adapter message reader is the
-supertrait `proto::composed::sealed::Read` of `AdapterMessage`, in a
-crate-private module, so outside the crate it cannot be implemented. Generic
-code outside the crate still sees the inherited method through an
-`AdapterMessage` bound, so the reader also takes a `sealed::Token`, which
-only `proto::composed` constructs: outside the crate it cannot be called.
+the geometry the statement absorbed. The complete readers are
+`ZkProof::read`, the one public reader, and the crate-private
+`MdocProof::read`. Every component reader (sumcheck, circuit, fingerprint,
+composed body, Polygero bodies, Merkle, adapter message) is crate-private,
+is compiled only in role builds and tests, and is called only by the
+complete readers, which pass it sub-geometries read through `g.part()`. The
+composed body and the `AdapterMessage` trait are crate-private, so code
+outside the crate can neither implement nor call the adapter message reader.
 `Bound::project` is never needed for parsing.
-*Enforced by:* no public read function takes a plain geometry (type);
-visibility of the component readers, the sealed adapter reader and its
-token (type; compile_fail doctests, including a call through an
-`AdapterMessage` bound); a test that the absorbed geometry equals the
-parsing geometry (transcript I3).
+*Enforced by:* no read function takes a plain geometry (type); visibility of
+the component readers, the composed body and the adapter message (type); a
+test that the absorbed geometry equals the parsing geometry (transcript I3).
 
 **I3. Lengths come from the geometry, checked before decoding.** Every field's
 length is a function of the geometry, except the Merkle frontier. The body
@@ -434,16 +429,12 @@ pub struct FieldProof<E> { h: Vec<E>, z: Vec<E>, rows: Vec<E> }  // h, z interac
 pub struct JointPolygeroProof<B> { bodies: B, opening: MerkleProof } // B: (FieldProof<E>, tail)
 pub(in crate::runtime::v2) struct MerkleProof { nonce: Vec<MerkleNonce>, path: Vec<Digest> }
 
-// the adapter's message (foreign::word implements it for [MaskedWord<Q>; 2])
-pub trait AdapterMessage: sealed::Read {
+// the adapter's message (foreign::word implements it for [MaskedWord<Q>; 2]);
+// crate-private, with the composed body, in role builds
+pub(crate) trait AdapterMessage: Sized {
     const BYTES: usize;
-    fn write(&self, out: &mut Vec<u8>);
-}
-pub(crate) mod sealed {
-    pub struct Token(/* constructed only in proto::composed */);  // role builds
-    pub trait Read: Sized {                          // read: role builds only
-        fn read(b: &mut &[u8], token: Token) -> Result<Self, String>;
-    }
+    fn write(&self, out: &mut Vec<u8>);                       // prover
+    fn read(b: &mut &[u8]) -> Result<Self, String>;           // verifier; exactly BYTES
 }
 
 // standalone complete proof
@@ -462,31 +453,36 @@ impl<const W: usize, F> ZkProof<W, F> {
         -> std::io::Result<Unverified<'a, Self>>;
 }
 
-// composed body; applications add the magic and the seal
-pub struct ComposedProof<const WH: usize, H, const WS: usize, S, M> {
-    pub commitment: PolygeroCommitment,
-    pub fingerprints: (FingerprintResponse<H::E>, (FingerprintResponse<S::E>, ())),
-    pub split: SumcheckProof<WS, S>,
-    pub mu: S::E,
-    pub message: M,                                  // M: AdapterMessage
-    pub host: CircuitProof<WH, H>,
-    pub polygero: JointPolygeroProof<(FieldProof<H::E>, (FieldProof<S::E>, ()))>,
+// composed body, crate-private; applications add the magic and the seal
+pub(crate) struct ComposedProof<const WH: usize, H, const WS: usize, S, M> {
+    pub(crate) commitment: PolygeroCommitment,
+    pub(crate) fingerprints: (FingerprintResponse<H::E>, (FingerprintResponse<S::E>, ())),
+    pub(crate) split: SumcheckProof<WS, S>,
+    pub(crate) mu: S::E,
+    pub(crate) message: M,                                 // M: AdapterMessage
+    pub(crate) host: CircuitProof<WH, H>,
+    pub(crate) polygero: JointPolygeroProof<(FieldProof<H::E>, (FieldProof<S::E>, ()))>,
 }
 impl<..> ComposedProof<WH, H, WS, S, M> {
-    pub fn fixed_len(g: &ComposedGeometry, h: &H, s: &S) -> Option<usize>; // B(g)
-    pub fn write_to_buf(&self, out: &mut Vec<u8>, g: &ComposedGeometry, h: &H, s: &S)
+    pub(crate) fn fixed_len(g: &ComposedGeometry, h: &H, s: &S) -> Option<usize>; // B(g)
+    pub(crate) fn write_to_buf(&self, out: &mut Vec<u8>, g: &ComposedGeometry, h: &H, s: &S)
         -> Result<(), String>;
     pub(crate) fn read(body: &[u8], g: &ComposedGeometry, h: &H, s: &S)
         -> Result<Self, String>;                     // exactly the whole body
+    #[cfg(feature = "testonly")]
+    pub(crate) fn sizes(&self, g: &ComposedGeometry, h: &H, s: &S) -> Result<BodySizes, String>;
 }
+// testonly: byte sizes of a body's parts, for the benchmarks' size report
+pub struct BodySizes { pub host: usize, pub split: usize, pub host_payload: usize,
+    pub split_payload: usize, pub nonces: usize, pub frontier: usize, pub message: usize }
 
-// mdoc::runtime::v2 envelope
-pub struct MdocProof<F1, F2> { pub body: ComposedProof<2, F1, 4, F2, [MaskedQuotient; 2]> }
+// mdoc::runtime::v2 envelope, crate-private
+pub(crate) struct MdocProof<F1, F2> { pub(crate) body: ComposedProof<2, F1, 4, F2, [MaskedQuotient; 2]> }
 impl MdocProof<F1, F2> {
-    pub const MAGIC: [u8; 4] = *b"MDA7";
+    pub(crate) const MAGIC: [u8; 4] = *b"MDA7";
     pub(crate) fn write(&self, g: &ComposedGeometry, f1: &F1, f2: &F2, transcript: Transcript)
         -> Result<EncodedProof, String>;             // the mdoc prover only
-    pub fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ComposedGeometry>, f1: &F1, f2: &F2)
+    pub(crate) fn read<'a>(bytes: &'a [u8], g: &Bound<'_, ComposedGeometry>, f1: &F1, f2: &F2)
         -> Result<Unverified<'a, Self>, String>;
 }
 ```
@@ -498,7 +494,7 @@ How the API enforces the invariants:
   by value and end in its crate-private `append_final_seal`, so a proof is
   written once and is always sealed (I1, transcript I10). The prover hands
   the writer the geometry it opened its statement with.
-- Public readers take `&Bound<'_, G>` and hand sub-geometries from
+- Complete readers take `&Bound<'_, G>` and hand sub-geometries from
   `g.part()` to the component readers (`SumcheckProof`, `CircuitProof`,
   `FingerprintResponse`, `ComposedProof`, `FieldProof`, `MerkleProof`, the
   adapter message), which are crate-private (I2).
@@ -524,7 +520,7 @@ through the same views (transcript I9).
 | Mistake | What stops it |
 |---|---|
 | Parsing against a geometry other than the absorbed one | I2: public readers take `Bound` |
-| Parsing one component against an arbitrary geometry | I2: component readers are crate-private, and the adapter message reader is sealed and needs a crate-private token |
+| Parsing one component against an arbitrary geometry | I2: component readers, the composed body and the adapter message are crate-private |
 | A truncated or extended proof read partway, or a huge allocation from a hostile count | I3: one total-length check first; the one count on the wire, the frontier count, is capped by the geometry |
 | Wire order differing from absorb order | I4: struct order is send order; role-trace test |
 | A field absorbed but not on the wire, or on the wire but not absorbed nor terminal | I4: classification table; role-trace test |

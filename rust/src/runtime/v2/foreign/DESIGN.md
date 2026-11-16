@@ -432,22 +432,24 @@ bytes are the payload of its `Bits(N)` value. `Otp<N>::sample` reads exactly
 
 ## Rust API
 
+`runtime::v2::foreign` is crate-private: the mdoc application drives it.
+
 ```rust
 // runtime::v2::foreign::compose
-pub struct Composition<'a, const W: usize, F, DH, DS, M> { .. }
+pub(crate) struct Composition<'a, const W: usize, F, DH, DS, M> { .. }
 impl<'a, const W: usize, F, DH, DS, M: AdapterMode<F>> Composition<'a, W, F, DH, DS, M> {
     // Derives participants, reserved suffix and mode from the trusted circuits
     // and storage map; the statement's geometry messages are written from it.
     // Mixed storage only: the split participant always gets R's mask group (I2).
-    pub fn new(host_circuit: &'a Circuit<Gf2_128Field>, split_circuit: &'a Circuit<F>,
+    pub(crate) fn new(host_circuit: &'a Circuit<Gf2_128Field>, split_circuit: &'a Circuit<F>,
                storage: StorageMap, joint: PolygeroConfig,
                domains: (&'a DH, &'a DS)) -> Result<Self, String>;
-    pub fn geometry(&self) -> Result<ComposedGeometry, String>;
+    pub(crate) fn geometry(&self) -> Result<ComposedGeometry, String>;
     pub(crate) fn statement<'s, I: SetupMessage>(&'s self, identity: I,
         host_public: &'s [CircuitInput<Gf2_128Field>], split_public: &'s [CircuitInput<F>])
         -> Result<ComposedStatement<'s, W, F, DH, DS, M, I>, String>;
-    pub fn reserved(&self) -> &ReservedSuffix;
-    pub fn mode(&self) -> &M;
+    pub(crate) fn reserved(&self) -> &ReservedSuffix;   // tests
+    pub(crate) fn mode(&self) -> &M;                     // tests
 }
 // The composition's statement: the application's identity message, both
 // frontend parts and the geometry the proof is parsed against (transcript I1).
@@ -473,7 +475,7 @@ impl Opened<'_, ComposedStatement<'_, ..>> {
 }
 
 // runtime::v2::foreign::adapter
-pub trait AdapterMode<F: SerializableField>: Sized {
+pub(crate) trait AdapterMode<F: SerializableField>: Sized {
     const MASK_BITS: usize;                 // width of R's group, mixed storage
     type Pads;                              // committed one-time pads, prover only
     type Message: AdapterMessage;           // P256Mode: [MaskedWord<Q>; 2], tag P256AdapterQuotients
@@ -497,49 +499,49 @@ pub trait AdapterMode<F: SerializableField>: Sized {
               conversion: Challenge<Self::Conversion>, f: &F, gf2: &Gf2_128Field)
         -> Result<VirtualInputs<Gf2_128>, String>;
 }
-pub struct TreeShape { pub trees: usize, pub leaves: usize }
-pub struct Leaf { pub source: usize, pub constant: Gf2_128, pub coefficient: Gf2_128 }
-pub struct TreeInstance { pub leaves: Vec<Leaf>, pub target: Gf2_128 }
-pub fn virtual_inputs(shape: TreeShape, trees: Vec<TreeInstance>, f: &Gf2_128Field)
+pub(crate) struct TreeShape { pub(crate) trees: usize, pub(crate) leaves: usize }
+pub(crate) struct Leaf { pub(crate) source: usize, pub(crate) constant: Gf2_128, pub(crate) coefficient: Gf2_128 }
+pub(crate) struct TreeInstance { pub(crate) leaves: Vec<Leaf>, pub(crate) target: Gf2_128 }
+pub(crate) fn virtual_inputs(shape: TreeShape, trees: Vec<TreeInstance>, f: &Gf2_128Field)
     -> Result<VirtualInputs<Gf2_128>, String>;
-pub fn fragment(npublic: usize, virtual_start: usize, shape: TreeShape)
+pub(crate) fn fragment(npublic: usize, virtual_start: usize, shape: TreeShape)
     -> Result<Circuit<Gf2_128Field>, String>;            // no challenge parameter (I7)
 
 // runtime::v2::foreign::adapter::p256::transcript
-pub struct Conversion(/* [P256Element; 2], crate-private */);  // only the nonzero draw builds it (I4)
-impl Conversion { pub fn values(&self) -> &[P256Element; 2]; }
+pub(crate) struct Conversion(/* [P256Element; 2], crate-private */);  // only the nonzero draw builds it (I4)
+impl Conversion { pub(crate) fn values(&self) -> &[P256Element; 2]; }
 
 // runtime::v2::foreign::adapter::p256
-pub struct P256Plan<const Q: usize> { .. }              // TREES = 2; new rejects bits > 2^Q (I5)
+pub(crate) struct P256Plan<const Q: usize> { .. }              // TREES = 2; new rejects bits > 2^Q (I5)
 impl<const Q: usize> P256Plan<Q> {
-    pub fn new(widths: Vec<usize>) -> Result<Self, String>;
-    pub fn shape(&self) -> TreeShape;
+    pub(crate) fn new(widths: Vec<usize>) -> Result<Self, String>;
+    pub(crate) fn shape(&self) -> TreeShape;
     // crate-private: plain challenges; P256Mode passes the accepted Conversion (I4)
     pub(crate) fn encode(&self, claim: &ModularClaim<P256Element>, alpha: &[P256Element; 2],
         values: Option<&[P256Element]>, p: &P256Field, f: &Gf2_128Field)
         -> Result<P256Encoded<Q>, String>;
 }
 pub(crate) struct P256Encoded<const Q: usize> { .. }    // leaf coefficients, targets, prover quotients
-pub struct P256Mode<const Q: usize> { .. }              // AdapterMode<P256Field>, MASK_BITS = 256;
+pub(crate) struct P256Mode<const Q: usize> { .. }              // AdapterMode<P256Field>, MASK_BITS = 256;
                                                         // mode ID P256_MODE_ID in adapter/p256/transcript.rs
 
 // runtime::v2::foreign::word (I5)
 pub(crate) struct Word<const N: usize>(u64);            // prover builds only; no encoder; Debug omits the value
-pub struct Otp<const N: usize>(u64);                    // built only by Otp::sample; not Copy or Clone
+pub(crate) struct Otp<const N: usize>(u64);                    // built only by Otp::sample; not Copy or Clone
 impl<const N: usize> Otp<N> {
-    pub fn sample(rng: &mut impl PrivateRandom) -> Self;  // prover builds only
-    pub fn bits(&self) -> impl Iterator<Item = bool> + '_;
+    pub(crate) fn sample(rng: &mut impl PrivateRandom) -> Self;  // prover builds only
+    pub(crate) fn bits(&self) -> impl Iterator<Item = bool> + '_;
 }
 impl<const N: usize> Debug for Otp<N> { .. }            // prints "Otp { .. }", never the value
-pub struct MaskedWord<const N: usize>(u64);             // the only word in a proof
+pub(crate) struct MaskedWord<const N: usize>(u64);             // the only word in a proof
 impl<const N: usize> MaskedWord<N> {
-    pub const BYTES: usize = N.div_ceil(8);
+    pub(crate) const BYTES: usize = N.div_ceil(8);
     pub(crate) fn mask(k: Word<N>, o: Otp<N>) -> Self;   // prover; consumes the pad: one pad, one word
-    pub fn bit(self, j: usize) -> bool;                  // feeds Encoder::bits
-    pub fn encoded(&self) -> Vec<u8>;
+    pub(crate) fn bit(self, j: usize) -> bool;                  // feeds Encoder::bits
+    pub(crate) fn encoded(&self) -> Vec<u8>;            // tests
     pub(crate) fn read(bytes: &mut &[u8]) -> Result<Self, String>;  // rejects nonzero padding
 }
-// [MaskedWord<N>; 2] implements AdapterMessage and the sealed reader (proto I2)
+// [MaskedWord<N>; 2] implements AdapterMessage, with its reader (proto I2)
 ```
 
 The split's side is owned by `zk::split` and called by the driver. For mixed

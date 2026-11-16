@@ -35,6 +35,20 @@ fn masked_word_codec_is_canonical() {
     }
 }
 
+/// A pad is neither `Copy` nor `Clone` (`Copy` needs `Clone`), so one pad
+/// masks one word. If `Otp` were `Clone`, the method below would resolve
+/// to two impls and this test would not compile.
+#[test]
+fn otp_is_neither_copy_nor_clone() {
+    trait AmbiguousIfClone<A> {
+        fn check() {}
+    }
+    impl<T: ?Sized> AmbiguousIfClone<()> for T {}
+    struct IsClone;
+    impl<T: ?Sized + Clone> AmbiguousIfClone<IsClone> for T {}
+    <Otp<8> as AmbiguousIfClone<_>>::check();
+}
+
 /// A pad's `Debug` output does not depend on, or print, its value.
 #[test]
 fn pad_debug_omits_the_value() {

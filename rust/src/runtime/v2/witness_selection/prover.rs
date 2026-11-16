@@ -14,7 +14,7 @@ use crate::runtime::{
 
 /// Private-witness operations belong to the prover role; shared field lists
 /// expose only layout, challenge, and affine-equation operations.
-pub trait ProverFields: Fields {
+pub(crate) trait ProverFields: Fields {
     fn validate_witnesses(&self, witnesses: &Witnesses<Self>) -> Result<(), String>;
     fn append_masks(&self, witnesses: &mut Witnesses<Self>, rng: &mut impl PrivateRandom);
     fn responses(

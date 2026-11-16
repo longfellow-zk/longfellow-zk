@@ -53,15 +53,20 @@ pub mod joint;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod packing_commitment;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub mod split;
-pub mod storage;
+pub(crate) mod split;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) mod storage;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) use context::InputLayout;
-pub use context::{CircuitInput, VirtualInput, VirtualInputs, ZkContext};
+pub use context::{CircuitInput, ZkContext};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub use transcript::{write_joint_geometry, ZkProofStatement};
+pub(crate) use context::{VirtualInput, VirtualInputs};
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) use transcript::write_joint_geometry;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub use transcript::ZkProofStatement;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod constraint_compiler;
 cfg_prover! { mod joint_prover; pub(crate) use joint_prover::JointProver; }

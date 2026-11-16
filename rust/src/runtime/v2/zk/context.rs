@@ -172,20 +172,23 @@ impl InputLayout {
 /// One virtual input entry: `constant + coefficient * input[source]`, where
 /// `source` is an absolute index into the committed private inputs.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct VirtualInput<E> {
-    pub source: usize,
-    pub constant: E,
-    pub coefficient: E,
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) struct VirtualInput<E> {
+    pub(crate) source: usize,
+    pub(crate) constant: E,
+    pub(crate) coefficient: E,
 }
 
 /// Per-proof definitions of a participant's virtual input suffix, in order.
 /// Both roles derive them from the transcript; they are never absorbed.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct VirtualInputs<E> {
-    pub entries: Vec<VirtualInput<E>>,
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) struct VirtualInputs<E> {
+    pub(crate) entries: Vec<VirtualInput<E>>,
 }
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
 impl<E> VirtualInputs<E> {
-    pub fn none() -> Self {
+    pub(crate) fn none() -> Self {
         Self {
             entries: Vec::new(),
         }

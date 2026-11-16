@@ -9,11 +9,16 @@
 //! - `adapter`: the fixed product-tree fragment, the P-256 encoder and the `AdapterMode` trait.
 //! - `compose`: the driver for a binary host and one mixed split participant.
 //! - `word`: quotient words, their pads and the masked words in proofs.
+//!
+//! Its one driver is the mdoc application's, so builds without `mdoc` compile
+//! it unused.
+#![cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub mod adapter;
+pub(crate) mod adapter;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub mod compose;
-pub mod word;
+pub(crate) mod compose;
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(crate) mod word;
 
 #[cfg(test)]
 mod tests;

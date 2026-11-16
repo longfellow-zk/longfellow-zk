@@ -8,7 +8,7 @@
 //! defined once here.
 #[cfg(any(test, feature = "prover"))]
 use crate::runtime::random::PrivateRandom;
-use crate::runtime::v2::proto::composed::{sealed, AdapterMessage};
+use crate::runtime::v2::proto::composed::AdapterMessage;
 
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 const fn mask(n: usize) -> u64 {
@@ -19,12 +19,8 @@ const fn mask(n: usize) -> u64 {
     }
 }
 
-/// An unsigned integer below `2^N`: an honest adapter quotient. It is
-/// crate-private, so code outside the crate can neither build nor read one:
-///
-/// ```compile_fail,E0603
-/// use longfellow_zk::runtime::v2::foreign::word::Word;
-/// ```
+/// An unsigned integer below `2^N`: an honest adapter quotient. Only the
+/// prover builds one.
 ///
 /// The quotient is unmasked, so its `Debug` output omits the value.
 #[cfg(any(test, feature = "prover"))]
@@ -55,26 +51,9 @@ impl<const N: usize> Word<N> {
 /// fresh for each proof (`Otp::sample` exists only in prover builds). It is
 /// neither `Copy` nor `Clone`, and `MaskedWord::mask` consumes it, so one pad
 /// masks exactly one word: two words masked with one pad would publish their
-/// XOR. Its `Debug` output omits the value.
-///
-/// ```compile_fail,E0382
-/// use longfellow_zk::runtime::v2::foreign::word::Otp;
-/// fn reuse(o: Otp<8>) -> [Otp<8>; 2] {
-///     [o, o]
-/// }
-/// ```
-///
-/// ```compile_fail,E0277
-/// use longfellow_zk::runtime::v2::foreign::word::Otp;
-/// fn duplicate<T: Clone>(o: &T) -> T {
-///     o.clone()
-/// }
-/// fn reuse(o: &Otp<8>) -> Otp<8> {
-///     duplicate(o)
-/// }
-/// ```
+/// XOR (`otp_is_neither_copy_nor_clone`). Its `Debug` output omits the value.
 #[derive(PartialEq, Eq)]
-pub struct Otp<const N: usize>(u64);
+pub(crate) struct Otp<const N: usize>(u64);
 impl<const N: usize> std::fmt::Debug for Otp<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Otp").finish_non_exhaustive()
@@ -82,7 +61,7 @@ impl<const N: usize> std::fmt::Debug for Otp<N> {
 }
 impl<const N: usize> Otp<N> {
     #[cfg(any(test, feature = "prover"))]
-    pub fn sample(rng: &mut impl PrivateRandom) -> Self {
+    pub(crate) fn sample(rng: &mut impl PrivateRandom) -> Self {
         let () = MaskedWord::<N>::WIDTH_OK;
         // Exactly ceil(N/8) fresh bytes; the unused high bits are discarded.
         let mut buf = [0u8; 8];
@@ -90,18 +69,19 @@ impl<const N: usize> Otp<N> {
         Self(u64::from_le_bytes(buf) & mask(N))
     }
     /// Pad bits, least significant first, for placement in the witness.
-    pub fn bits(&self) -> impl Iterator<Item = bool> + '_ {
+    #[cfg(any(test, feature = "prover"))]
+    pub(crate) fn bits(&self) -> impl Iterator<Item = bool> + '_ {
         (0..N).map(|j| (self.0 >> j) & 1 != 0)
     }
 }
 
 /// The published response `k xor o`, an element of GF(2)^N.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MaskedWord<const N: usize>(u64);
+pub(crate) struct MaskedWord<const N: usize>(u64);
 impl<const N: usize> MaskedWord<N> {
     const WIDTH_OK: () = assert!(N >= 1 && N <= 64, "word width must be 1..=64");
     /// Encoded length: N bits, least significant first, zero-padded to bytes.
-    pub const BYTES: usize = {
+    pub(crate) const BYTES: usize = {
         let () = Self::WIDTH_OK;
         N.div_ceil(8)
     };
@@ -110,16 +90,17 @@ impl<const N: usize> MaskedWord<N> {
     pub(crate) fn mask(k: Word<N>, o: Otp<N>) -> Self {
         Self(k.0 ^ o.0)
     }
-    pub fn bit(self, j: usize) -> bool {
+    pub(crate) fn bit(self, j: usize) -> bool {
         assert!(j < N);
         (self.0 >> j) & 1 != 0
     }
+    #[cfg(any(test, feature = "prover"))]
     fn write(&self, out: &mut Vec<u8>) {
         out.extend_from_slice(&self.0.to_le_bytes()[..Self::BYTES]);
     }
     /// Reject truncated input and any nonzero padding bit. A component
     /// reader, called only through the composed body's reader (proto I2).
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
+    #[cfg(any(test, feature = "verifier"))]
     pub(crate) fn read(bytes: &mut &[u8]) -> Result<Self, String> {
         let () = Self::WIDTH_OK;
         let (head, tail) = bytes
@@ -137,7 +118,8 @@ impl<const N: usize> MaskedWord<N> {
     /// The word's canonical proof-body encoding, as the body writer emits it.
     /// The transcript absorbs the word's bits through the
     /// `P256AdapterQuotients` message instead.
-    pub fn encoded(&self) -> Vec<u8> {
+    #[cfg(test)]
+    pub(crate) fn encoded(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(Self::BYTES);
         self.write(&mut out);
         out
@@ -146,15 +128,14 @@ impl<const N: usize> MaskedWord<N> {
 
 impl<const N: usize> AdapterMessage for [MaskedWord<N>; 2] {
     const BYTES: usize = 2 * MaskedWord::<N>::BYTES;
+    #[cfg(any(test, feature = "prover"))]
     fn write(&self, out: &mut Vec<u8>) {
         for m in self {
             m.write(out);
         }
     }
-}
-impl<const N: usize> sealed::Read for [MaskedWord<N>; 2] {
-    #[cfg(any(test, feature = "prover", feature = "verifier"))]
-    fn read(b: &mut &[u8], _: sealed::Token) -> Result<Self, String> {
+    #[cfg(any(test, feature = "verifier"))]
+    fn read(b: &mut &[u8]) -> Result<Self, String> {
         Ok([MaskedWord::read(b)?, MaskedWord::read(b)?])
     }
 }

@@ -190,6 +190,7 @@ impl<const W: usize, F: RuntimeField<W> + SerializableField> CircuitProof<W, F> 
 impl CircuitProofGeometry {
     /// Bytes of a circuit proof: the sumcheck, then packing U and A when the
     /// packing degree exceeds one; None if they overflow.
+    #[cfg(any(test, feature = "prover", feature = "verifier"))]
     pub(crate) fn proof_len(&self, width: usize) -> Option<usize> {
         let elements = self.sumcheck.serialized_elements();
         let packing = match self.packing_degree {
