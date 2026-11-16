@@ -3,7 +3,7 @@ use super::*;
 use crate::runtime::{
     random::PrivateRandom,
     v2::{
-        polygero::{JointPolygeroProver, ProverParticipants},
+        polygero::{JointPolygeroProver, Participants, ProverParticipants},
         proto::{
             polygero::{JointPolygeroProof, PolygeroCommitment},
             witness_selection::{FingerprintResponse, FINGERPRINTS},
@@ -11,6 +11,9 @@ use crate::runtime::{
         transcript::{Bound, SessionStamp},
     },
 };
+
+/// The witnesses of every field, which only the prover holds.
+pub(crate) type Witnesses<L> = <<L as Fields>::Backend as Participants>::Witnesses;
 
 /// Private-witness operations belong to the prover role; shared field lists
 /// expose only layout, challenge, and affine-equation operations.

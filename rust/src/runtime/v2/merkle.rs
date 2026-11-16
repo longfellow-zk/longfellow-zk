@@ -15,10 +15,14 @@
 pub(in crate::runtime::v2) mod hash;
 mod heap;
 
-#[cfg(any(test, feature = "verifier"))]
-pub(in crate::runtime::v2) use heap::verify_proof;
-#[cfg(any(test, feature = "prover"))]
-pub(in crate::runtime::v2) use heap::MerkleHeap;
+cfg_prover! {
+    mod prover;
+    pub(in crate::runtime::v2) use prover::MerkleHeap;
+}
+cfg_verifier! {
+    mod verifier;
+    pub(in crate::runtime::v2) use verifier::verify_proof;
+}
 
 #[cfg(test)]
 mod tests;

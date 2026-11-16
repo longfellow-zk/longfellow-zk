@@ -47,7 +47,7 @@ the pinned vectors `independent_leaf_vector_pins_preimage_layout` and
 the heap traversal, never from the proof, so a digest cannot be moved to
 another position even when two subtrees have equal digests.
 *Enforced by:* `hash::node` takes the index and only the traversals in
-`heap.rs` call it (type, visibility); the test
+`prover.rs` and `verifier.rs` call it (type, visibility); the test
 `internal_nodes_cannot_be_moved_to_another_heap_position`;
 `Merkle.Indexed.RoleDecoders`, whose node decoder checks the expected index,
 and `Merkle.Indexed.Independence`.
@@ -91,7 +91,7 @@ proof (transcript I2).
 non-path siblings of path nodes, in decreasing heap index. The verifier
 consumes it exactly: a missing or extra digest rejects, so no opening has a
 second encoding.
-*Enforced by:* `verify_proof` returns `ProofLengthMismatch` unless the
+*Enforced by:* `verify_proof` returns `OpeningError::ProofLengthMismatch` unless the
 traversal consumes every frontier digest (runtime); the test
 `duplicate_opening_indices_and_noncanonical_frontiers_reject`;
 `Merkle.Heap.frontier`.
@@ -227,28 +227,33 @@ pub(in crate::runtime::v2) mod hash {
     pub(super) fn node(index: usize, l: &Digest, r: &Digest) -> Digest;
 }
 pub(in crate::runtime::v2) struct MerkleHeap { /* num_leaves, layers: 2n digests */ }
-impl MerkleHeap {                                          // prover only
+impl MerkleHeap {                                          // prover.rs
     pub(in crate::runtime::v2) fn new(leaves: &[Digest]) -> Self;
     pub(in crate::runtime::v2) fn root(&self) -> Digest;
     pub(in crate::runtime::v2) fn generate_proof(&self, leaf_indices: &[usize]) -> Vec<Digest>;
 }
-pub(in crate::runtime::v2) fn verify_proof(                // verifier only
+pub(in crate::runtime::v2) fn verify_proof(                // verifier.rs
     num_leaves: usize,                                     // I6: from the absorbed geometry
     root: &Digest,
     proof: &[Digest],                                      // the frontier
     leaves: &[(usize, Digest)],                            // (leaf index, leaf digest), any order
-) -> Result<(), MerkleError>;
-pub(in crate::runtime::v2) enum MerkleError {
+) -> Result<(), OpeningError>;
+pub(in crate::runtime::v2) enum MerkleError {             // heap.rs: both roles
     DuplicateLeafIndex { index: usize },
     LeafIndexOutOfBounds { index: usize, num_leaves: usize },
+    EmptyLeaves,
+    LeafIndexNotOnPath,
+}
+pub(in crate::runtime::v2) enum OpeningError {             // verifier.rs
+    Paths(MerkleError),
     ProofLengthMismatch { expected: usize, found: usize },
     RootMismatch { expected: Digest, found: Digest },
-    EmptyLeaves,
 }
 ```
 
-`MerkleHeap` is built under the `prover` feature and `verify_proof` under the
-`verifier` feature; neither role links the other's code. Leaf indices passed
+`MerkleHeap` (`prover.rs`) is built under the `prover` feature and
+`verify_proof` (`verifier.rs`) under the `verifier` feature; neither role
+links the other's code, and both share the path marking of `heap.rs`. Leaf indices passed
 to `generate_proof` come from the transcript's `indices` draw
 (`Reading::choose`), which yields distinct indices in range, so a violation
 is a prover bug and panics.

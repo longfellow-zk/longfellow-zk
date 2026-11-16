@@ -267,17 +267,14 @@ const GATE_MACROS: [&str; 5] = [
 /// The modules whose item-level role gates are converted when they are next
 /// edited (AGENTS.md), and the frozen v1 run time, converted only on request.
 /// Remove an entry once its files gate only module lines; add none.
-const ITEM_GATES_PENDING: [&str; 11] = [
+const ITEM_GATES_PENDING: [&str; 8] = [
     "mdoc/cbor",
     "mdoc/runtime",
     "runtime/v1",
-    "runtime/v2/dual_packing",
     "runtime/v2/foreign",
-    "runtime/v2/merkle",
     "runtime/v2/proto",
     "runtime/v2/sumcheck",
     "runtime/v2/transcript",
-    "runtime/v2/witness_selection",
     "runtime/v2/zk",
 ];
 

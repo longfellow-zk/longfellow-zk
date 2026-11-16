@@ -1,5 +1,9 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use super::{generic::*, prover::prove_packed, verifier::reduce};
+use super::{
+    generic::*,
+    prover::{prove_packed, PackingMasks},
+    verifier::{reduce, validate_proof},
+};
 use crate::{
     core::algebra::{
         AlgebraicField, BareField, FieldID, RegisteredField, Sealed, SerializableField,

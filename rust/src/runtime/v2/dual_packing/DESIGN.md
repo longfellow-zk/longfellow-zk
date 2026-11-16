@@ -322,11 +322,6 @@ pub enum PackingProof<E> { Direct, TraceZero { u: Vec<E>, a: E } }
 pub struct Affine<E> { constant: E, terms: Vec<(usize, E)> }
 pub struct SourceClaim<E> { weights: Vec<E>, rhs: Affine<E>, auxiliary_count: usize } // no Message (I3)
 pub struct FieldEquation<E> { constant: E, words: Vec<E>, auxiliary: Vec<(usize, E)>, masks: Vec<E> }
-pub struct PackingMasks<E> { cells: Vec<E> }                 // not Clone (I8); Debug omits the cells
-impl<E> PackingMasks<E> {
-    pub fn sample<X: PackingExtension>(p: &PackingParameters<X>, sample: impl FnMut() -> E) -> Self;
-    pub fn cells(&self) -> &[E];
-}
 
 // transcript.rs: the shared steps, both roles (I1, I4)
 struct UMessage<'a, F: RegisteredField> { f: &'a F, u: &'a [F::E] }   // PackingU, I3
@@ -337,6 +332,11 @@ fn finish<X: PackingExtension>(p: &PackingParameters<X>, a: &AmbientElement<X>,
     ts: &mut TranscriptRef<'_>);                                      // send A
 
 // prover.rs
+pub struct PackingMasks<E> { cells: Vec<E> }                 // not Clone (I8); Debug omits the cells
+impl<E> PackingMasks<E> {
+    pub fn sample<X: PackingExtension>(p: &PackingParameters<X>, sample: impl FnMut() -> E) -> Self;
+    pub fn cells(&self) -> &[E];
+}
 pub(in crate::runtime::v2) fn prove_packed<X: PackingExtension>(
     ts: &mut Bound<'_, PackingParameters<X>>,
     c: &SourceClaim<AmbientElement<X>>,

@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use sha2::Digest as _;
 
-use super::{heap::MerkleError, *};
+use super::{heap::MerkleError, verifier::OpeningError, *};
 use crate::runtime::v2::proto::{Digest, MerkleNonce, NONCE_LEN};
 
 #[test]
@@ -129,7 +129,9 @@ fn duplicate_opening_indices_and_noncanonical_frontiers_reject() {
     assert!(verify_proof(2, &tree.root(), &path, &opened).is_ok());
     assert_eq!(
         verify_proof(2, &tree.root(), &path, &[(0, leaves[0]), (0, leaves[0])]),
-        Err(MerkleError::DuplicateLeafIndex { index: 0 })
+        Err(OpeningError::Paths(MerkleError::DuplicateLeafIndex {
+            index: 0
+        }))
     );
     assert!(verify_proof(2, &tree.root(), &[leaves[0]], &opened).is_err());
     assert!(verify_proof(2, &tree.root(), &[], &[(0, leaves[0])]).is_err());
@@ -146,7 +148,7 @@ fn verification_rejects_leaf_indices_at_or_beyond_the_leaf_count() {
         assert!(
             matches!(
                 result,
-                Err(MerkleError::LeafIndexOutOfBounds { index: i, num_leaves: 5 }) if i == index
+                Err(OpeningError::Paths(MerkleError::LeafIndexOutOfBounds { index: i, num_leaves: 5 })) if i == index
             ),
             "leaf index {index}"
         );

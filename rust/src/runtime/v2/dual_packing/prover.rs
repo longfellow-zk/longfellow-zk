@@ -12,6 +12,40 @@ use crate::{
         v2::{proto::dual_packing::PackingProof, transcript::Bound},
     },
 };
+impl<E: Clone> Affine<E> {
+    pub(in crate::runtime::v2) fn evaluate<F: AlgebraicField<E = E>>(
+        &self,
+        values: &[E],
+        f: &F,
+    ) -> Result<E, String> {
+        let mut result = self.constant.clone();
+        for (i, k) in &self.terms {
+            f.add(
+                &mut result,
+                &f.mulf(k, values.get(*i).ok_or("packing auxiliary index")?),
+            );
+        }
+        Ok(result)
+    }
+}
+/// Committed cells: t_1,...,t_(m-1),r,b. An identity extension uses no cells.
+/// One sample masks one source claim: the masks are not `Clone`, and
+/// `prove_packed` consumes them (dual packing I8).
+#[derive(PartialEq, Eq)]
+pub(in crate::runtime::v2) struct PackingMasks<E> {
+    pub(super) cells: Vec<E>,
+}
+/// The masks are secret: their `Debug` output omits them.
+impl<E> std::fmt::Debug for PackingMasks<E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PackingMasks").finish_non_exhaustive()
+    }
+}
+impl<E: Clone> PackingMasks<E> {
+    pub(in crate::runtime::v2) fn cells(&self) -> &[E] {
+        &self.cells
+    }
+}
 impl<E: Clone> PackingMasks<E> {
     /// Honest setup sets b=sigma(r). The verifier deliberately does not add a
     /// product constraint for this relation. If b is dishonest, sigma(r)-b is

@@ -35,3 +35,17 @@ where
     finish(p, a, &mut session);
     reconstruct_validated(p, c, proof, &delta)
 }
+
+/// Check the claim and the proof's shape and traces before any challenge.
+pub(super) fn validate_proof<X: PackingExtension>(
+    p: &PackingParameters<X>,
+    c: &SourceClaim<E<X>>,
+    proof: &PackingProof<E<X>>,
+) -> Result<(), String> {
+    c.validate()?;
+    match proof {
+        PackingProof::Direct if p.degree() == 1 => Ok(()),
+        PackingProof::TraceZero { u, .. } if p.degree() > 1 => validate_u(p, u),
+        _ => Err("packing response shape".into()),
+    }
+}

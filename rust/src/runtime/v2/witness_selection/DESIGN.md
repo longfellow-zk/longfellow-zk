@@ -295,7 +295,6 @@ pub(crate) trait Fields: Sealed + Clone {
                     responses: &Self::Responses, session: &SessionStamp)
         -> Result<Statements<Self>, String>;                                         // I1, I5, I6
 }
-pub(crate) type Witnesses<L>  = <<L as Fields>::Backend as Participants>::Witnesses;
 pub(crate) type Statements<L> = <<L as Fields>::Backend as Participants>::Statements;
 pub(crate) type Bodies<L>     = <<L as Fields>::Backend as Participants>::Bodies;
 
@@ -307,6 +306,7 @@ impl<L: Fields> Param<L> {
 }
 
 // prover role
+pub(crate) type Witnesses<L>  = <<L as Fields>::Backend as Participants>::Witnesses;
 pub(crate) trait ProverFields: Fields<Backend: ProverParticipants> { /* validate_witnesses, append_masks, responses */ }
 pub(crate) struct Prover<S, C, R> { backend: JointPolygeroProver<S>, session: SessionStamp,
                                     coefficients: C, responses: R }

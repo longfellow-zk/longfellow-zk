@@ -17,8 +17,6 @@ use crate::{
     },
 };
 
-#[cfg(any(test, feature = "prover"))]
-pub(crate) type Witnesses<L> = <<L as Fields>::Backend as BackendParticipants>::Witnesses;
 pub(crate) type Statements<L> = <<L as Fields>::Backend as BackendParticipants>::Statements;
 pub(crate) type Bodies<L> = <<L as Fields>::Backend as BackendParticipants>::Bodies;
 

@@ -26,23 +26,6 @@ pub(in crate::runtime::v2) struct Affine<E> {
     pub(in crate::runtime::v2) constant: E,
     pub(in crate::runtime::v2) terms: Vec<(usize, E)>,
 }
-#[cfg(any(test, feature = "prover"))]
-impl<E: Clone> Affine<E> {
-    pub(in crate::runtime::v2) fn evaluate<F: AlgebraicField<E = E>>(
-        &self,
-        values: &[E],
-        f: &F,
-    ) -> Result<E, String> {
-        let mut result = self.constant.clone();
-        for (i, k) in &self.terms {
-            f.add(
-                &mut result,
-                &f.mulf(k, values.get(*i).ok_or("packing auxiliary index")?),
-            );
-        }
-        Ok(result)
-    }
-}
 /// sum weights[j]*embed(x[j]) = rhs(aux), where x[j] is in K.
 /// ZK constructs this from the preceding sumcheck on the same transcript.
 /// It carries no identifier of that source: only the earlier protocol binds
@@ -74,27 +57,6 @@ pub(in crate::runtime::v2) struct FieldEquation<E> {
     pub(in crate::runtime::v2) words: Vec<E>,
     pub(in crate::runtime::v2) auxiliary: Vec<(usize, E)>,
     pub(in crate::runtime::v2) masks: Vec<E>,
-}
-/// Committed cells: t_1,...,t_(m-1),r,b. An identity extension uses no cells.
-/// One sample masks one source claim: the masks are not `Clone`, and
-/// `prove_packed` consumes them (dual packing I8).
-#[cfg(any(test, feature = "prover"))]
-#[derive(PartialEq, Eq)]
-pub(in crate::runtime::v2) struct PackingMasks<E> {
-    pub(super) cells: Vec<E>,
-}
-/// The masks are secret: their `Debug` output omits them.
-#[cfg(any(test, feature = "prover"))]
-impl<E> std::fmt::Debug for PackingMasks<E> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PackingMasks").finish_non_exhaustive()
-    }
-}
-#[cfg(any(test, feature = "prover"))]
-impl<E: Clone> PackingMasks<E> {
-    pub(in crate::runtime::v2) fn cells(&self) -> &[E] {
-        &self.cells
-    }
 }
 /// The packing reduction's mask cells at packing degree `degree`: none for
 /// the identity (I2), else `degree + 1` (`degree - 1` free cells, `r` and
@@ -215,19 +177,6 @@ pub(super) fn validate_u<X: PackingExtension>(
         return Err("packing response has nonzero trace".into());
     }
     Ok(())
-}
-#[cfg(any(test, feature = "verifier"))]
-pub(super) fn validate_proof<X: PackingExtension>(
-    p: &PackingParameters<X>,
-    c: &SourceClaim<E<X>>,
-    proof: &PackingProof<E<X>>,
-) -> Result<(), String> {
-    c.validate()?;
-    match proof {
-        PackingProof::Direct if p.degree() == 1 => Ok(()),
-        PackingProof::TraceZero { u, .. } if p.degree() > 1 => validate_u(p, u),
-        _ => Err("packing response shape".into()),
-    }
 }
 pub(super) fn reconstruct_validated<X: PackingExtension>(
     p: &PackingParameters<X>,

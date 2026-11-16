@@ -3,7 +3,6 @@
 //! from the preceding sumcheck on the same transcript, never supplied as an
 //! independent statement. Both returned equations require backend authentication.
 pub(in crate::runtime::v2) mod generic;
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod transcript;
 cfg_prover! { pub(in crate::runtime::v2) mod prover; }
 cfg_verifier! { pub(in crate::runtime::v2) mod verifier; }
