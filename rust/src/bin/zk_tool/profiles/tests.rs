@@ -12,7 +12,7 @@ fn joint_profile_budget_changes_reject() {
     let mut row = joint_manifest().unwrap();
     row["active_list"] = serde_json::from_str(&pow2(128).to_string()).unwrap();
     assert!(check_joint(&row).is_err());
-    let mut row = joint_manifest().unwrap();
+    row = joint_manifest().unwrap();
     row["t"] = Value::from(MDOC_JOINT_PROFILE.t - 1);
     assert!(check_joint(&row).is_err());
 }

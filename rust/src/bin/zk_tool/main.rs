@@ -71,7 +71,7 @@ fn run() -> Result<()> {
             };
             let config = match rate {
                 None => catalog::tune_large_field(nw, field_bytes, accept),
-                Some(rate) => catalog::tune_large_field_at_rate(rate, nw, field_bytes, accept),
+                Some(fixed) => catalog::tune_large_field_at_rate(fixed, nw, field_bytes, accept),
             }
             .ok_or("no catalog profile fits")?;
             let bytes = catalog::estimated_proof_bytes(config, nw, field_bytes)

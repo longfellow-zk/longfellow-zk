@@ -65,8 +65,8 @@ fn excluded(path: &str) -> bool {
 
 /// The module path of a file: `src/runtime/v2/zk/joint.rs` is `runtime/v2/zk/joint`.
 fn module_path(path: &str) -> &str {
-    let path = path.strip_prefix("src/").unwrap_or(path);
-    path.strip_suffix(".rs").unwrap_or(path)
+    let relative = path.strip_prefix("src/").unwrap_or(path);
+    relative.strip_suffix(".rs").unwrap_or(relative)
 }
 
 /// The components listed in the rules. A file belongs to the longest listed
@@ -233,14 +233,14 @@ fn facade_item(text: &str) -> Option<String> {
             depth += 1;
             rest = r.trim_start();
         } else {
-            let item = rest
-                .strip_prefix("pub")
-                .map(|r| match r.trim_start().strip_prefix('(') {
-                    Some(r) => r.split_once(')').map_or(r, |(_, r)| r),
-                    None => r,
-                })
-                .unwrap_or(rest)
-                .trim_start();
+            let item = match rest.strip_prefix("pub") {
+                Some(after) => match after.trim_start().strip_prefix('(') {
+                    Some(scope) => scope.split_once(')').map_or(scope, |(_, tail)| tail),
+                    None => after,
+                },
+                None => rest,
+            }
+            .trim_start();
             if !(item.starts_with("mod ") || item.starts_with("use ")) {
                 return Some(rest.lines().next().unwrap_or(rest).to_owned());
             }
@@ -477,11 +477,11 @@ fn bridge_is_test_only(root: &Path, path: &str) -> bool {
 /// layers below them: core, the run-time algebra, and the framing they are
 /// defined over. Like [`phase`], this is fixed here, not in the rules.
 fn proto_allows(from: &str, to: &str) -> bool {
-    let (from, to) = (module_path(from), module_path(to));
+    let (user, used) = (module_path(from), module_path(to));
     let under = |m: &str, root: &str| m == root || m.starts_with(&format!("{root}/"));
-    let version = if under(from, "runtime/v1/proto") {
+    let version = if under(user, "runtime/v1/proto") {
         "v1"
-    } else if under(from, "runtime/v2/proto") {
+    } else if under(user, "runtime/v2/proto") {
         "v2"
     } else {
         return true;
@@ -491,11 +491,11 @@ fn proto_allows(from: &str, to: &str) -> bool {
     } else {
         "runtime/v2/transcript"
     };
-    under(to, &format!("runtime/{version}/proto"))
-        || under(to, "core")
-        || under(to, "util")
-        || under(to, "runtime/algebra")
-        || under(to, framing)
+    under(used, &format!("runtime/{version}/proto"))
+        || under(used, "core")
+        || under(used, "util")
+        || under(used, "runtime/algebra")
+        || under(used, framing)
 }
 
 fn role(path: &str) -> Option<&'static str> {

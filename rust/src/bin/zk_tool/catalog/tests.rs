@@ -168,8 +168,8 @@ fn roundtrip_profiles<
     let mut rng = DeterministicRng::new(81409);
     let witness = rng.elt_field_slice(1000, f);
     for config in profiles {
-        let param = PolygeroParam::try_new(witness.len(), config, d).unwrap();
-        let param = JointPolygeroParam::new((Participant::new(param, d).unwrap(), ())).unwrap();
+        let field = PolygeroParam::try_new(witness.len(), config, d).unwrap();
+        let param = JointPolygeroParam::new((Participant::new(field, d).unwrap(), ())).unwrap();
 
         let mut ts = Transcript::for_test(b"polygero/admitted");
         let (prover, com) = JointPolygeroProver::commit_for_test(
