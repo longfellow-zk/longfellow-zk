@@ -1,12 +1,19 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use super::super::*;
+use super::super::super::joint::*;
 use crate::{
     core::algebra::{
-        AlgebraicField, BareField, FieldID, SupportsNatConversions, SupportsU64Conversions,
+        AlgebraicField, BareField, FieldID, SerializableField, SupportsNatConversions,
+        SupportsU64Conversions,
     },
-    runtime::algebra::{
-        fp_generic::FpGenericField, limb::LIMBS_PER_U64, p256::P256Field,
-        range_interpolation::ScalarInterpolatorFactory,
+    runtime::{
+        algebra::{
+            fp_generic::FpGenericField,
+            limb::LIMBS_PER_U64,
+            p256::P256Field,
+            range_interpolation::{EvaluationDomain, ScalarInterpolatorFactory},
+            RuntimeField, SupportsSampling,
+        },
+        v2::{polygero::PolygeroParam, proto::polygero::PolygeroConfig},
     },
 };
 

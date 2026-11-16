@@ -273,6 +273,3 @@ impl<L: Participants> JointPolygeroParam<L> {
         Unverified::decoded(proof, input, &mut seal).map_err(Into::into)
     }
 }
-
-#[cfg(test)]
-mod tests;

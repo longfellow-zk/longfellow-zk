@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-use super::*;
+use super::super::joint::*;
 use crate::{
     core::algebra::{AlgebraicField, RegisteredField},
     runtime::{
@@ -7,16 +7,19 @@ use crate::{
             blas,
             gf2_128::Gf2_128Field,
             p256::P256Field,
-            range_interpolation::{BinaryInterpolatorFactory, ScalarInterpolatorFactory},
+            range_interpolation::{
+                BinaryInterpolatorFactory, EvaluationDomain, ScalarInterpolatorFactory,
+            },
+            RuntimeField, SupportsSampling,
         },
         random::{DeterministicRng, RandomEngine},
         v2::{
             polygero::{
                 prover_commitment::ColumnOracle, JointPolygeroProver, JointPolygeroVerifier,
-                ProverParticipants, VerifierParticipants,
+                PolygeroLinearTerm, PolygeroParam, ProverParticipants, VerifierParticipants,
             },
-            proto::polygero::PolygeroCommitment,
-            transcript::Bound,
+            proto::polygero::{JointPolygeroProof, PolygeroCommitment, PolygeroConfig},
+            transcript::{Bound, Transcript},
         },
     },
 };

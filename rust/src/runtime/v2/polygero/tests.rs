@@ -679,6 +679,7 @@ fn binary_profile_fits_exact_original_point_table() {
         .unwrap();
 }
 
+mod joint;
 mod masks;
 
 fn linear<E: Clone>(a: &[PolygeroLinearTerm<E>], b: &[E]) -> LinearStatement<E> {
@@ -705,7 +706,7 @@ fn static_statement_is_checked_against_the_opening() {
     };
     let p = PolygeroParam::try_new(1, config, &domain).unwrap();
     let param =
-        JointPolygeroParam::new((joint::Participant::new(p, &domain).unwrap(), ())).unwrap();
+        JointPolygeroParam::new((super::joint::Participant::new(p, &domain).unwrap(), ())).unwrap();
     let statement = LinearStatement::new(
         vec![PolygeroLinearTerm {
             c: 0,
