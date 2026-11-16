@@ -66,7 +66,7 @@ struct SplitShape {
 impl SplitShape {
     /// The shape of a split participant of `circuit` over `domain`'s field,
     /// which must be a registered degree-one prime field.
-    fn new<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+    fn new<F: ZkField + PackingField, D: EvaluationDomain<F>>(
         circuit: &Circuit<F>,
         domain: &D,
     ) -> Result<Self, String> {
@@ -88,7 +88,7 @@ impl SplitShape {
         })
     }
     /// The participant's frontend, committing `layout` in `nw` cells.
-    fn frontend<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+    fn frontend<F: ZkField + PackingField, D: EvaluationDomain<F>>(
         self,
         circuit: &Circuit<F>,
         layout: PackingLayout,
@@ -96,7 +96,7 @@ impl SplitShape {
         #[cfg_attr(not(any(test, feature = "prover")), allow(unused_variables))]
         config: PolygeroConfig,
         domain: &D,
-    ) -> Result<Frontend<W, F>, String> {
+    ) -> Result<Frontend<F>, String> {
         let extension = domain.field().packing_extension();
         Ok(Frontend {
             geometry: CircuitProofGeometry::new(self.sumcheck, 1, nw).map_err(|e| e.to_string())?,
@@ -115,16 +115,16 @@ impl SplitShape {
 /// commits `[native private inputs | pads | R]`; R's bits are the storage's
 /// mask group in the binary commitment, which the composition allocates and
 /// whose bits the adapter mode's driver writes.
-pub(crate) struct MixedSplit<const W: usize, F: ZkField<W> + PackingField> {
-    pub(super) frontend: Frontend<W, F>,
+pub(crate) struct MixedSplit<F: ZkField + PackingField> {
+    pub(super) frontend: Frontend<F>,
     /// The Polygero parameter of the committed cells.
     param: PolygeroParam,
     pub(super) storage: MixedStorage,
 }
-impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
+impl<F: ZkField + PackingField> MixedSplit<F> {
     /// The mixed split participant of `circuit` whose values are stored as
     /// `map` says, with R's bits at `mask`.
-    pub(crate) fn new<D: EvaluationDomain<W, F>>(
+    pub(crate) fn new<D: EvaluationDomain<F>>(
         circuit: &Circuit<F>,
         map: StorageMap,
         mask: Group,
@@ -156,14 +156,14 @@ impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
     }
     /// This participant as a field of the joint commitment, over `domain`,
     /// the domain it was built with.
-    pub(crate) fn participant<'a, D: EvaluationDomain<W, F>>(
+    pub(crate) fn participant<'a, D: EvaluationDomain<F>>(
         &'a self,
         domain: &'a D,
-    ) -> Result<SelectedField<'a, W, F, D>, String> {
+    ) -> Result<SelectedField<'a, F, D>, String> {
         SelectedField::from_parameter(self.param.clone(), domain)
     }
 }
-impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
+impl<F: ZkField + PackingField> MixedSplit<F> {
     /// The storage map, for the composed prover's cheat that takes the
     /// foreign values from the host's bits (`transcript::cheat`).
     #[cfg(test)]
@@ -171,8 +171,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
         &self.storage.map
     }
 }
-impl<const W: usize, F: ZkField<W> + PackingField> Participant<W, F> for MixedSplit<W, F> {
-    fn frontend(&self) -> &Frontend<W, F> {
+impl<F: ZkField + PackingField> Participant<F> for MixedSplit<F> {
+    fn frontend(&self) -> &Frontend<F> {
         &self.frontend
     }
     fn storage(&self) -> StorageLayout<'_> {
@@ -193,7 +193,7 @@ pub(crate) struct SplitClaim<E> {
     pub(crate) claim: LinearClaim<E>,
 }
 
-impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
+impl<F: ZkField + PackingField> MixedSplit<F> {
     /// Reduce the frontend's constraints to the claim its storage discharges:
     /// the frontend's rows over its values (`batching::rows`), with the layer
     /// rows moved from value indices to this field's native cells. Every pad
@@ -201,7 +201,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
     /// after the frontend's last message, on the frontend's own part: its
     /// circuit and public inputs.
     pub(super) fn split_claim(
-        t: &mut Bound<'_, FrontendPart<'_, W, F, Self>>,
+        t: &mut Bound<'_, FrontendPart<'_, F, Self>>,
         constraints: Constraints<F::E>,
     ) -> Result<SplitClaim<F::E>, String> {
         let part = t.part();
@@ -309,12 +309,12 @@ pub(crate) struct SplitOutput<E> {
 impl<E> PendingSplit<E> {
     /// Draw `eta`, send the split message `mu` on the frontend's session,
     /// and return `mu` with both outputs, all built from this `eta` and `mu`.
-    pub(crate) fn open<const W: usize, F>(
+    pub(crate) fn open<F>(
         self,
-        t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>,
+        t: &mut Bound<'_, FrontendPart<'_, F, MixedSplit<F>>>,
     ) -> Result<(E, SplitOutput<E>), String>
     where
-        F: ZkField<W> + PackingField + BareField<E = E>,
+        F: ZkField + PackingField + BareField<E = E>,
     {
         let (p, f) = (t.part().participant, t.part().field());
         let eta = transcript::eta(&mut t.transcript(), f);
@@ -329,13 +329,13 @@ impl<E> PendingSplit<E> {
 impl<E> SplitClaim<E> {
     /// Draw `eta`, absorb the proof's split message `mu` on the frontend's
     /// session, and return both outputs, built from this `eta` and `mu`.
-    pub(crate) fn receive<const W: usize, F>(
+    pub(crate) fn receive<F>(
         self,
-        t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>,
+        t: &mut Bound<'_, FrontendPart<'_, F, MixedSplit<F>>>,
         mu: &E,
     ) -> Result<SplitOutput<E>, String>
     where
-        F: ZkField<W> + PackingField + BareField<E = E>,
+        F: ZkField + PackingField + BareField<E = E>,
     {
         let (p, f) = (t.part().participant, t.part().field());
         let eta = transcript::eta(&mut t.transcript(), f);
@@ -346,7 +346,7 @@ impl<E> SplitClaim<E> {
     }
 }
 #[cfg(any(test, feature = "prover"))]
-impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
+impl<F: ZkField + PackingField> MixedSplit<F> {
     /// The split message `mu = eta*<w_F, v_F> + R`.
     fn split_message(
         &self,

@@ -25,7 +25,7 @@ use crate::{
 #[test]
 fn test_zero_length_polynomial_rejects_evaluation() {
     let f = Gf2_128RuntimeField::new();
-    let p = Poly::<0, 2, _>::zero(&f);
+    let p = Poly::<0, _>::zero(&f);
     let x = f.zero();
 
     assert!(
@@ -34,7 +34,7 @@ fn test_zero_length_polynomial_rejects_evaluation() {
     );
 }
 
-fn test_poly_evaluation_generic<const W: usize, F: InterpolationField<W>>(
+fn test_poly_evaluation_generic<F: InterpolationField>(
     f: &F,
     y0: F::E,
     y1: F::E,
@@ -45,7 +45,7 @@ fn test_poly_evaluation_generic<const W: usize, F: InterpolationField<W>>(
     let x1 = f.poly_evaluation_point(1);
     let x2 = f.poly_evaluation_point(2);
 
-    let mut p: Poly<3, W, F> = Poly::zero(f);
+    let mut p: Poly<3, F> = Poly::zero(f);
     p.evaluations[0] = y0.clone();
     p.evaluations[1] = y1.clone();
     p.evaluations[2] = y2.clone();
@@ -78,7 +78,7 @@ fn test_poly_evaluation_generic<const W: usize, F: InterpolationField<W>>(
     assert_eq!(f.addf(&f.addf(c0, &term1_at_x2), &term2), y2);
 
     // 3. Test LagrangeBasis
-    let lagrange_basis = LagrangeBasis::<3, W, F>::new(f);
+    let lagrange_basis = LagrangeBasis::<3, F>::new(f);
 
     let val3 = p.eval_lagrange(&x3, f);
 
@@ -118,7 +118,7 @@ fn test_fixed_cubic_polynomial() {
     // P(x) = 2x^3 - 3x^2 + 5x + 7
     // Interpolation points: x_0=0, x_1=1, x_2=2, x_3=3
     // Evaluations: P(0)=7, P(1)=11, P(2)=21, P(3)=49
-    let mut p: Poly<4, 4, _> = Poly::zero(&f);
+    let mut p: Poly<4, _> = Poly::zero(&f);
     p.evaluations[0] = f.u64_to_element(7);
     p.evaluations[1] = f.u64_to_element(11);
     p.evaluations[2] = f.u64_to_element(21);

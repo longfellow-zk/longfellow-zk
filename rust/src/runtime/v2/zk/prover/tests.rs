@@ -239,7 +239,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     assert_eq!(source.b, verifier_source.b);
     let verifier_backend = PackingCommitment::new(f.clone(), layout, Binary128Extension).unwrap();
     let commitment = reference.commitment.clone();
-    let (packing, native) = PackingCommitment::prove::<2>(
+    let (packing, native) = PackingCommitment::prove(
         &mut reference.joint.bound(&prover.participant.frontend.backend),
         reference.state.packing,
         source,
@@ -254,7 +254,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
     )
     .unwrap();
     let (verifier_a, verifier_b) = verifier_backend
-        .append_equations::<2>(verifier_source, &rows)
+        .append_equations(verifier_source, &rows)
         .unwrap();
     let expected = ZkProof {
         com: commitment,

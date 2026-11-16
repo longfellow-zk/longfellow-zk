@@ -58,22 +58,14 @@ where FC: MdocHashCompileField {
     (circuit, stats, symbols)
 }
 
-fn push_bits<const W: usize, FR: RuntimeField<W>>(
-    inputs: &mut Vec<FR::E>,
-    val: u64,
-    nbits: usize,
-    fr: &FR,
-) {
+fn push_bits<FR: RuntimeField>(inputs: &mut Vec<FR::E>, val: u64, nbits: usize, fr: &FR) {
     for k in 0..nbits {
         let bit = (val >> k) & 1;
         inputs.push(if bit == 1 { fr.one() } else { fr.zero() });
     }
 }
 
-fn make_inputs<const W: usize, FR: RuntimeField<W>>(
-    mock: &MsoAttributeMockGiven,
-    fr: &FR,
-) -> Vec<FR::E> {
+fn make_inputs<FR: RuntimeField>(mock: &MsoAttributeMockGiven, fr: &FR) -> Vec<FR::E> {
     let mut inputs = initial_inputs(fr);
 
     let (_, _, padded_preimage) = pad_sha256_message(&mock.raw_buf, 2).unwrap();

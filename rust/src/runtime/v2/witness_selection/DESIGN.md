@@ -275,8 +275,8 @@ pub(in crate::runtime::v2) fn witness_count(cells: usize) -> Result<usize, Strin
 struct ResponseMessage<'a, F: RegisteredField> { f: &'a F, response: &'a FingerprintResponse<F::E> }
 
 /// One field of the list, built from its augmented Polygero parameter; n = nw - 2 (I1, I2).
-pub(crate) struct Field<'a, const W: usize, F, D> { backend: Participant<'a, W, F, D>, f: &'a F, cells: usize }
-impl Field<'a, W, F, D> {
+pub(crate) struct Field<'a, F, D> { backend: Participant<'a, F, D>, f: &'a F, cells: usize }
+impl Field<'a, F, D> {
     pub(crate) fn new(param: PolygeroParam, domain: &'a D) -> Result<Self, String>;
 }
 

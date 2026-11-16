@@ -385,41 +385,41 @@ pub type CircuitInput<F> = BaseElement<<F as PackingField>::Packing>;
 
 // zk::joint
 // what every storage mode shares: circuit IDs, geometry, profile, input layout, packing
-pub(crate) struct Frontend<const W: usize, F> { .. }
-pub struct CircuitParticipant<const W: usize, F> { .. }   // native: a Frontend and its Polygero parameter
-impl CircuitParticipant<W, F> {
+pub(crate) struct Frontend<F> { .. }
+pub struct CircuitParticipant<F> { .. }   // native: a Frontend and its Polygero parameter
+impl CircuitParticipant<F> {
     pub fn new(circuits: &[&Circuit<F>], virtual_inputs: usize,
                config: PolygeroConfig, domain: &D) -> Result<Self, String>; // the proof's one profile (I12)
     pub fn geometry(&self) -> CircuitProofGeometry;           // written as Circuit/CommitmentLayout (I1)
     pub(crate) fn field(&self) -> &F;                    // the domain's field at construction
-    pub(crate) fn participant(&'a self, domain: &'a D) -> Result<SelectedField<'a, W, F, D>, String>;
+    pub(crate) fn participant(&'a self, domain: &'a D) -> Result<SelectedField<'a, F, D>, String>;
 }
 // the statement writes every storage mode alike, from its Frontend and StorageLayout
 pub(crate) enum StorageLayout<'a> { Native, Mixed(&'a MixedStorage), #[cfg(test)] Pure(&'a StorageMap) }
-pub(crate) trait Participant<const W: usize, F> {
-    fn frontend(&self) -> &Frontend<W, F>;
+pub(crate) trait Participant<F> {
+    fn frontend(&self) -> &Frontend<F>;
     fn storage(&self) -> StorageLayout<'_>;
 }
 // P: the participant's storage mode, so each step takes only its mode's parts
-pub(crate) struct FrontendPart<'a, const W: usize, F, P = CircuitParticipant<W, F>> { .. }
-impl<P: Participant<W, F>> FrontendPart<'a, W, F, P> {   // participant, circuits, public inputs
+pub(crate) struct FrontendPart<'a, F, P = CircuitParticipant<F>> { .. }
+impl<P: Participant<F>> FrontendPart<'a, F, P> {   // participant, circuits, public inputs
     pub(crate) fn new(participant: &'a P, circuits: &[&'a Circuit<F>],
                       public: &'a [CircuitInput<F>]) -> Result<Self, String>;   // I3: checked once
-    pub(crate) fn frontend(&self) -> &'a Frontend<W, F>;
+    pub(crate) fn frontend(&self) -> &'a Frontend<F>;
     pub(crate) fn field(&self) -> &'a F;              // the participant's: every frontend step's field
 }
 // zk::split: mixed storage, R's bits at its MixedStorage's mask group (I9)
-pub(crate) struct MixedSplit<const W: usize, F> { .. }   // a Frontend, its Polygero parameter, its MixedStorage
-impl MixedSplit<W, F> {
+pub(crate) struct MixedSplit<F> { .. }   // a Frontend, its Polygero parameter, its MixedStorage
+impl MixedSplit<F> {
     pub(crate) fn new(circuit: &Circuit<F>, map: StorageMap, mask: Group,
                       config: PolygeroConfig, domain: &D) -> Result<Self, String>;
     pub(crate) fn geometry(&self) -> CircuitProofGeometry;
-    pub(crate) fn participant(&'a self, domain: &'a D) -> Result<SelectedField<'a, W, F, D>, String>;
+    pub(crate) fn participant(&'a self, domain: &'a D) -> Result<SelectedField<'a, F, D>, String>;
 }
 // zk::split::pure, tests only until a driver uses it (I11): no parameter, no participant()
-pub(crate) struct PureSplit<const W: usize, F> { .. }    // a Frontend and its all-foreign StorageMap
+pub(crate) struct PureSplit<F> { .. }    // a Frontend and its all-foreign StorageMap
 // the joint commitment, crate-private: witness selection, below it, is too
-pub(crate) struct SelectedField<'a, const W: usize, F, D> { .. }
+pub(crate) struct SelectedField<'a, F, D> { .. }
 pub(crate) trait Fields: Clone { .. }                     // (SelectedField, Tail) ... ()
 pub(crate) struct JointParam<L: Fields> { .. }
 impl<L: Fields> JointParam<L> {
@@ -429,14 +429,14 @@ impl<L: Fields> JointParam<L> {
 
 // zk, prover: the drivers (`ZkProver`, the composition driver) run these
 // crate-private steps; their states are crate-private
-impl CircuitParticipant<W, F> {
+impl CircuitParticipant<F> {
     pub(crate) fn prepare(&self, private: Vec<CircuitInput<F>>, rng: &mut impl PrivateRandom)
-        -> Result<(CircuitState<W, F>, Vec<F::E>), String>;
+        -> Result<(CircuitState<F>, Vec<F::E>), String>;
 }
-impl MixedSplit<W, F> {
+impl MixedSplit<F> {
     // mask is R; the witness is [native private inputs | pads | R]
     pub(crate) fn prepare(&self, private: Vec<CircuitInput<F>>, mask: F::E,
-                          rng: &mut impl PrivateRandom) -> Result<(SplitState<W, F>, Vec<F::E>), String>;
+                          rng: &mut impl PrivateRandom) -> Result<(SplitState<F>, Vec<F::E>), String>;
     pub(crate) fn foreign_values(&self, pending: &PendingSplit<F::E>) -> Vec<F::E>;  // claim term order, R last
 }
 impl<L: Fields> JointParam<L> {
@@ -450,15 +450,15 @@ impl<S, C, R> JointProver<S, C, R> {
     pub(crate) fn finish<L: Fields>(self, param: &JointParam<L>, equations: Statements<L>)
         -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>;
 }
-pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: CircuitState<W, F>,
+pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, F>>, state: CircuitState<F>,
                     virtual_inputs: &VirtualInputs<F::E>)    // I4: fixed before the top weights
     -> Result<(CircuitProof<F>, LinearStatement<F::E>), String>;
-pub(crate) fn prove_split(t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>, state: SplitState<W, F>)
+pub(crate) fn prove_split(t: &mut Bound<'_, FrontendPart<'_, F, MixedSplit<F>>>, state: SplitState<F>)
     -> Result<(SumcheckProof<F>, PendingSplit<F::E>), String>;
 pub(crate) struct PendingSplit<E> { pub(crate) claim: SplitClaim<E>, .. }
 impl<E> PendingSplit<E> {
     // draws eta (I4), then sends SplitOpening (I9)
-    pub(crate) fn open(self, t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>)
+    pub(crate) fn open(self, t: &mut Bound<'_, FrontendPart<'_, F, MixedSplit<F>>>)
         -> Result<(E, SplitOutput<E>), String>;
 }
 
@@ -477,14 +477,14 @@ impl Authenticated {
     // the seal of the proof whose opening this authenticated, on its session (I7)
     pub(crate) fn check_seal<P>(self, proof: Unverified<'_, P>) -> Result<VerifiedProof, &'static str>;
 }
-pub(crate) fn reduce(t: &mut Bound<'_, FrontendPart<'_, W, F>>, proof: &CircuitProof<F>,
+pub(crate) fn reduce(t: &mut Bound<'_, FrontendPart<'_, F>>, proof: &CircuitProof<F>,
                      virtual_inputs: &VirtualInputs<F::E>) -> Result<LinearStatement<F::E>, String>;
-pub(crate) fn reduce_split(t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>,
+pub(crate) fn reduce_split(t: &mut Bound<'_, FrontendPart<'_, F, MixedSplit<F>>>,
                            proof: &SumcheckProof<F>)
     -> Result<SplitClaim<F::E>, String>;
 impl<E> SplitClaim<E> {
     // draws eta (I4), then absorbs SplitOpening (I9)
-    pub(crate) fn receive(self, t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>, mu: &E)
+    pub(crate) fn receive(self, t: &mut Bound<'_, FrontendPart<'_, F, MixedSplit<F>>>, mu: &E)
         -> Result<SplitOutput<E>, String>;
 }
 
@@ -494,7 +494,7 @@ pub(crate) struct SplitClaim<E> { pub(crate) claim: LinearClaim<E>, .. }  // mix
 pub(crate) struct PureClaim<E> { pub(crate) claim: LinearClaim<E>, .. }   // rows unbatched
 impl<E> PureClaim<E> {
     // draws rho = elements(F, L+1) and uses it (I4, I11)
-    pub(crate) fn batch(self, t: &mut Bound<'_, FrontendPart<'_, W, F, PureSplit<W, F>>>)
+    pub(crate) fn batch(self, t: &mut Bound<'_, FrontendPart<'_, F, PureSplit<F>>>)
         -> Result<ModularClaim<E>, String>;
 }
 // private to zk::split: nonzero, built only by eta, which open and receive call
@@ -506,24 +506,24 @@ pub(crate) struct LinearClaim<E> { pub(crate) weights: Vec<E>, pub(crate) target
 #[must_use] pub(crate) struct ModularClaim<E> { pub(crate) terms: Vec<(Group, E)>, pub(crate) target: E }  // zk::storage, crate-private
 
 // zk: standalone single-circuit proof
-impl ZkProver<W, F> {
+impl ZkProver<F> {
     pub fn new(circuit: Circuit<F>, config: PolygeroConfig, domain: &D)
         -> Result<Self, String>;
     pub fn statement<'a>(&'a self, context: &'a [u8], public: &'a [CircuitInput<F>])
-        -> Result<ZkProofStatement<'a, W, F>, String>;
-    pub fn commit<'s>(&self, private: Vec<CircuitInput<F>>, statement: &'s ZkProofStatement<'s, W, F>,
+        -> Result<ZkProofStatement<'a, F>, String>;
+    pub fn commit<'s>(&self, private: Vec<CircuitInput<F>>, statement: &'s ZkProofStatement<'s, F>,
                       domain: &D, rng: &mut impl PrivateRandom)
-        -> Result<ZkProverCommitment<'s, W, F>, String>;  // opens the session
-    pub fn prove(&self, committed: ZkProverCommitment<'_, W, F>, domain: &D)
+        -> Result<ZkProverCommitment<'s, F>, String>;  // opens the session
+    pub fn prove(&self, committed: ZkProverCommitment<'_, F>, domain: &D)
         -> Result<EncodedProof, String>;               // sealed with the statement's geometry
 }
-impl ZkVerifier<W, F> {
+impl ZkVerifier<F> {
     pub fn new(circuit: Circuit<F>, config: PolygeroConfig, domain: &D)
         -> Result<Self, ZkVerificationError>;
     pub fn geometry(&self) -> ZkProofGeometry;
     pub fn statement<'a>(&'a self, context: &'a [u8], public: &'a [CircuitInput<F>])
-        -> Result<ZkProofStatement<'a, W, F>, ZkVerificationError>;
-    pub fn verify(&self, session: Opened<'_, ZkProofStatement<'_, W, F>>,
+        -> Result<ZkProofStatement<'a, F>, ZkVerificationError>;
+    pub fn verify(&self, session: Opened<'_, ZkProofStatement<'_, F>>,
                   proof: Unverified<'_, ZkProof<F>>, domain: &D)
         -> Result<VerifiedProof, ZkVerificationError>;
 }

@@ -188,7 +188,7 @@ impl crate::core::algebra::AlgebraicField for Gf2_128Field {
     }
 }
 
-impl RuntimeField<2> for Gf2_128Field {
+impl RuntimeField for Gf2_128Field {
     type Accum = Gf2_128Accum;
 
     #[inline(always)]
@@ -227,9 +227,9 @@ impl SupportsSampling for Gf2_128Field {
     }
 }
 
-impl RuntimeBinaryField<2> for Gf2_128Field {}
+impl RuntimeBinaryField for Gf2_128Field {}
 
-impl InterpolationField<2> for Gf2_128Field {
+impl InterpolationField for Gf2_128Field {
     #[inline(always)]
     fn poly_evaluation_point(&self, i: usize) -> Self::E {
         self.poly_evaluation_points[i]

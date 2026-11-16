@@ -242,7 +242,7 @@ impl<'a, E> ActiveFragment<'a, E> {
     }
 }
 
-pub(super) fn constant<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(super) fn constant<F: RuntimeField + SerializableField>(
     circuits: &[&Circuit<F>],
     weights: &[F::E],
     active: &[ActiveFragment<'_, F::E>],
@@ -267,7 +267,7 @@ pub(super) fn constant<const W: usize, F: RuntimeField<W> + SerializableField>(
 /// Bind every fragment's sparse terms against slices of one monomial array.
 /// Accumulate Q into one global array; input-layer fragments deliberately overlap.
 /// Finally apply the ordinary a_next=m(u)+alpha*q_r update once over that array.
-pub(super) fn transition<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(super) fn transition<F: RuntimeField + SerializableField>(
     circuits: &[&Circuit<F>],
     weights: &[F::E],
     active: &[ActiveFragment<'_, F::E>],

@@ -34,23 +34,18 @@ use crate::{
 pub struct QuadraticExtensionFftInterpolatorFactory<
     'a,
     const W: usize,
-    F: SupportsQuadraticExtension<W> + SupportsU64Conversions,
+    F: SupportsQuadraticExtension + SupportsU64Conversions,
 > {
     f: &'a F,
-    f2: &'a Fp2Field<'a, W, F>,
-    omega: Fp2Element<W, F>,
+    f2: &'a Fp2Field<'a, F>,
+    omega: Fp2Element<F>,
     omega_order: u64,
 }
 
-impl<'a, const W: usize, F: SupportsQuadraticExtension<W> + SupportsU64Conversions>
+impl<'a, const W: usize, F: SupportsQuadraticExtension + SupportsU64Conversions>
     QuadraticExtensionFftInterpolatorFactory<'a, W, F>
 {
-    pub fn new(
-        f: &'a F,
-        f2: &'a Fp2Field<'a, W, F>,
-        omega: Fp2Element<W, F>,
-        omega_order: u64,
-    ) -> Self {
+    pub fn new(f: &'a F, f2: &'a Fp2Field<'a, F>, omega: Fp2Element<F>, omega_order: u64) -> Self {
         Self {
             f,
             f2,
@@ -76,7 +71,7 @@ struct Block<E> {
 
 impl<E> Block<E> {
     /// Transform and normalize a public reciprocal kernel once per output block.
-    fn prepare<const W: usize, F: SupportsQuadraticExtension<W, E = E> + SupportsU64Conversions>(
+    fn prepare<const W: usize, F: SupportsQuadraticExtension<E = E> + SupportsU64Conversions>(
         block: ArithmeticBlock<E>,
         scale: &E,
         factory: &QuadraticExtensionFftInterpolatorFactory<'_, W, F>,
@@ -100,12 +95,11 @@ impl<E> Block<E> {
 /// Shifted arithmetic interpolation using blocked real FFT convolutions.
 pub struct QuadraticExtensionFftInterpolationPlan<
     'a,
-    const W: usize,
-    F: SupportsQuadraticExtension<W> + SupportsU64Conversions,
+    F: SupportsQuadraticExtension + SupportsU64Conversions,
 > {
     f: &'a F,
-    f2: &'a Fp2Field<'a, W, F>,
-    omega: Fp2Element<W, F>,
+    f2: &'a Fp2Field<'a, F>,
+    omega: Fp2Element<F>,
     omega_order: u64,
     ranges: Ranges,
     weights: Vec<F::E>,
@@ -113,10 +107,10 @@ pub struct QuadraticExtensionFftInterpolationPlan<
     blocks: Vec<Block<F::E>>,
 }
 
-impl<'a, const W: usize, F: SupportsQuadraticExtension<W> + SupportsU64Conversions>
-    QuadraticExtensionFftInterpolationPlan<'a, W, F>
+impl<'a, F: SupportsQuadraticExtension + SupportsU64Conversions>
+    QuadraticExtensionFftInterpolationPlan<'a, F>
 {
-    fn new(
+    fn new<const W: usize>(
         factory: &QuadraticExtensionFftInterpolatorFactory<'a, W, F>,
         source: Range<usize>,
         destination: Range<usize>,
@@ -150,17 +144,13 @@ impl<'a, const W: usize, F: SupportsQuadraticExtension<W> + SupportsU64Conversio
 }
 
 /// Multiply two real-FFT spectra, retaining the prepared input unchanged.
-fn multiply_spectra<const W: usize, F: SupportsQuadraticExtension<W>>(
-    out: &mut [F::E],
-    kernel: &[F::E],
-    f: &F,
-) {
+fn multiply_spectra<F: SupportsQuadraticExtension>(out: &mut [F::E], kernel: &[F::E], f: &F) {
     f.mul(&mut out[0], &kernel[0]);
     let half = out.len() / 2;
     f.mul(&mut out[half], &kernel[half]);
     let (left, right) = out.split_at_mut(half);
     for j in 1..half {
-        rfft::cmul::<W, F>(
+        rfft::cmul::<F>(
             &mut left[j],
             &mut right[half - j],
             &kernel[j],
@@ -170,8 +160,8 @@ fn multiply_spectra<const W: usize, F: SupportsQuadraticExtension<W>>(
     }
 }
 
-impl<const W: usize, F: SupportsQuadraticExtension<W> + SupportsU64Conversions>
-    InterpolationPlan<W, F> for QuadraticExtensionFftInterpolationPlan<'_, W, F>
+impl<F: SupportsQuadraticExtension + SupportsU64Conversions> InterpolationPlan<F>
+    for QuadraticExtensionFftInterpolationPlan<'_, F>
 {
     fn apply(&self, source: &[F::E]) -> Vec<F::E> {
         let mut destination = vec![self.f.zero(); self.ranges.destination.len()];
@@ -185,7 +175,7 @@ impl<const W: usize, F: SupportsQuadraticExtension<W> + SupportsU64Conversions>
         let mut work = vec![self.f.zero(); self.padding];
         for block in &self.blocks {
             work.clone_from_slice(&prepared);
-            multiply_spectra::<W, F>(&mut work, &block.kernel_fft, self.f);
+            multiply_spectra::<F>(&mut work, &block.kernel_fft, self.f);
             rfft::hc2r(&mut work, &self.omega, self.omega_order, self.f2);
             let output = &mut destination[block.output.clone()];
             output.clone_from_slice(&work[..output.len()]);
@@ -195,11 +185,11 @@ impl<const W: usize, F: SupportsQuadraticExtension<W> + SupportsU64Conversions>
     }
 }
 
-impl<'a, const W: usize, F> RangeInterpolatorFactory<W, F>
+impl<'a, const W: usize, F> RangeInterpolatorFactory<F>
     for QuadraticExtensionFftInterpolatorFactory<'a, W, F>
-where F: SupportsQuadraticExtension<W> + SupportsU64Conversions + SupportsNatConversions<W>
+where F: SupportsQuadraticExtension + SupportsU64Conversions + SupportsNatConversions<W>
 {
-    type Plan = QuadraticExtensionFftInterpolationPlan<'a, W, F>;
+    type Plan = QuadraticExtensionFftInterpolationPlan<'a, F>;
     fn can_interpolate(&self, source: Range<usize>, destination: Range<usize>) -> bool {
         if !Ranges::valid(&source, &destination, usize::MAX) {
             return false;
@@ -230,13 +220,12 @@ where F: SupportsQuadraticExtension<W> + SupportsU64Conversions + SupportsNatCon
     }
 }
 
-impl<const W: usize, F> EvaluationDomain<W, F>
-    for QuadraticExtensionFftInterpolatorFactory<'_, W, F>
-where F: RuntimeField<W>
+impl<const W: usize, F> EvaluationDomain<F> for QuadraticExtensionFftInterpolatorFactory<'_, W, F>
+where F: RuntimeField
         + SerializableField
         + SupportsU64Conversions
         + SupportsNatConversions<W>
-        + SupportsQuadraticExtension<W>
+        + SupportsQuadraticExtension
 {
     fn field(&self) -> &F {
         self.f

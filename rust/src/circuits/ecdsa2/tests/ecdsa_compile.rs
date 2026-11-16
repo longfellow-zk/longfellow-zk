@@ -53,7 +53,7 @@ fn char_to_digit(c: u8) -> u8 {
     }
 }
 
-fn make_inputs<const W: usize, FR: RuntimeField<W> + SerializableField>(
+fn make_inputs<FR: RuntimeField + SerializableField>(
     given: &Given<FR::E>,
     derived: &Derived<FR::E>,
     fr: &FR,
@@ -71,7 +71,7 @@ fn test_compile_ecdsa_generic<
         + SerializableField
         + HasLookupPoints
         + SupportsU64Conversions,
-    FR: RuntimeField<W> + SerializableField + SupportsNatConversions<W> + HasLookupPoints,
+    FR: RuntimeField + SerializableField + SupportsNatConversions<W> + HasLookupPoints,
     Fn: AlgebraicField + SupportsNatConversions<W, N = FR::N>,
     CC: Curve<W, F = FC, N = FC::N>,
     CR: Curve<W, F = FR, N = FR::N>,
@@ -138,7 +138,7 @@ fn test_compile_ecdsa_signature_tampering_generic<
         + SerializableField
         + HasLookupPoints
         + SupportsU64Conversions,
-    FR: RuntimeField<W>
+    FR: RuntimeField
         + SerializableField
         + SupportsNatConversions<W>
         + HasLookupPoints

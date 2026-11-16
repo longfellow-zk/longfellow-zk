@@ -42,12 +42,8 @@ pub use nat::RuntimeNat;
 pub use poly::{InterpolationField, LagrangeBasis, Poly};
 
 /// Stable trait alias bundling requirements for zero-knowledge proving.
-pub trait ZkField<const W: usize>:
-    InterpolationField<W> + SerializableField + SupportsSampling
-{
-}
-impl<const W: usize, F> ZkField<W> for F where F: InterpolationField<W> + SerializableField + SupportsSampling
-{}
+pub trait ZkField: InterpolationField + SerializableField + SupportsSampling {}
+impl<F> ZkField for F where F: InterpolationField + SerializableField + SupportsSampling {}
 
 #[cfg(test)]
 mod tests;

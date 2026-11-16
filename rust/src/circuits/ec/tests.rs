@@ -34,7 +34,7 @@ use crate::{
 fn test_compile_ec_generic<
     const W: usize,
     FC: CompilePrimeField + SupportsNatConversions<W> + SerializableField,
-    FR: RuntimeField<W> + SerializableField,
+    FR: RuntimeField + SerializableField,
     CC: Curve<W, F = FC>,
     CR: Curve<W, F = FR>,
 >(

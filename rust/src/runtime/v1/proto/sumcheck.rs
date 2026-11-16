@@ -28,11 +28,11 @@ use crate::{
 };
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct RoundPoly<const W: usize, F: SerializableField> {
+pub struct RoundPoly<F: SerializableField> {
     pub evaluations: [F::E; 2],
 }
 
-impl<const W: usize, F: SerializableField> Clone for RoundPoly<W, F> {
+impl<F: SerializableField> Clone for RoundPoly<F> {
     fn clone(&self) -> Self {
         Self {
             evaluations: self.evaluations.clone(),
@@ -44,21 +44,21 @@ use crate::core::proto::{sane_logw, MAX_LOGW};
 
 /// The proof of a single layer inside the circuit.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LayerProof<const W: usize, F: SerializableField> {
+pub struct LayerProof<F: SerializableField> {
     /// The round polynomials for each hand (right, left) in this layer.
-    pub hp: [Vec<RoundPoly<W, F>>; 2],
+    pub hp: [Vec<RoundPoly<F>>; 2],
     /// The final evaluated values of the layer, representing w(0) and w(1).
     pub claims: [ElementOf<F>; 2],
 }
 
 /// A complete Sumcheck proof, consisting of individual layer proofs.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SumcheckProof<const W: usize, F: SerializableField> {
+pub struct SumcheckProof<F: SerializableField> {
     /// The list of layer proofs, ordered from outputs to inputs.
-    pub layers: Vec<LayerProof<W, F>>,
+    pub layers: Vec<LayerProof<F>>,
 }
 
-impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
+impl<F: SerializableField> SumcheckProof<F> {
     /// Deserializes a `SumcheckProof` from a raw byte buffer.
     ///
     /// The deserialization uses the provided `SumcheckProofGeometry` to
@@ -285,7 +285,7 @@ impl SumcheckProofGeometry {
     }
 }
 
-impl<const W: usize, F: SerializableField> SumcheckProof<W, F> {
+impl<F: SerializableField> SumcheckProof<F> {
     pub fn validate(&self, geometry: &SumcheckProofGeometry) -> std::io::Result<()> {
         if self.layers.len() != geometry.logw_layers.len()
             || !self

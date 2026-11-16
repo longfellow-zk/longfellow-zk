@@ -1,7 +1,7 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 use super::super::*;
 use crate::runtime::{algebra::blas::axpy, v2::sumcheck::monomial::weights};
-pub(crate) fn bind_l<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(crate) fn bind_l<F: RuntimeField + SerializableField>(
     layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
@@ -13,7 +13,7 @@ pub(crate) fn bind_l<const W: usize, F: RuntimeField<W> + SerializableField>(
     bind_l_into(layer, constants, a, assertions, b, &mut q, f);
     q
 }
-pub(crate) fn bind_r<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(crate) fn bind_r<F: RuntimeField + SerializableField>(
     layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
@@ -25,7 +25,7 @@ pub(crate) fn bind_r<const W: usize, F: RuntimeField<W> + SerializableField>(
     bind_r_into(layer, constants, a, assertions, w, &mut q, f);
     q
 }
-pub(crate) fn weights_next_affine<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(crate) fn weights_next_affine<F: RuntimeField + SerializableField>(
     layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],

@@ -121,7 +121,7 @@ pub fn derived(given: &Given<u32>) -> Derived<u32> {
 
 cfg_testonly! {
     impl Derived<u32> {
-        pub fn push_derived<const W: usize, FR: crate::runtime::algebra::RuntimeField<W>>(
+        pub fn push_derived<FR: crate::runtime::algebra::RuntimeField>(
             &self,
             fr: &FR,
             mut push: impl FnMut(FR::E),

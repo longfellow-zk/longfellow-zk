@@ -38,7 +38,7 @@ pub(super) fn validate<E>(
 /// The constant contribution
 /// sum_c alpha[c]*b[c] is checked separately; these rows contain only variable
 /// weights. Return data rows in W order, excluding the three dedicated mask rows.
-pub(super) fn batch_constraints<const W: usize, F: RuntimeField<W>>(
+pub(super) fn batch_constraints<F: RuntimeField>(
     param: &PolygeroParam,
     b: &[F::E],
     a: &[PolygeroLinearTerm<F::E>],

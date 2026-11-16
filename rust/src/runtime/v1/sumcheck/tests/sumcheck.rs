@@ -36,16 +36,13 @@ use crate::{
     },
 };
 
-fn zero_proof<const W: usize, F: SerializableField + RuntimeField<W>>(
-    circ: &Circuit<F>,
-    f: &F,
-) -> SumcheckProof<W, F> {
+fn zero_proof<F: SerializableField + RuntimeField>(circ: &Circuit<F>, f: &F) -> SumcheckProof<F> {
     let mut layers = Vec::new();
     for ly in 0..circ.raw.layers.len() {
         let clr = &circ.raw.layers[ly];
         let hp = [
-            vec![Poly::<3, W, F>::zero(f).to_wire(); clr.logw()],
-            vec![Poly::<3, W, F>::zero(f).to_wire(); clr.logw()],
+            vec![Poly::<3, F>::zero(f).to_wire(); clr.logw()],
+            vec![Poly::<3, F>::zero(f).to_wire(); clr.logw()],
         ];
         let claims = [f.zero(), f.zero()];
         layers.push(LayerProof { hp, claims });

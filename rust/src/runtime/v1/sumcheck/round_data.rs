@@ -36,8 +36,8 @@ pub struct RoundCoefficients<E> {
 }
 
 impl<E> RoundCoefficients<E> {
-    pub fn new<const W: usize, F: InterpolationField<W, E = E>>(
-        basis: &LagrangeBasis<3, W, F>,
+    pub fn new<F: InterpolationField<E = E>>(
+        basis: &LagrangeBasis<3, F>,
         challenge: &E,
         f: &F,
     ) -> Self {
@@ -50,9 +50,9 @@ impl<E> RoundCoefficients<E> {
         }
     }
 
-    pub fn evaluate<const W: usize, F: RuntimeField<W, E = E> + SerializableField>(
+    pub fn evaluate<F: RuntimeField<E = E> + SerializableField>(
         &self,
-        polynomial: &RoundPoly<W, F>,
+        polynomial: &RoundPoly<F>,
         claim: &E,
         f: &F,
     ) -> E {

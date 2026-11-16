@@ -543,7 +543,7 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
 }
 
 impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>
-    RuntimeField<W> for FpGenericField<W, L, ACCUM_L, Tag, S>
+    RuntimeField for FpGenericField<W, L, ACCUM_L, Tag, S>
 {
     type Accum = FpGenericAccum<ACCUM_L>;
 
@@ -640,7 +640,7 @@ impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStr
 }
 
 impl<const W: usize, const L: usize, const ACCUM_L: usize, Tag, S: MontgomeryStrategy<L>>
-    InterpolationField<W> for FpGenericField<W, L, ACCUM_L, Tag, S>
+    InterpolationField for FpGenericField<W, L, ACCUM_L, Tag, S>
 {
     fn poly_evaluation_point(&self, i: usize) -> Self::E {
         self.u64_to_element(i as u64)

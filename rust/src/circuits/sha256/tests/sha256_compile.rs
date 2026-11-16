@@ -32,14 +32,14 @@ use crate::{
     runtime::algebra::RuntimeField,
 };
 
-fn push_u32_bits<const W: usize, FR: RuntimeField<W>>(inputs: &mut Vec<FR::E>, val: u32, fr: &FR) {
+fn push_u32_bits<FR: RuntimeField>(inputs: &mut Vec<FR::E>, val: u32, fr: &FR) {
     for k in 0..32 {
         let bit = (val >> k) & 1;
         inputs.push(if bit == 1 { fr.one() } else { fr.zero() });
     }
 }
 
-fn make_inputs<const W: usize, FR: RuntimeField<W>>(
+fn make_inputs<FR: RuntimeField>(
     given: &Given<u32>,
     derived: &Derived<u32>,
     fr: &FR,
@@ -52,9 +52,8 @@ fn make_inputs<const W: usize, FR: RuntimeField<W>>(
 
 fn test_compile_sha256_for_field<
     'a,
-    const W: usize,
     FC: CompileField + FieldWrappingSum + SerializableField,
-    FR: RuntimeField<W> + SerializableField,
+    FR: RuntimeField + SerializableField,
 >(
     fc: &'a FC,
     fr: &'a FR,
@@ -105,7 +104,7 @@ fn test_compile_sha256_for_field<
 fn test_compile_sha256() {
     let p256_c = P256Field::new();
     let p256_r = crate::runtime::algebra::p256::P256Field::new();
-    test_compile_sha256_for_field::<4, _, _>(
+    test_compile_sha256_for_field::<_, _>(
         &p256_c,
         &p256_r,
         "sha256_p256",
@@ -121,7 +120,7 @@ fn test_compile_sha256() {
     );
     let gf2_c = Gf2_128Field::new();
     let gf2_r = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-    test_compile_sha256_for_field::<2, _, _>(
+    test_compile_sha256_for_field::<_, _>(
         &gf2_c,
         &gf2_r,
         "sha256_gf2_128",

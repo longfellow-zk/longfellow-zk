@@ -18,11 +18,10 @@ pub(crate) trait VerifierFields: Fields<Backend: VerifierParticipants> {}
 impl VerifierFields for () {}
 impl<
         'a,
-        const W: usize,
-        F: RuntimeField<W> + RegisteredField + SupportsSampling,
-        D: EvaluationDomain<W, F>,
+        F: RuntimeField + RegisteredField + SupportsSampling,
+        D: EvaluationDomain<F>,
         T: VerifierFields,
-    > VerifierFields for (Field<'a, W, F, D>, T)
+    > VerifierFields for (Field<'a, F, D>, T)
 {
 }
 

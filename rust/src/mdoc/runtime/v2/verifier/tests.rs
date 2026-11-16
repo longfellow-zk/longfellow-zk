@@ -65,8 +65,8 @@ thread_local! {
 /// the geometry the proof is parsed against, which must be the statement's.
 pub(super) fn observe<DH, DS>(session: &mut Opened<'_, MdocStatement<'_, DH, DS>>)
 where
-    DH: EvaluationDomain<2, Gf2_128Field>,
-    DS: EvaluationDomain<4, P256Field>,
+    DH: EvaluationDomain<Gf2_128Field>,
+    DS: EvaluationDomain<P256Field>,
 {
     if OBSERVED.with_borrow(Option::is_none) {
         return;

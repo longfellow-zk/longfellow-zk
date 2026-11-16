@@ -176,9 +176,7 @@ fn finish_rejects_equations_derived_on_another_session() {
     let verifier_equations = derived(verifier.bound(&()).session());
     verifier.finish(verifier_equations, &proof).unwrap();
 }
-fn circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
-    f: &F,
-) -> (Circuit<F>, Circuit<F>) {
+fn circuits<F: RuntimeField + SerializableField>(f: &F) -> (Circuit<F>, Circuit<F>) {
     let layer = |nw, q, l| {
         Layer::new(
             nw,
@@ -578,7 +576,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     assert!(CircuitParticipant::new(&[&fragment, &main], 1, config, &domain).is_err());
 }
 
-impl<const W: usize, F: ZkField<W> + PackingField> Frontend<W, F> {
+impl<F: ZkField + PackingField> Frontend<F> {
     /// Every field, in declaration order. The pattern is exhaustive, so a new
     /// field does not compile until the statement tests cover it.
     #[allow(clippy::type_complexity)]
@@ -604,7 +602,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> Frontend<W, F> {
     }
 }
 
-impl<'a, const W: usize, F: ZkField<W> + PackingField, P> FrontendPart<'a, W, F, P> {
+impl<'a, F: ZkField + PackingField, P> FrontendPart<'a, F, P> {
     /// Every field, in declaration order: the participant, the circuits and
     /// the public inputs. The pattern is exhaustive, so a new field does not
     /// compile until the statement tests cover it.

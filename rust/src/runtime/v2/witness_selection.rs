@@ -29,13 +29,12 @@ pub(crate) use fields::{Bodies, Field, Fields, Param, Statements};
 
 impl<
         'a,
-        const W: usize,
-        F: RuntimeField<W> + RegisteredField + SupportsSampling,
-        D: EvaluationDomain<W, F>,
+        F: RuntimeField + RegisteredField + SupportsSampling,
+        D: EvaluationDomain<F>,
         T: Fields,
-    > Fields for (Field<'a, W, F, D>, T)
+    > Fields for (Field<'a, F, D>, T)
 {
-    type Backend = (Participant<'a, W, F, D>, T::Backend);
+    type Backend = (Participant<'a, F, D>, T::Backend);
     type Coefficients = ([Vec<F::E>; FINGERPRINTS], T::Coefficients);
     type Responses = (FingerprintResponse<F::E>, T::Responses);
     fn backend(&self) -> Self::Backend {

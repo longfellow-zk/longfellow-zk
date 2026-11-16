@@ -31,7 +31,7 @@ use crate::{
 
 // Compare the optimized two-product kernel with all three coefficients expanded
 // directly, then evaluate at finite challenges and compare with bound input pairs.
-fn check_round_polynomial<const W: usize, F: RuntimeField<W> + SerializableField>(
+fn check_round_polynomial<F: RuntimeField + SerializableField>(
     f: &F,
     element: impl Fn(u64) -> F::E,
 ) {
@@ -84,7 +84,7 @@ fn round_polynomial_matches_bound_product_binary() {
 
 // Check the symbolic round at 0, 1, -1, and an ordinary challenge, including
 // vanished old/new pad coefficients. The incoming claim is zero, so c2 = -c0.
-fn check_round_constraints<const W: usize, F: RuntimeField<W> + SerializableField>(
+fn check_round_constraints<F: RuntimeField + SerializableField>(
     f: &F,
     element: impl Fn(u64) -> F::E,
 ) {
@@ -146,10 +146,7 @@ fn round_constraints_match_polynomial_binary() {
 // chosen roots, and check the actual symbolic terminal against that polynomial.
 // This catches signs and challenge powers in both characteristics, and shows why
 // the soundness cost is two roots rather than an unchecked multiplication.
-fn check_terminal<const W: usize, F: RuntimeField<W> + SerializableField>(
-    f: &F,
-    element: impl Fn(u64) -> F::E,
-) {
+fn check_terminal<F: RuntimeField + SerializableField>(f: &F, element: impl Fn(u64) -> F::E) {
     use crate::runtime::v2::sumcheck::symbolic::Pad;
     let a = element(7);
     let b = element(11);
@@ -259,11 +256,11 @@ fn terminal_transcript_fixes_cross_before_scale_and_claims_before_combination() 
         claims: &claims,
     });
     let expected_alpha = reference.borrow().draw(|r| r.elt_field(&f));
-    let alpha = transcript::end_layer::<4, _>(&claims, &mut prover.borrow(), &f, |_| {});
+    let alpha = transcript::end_layer(&claims, &mut prover.borrow(), &f, |_| {});
     assert_eq!(alpha, expected_alpha);
     assert_eq!(prover.bytes(32), reference.bytes(32));
     let changed_alpha =
-        transcript::end_layer::<4, _>(&[claims[1], claims[0]], &mut changed.borrow(), &f, |_| {});
+        transcript::end_layer(&[claims[1], claims[0]], &mut changed.borrow(), &f, |_| {});
     assert_ne!(alpha, changed_alpha);
     let mut changed_cross = Transcript::for_test(b"terminal-order");
     assert_ne!(

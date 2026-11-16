@@ -84,7 +84,7 @@ use crate::{
 /// each layer's rounds, constrain the claim to `A * B`, then start the next layer
 /// with `A + alpha * (B - L(u))`. Subtract the public constant correction K
 /// before each layer's rounds. Finally constrain the claim to the weighted input sum.
-pub(crate) fn build_constraints<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(crate) fn build_constraints<F: RuntimeField + SerializableField>(
     proof: &SumcheckProof<F>,
     layer_challenges: Vec<LayerChallenges<F::E>>,
     input_weights: Vec<F::E>,
@@ -205,7 +205,7 @@ impl<E: Clone> PadExpression<E> {
     ///
     /// Both claims are affine expressions in the pads. The old terms scale by z^2;
     /// the new pads s0,s1 receive coefficients 1-z^2 and z.
-    fn round<const W: usize, F: RuntimeField<W, E = E>>(
+    fn round<F: RuntimeField<E = E>>(
         &mut self,
         layer: usize,
         round: usize,
@@ -241,7 +241,7 @@ impl<E: Clone> PadExpression<E> {
 
     /// Add r*(d+p_D)+r^2*p_AB-m_A*m_B to the running claim. Every hidden
     /// value now appears linearly, including the unchecked product cell.
-    fn terminal_constraint<const W: usize, F: RuntimeField<W, E = E>>(
+    fn terminal_constraint<F: RuntimeField<E = E>>(
         &mut self,
         layer: usize,
         messages: &[E; 2],
@@ -262,7 +262,7 @@ impl<E: Clone> PadExpression<E> {
     /// `(m_A + alpha*m_B) - r*p_A - alpha*r*p_B`.
     /// Earlier round pads occur only in the constraint just recorded; this new
     /// claim depends only on the two final-claim pads.
-    fn claim_next<const W: usize, F: RuntimeField<W, E = E>>(
+    fn claim_next<F: RuntimeField<E = E>>(
         layer: usize,
         messages: &[E; 2],
         alpha: E,

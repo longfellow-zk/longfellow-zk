@@ -35,11 +35,10 @@ impl ProverFields for () {
 }
 impl<
         'a,
-        const W: usize,
-        F: RuntimeField<W> + RegisteredField + SupportsSampling,
-        D: EvaluationDomain<W, F>,
+        F: RuntimeField + RegisteredField + SupportsSampling,
+        D: EvaluationDomain<F>,
         T: ProverFields,
-    > ProverFields for (Field<'a, W, F, D>, T)
+    > ProverFields for (Field<'a, F, D>, T)
 {
     fn validate_witnesses(&self, witnesses: &Witnesses<Self>) -> Result<(), String> {
         if witnesses.0.len() != self.0.cells {

@@ -81,13 +81,13 @@ pub fn run_mdoc_verifier(
     let (c_sig, c_hash) = super::circuits::decompress_circuits(circuits_compressed, &p256, &gf2)
         .map_err(|_| MdocVerifierErrorCode::CircuitParsingFailure)?;
 
-    let verifier_hash = ZkVerifier::<2, _>::new(c_hash, config_hash);
+    let verifier_hash = ZkVerifier::new(c_hash, config_hash);
     let geom_hash = verifier_hash.geometry(&ZkContext {
         f: &gf2,
         make_interpolator: &make_interpolator_hash,
     });
 
-    let verifier_sig = ZkVerifier::<4, _>::new(c_sig, config_sig);
+    let verifier_sig = ZkVerifier::new(c_sig, config_sig);
     let geom_sig = verifier_sig.geometry(&ZkContext {
         f: &p256,
         make_interpolator: &make_interpolator_sig,

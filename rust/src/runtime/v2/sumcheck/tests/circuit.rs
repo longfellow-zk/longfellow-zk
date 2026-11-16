@@ -24,7 +24,7 @@ use crate::{
     },
 };
 
-fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(f: &F) {
+fn check<F: RuntimeField + RegisteredField + SupportsSampling>(f: &F) {
     // x*y + k*x + c - z = 0. No circuit input is a reserved constant.
     let mut random = DeterministicRng::new(197);
     let x = random.elt_field(f);
@@ -319,10 +319,10 @@ fn binary_lfc3_classifies_both_signs_as_one() {
     }
 }
 
-fn check_coefficients<const W: usize, FC, FR>(cf: &FC, f: &FR)
+fn check_coefficients<FC, FR>(cf: &FC, f: &FR)
 where
     FC: CompileField + SerializableField + Clone,
-    FR: RuntimeField<W> + RegisteredField + SupportsSampling,
+    FR: RuntimeField + RegisteredField + SupportsSampling,
 {
     use crate::compile::{
         compiler::{compile_v2, segment_circuit_v2},

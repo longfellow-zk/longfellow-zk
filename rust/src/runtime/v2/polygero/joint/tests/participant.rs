@@ -89,8 +89,8 @@ impl AlgebraicField for EncodingWidth {
         self.field.invert(a)
     }
 }
-impl RuntimeField<4> for EncodingWidth {
-    type Accum = <P256Field as RuntimeField<4>>::Accum;
+impl RuntimeField for EncodingWidth {
+    type Accum = <P256Field as RuntimeField>::Accum;
     fn zero_accum(&self) -> Self::Accum {
         self.field.zero_accum()
     }

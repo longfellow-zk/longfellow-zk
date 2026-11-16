@@ -29,12 +29,12 @@ pub(in crate::runtime::algebra) fn assert_valid_orders(transform_order: u64, roo
     );
 }
 
-pub struct Twiddle<const W: usize, F: RuntimeField<W>> {
+pub struct Twiddle<F: RuntimeField> {
     pub order: usize,
     pub w: Vec<F::E>,
 }
 
-impl<const W: usize, F: RuntimeField<W>> Twiddle<W, F> {
+impl<F: RuntimeField> Twiddle<F> {
     pub fn new(order: usize, omega_order: &F::E, f: &F) -> Self {
         assert!(
             order.is_power_of_two(),
@@ -61,19 +61,14 @@ impl<const W: usize, F: RuntimeField<W>> Twiddle<W, F> {
     }
 }
 
-fn butterfly<const W: usize, F: RuntimeField<W>>(s: usize, a: &mut [F::E], f: &F) {
+fn butterfly<F: RuntimeField>(s: usize, a: &mut [F::E], f: &F) {
     let t = a[s].clone();
     a[s] = a[0].clone();
     f.sub(&mut a[s], &t);
     f.add(&mut a[0], &t);
 }
 
-fn butterflytw<const W: usize, F: RuntimeField<W>>(
-    s: usize,
-    a: &mut [F::E],
-    twiddle: &F::E,
-    f: &F,
-) {
+fn butterflytw<F: RuntimeField>(s: usize, a: &mut [F::E], twiddle: &F::E, f: &F) {
     let (first, second) = a.split_at_mut(s);
     f.mul(&mut second[0], twiddle);
     let t = second[0].clone();
@@ -82,12 +77,12 @@ fn butterflytw<const W: usize, F: RuntimeField<W>>(
     f.add(&mut first[0], &t);
 }
 
-pub fn fftb<const W: usize, F: RuntimeField<W>>(a: &mut [F::E], omega_j: &F::E, j: u64, f: &F) {
+pub fn fftb<F: RuntimeField>(a: &mut [F::E], omega_j: &F::E, j: u64, f: &F) {
     let n = a.len();
     assert_valid_orders(n as u64, j);
     if n > 1 {
-        let omega_n = Twiddle::<W, F>::reroot(omega_j, j, n as u64, f);
-        let roots = Twiddle::<W, F>::new(n, &omega_n, f);
+        let omega_n = Twiddle::<F>::reroot(omega_j, j, n as u64, f);
+        let roots = Twiddle::<F>::new(n, &omega_n, f);
 
         permutations::bitrev(a);
 
@@ -112,12 +107,7 @@ pub fn fftb<const W: usize, F: RuntimeField<W>>(a: &mut [F::E], omega_j: &F::E, 
     }
 }
 
-pub fn fftf<const W: usize, F: RuntimeField<W>>(
-    a: &mut [F::E],
-    omega: &F::E,
-    omega_order: u64,
-    f: &F,
-) {
+pub fn fftf<F: RuntimeField>(a: &mut [F::E], omega: &F::E, omega_order: u64, f: &F) {
     assert_valid_orders(a.len() as u64, omega_order);
     let inv = f.invert(omega);
     fftb(a, &inv, omega_order, f);

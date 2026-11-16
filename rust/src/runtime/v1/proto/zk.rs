@@ -46,13 +46,13 @@ pub struct ZkProofGeometry {
 /// Contains the sumcheck proof, commitment root,
 /// and the Ligero proof over the constraints.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ZkProof<const W: usize, F: SerializableField> {
-    pub sumcheck_proof: SumcheckProof<W, F>,
+pub struct ZkProof<F: SerializableField> {
+    pub sumcheck_proof: SumcheckProof<F>,
     pub com: LigeroCommitment,
-    pub com_proof: LigeroProof<W, F>,
+    pub com_proof: LigeroProof<F>,
 }
 
-impl<const W: usize, F: RuntimeField<W> + SerializableField> ZkProof<W, F> {
+impl<F: RuntimeField + SerializableField> ZkProof<F> {
     pub fn write_to_buf<SF: SubfieldV1<E = ElementOf<F>>>(
         &self,
         buf: &mut Vec<u8>,

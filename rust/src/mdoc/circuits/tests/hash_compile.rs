@@ -67,12 +67,7 @@ where FC: MdocHashCompileField {
     })
 }
 
-fn push_bits<const W: usize, FR: RuntimeField<W>>(
-    inputs: &mut Vec<FR::E>,
-    value: u128,
-    nbits: usize,
-    fr: &FR,
-) {
+fn push_bits<FR: RuntimeField>(inputs: &mut Vec<FR::E>, value: u128, nbits: usize, fr: &FR) {
     for bit in 0..nbits {
         inputs.push(if (value >> bit) & 1 == 1 {
             fr.one()
@@ -82,12 +77,7 @@ fn push_bits<const W: usize, FR: RuntimeField<W>>(
     }
 }
 
-fn push_bytes<const W: usize, FR: RuntimeField<W>>(
-    inputs: &mut Vec<FR::E>,
-    bytes: &[u8],
-    size: usize,
-    fr: &FR,
-) {
+fn push_bytes<FR: RuntimeField>(inputs: &mut Vec<FR::E>, bytes: &[u8], size: usize, fr: &FR) {
     for idx in 0..size {
         push_bits(
             inputs,
@@ -98,7 +88,7 @@ fn push_bytes<const W: usize, FR: RuntimeField<W>>(
     }
 }
 
-fn push_nat<const W: usize, FR: RuntimeField<W>, N: Nat<4>>(
+fn push_nat<FR: RuntimeField, N: Nat<4>>(
     inputs: &mut Vec<FR::E>,
     value: &N,
     nbits: usize,
@@ -111,13 +101,13 @@ fn push_nat<const W: usize, FR: RuntimeField<W>, N: Nat<4>>(
     }
 }
 
-fn make_hash_inputs<const W: usize, FR>(
+fn make_hash_inputs<FR>(
     given: &ConcreteGiven<CompileNat<4>>,
     derived: &ConcreteDerived,
     fr: &FR,
 ) -> Vec<FR::E>
 where
-    FR: RuntimeField<W> + SupportsU128Conversions,
+    FR: RuntimeField + SupportsU128Conversions,
 {
     use crate::mdoc::proto::{
         hash::constants::{K_MSO_PREIMAGE_LEN, K_TIMESTAMP_DIGITS},
@@ -228,9 +218,8 @@ where
 }
 
 fn test_mdoc_zk_circuits_hash_for_field<
-    const W_R: usize,
     FC: MdocHashCompileField,
-    FR: RuntimeField<W_R> + SerializableField,
+    FR: RuntimeField + SerializableField,
 >(
     fc: &FC,
     _fr: &FR,
@@ -258,7 +247,7 @@ fn test_mdoc_zk_circuits_hash_for_field<
 fn test_mdoc_zk_circuits_hash() {
     let fc = Gf2_128Field::new();
     let fr = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-    test_mdoc_zk_circuits_hash_for_field::<2, _, _>(&fc, &fr);
+    test_mdoc_zk_circuits_hash_for_field::<_, _>(&fc, &fr);
 }
 
 #[test]

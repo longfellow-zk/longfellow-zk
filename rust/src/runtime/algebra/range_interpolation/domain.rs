@@ -22,7 +22,7 @@ use crate::{
 };
 
 /// An immutable plan for fixed source and destination ranges.
-pub trait InterpolationPlan<const W: usize, F: RuntimeField<W>> {
+pub trait InterpolationPlan<F: RuntimeField> {
     /// Return evaluations on the destination range used to construct the plan.
     /// The source length must match the plan; its values are unchanged.
     fn apply(&self, source: &[F::E]) -> Vec<F::E>;
@@ -32,8 +32,8 @@ pub trait InterpolationPlan<const W: usize, F: RuntimeField<W>> {
 ///
 /// Arithmetic backends use `point(i) = i`; binary backends use the supplied
 /// additive basis. Factories and plans are independent of either proof protocol.
-pub trait RangeInterpolatorFactory<const W: usize, F: RuntimeField<W>> {
-    type Plan: InterpolationPlan<W, F>;
+pub trait RangeInterpolatorFactory<F: RuntimeField> {
+    type Plan: InterpolationPlan<F>;
 
     /// Whether both ranges fit the distinct point table and backend capacity.
     /// Empty or reversed source ranges and reversed destinations are rejected.
@@ -46,9 +46,7 @@ pub trait RangeInterpolatorFactory<const W: usize, F: RuntimeField<W>> {
     fn point(&self, index: usize) -> F::E;
 }
 
-impl<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F> + ?Sized>
-    RangeInterpolatorFactory<W, F> for &D
-{
+impl<F: RuntimeField, D: RangeInterpolatorFactory<F> + ?Sized> RangeInterpolatorFactory<F> for &D {
     type Plan = D::Plan;
     fn can_interpolate(&self, source: Range<usize>, destination: Range<usize>) -> bool {
         (**self).can_interpolate(source, destination)
@@ -63,9 +61,7 @@ impl<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F> + ?Si
 
 /// Stable identity of the field and fixed point ordering, independent of the
 /// interpolation algorithm. This metadata introduces no evaluation points.
-pub trait EvaluationDomain<const W: usize, F: RuntimeField<W>>:
-    RangeInterpolatorFactory<W, F>
-{
+pub trait EvaluationDomain<F: RuntimeField>: RangeInterpolatorFactory<F> {
     /// The arithmetic instance used by this domain's interpolation plans.
     /// Protocol callers derive their field from here, so runtime-configured
     /// moduli cannot accidentally disagree between interpolation and checks.
@@ -73,9 +69,7 @@ pub trait EvaluationDomain<const W: usize, F: RuntimeField<W>>:
     fn domain_id(&self) -> Vec<u8>;
 }
 
-impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F> + ?Sized> EvaluationDomain<W, F>
-    for &D
-{
+impl<F: RuntimeField, D: EvaluationDomain<F> + ?Sized> EvaluationDomain<F> for &D {
     fn field(&self) -> &F {
         (**self).field()
     }
@@ -86,7 +80,7 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F> + ?Sized> Eva
 
 /// Construct and apply one plan. Reuse a plan when interpolating many rows.
 /// Panics on index overflow or unsupported ranges.
-pub fn interpolate_range<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F>>(
+pub fn interpolate_range<F: RuntimeField, D: RangeInterpolatorFactory<F>>(
     source_begin: usize,
     values: &[F::E],
     destination: Range<usize>,

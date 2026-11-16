@@ -2,7 +2,7 @@
 use super::super::*;
 use crate::core::proto::v2::Circuit;
 
-pub(crate) fn eval_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(crate) fn eval_circuit<F: RuntimeField + SerializableField>(
     w: Vec<F::E>,
     circuit: &Circuit<F>,
     f: &F,
@@ -11,7 +11,7 @@ pub(crate) fn eval_circuit<const W: usize, F: RuntimeField<W> + SerializableFiel
     eval_classified_circuit(w, circuit, &layers, f)
 }
 
-pub(crate) fn eval_classified_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(crate) fn eval_classified_circuit<F: RuntimeField + SerializableField>(
     mut w: Vec<F::E>,
     circuit: &Circuit<F>,
     layers: &[ClassifiedLayer<'_>],
@@ -38,7 +38,7 @@ pub(crate) fn eval_classified_circuit<const W: usize, F: RuntimeField<W> + Seria
     saved.reverse();
     Ok(saved)
 }
-pub(crate) fn eval_layer<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(crate) fn eval_layer<F: RuntimeField + SerializableField>(
     w: &[F::E],
     layer: &ClassifiedLayer<'_>,
     constants: &[F::E],

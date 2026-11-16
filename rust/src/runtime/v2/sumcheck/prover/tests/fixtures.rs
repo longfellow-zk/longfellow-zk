@@ -6,10 +6,7 @@ use crate::{
 };
 
 /// Diagnostic entry point for tests that supply arbitrary intermediate witnesses.
-pub(crate) fn prove_core<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
+pub(crate) fn prove_core<F: RuntimeField + RegisteredField + SupportsSampling>(
     w_layers: Vec<Vec<ElementOf<F>>>,
     pads: &SumcheckProof<F>,
     circuit: &Circuit<F>,
@@ -36,7 +33,7 @@ pub(crate) fn prove_core<
 /// Bind the statement and run the prover for a test with at least one layer.
 /// The final entry of w_layers supplies the circuit inputs; zero-layer tests
 /// bind the statement explicitly and call prove_core.
-pub(crate) fn prove<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
+pub(crate) fn prove<F: RuntimeField + RegisteredField + SupportsSampling>(
     w_layers: Vec<Vec<ElementOf<F>>>,
     pads: &SumcheckProof<F>,
     circuit: &Circuit<F>,

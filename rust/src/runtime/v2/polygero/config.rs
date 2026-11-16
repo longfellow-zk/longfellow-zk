@@ -21,9 +21,8 @@ impl crate::runtime::v2::proto::polygero::PolygeroConfig {
     /// Capacity for every interpolation used by the nonrecursive protocol.
     /// All ranges are contained in U = [0,k) || [k,k+n).
     pub fn can_interpolate<
-        const W: usize,
-        F: crate::runtime::algebra::RuntimeField<W>,
-        D: crate::runtime::algebra::range_interpolation::RangeInterpolatorFactory<W, F>,
+        F: crate::runtime::algebra::RuntimeField,
+        D: crate::runtime::algebra::range_interpolation::RangeInterpolatorFactory<F>,
     >(
         &self,
         domain: &D,

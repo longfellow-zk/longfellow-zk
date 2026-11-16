@@ -87,13 +87,13 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
     /// Append the packing equations to the existing affine statement. The
     /// returned rows still require authentication by the joint backend.
-    pub(super) fn append_equations<const W: usize>(
+    pub(super) fn append_equations(
         &self,
         statement: CommitmentStatement<F::E>,
         rows: &[FieldEquation<F::E>],
     ) -> Result<(Vec<PolygeroLinearTerm<F::E>>, Vec<F::E>), String>
     where
-        F: ZkField<W>,
+        F: ZkField,
     {
         // Neither packing equation is sufficient by itself. Both enter the
         // same Polygero statement that authenticates the layer constraints.

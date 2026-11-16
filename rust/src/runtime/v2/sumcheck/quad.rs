@@ -13,7 +13,7 @@ use crate::{
 
 /// Bind quadratic g,l coordinates. Linear terms have no r coordinate and enter
 /// the public L(u) correction separately.
-pub(super) fn bind_l_into<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(super) fn bind_l_into<F: RuntimeField + SerializableField>(
     layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
@@ -60,7 +60,7 @@ pub(super) fn bind_l_into<const W: usize, F: RuntimeField<W> + SerializableField
 /// classes. Unit terms save a coefficient multiplication; linear assertions add
 /// rho directly, without an output weight or a witness multiplication.
 #[cfg(any(test, feature = "prover"))]
-pub(super) fn bind_r_into<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(super) fn bind_r_into<F: RuntimeField + SerializableField>(
     layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
@@ -103,7 +103,7 @@ pub(super) fn bind_r_into<const W: usize, F: RuntimeField<W> + SerializableField
 }
 
 #[cfg(any(test, feature = "prover"))]
-fn add_linear<const W: usize, F: RuntimeField<W> + SerializableField>(
+fn add_linear<F: RuntimeField + SerializableField>(
     layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
@@ -138,7 +138,7 @@ fn add_linear<const W: usize, F: RuntimeField<W> + SerializableField>(
 /// Contract the linear stream at the same global monomial weights used by Q.
 /// The caller sums fragment corrections and subtracts alpha*L(u) from the
 /// ordinary two-factor transition. Purely linear fragments use this same path.
-pub(super) fn affine_linear<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(super) fn affine_linear<F: RuntimeField + SerializableField>(
     layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],
@@ -174,7 +174,7 @@ pub(super) fn affine_linear<const W: usize, F: RuntimeField<W> + SerializableFie
     linear
 }
 
-pub(super) fn affine_constant<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(super) fn affine_constant<F: RuntimeField + SerializableField>(
     layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
     a: &[F::E],

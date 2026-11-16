@@ -31,12 +31,7 @@ use crate::{
         },
     },
 };
-fn three_streams<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling + Clone,
->(
-    f: &F,
-) {
+fn three_streams<F: RuntimeField + RegisteredField + SupportsSampling + Clone>(f: &F) {
     let scalar = |n: u8| {
         let mut bytes = vec![0; f.serialized_size_bytes()];
         bytes[0] = n;
@@ -391,10 +386,10 @@ fn lfc3_accepts_explicit_unit_constants_and_checks_the_semantic_id() {
     assert!(CircuitReader::new(&f).from_bytes(&corrupt).is_err());
 }
 
-fn explicit_units<const W: usize, CF, RF>(cf: &CF, f: &RF)
+fn explicit_units<CF, RF>(cf: &CF, f: &RF)
 where
     CF: CompileField + SerializableField,
-    RF: RuntimeField<W> + RegisteredField + SupportsSampling,
+    RF: RuntimeField + RegisteredField + SupportsSampling,
 {
     use crate::{
         compile::{

@@ -116,7 +116,7 @@ fn main() {
 
         if sig_id.is_none() {
             let mut row = report("sig", 0, &c_sig.raw, &hex(&sig_entry.circuit_id));
-            let v = runtime_zk::ZkVerifier::<4, _>::new(c_sig, spec.ligero_sig);
+            let v = runtime_zk::ZkVerifier::new(c_sig, spec.ligero_sig);
             let g = v.geometry(&runtime_zk::common::ZkContext {
                 f: &p256,
                 make_interpolator: &make_interpolator_sig,
@@ -139,7 +139,7 @@ fn main() {
             &c_hash.raw,
             &hex(&hash_entry.circuit_id),
         );
-        let v = runtime_zk::ZkVerifier::<2, _>::new(c_hash, spec.ligero_hash);
+        let v = runtime_zk::ZkVerifier::new(c_hash, spec.ligero_hash);
         let g = v.geometry(&runtime_zk::common::ZkContext {
             f: &gf2,
             make_interpolator: &make_interpolator_hash,

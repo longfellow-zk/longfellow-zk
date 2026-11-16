@@ -66,9 +66,7 @@ struct BadInterpolator<I> {
     applications: Cell<usize>,
 }
 
-impl<const W: usize, F: RuntimeField<W>, I: InterpolationPlan<W, F>> InterpolationPlan<W, F>
-    for BadInterpolator<I>
-{
+impl<F: RuntimeField, I: InterpolationPlan<F>> InterpolationPlan<F> for BadInterpolator<I> {
     fn apply(&self, source: &[F::E]) -> Vec<F::E> {
         let mut destination = self.real.apply(source);
         self.applications.set(self.applications.get() + 1);
@@ -85,8 +83,8 @@ struct BadInterpolatorFactory<'a, IF> {
     fail_on_apply: usize,
 }
 
-impl<const W: usize, F: RuntimeField<W>, IF: RangeInterpolatorFactory<W, F>>
-    RangeInterpolatorFactory<W, F> for BadInterpolatorFactory<'_, IF>
+impl<F: RuntimeField, IF: RangeInterpolatorFactory<F>> RangeInterpolatorFactory<F>
+    for BadInterpolatorFactory<'_, IF>
 {
     type Plan = BadInterpolator<IF::Plan>;
 
@@ -120,9 +118,8 @@ impl<const W: usize, F: RuntimeField<W>, IF: RangeInterpolatorFactory<W, F>>
 
 #[allow(clippy::too_many_arguments)]
 fn ligero_test<
-    const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
-    IF: RangeInterpolatorFactory<W, F>,
+    F: RuntimeField + SerializableField + SupportsSampling,
+    IF: RangeInterpolatorFactory<F>,
     SF: SubfieldV1<E = ElementOf<F>>,
 >(
     make_interpolator: &IF,
@@ -134,7 +131,7 @@ fn ligero_test<
     nl: usize,
     block_enc: usize,
 ) where
-    IF::Plan: InterpolationPlanV1<W, F>,
+    IF::Plan: InterpolationPlanV1<F>,
 {
     let param = LigeroParam::new(
         nw,
@@ -285,16 +282,15 @@ fn ligero_test<
 }
 
 fn test_ligero_verifier_failures_generic<
-    const W: usize,
-    F: RuntimeField<W> + SerializableField + SupportsSampling,
-    IF: RangeInterpolatorFactory<W, F>,
+    F: RuntimeField + SerializableField + SupportsSampling,
+    IF: RangeInterpolatorFactory<F>,
     SF: SubfieldV1<E = ElementOf<F>>,
 >(
     make_interpolator: &IF,
     f: &F,
     sf: &SF,
 ) where
-    IF::Plan: InterpolationPlanV1<W, F>,
+    IF::Plan: InterpolationPlanV1<F>,
 {
     let nw = 300;
     let nq = 30;
@@ -386,16 +382,16 @@ fn test_ligero_verifier_failures_generic<
             &make_interpolator,
             f,
         );
-        match (W, verify_res) {
+        match (f.serialized_size_bytes(), verify_res) {
             (
-                2,
+                16,
                 Err(LigeroError::MerkleCheckFailed(MerkleError::ProofLengthMismatch {
                     expected: 46,
                     found: 45,
                 })),
             ) => {}
             (
-                4,
+                32,
                 Err(LigeroError::MerkleCheckFailed(MerkleError::RootMismatch { expected, found })),
             ) => {
                 assert_eq!(expected, bad_comm.root);
@@ -610,8 +606,8 @@ fn test_range_capacity_includes_response_source() {
         inner: D,
         maximum: usize,
     }
-    impl<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F>>
-        RangeInterpolatorFactory<W, F> for LimitedSource<D>
+    impl<F: RuntimeField, D: RangeInterpolatorFactory<F>> RangeInterpolatorFactory<F>
+        for LimitedSource<D>
     {
         type Plan = D::Plan;
         fn can_interpolate(

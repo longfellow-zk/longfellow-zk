@@ -33,10 +33,10 @@ use crate::{
 
 type Mode = P256Mode<QUOTIENT_BITS>;
 const _: () = assert!(<Mode as AdapterMode<P256Field>>::MASK_BITS == MASK_BITS);
-pub(super) type Composition<'a, DH, DS> = compose::Composition<'a, 4, P256Field, DH, DS, Mode>;
+pub(super) type Composition<'a, DH, DS> = compose::Composition<'a, P256Field, DH, DS, Mode>;
 /// mdoc's composition statement under the identity message `I`.
 pub(super) type Statement<'s, DH, DS, I> =
-    compose::ComposedStatement<'s, 4, P256Field, DH, DS, Mode, I>;
+    compose::ComposedStatement<'s, P256Field, DH, DS, Mode, I>;
 
 /// The shared values as (signature value, hash input) pairs, from the shared
 /// layout table that the compilers and witness encoders also check against.
@@ -58,8 +58,8 @@ pub(super) fn composition<'a, DH, DS>(
     domains: (&'a DH, &'a DS),
 ) -> Result<Composition<'a, DH, DS>, String>
 where
-    DH: EvaluationDomain<2, Gf2_128Field>,
-    DS: EvaluationDomain<4, P256Field>,
+    DH: EvaluationDomain<Gf2_128Field>,
+    DS: EvaluationDomain<P256Field>,
 {
     let foreign: Vec<_> = shared_positions(hash.raw.npublic_input, hash.raw.ninput)?
         .into_iter()

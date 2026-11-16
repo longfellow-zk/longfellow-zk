@@ -61,7 +61,7 @@ fn composed<const Q: usize>(
     let host = circuit(&gf2, host_inputs, vec![gf2.one()], &[(0, 0), (1, 0)]);
     let split = circuit(&p, split_inputs, vec![p.one(), p.mone()], &[(1, 0), (2, 1)]);
     let storage = StorageMap::new(value_count(&split).unwrap(), foreign).unwrap();
-    let c = Composition::<4, P256Field, _, _, P256Mode<Q>>::new(
+    let c = Composition::<P256Field, _, _, P256Mode<Q>>::new(
         &host,
         &split,
         storage,

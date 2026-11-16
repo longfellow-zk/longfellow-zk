@@ -53,10 +53,7 @@ use crate::{
 /// Bind the circuit ID and public-input prefix, then check with revealed pads.
 /// `inputs` contains the complete circuit input vector in circuit wire order;
 /// `pads` has the proof's shape and stores the secret pads instead of messages.
-pub(in super::super) fn verify<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
+pub(in super::super) fn verify<F: RuntimeField + RegisteredField + SupportsSampling>(
     inputs: Vec<ElementOf<F>>,
     pads: &SumcheckProof<F>,
     circuit: &Circuit<F>,
@@ -73,10 +70,7 @@ pub(in super::super) fn verify<
 /// Check sumcheck numerically after the caller has bound the public statement.
 /// Reconstruct constraints from the masked transcript, substitute the inputs
 /// and pads, then check the layer residuals followed by the final input residual.
-pub(in super::super) fn verify_core<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
+pub(in super::super) fn verify_core<F: RuntimeField + RegisteredField + SupportsSampling>(
     inputs: Vec<ElementOf<F>>,
     pads: &SumcheckProof<F>,
     circuit: &Circuit<F>,
@@ -108,7 +102,7 @@ impl<E: Clone> Constraints<E> {
     /// Each layer contributes C - A*B; the last residual connects the final
     /// symbolic claim to the weighted circuit inputs. This order also matches
     /// the linear constraints produced by the ZK constraint compiler.
-    pub(crate) fn residuals<const W: usize, F: RuntimeField<W, E = E> + SerializableField>(
+    pub(crate) fn residuals<F: RuntimeField<E = E> + SerializableField>(
         &self,
         inputs: &[E],
         pads: &SumcheckProof<F>,
@@ -135,7 +129,7 @@ impl<E: Clone> Constraints<E> {
 impl<E: Clone> PadExpression<E> {
     /// Substitute pads into the sparse affine expression
     /// constant + sum_{(pad,k) in terms} k*pad_value(pad).
-    fn evaluate<const W: usize, F: RuntimeField<W, E = E> + SerializableField>(
+    fn evaluate<F: RuntimeField<E = E> + SerializableField>(
         &self,
         pads: &SumcheckProof<F>,
         f: &F,
@@ -150,7 +144,7 @@ impl<E: Clone> PadExpression<E> {
 
 /// Resolve a symbolic pad coordinate in the revealed proof-shaped pad array.
 /// Round slots 0,1 hold the pads for c0,c1; claim slots 0,1 hold p_A,p_B.
-fn pad_value<const W: usize, F: RuntimeField<W> + SerializableField>(
+fn pad_value<F: RuntimeField + SerializableField>(
     pad: Pad,
     pads: &SumcheckProof<F>,
     f: &F,

@@ -22,10 +22,10 @@ impl RandomEngine for MaskRng {
 impl Sealed for MaskRng {}
 impl PrivateRandom for MaskRng {}
 
-fn ambient_rows<const W: usize, F, D>(f: &F, domain: &D)
+fn ambient_rows<F, D>(f: &F, domain: &D)
 where
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
-    D: EvaluationDomain<W, F>,
+    F: RuntimeField + RegisteredField + SupportsSampling,
+    D: EvaluationDomain<F>,
 {
     let config = PolygeroConfig {
         k: 8,

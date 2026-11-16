@@ -15,13 +15,13 @@
 use crate::runtime::algebra::RuntimeField;
 
 /// SUM_{i} x[i] * y[i]
-pub fn dot<const W: usize, F: RuntimeField<W>>(x: &[F::E], y: &[F::E], f: &F) -> F::E {
+pub fn dot<F: RuntimeField>(x: &[F::E], y: &[F::E], f: &F) -> F::E {
     assert_eq!(x.len(), y.len(), "dot: slice size mismatch");
     dot_pairs(x.iter().zip(y), f)
 }
 
 /// Dot product over borrowed pairs, allowing indexed operands without a gather buffer.
-fn dot_pairs<'a, const W: usize, F: RuntimeField<W>>(
+fn dot_pairs<'a, F: RuntimeField>(
     pairs: impl IntoIterator<Item = (&'a F::E, &'a F::E)>,
     f: &F,
 ) -> F::E
@@ -36,7 +36,7 @@ where
 }
 
 /// SUM_{i} x[i]
-pub fn dot1<const W: usize, F: RuntimeField<W>>(x: &[F::E], f: &F) -> F::E {
+pub fn dot1<F: RuntimeField>(x: &[F::E], f: &F) -> F::E {
     if x.is_empty() {
         return f.zero();
     }
@@ -49,14 +49,14 @@ pub fn dot1<const W: usize, F: RuntimeField<W>>(x: &[F::E], f: &F) -> F::E {
 }
 
 /// y = a * y
-pub fn scale<const W: usize, F: RuntimeField<W>>(y: &mut [F::E], a: &F::E, f: &F) {
+pub fn scale<F: RuntimeField>(y: &mut [F::E], a: &F::E, f: &F) {
     for yi in y {
         f.mul(yi, a);
     }
 }
 
 /// y = a * x + y
-pub fn axpy<const W: usize, F: RuntimeField<W>>(y: &mut [F::E], a: &F::E, x: &[F::E], f: &F) {
+pub fn axpy<F: RuntimeField>(y: &mut [F::E], a: &F::E, x: &[F::E], f: &F) {
     assert_eq!(y.len(), x.len(), "axpy: slice size mismatch");
     for (yi, xi) in y.iter_mut().zip(x) {
         f.fma(yi, a, xi);
@@ -64,7 +64,7 @@ pub fn axpy<const W: usize, F: RuntimeField<W>>(y: &mut [F::E], a: &F::E, x: &[F
 }
 
 /// y[i] += a[i] * x[i]
-pub fn vaxpy<const W: usize, F: RuntimeField<W>>(y: &mut [F::E], a: &[F::E], x: &[F::E], f: &F) {
+pub fn vaxpy<F: RuntimeField>(y: &mut [F::E], a: &[F::E], x: &[F::E], f: &F) {
     assert_eq!(y.len(), a.len(), "vaxpy: slice size mismatch");
     assert_eq!(y.len(), x.len(), "vaxpy: slice size mismatch");
 
@@ -74,7 +74,7 @@ pub fn vaxpy<const W: usize, F: RuntimeField<W>>(y: &mut [F::E], a: &[F::E], x: 
 }
 
 /// y[i] -= a[i] * x[i]
-pub fn vymax<const W: usize, F: RuntimeField<W>>(y: &mut [F::E], a: &[F::E], x: &[F::E], f: &F) {
+pub fn vymax<F: RuntimeField>(y: &mut [F::E], a: &[F::E], x: &[F::E], f: &F) {
     assert_eq!(y.len(), a.len(), "vymax: slice size mismatch");
     assert_eq!(y.len(), x.len(), "vymax: slice size mismatch");
 
@@ -95,7 +95,7 @@ pub fn equal<T: PartialEq>(x: &[T], y: &[T]) -> bool {
 }
 
 /// Checks if all elements of a slice are zero
-pub fn equal0<const W: usize, F: RuntimeField<W>>(x: &[F::E], f: &F) -> bool {
+pub fn equal0<F: RuntimeField>(x: &[F::E], f: &F) -> bool {
     for xi in x {
         if !f.is_zero(xi) {
             return false;
@@ -115,14 +115,14 @@ pub fn gather<T: Clone>(idx: &[usize], src: &[T]) -> Vec<T> {
 }
 
 /// dst[i] = 0
-pub fn clear<const W: usize, F: RuntimeField<W>>(dst: &mut [F::E], f: &F) {
+pub fn clear<F: RuntimeField>(dst: &mut [F::E], f: &F) {
     for dsti in dst {
         *dsti = f.zero();
     }
 }
 
 /// y[i] += x[i]
-pub fn add<const W: usize, F: RuntimeField<W>>(y: &mut [F::E], x: &[F::E], f: &F) {
+pub fn add<F: RuntimeField>(y: &mut [F::E], x: &[F::E], f: &F) {
     assert_eq!(y.len(), x.len(), "add: slice size mismatch");
     for (yi, xi) in y.iter_mut().zip(x) {
         f.add(yi, xi);
@@ -130,7 +130,7 @@ pub fn add<const W: usize, F: RuntimeField<W>>(y: &mut [F::E], x: &[F::E], f: &F
 }
 
 /// y[i] -= x[i]
-pub fn sub<const W: usize, F: RuntimeField<W>>(y: &mut [F::E], x: &[F::E], f: &F) {
+pub fn sub<F: RuntimeField>(y: &mut [F::E], x: &[F::E], f: &F) {
     assert_eq!(y.len(), x.len(), "sub: slice size mismatch");
     for (yi, xi) in y.iter_mut().zip(x) {
         f.sub(yi, xi);
@@ -138,7 +138,7 @@ pub fn sub<const W: usize, F: RuntimeField<W>>(y: &mut [F::E], x: &[F::E], f: &F
 }
 
 /// y[i] *= x[i]
-pub fn mul<const W: usize, F: RuntimeField<W>>(y: &mut [F::E], x: &[F::E], f: &F) {
+pub fn mul<F: RuntimeField>(y: &mut [F::E], x: &[F::E], f: &F) {
     assert_eq!(y.len(), x.len(), "mul: slice size mismatch");
     for (yi, xi) in y.iter_mut().zip(x) {
         f.mul(yi, xi);

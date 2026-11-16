@@ -316,13 +316,13 @@ impl<B> JointPolygeroProof<B> {
 // runtime::v2::polygero
 pub struct PolygeroParam { /* geometry, domain id */ }
 impl PolygeroParam {
-    pub fn try_new<const W: usize, F, D: EvaluationDomain<W, F>>(
+    pub fn try_new<F, D: EvaluationDomain<F>>(
         nw: usize, config: PolygeroConfig, domain: &D,
     ) -> Result<Self, PolygeroError>;               // geometry and interpolation capacity
     pub fn geometry(&self) -> PolygeroGeometry;
 }
-pub struct Participant<'a, const W: usize, F, D> { /* param, &'a F, &'a D */ }
-impl<'a, const W: usize, F, D> Participant<'a, W, F, D> {
+pub struct Participant<'a, F, D> { /* param, &'a F, &'a D */ }
+impl<'a, F, D> Participant<'a, F, D> {
     pub fn new(param: PolygeroParam, domain: &'a D) -> Result<Self, PolygeroError>;
 }
 pub trait Participants: Sealed {                    // (), (Participant, Tail): I6

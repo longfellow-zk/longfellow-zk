@@ -349,10 +349,10 @@ pub(crate) fn circuit_geometry(circuits: &[&Circuit<F>])
 
 // prover feature
 pub(crate) struct SumcheckPads<F: SerializableField>(..); // not Clone
-pub(crate) fn sample_pads<const W: usize, F, R: PrivateRandom>(
+pub(crate) fn sample_pads<F, R: PrivateRandom>(
     geometry: &SumcheckProofGeometry, rng: &mut R, f: &F,
 ) -> (SumcheckPads<F>, Vec<F::E>);          // cells in pad-layout order
-pub(crate) fn evaluate_and_prove_circuits<const W: usize, F>(
+pub(crate) fn evaluate_and_prove_circuits<F>(
     circuits: &[&Circuit<F>],                // I1: from the frontend's Bound
     inputs: Vec<F::E>,                       // [public | private | virtual]
     pads: SumcheckPads<F>,                   // I6: consumed
@@ -361,7 +361,7 @@ pub(crate) fn evaluate_and_prove_circuits<const W: usize, F>(
 ) -> Result<(SumcheckProof<F>, Constraints<F::E>), String>;
 
 // verifier feature
-pub(crate) fn derive_constraints_for_circuits<const W: usize, F>(
+pub(crate) fn derive_constraints_for_circuits<F>(
     circuits: &[&Circuit<F>],
     proof: &SumcheckProof<F>,                // I8: parsed against the bound geometry
     t: &mut TranscriptRef<'_>,                // I1: top weights drawn on entry

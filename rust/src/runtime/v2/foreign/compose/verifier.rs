@@ -7,11 +7,11 @@ use crate::runtime::v2::{
     zk::{self, Authenticated},
 };
 
-impl<const W: usize, F, DH, DS, M, I> ComposedStatement<'_, W, F, DH, DS, M, I>
+impl<F, DH, DS, M, I> ComposedStatement<'_, F, DH, DS, M, I>
 where
-    F: ZkField<W> + PackingField,
-    DH: EvaluationDomain<H, Host>,
-    DS: EvaluationDomain<W, F>,
+    F: ZkField + PackingField,
+    DH: EvaluationDomain<Host>,
+    DS: EvaluationDomain<F>,
     M: AdapterMode<F>,
     I: SetupMessage,
 {
@@ -49,12 +49,11 @@ where
         joint.finish(equations, &proof.polygero)
     }
 }
-impl<'s, 'a: 's, const W: usize, F, DH, DS, M, I>
-    Opened<'s, ComposedStatement<'a, W, F, DH, DS, M, I>>
+impl<'s, 'a: 's, F, DH, DS, M, I> Opened<'s, ComposedStatement<'a, F, DH, DS, M, I>>
 where
-    F: ZkField<W> + PackingField,
-    DH: EvaluationDomain<H, Host>,
-    DS: EvaluationDomain<W, F>,
+    F: ZkField + PackingField,
+    DH: EvaluationDomain<Host>,
+    DS: EvaluationDomain<F>,
 {
     /// The session, bound to the geometry its statement wrote, which the
     /// proof is parsed against (transcript I2).

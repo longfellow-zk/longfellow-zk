@@ -62,13 +62,13 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         )
     }
     /// Reduce the input claim on the packing parameters bound to `t`.
-    pub(crate) fn prove<const W: usize>(
+    pub(crate) fn prove(
         t: &mut Bound<'_, Self>,
         state: PackingState<F::E>,
         statement: CommitmentStatement<F::E>,
     ) -> Result<(PackingProof<F::E>, LinearStatement<F::E>), String>
     where
-        F: ZkField<W>,
+        F: ZkField,
     {
         let (packing, rows) = prove_packed(
             &mut t.project(|c| &c.parameters),
@@ -81,7 +81,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         drop(state.suffix);
         // The transcript already holds the statement and the sumcheck and
         // packing messages these rows derive from.
-        let (a, b) = t.part().append_equations::<W>(statement, &rows)?;
+        let (a, b) = t.part().append_equations(statement, &rows)?;
         Ok((
             packing,
             LinearStatement {

@@ -166,7 +166,7 @@ fn test_sumcheck_proof_read_write() {
     let poly0_1 = RoundPoly {
         evaluations: [f.one(), f.one()],
     };
-    let layer0: LayerProof<3, _> = LayerProof {
+    let layer0: LayerProof<_> = LayerProof {
         hp: [
             vec![poly0_0.clone(), poly0_0],
             vec![poly0_1.clone(), poly0_1],
@@ -180,7 +180,7 @@ fn test_sumcheck_proof_read_write() {
     let poly1_1 = RoundPoly {
         evaluations: [f.one(), f.zero()],
     };
-    let layer1: LayerProof<3, _> = LayerProof {
+    let layer1: LayerProof<_> = LayerProof {
         hp: [
             vec![poly1_0.clone(), poly1_0.clone(), poly1_0.clone(), poly1_0],
             vec![poly1_1.clone(), poly1_1.clone(), poly1_1.clone(), poly1_1],
@@ -188,7 +188,7 @@ fn test_sumcheck_proof_read_write() {
         claims: [f.zero(), f.one()],
     };
 
-    let proof: SumcheckProof<3, _> = SumcheckProof {
+    let proof: SumcheckProof<_> = SumcheckProof {
         layers: vec![layer0, layer1],
     };
 
@@ -367,7 +367,7 @@ fn test_ligero_proof_rle_roundtrip_with_gf2_128() {
 
     let serialized = proof.write(&geom, &f, &sf).unwrap();
     let mut r_slice = serialized.as_slice();
-    let decoded: LigeroProof<2, Gf2_128Field> =
+    let decoded: LigeroProof<Gf2_128Field> =
         LigeroProof::read(&mut r_slice, &geom, &f, &sf).unwrap();
     assert!(r_slice.is_empty());
     assert_eq!(decoded.y_ldt, proof.y_ldt);
@@ -410,7 +410,7 @@ fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
     canonical.extend_from_slice(&[0; 32]); // one Merkle path digest
 
     let mut canonical_input = canonical.as_slice();
-    assert!(LigeroProof::<2, _>::read(&mut canonical_input, &geom, &f, &sf).is_ok());
+    assert!(LigeroProof::read(&mut canonical_input, &geom, &f, &sf).is_ok());
 
     // A second empty run is a semantically redundant representation that used
     // to make the parser spin indefinitely.
@@ -418,7 +418,7 @@ fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
     duplicate_empty_run.extend_from_slice(&0u32.to_le_bytes());
     duplicate_empty_run.extend_from_slice(&canonical[36..]);
     let mut duplicate_run_input = duplicate_empty_run.as_slice();
-    let err = LigeroProof::<2, _>::read(&mut duplicate_run_input, &geom, &f, &sf).unwrap_err();
+    let err = LigeroProof::read(&mut duplicate_run_input, &geom, &f, &sf).unwrap_err();
     assert_eq!(err.kind(), ErrorKind::InvalidData);
     assert_eq!(
         err.to_string(),
@@ -434,8 +434,7 @@ fn test_ligero_proof_rejects_noncanonical_rle_encodings() {
     full_field_encoding.extend_from_slice(&1u32.to_le_bytes());
     full_field_encoding.extend_from_slice(&[0; 32]);
     let mut full_field_input = full_field_encoding.as_slice();
-    let err_full_field =
-        LigeroProof::<2, _>::read(&mut full_field_input, &geom, &f, &sf).unwrap_err();
+    let err_full_field = LigeroProof::read(&mut full_field_input, &geom, &f, &sf).unwrap_err();
     assert_eq!(err_full_field.kind(), ErrorKind::InvalidData);
     assert_eq!(
         err_full_field.to_string(),
@@ -464,7 +463,7 @@ fn test_zk_proof_read_write() {
     };
 
     // ZK Sumcheck proof has logc = 0
-    let sc_proof: SumcheckProof<4, P256Field> = SumcheckProof {
+    let sc_proof: SumcheckProof<P256Field> = SumcheckProof {
         layers: vec![LayerProof {
             hp: [
                 vec![make_poly2(9, 11), make_poly2(12, 14)],
@@ -474,7 +473,7 @@ fn test_zk_proof_read_write() {
         }],
     };
 
-    let com_proof: LigeroProof<4, P256Field> = LigeroProof {
+    let com_proof: LigeroProof<P256Field> = LigeroProof {
         y_ldt: vec![
             f.u64_to_element(1),
             f.u64_to_element(2),
@@ -521,7 +520,7 @@ fn test_zk_proof_read_write() {
         },
     };
 
-    let zk_proof: ZkProof<4, P256Field> = ZkProof {
+    let zk_proof: ZkProof<P256Field> = ZkProof {
         sumcheck_proof: sc_proof,
         com: LigeroCommitment {
             root: Digest { data: [42u8; 32] },

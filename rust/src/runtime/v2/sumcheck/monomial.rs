@@ -24,12 +24,7 @@ use crate::runtime::{algebra::RuntimeField, v2::sumcheck::sane_logw};
 /// logn coordinates are used. Coefficients at indices n..2^logn are implicitly
 /// zero, so return only the first n weights. An empty coefficient array needs
 /// no weights; the empty product for index zero has weight one.
-pub(super) fn weights<const W: usize, F: RuntimeField<W>>(
-    logn: usize,
-    n: usize,
-    point: &[F::E],
-    f: &F,
-) -> Vec<F::E> {
+pub(super) fn weights<F: RuntimeField>(logn: usize, n: usize, point: &[F::E], f: &F) -> Vec<F::E> {
     assert!(sane_logw(logn) && point.len() >= logn);
     assert!(n as u64 <= (1u64 << logn));
     let mut weights = Vec::with_capacity(n);

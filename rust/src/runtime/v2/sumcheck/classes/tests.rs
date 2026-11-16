@@ -173,8 +173,8 @@ fn private_split_preserves_shared_segment_tokens_and_deltas() {
     );
 }
 
-fn check_bindings<const W: usize, F>(f: &F)
-where F: RuntimeField<W> + RegisteredField + SupportsSampling {
+fn check_bindings<F>(f: &F)
+where F: RuntimeField + RegisteredField + SupportsSampling {
     use crate::runtime::{random::DeterministicRng, v2::sumcheck::quad};
     let mut rng = DeterministicRng::new(318);
     let scalar = |n: u8| {
@@ -299,8 +299,8 @@ fn split_bindings_match_three_stream_binary() {
     check_bindings(&Gf2_128Field::new());
 }
 
-fn check_proof<const W: usize, F>(f: &F)
-where F: RuntimeField<W> + RegisteredField + SupportsSampling {
+fn check_proof<F>(f: &F)
+where F: RuntimeField + RegisteredField + SupportsSampling {
     use crate::{
         core::proto::v2::{compute_id, Circuit, CircuitWriter, RawCircuitBuilder},
         runtime::{
@@ -492,8 +492,8 @@ fn split_preserves_proof_transcript_and_circuit_binary() {
 /// A later layer's assertion weights extend the preceding combine answer:
 /// a two-layer proof matches the reference schedule byte for byte, with one
 /// boundary for the top weights and none for the second layer.
-fn check_two_layers<const W: usize, F>(f: &F)
-where F: RuntimeField<W> + RegisteredField + SupportsSampling {
+fn check_two_layers<F>(f: &F)
+where F: RuntimeField + RegisteredField + SupportsSampling {
     use crate::{
         core::proto::v2::{Circuit, RawCircuitBuilder},
         runtime::{

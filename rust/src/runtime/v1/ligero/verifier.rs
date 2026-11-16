@@ -69,15 +69,14 @@ impl<'a> LigeroVerifier<'a> {
     /// Main verification algorithm for Ligero arguments.
     #[allow(clippy::too_many_arguments)]
     pub fn verify<
-        const W: usize,
-        F: RuntimeField<W> + SerializableField + SupportsSampling,
-        IF: RangeInterpolatorFactory<W, F>,
+        F: RuntimeField + SerializableField + SupportsSampling,
+        IF: RangeInterpolatorFactory<F>,
     >(
         &mut self,
         linear_evals: &[ElementOf<F>],
         commitment: &LigeroCommitment,
-        proof: &LigeroProof<W, F>,
-        linear_constraints: &[LigeroLinearConstraint<W, F>],
+        proof: &LigeroProof<F>,
+        linear_constraints: &[LigeroLinearConstraint<F>],
         hash_of_ligero_statement: &Digest,
         quadratic_constraints: &[LigeroQuadraticConstraint],
         make_interpolator: &IF,
@@ -168,11 +167,11 @@ impl<'a> LigeroVerifier<'a> {
 
     /// Check the legacy shape and index conditions in their original error order.
     /// This precedes all transcript sampling and indexing into untrusted messages.
-    fn validate<const W: usize, F: RuntimeField<W> + SerializableField>(
+    fn validate<F: RuntimeField + SerializableField>(
         &self,
-        proof: &LigeroProof<W, F>,
+        proof: &LigeroProof<F>,
         nequations: usize,
-        linear_constraints: &[LigeroLinearConstraint<W, F>],
+        linear_constraints: &[LigeroLinearConstraint<F>],
         quadratic_constraints: &[LigeroQuadraticConstraint],
     ) -> Result<(), LigeroError> {
         if proof.y_ldt.len() != self.param.block {
@@ -222,22 +221,22 @@ impl<'a> LigeroVerifier<'a> {
 
     /// Extend a response onto the oracle and return only the requested columns.
     /// The full extension buffer ends here, before the caller combines values.
-    fn interpolate_req_columns<const W: usize, F: RuntimeField<W>>(
+    fn interpolate_req_columns<F: RuntimeField>(
         &self,
         idx: &[usize],
         y: &[F::E],
-        encoder: &impl InterpolationPlan<W, F>,
+        encoder: &impl InterpolationPlan<F>,
     ) -> Vec<F::E> {
         let yext = encoder.apply(y);
         blas::gather(idx, &yext)
     }
 
     /// Hash opened values in committed column order and verify the shared path.
-    fn merkle_check<const W: usize, F: RuntimeField<W> + SerializableField>(
+    fn merkle_check<F: RuntimeField + SerializableField>(
         &self,
         idx: &[usize],
         commitment: &LigeroCommitment,
-        proof: &LigeroProof<W, F>,
+        proof: &LigeroProof<F>,
         f: &F,
     ) -> Result<(), MerkleError> {
         let len = f.serialized_size_bytes();
@@ -260,12 +259,12 @@ impl<'a> LigeroVerifier<'a> {
     }
 
     /// Compare the interpolated low-degree response with its opened row combination.
-    fn low_degree_check<const W: usize, F: RuntimeField<W> + SerializableField>(
+    fn low_degree_check<F: RuntimeField + SerializableField>(
         &self,
         idx: &[usize],
         u_ldt: &[F::E],
-        proof: &LigeroProof<W, F>,
-        encoder: &impl InterpolationPlan<W, F>,
+        proof: &LigeroProof<F>,
+        encoder: &impl InterpolationPlan<F>,
         f: &F,
     ) -> bool {
         // The ILDT blinding row with coefficient 1
@@ -290,13 +289,13 @@ impl<'a> LigeroVerifier<'a> {
     }
 
     /// At every opened column, check y_dot = mask_dot + sum_i A_i*W_i.
-    fn dot_check<const W: usize, F: RuntimeField<W> + SerializableField>(
+    fn dot_check<F: RuntimeField + SerializableField>(
         &self,
         idx: &[usize],
         a: &[F::E],
-        proof: &LigeroProof<W, F>,
-        ordinary_encoder: &impl InterpolationPlan<W, F>,
-        response_encoder: &impl InterpolationPlan<W, F>,
+        proof: &LigeroProof<F>,
+        ordinary_encoder: &impl InterpolationPlan<F>,
+        response_encoder: &impl InterpolationPlan<F>,
         f: &F,
     ) -> bool {
         // The IDOT blinding row with coefficient 1
@@ -328,12 +327,12 @@ impl<'a> LigeroVerifier<'a> {
 
     /// Reinsert the implicit zero witness interval, then check the weighted
     /// product residuals against the quadratic response at each opened column.
-    fn quadratic_check<const W: usize, F: RuntimeField<W> + SerializableField>(
+    fn quadratic_check<F: RuntimeField + SerializableField>(
         &self,
         idx: &[usize],
         u_quad: &[F::E],
-        proof: &LigeroProof<W, F>,
-        encoder: &impl InterpolationPlan<W, F>,
+        proof: &LigeroProof<F>,
+        encoder: &impl InterpolationPlan<F>,
         f: &F,
     ) -> bool {
         // The IQUAD blinding row with coefficient 1

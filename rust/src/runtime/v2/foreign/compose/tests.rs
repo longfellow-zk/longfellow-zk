@@ -84,7 +84,7 @@ fn composition_round_trip_rejects_tampering() {
     let split = circuit(&p, 3, vec![p.one(), p.mone()], &[(1, 0), (2, 1)]);
     let shared = Group::new(1, WIDTH).unwrap();
     let storage = StorageMap::new(value_count(&split).unwrap(), &[(0, shared)]).unwrap();
-    let c = Composition::<4, P256Field, _, _, Mode>::new(
+    let c = Composition::<P256Field, _, _, Mode>::new(
         &host,
         &split,
         storage,
@@ -159,7 +159,7 @@ fn foreign_values_must_be_private_host_inputs() {
     let compose = |start| {
         let shared = Group::new(start, WIDTH).unwrap();
         let storage = StorageMap::new(value_count(&split).unwrap(), &[(0, shared)]).unwrap();
-        Composition::<4, P256Field, _, _, Mode>::new(
+        Composition::<P256Field, _, _, Mode>::new(
             &host,
             &split,
             storage,

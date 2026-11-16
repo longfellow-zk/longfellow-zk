@@ -13,7 +13,7 @@ use crate::{
 };
 
 /// Add one fragment's terms to its slice of the common layer output array.
-pub(super) fn eval_layer_into<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(super) fn eval_layer_into<F: RuntimeField + SerializableField>(
     w: &[F::E],
     layer: &ClassifiedLayer<'_>,
     constants: &[F::E],
@@ -108,7 +108,7 @@ pub(super) use tests::fixtures::{eval_classified_circuit, eval_layer};
 /// Each saved witness is one complete global layer. Completed circuits' zero
 /// outputs are checked before dropping their slots; the remaining slots already
 /// have the next layer's ordering.
-pub(super) fn eval_circuits<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(super) fn eval_circuits<F: RuntimeField + SerializableField>(
     mut w: Vec<F::E>,
     circuits: &[&Circuit<F>],
     layers: &[Vec<ClassifiedLayer<'_>>],

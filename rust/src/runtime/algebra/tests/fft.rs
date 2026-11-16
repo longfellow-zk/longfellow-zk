@@ -24,8 +24,8 @@ use crate::{
 
 fn get_test_field_and_omega(
     p256: &P256Field,
-) -> (Fp2Field<'_, 4, P256Field>, Fp2Element<4, P256Field>, u64) {
-    let f: Fp2Field<'_, 4, _> = Fp2Field::new(p256);
+) -> (Fp2Field<'_, P256Field>, Fp2Element<P256Field>, u64) {
+    let f: Fp2Field<'_, _> = Fp2Field::new(p256);
     let re_bytes = [
         98, 37, 36, 75, 50, 101, 90, 152, 76, 74, 42, 56, 59, 86, 201, 159, 55, 227, 144, 121, 198,
         133, 252, 92, 102, 245, 132, 189, 142, 51, 13, 249,
@@ -49,7 +49,7 @@ impl SimplePrg {
     fn new() -> Self {
         Self { state: 42 }
     }
-    fn next<const W: usize, F: RuntimeField<W> + crate::core::algebra::SupportsU64Conversions>(
+    fn next<F: RuntimeField + crate::core::algebra::SupportsU64Conversions>(
         &mut self,
         f: &F,
     ) -> F::E {

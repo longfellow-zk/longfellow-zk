@@ -19,11 +19,10 @@ use crate::{
 };
 
 impl<
-        const W: usize,
-        F: RuntimeField<W> + RegisteredField + SupportsSampling,
-        D: EvaluationDomain<W, F>,
+        F: RuntimeField + RegisteredField + SupportsSampling,
+        D: EvaluationDomain<F>,
         T: ProverParticipants,
-    > ProverParticipants for (Participant<'_, W, F, D>, T)
+    > ProverParticipants for (Participant<'_, F, D>, T)
 {
     type States = (FieldState<F::E>, T::States);
     fn validate_witnesses(&self, w: &Self::Witnesses) -> Result<(), PolygeroError> {

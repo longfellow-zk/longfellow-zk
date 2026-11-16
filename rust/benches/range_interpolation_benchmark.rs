@@ -36,7 +36,7 @@ use longfellow_zk::{
     },
 };
 
-fn benchmark<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F>>(
+fn benchmark<F: RuntimeField, D: RangeInterpolatorFactory<F>>(
     c: &mut Criterion,
     name: &str,
     domain: &D,
@@ -55,7 +55,7 @@ fn benchmark<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, 
     group.finish();
 }
 
-fn benchmark_ranges<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F>>(
+fn benchmark_ranges<F: RuntimeField, D: RangeInterpolatorFactory<F>>(
     c: &mut Criterion,
     name: &str,
     domain: &D,

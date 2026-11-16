@@ -52,7 +52,7 @@ impl RandomEngine for SimpleRng {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn make_raw_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
+fn make_raw_circuit<F: RuntimeField + SerializableField>(
     f: &F,
     ninput: usize,
     npublic_input: usize,

@@ -74,7 +74,7 @@ fn rebuild_map(layout: &Layout, private: usize, pads: usize) -> StorageMap {
     map
 }
 
-impl<const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>> FrontendPart<'_, W, F, P> {
+impl<F: ZkField + PackingField, P: Participant<F>> FrontendPart<'_, F, P> {
     /// Check this frontend part, as the verifier reads it, against its
     /// decoded statement values: the IDs of its circuits, its commitment
     /// layout and its public inputs, under the profile `config` and with
@@ -179,7 +179,7 @@ impl<const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>> Fronten
     }
 }
 
-impl<const W: usize, F: ZkField<W> + PackingField> ZkProofStatement<'_, W, F> {
+impl<F: ZkField + PackingField> ZkProofStatement<'_, F> {
     /// Check every value of this statement, as the verifier reads it,
     /// against the statement `d` decoded from the transcript.
     pub(crate) fn check_absorbed_for_test(&self, d: &Statement) {
@@ -211,10 +211,7 @@ const CONTEXT: &[u8] = b"longfellow/v2/test/absorption";
 /// Prove and completely verify the standalone test circuit, decode the
 /// statement from the verifier's own trace, and check it against the
 /// statement and geometry the verifier was opened with.
-fn round_trip<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
-    f: &F,
-    domain: &D,
-) {
+fn round_trip<F: ZkField + PackingField, D: EvaluationDomain<F>>(f: &F, domain: &D) {
     let config = PolygeroConfig {
         k: 8,
         s: 2,

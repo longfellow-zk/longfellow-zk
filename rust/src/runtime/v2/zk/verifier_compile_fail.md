@@ -31,9 +31,9 @@ use longfellow_zk::runtime::{
         zk::{ZkProofStatement, ZkVerificationError, ZkVerifier},
     },
 };
-fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
-    v: &ZkVerifier<2, Gf2_128Field>,
-    session: Opened<'_, ZkProofStatement<'_, 2, Gf2_128Field>>,
+fn verify<D: EvaluationDomain<Gf2_128Field>>(
+    v: &ZkVerifier<Gf2_128Field>,
+    session: Opened<'_, ZkProofStatement<'_, Gf2_128Field>>,
     proof: Unverified<'_, ZkProof<Gf2_128Field>>,
     domain: &D,
 ) -> Result<VerifiedProof, ZkVerificationError> {
@@ -52,9 +52,9 @@ use longfellow_zk::runtime::{
         zk::{ZkProofStatement, ZkVerifier},
     },
 };
-fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
-    v: &ZkVerifier<2, Gf2_128Field>,
-    session: Opened<'_, ZkProofStatement<'_, 2, Gf2_128Field>>,
+fn verify<D: EvaluationDomain<Gf2_128Field>>(
+    v: &ZkVerifier<Gf2_128Field>,
+    session: Opened<'_, ZkProofStatement<'_, Gf2_128Field>>,
     proof: Unverified<'_, ZkProof<Gf2_128Field>>,
     domain: &D,
     geometry: &ZkProofGeometry,
@@ -77,9 +77,9 @@ use longfellow_zk::{
         },
     },
 };
-fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
-    v: &ZkVerifier<2, Gf2_128Field>,
-    session: Opened<'_, ZkProofStatement<'_, 2, Gf2_128Field>>,
+fn verify<D: EvaluationDomain<Gf2_128Field>>(
+    v: &ZkVerifier<Gf2_128Field>,
+    session: Opened<'_, ZkProofStatement<'_, Gf2_128Field>>,
     proof: Unverified<'_, ZkProof<Gf2_128Field>>,
     domain: &D,
     circuit: &Circuit<Gf2_128Field>,
@@ -99,9 +99,9 @@ use longfellow_zk::runtime::{
         zk::{ZkProofStatement, ZkVerifier},
     },
 };
-fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
-    v: &ZkVerifier<2, Gf2_128Field>,
-    session: Opened<'_, ZkProofStatement<'_, 2, Gf2_128Field>>,
+fn verify<D: EvaluationDomain<Gf2_128Field>>(
+    v: &ZkVerifier<Gf2_128Field>,
+    session: Opened<'_, ZkProofStatement<'_, Gf2_128Field>>,
     proof: Unverified<'_, ZkProof<Gf2_128Field>>,
     domain: &D,
     public: &[bool],
@@ -122,9 +122,9 @@ use longfellow_zk::runtime::{
         zk::{ZkProofStatement, ZkVerifier},
     },
 };
-fn verify<D: EvaluationDomain<2, Gf2_128Field>>(
-    v: &ZkVerifier<2, Gf2_128Field>,
-    statement: &ZkProofStatement<'_, 2, Gf2_128Field>,
+fn verify<D: EvaluationDomain<Gf2_128Field>>(
+    v: &ZkVerifier<Gf2_128Field>,
+    statement: &ZkProofStatement<'_, Gf2_128Field>,
     proof: Unverified<'_, ZkProof<Gf2_128Field>>,
     domain: &D,
 ) {

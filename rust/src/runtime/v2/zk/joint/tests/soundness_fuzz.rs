@@ -244,7 +244,7 @@ struct Outcome {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run<const W: usize, F, D>(
+fn run<F, D>(
     f: &F,
     domain: &D,
     seed: u64,
@@ -255,8 +255,8 @@ fn run<const W: usize, F, D>(
     change: impl Fn(&F::E, u64) -> F::E,
 ) -> Outcome
 where
-    F: ZkField<W> + PackingField,
-    D: EvaluationDomain<W, F>,
+    F: ZkField + PackingField,
+    D: EvaluationDomain<F>,
     F::E: PartialEq,
     CircuitInput<F>: Clone,
 {

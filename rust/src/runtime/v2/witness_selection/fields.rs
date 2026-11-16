@@ -31,19 +31,12 @@ pub(in crate::runtime::v2) fn witness_count(cells: usize) -> Result<usize, Strin
 /// One field of the fingerprinted witness: its Polygero participant, its
 /// field and its frontend cell count. It takes no separate field identity:
 /// the statement's `CommitmentLayout` names the field (transcript I3).
-pub(crate) struct Field<
-    'a,
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
-    D,
-> {
-    pub(super) backend: Participant<'a, W, F, D>,
+pub(crate) struct Field<'a, F: RuntimeField + RegisteredField + SupportsSampling, D> {
+    pub(super) backend: Participant<'a, F, D>,
     pub(super) f: &'a F,
     pub(super) cells: usize,
 }
-impl<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling, D> Clone
-    for Field<'_, W, F, D>
-{
+impl<F: RuntimeField + RegisteredField + SupportsSampling, D> Clone for Field<'_, F, D> {
     fn clone(&self) -> Self {
         Self {
             backend: self.backend.clone(),
@@ -52,12 +45,8 @@ impl<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling, D>
         }
     }
 }
-impl<
-        'a,
-        const W: usize,
-        F: RuntimeField<W> + RegisteredField + SupportsSampling,
-        D: EvaluationDomain<W, F>,
-    > Field<'a, W, F, D>
+impl<'a, F: RuntimeField + RegisteredField + SupportsSampling, D: EvaluationDomain<F>>
+    Field<'a, F, D>
 {
     /// `param` describes the augmented commitment, including this protocol's
     /// two cells. Frontends obtain its count with witness_count(original_count).

@@ -24,16 +24,13 @@ use crate::{
 
 /// Scalar arithmetic interpolation for fields without a suitable FFT root.
 /// `limit` is the exclusive point-table bound and cannot exceed the characteristic.
-pub struct ScalarInterpolatorFactory<'a, const W: usize, F: RuntimeField<W>> {
+pub struct ScalarInterpolatorFactory<'a, const W: usize, F: RuntimeField> {
     field: &'a F,
     limit: usize,
 }
 
-impl<
-        'a,
-        const W: usize,
-        F: RuntimeField<W> + SupportsNatConversions<W> + SupportsU64Conversions,
-    > ScalarInterpolatorFactory<'a, W, F>
+impl<'a, const W: usize, F: RuntimeField + SupportsNatConversions<W> + SupportsU64Conversions>
+    ScalarInterpolatorFactory<'a, W, F>
 {
     pub fn new(field: &'a F, limit: usize) -> Self {
         assert!(
@@ -49,14 +46,14 @@ impl<
 }
 
 /// Public reciprocal differences reused by scalar interpolations.
-pub struct ScalarInterpolationPlan<'a, const W: usize, F: RuntimeField<W>> {
+pub struct ScalarInterpolationPlan<'a, F: RuntimeField> {
     field: &'a F,
     ranges: Ranges,
     inverses: Vec<F::E>,
 }
 
-impl<const W: usize, F: RuntimeField<W> + SupportsU64Conversions> InterpolationPlan<W, F>
-    for ScalarInterpolationPlan<'_, W, F>
+impl<F: RuntimeField + SupportsU64Conversions> InterpolationPlan<F>
+    for ScalarInterpolationPlan<'_, F>
 {
     fn apply(&self, source: &[F::E]) -> Vec<F::E> {
         let mut destination = vec![self.field.zero(); self.ranges.destination.len()];
@@ -73,9 +70,7 @@ impl<const W: usize, F: RuntimeField<W> + SupportsU64Conversions> InterpolationP
     }
 }
 
-impl<const W: usize, F: RuntimeField<W> + SupportsU64Conversions>
-    ScalarInterpolationPlan<'_, W, F>
-{
+impl<F: RuntimeField + SupportsU64Conversions> ScalarInterpolationPlan<'_, F> {
     /// Convert samples to Newton coefficients using precomputed inverse differences.
     fn newton_coefficients(&self, source: &[F::E]) -> Vec<F::E> {
         let mut coefficients = source.to_vec();
@@ -106,13 +101,10 @@ impl<const W: usize, F: RuntimeField<W> + SupportsU64Conversions>
     }
 }
 
-impl<
-        'a,
-        const W: usize,
-        F: RuntimeField<W> + SupportsNatConversions<W> + SupportsU64Conversions,
-    > RangeInterpolatorFactory<W, F> for ScalarInterpolatorFactory<'a, W, F>
+impl<'a, const W: usize, F: RuntimeField + SupportsNatConversions<W> + SupportsU64Conversions>
+    RangeInterpolatorFactory<F> for ScalarInterpolatorFactory<'a, W, F>
 {
-    type Plan = ScalarInterpolationPlan<'a, W, F>;
+    type Plan = ScalarInterpolationPlan<'a, F>;
     fn can_interpolate(&self, source: Range<usize>, destination: Range<usize>) -> bool {
         Ranges::valid(&source, &destination, self.limit)
     }
@@ -142,8 +134,8 @@ impl<
     }
 }
 
-impl<const W: usize, F> EvaluationDomain<W, F> for ScalarInterpolatorFactory<'_, W, F>
-where F: crate::runtime::algebra::RuntimeField<W>
+impl<const W: usize, F> EvaluationDomain<F> for ScalarInterpolatorFactory<'_, W, F>
+where F: crate::runtime::algebra::RuntimeField
         + SerializableField
         + SupportsU64Conversions
         + SupportsNatConversions<W>

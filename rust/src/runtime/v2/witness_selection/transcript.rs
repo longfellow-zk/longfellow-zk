@@ -35,12 +35,8 @@ impl<F: RegisteredField> Message for ResponseMessage<'_, F> {
 }
 impl<F: RegisteredField> ProverMessage for ResponseMessage<'_, F> {}
 
-pub(super) fn field_coefficients<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
-    D,
->(
-    field: &Field<'_, W, F, D>,
+pub(super) fn field_coefficients<F: RuntimeField + RegisteredField + SupportsSampling, D>(
+    field: &Field<'_, F, D>,
     r: &mut Reading<'_>,
 ) -> [Vec<F::E>; FINGERPRINTS] {
     // Uniform, independent coordinates, not powers of one challenge. Prime
@@ -48,12 +44,8 @@ pub(super) fn field_coefficients<
     std::array::from_fn(|_| r.elements(field.f, field.cells).collect())
 }
 
-pub(super) fn send_field_response<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
-    D,
->(
-    field: &Field<'_, W, F, D>,
+pub(super) fn send_field_response<F: RuntimeField + RegisteredField + SupportsSampling, D>(
+    field: &Field<'_, F, D>,
     response: &FingerprintResponse<F::E>,
     t: &mut TranscriptRef<'_>,
 ) {

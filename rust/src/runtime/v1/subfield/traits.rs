@@ -42,7 +42,7 @@ pub trait SubfieldV1 {
 }
 
 /// V1-only compact-row interpolation; ordinary plans do not require this capability.
-pub trait InterpolationPlanV1<const W: usize, F: RuntimeField<W>>: InterpolationPlan<W, F> {
+pub trait InterpolationPlanV1<F: RuntimeField>: InterpolationPlan<F> {
     /// A public layout hint that all source values belong to `subfield`.
     /// The default implementation works without subfield specialization.
     fn apply_subfield_v1<SF: SubfieldV1<E = F::E>>(
@@ -54,15 +54,12 @@ pub trait InterpolationPlanV1<const W: usize, F: RuntimeField<W>>: Interpolation
     }
 }
 
-impl<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> InterpolationPlanV1<W, F>
-    for BinaryInterpolationPlan<'_, W, F>
+impl<F: RuntimeBinaryField<E = Gf2_128>> InterpolationPlanV1<F> for BinaryInterpolationPlan<'_, F> {}
+impl<F: RuntimeField + SupportsU64Conversions> InterpolationPlanV1<F>
+    for ScalarInterpolationPlan<'_, F>
 {
 }
-impl<const W: usize, F: RuntimeField<W> + SupportsU64Conversions> InterpolationPlanV1<W, F>
-    for ScalarInterpolationPlan<'_, W, F>
-{
-}
-impl<const W: usize, F: SupportsQuadraticExtension<W> + SupportsU64Conversions>
-    InterpolationPlanV1<W, F> for QuadraticExtensionFftInterpolationPlan<'_, W, F>
+impl<F: SupportsQuadraticExtension + SupportsU64Conversions> InterpolationPlanV1<F>
+    for QuadraticExtensionFftInterpolationPlan<'_, F>
 {
 }

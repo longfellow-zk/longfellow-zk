@@ -20,7 +20,7 @@ use crate::{
     },
 };
 
-fn check_binding<const W: usize, F: RuntimeField<W>>(f: &F, element: impl Fn(u64) -> F::E) {
+fn check_binding<F: RuntimeField>(f: &F, element: impl Fn(u64) -> F::E) {
     for n in [1usize, 2, 3, 7, 8, 13, 16] {
         // Extra variables exercise implicit zero high coefficients and repeated
         // binding of a scalar, both of which must preserve the constant term.
@@ -46,7 +46,7 @@ fn check_binding<const W: usize, F: RuntimeField<W>>(f: &F, element: impl Fn(u64
                 for z in point {
                     bind(&mut values, &z, f);
                 }
-                assert_eq!(as_scalar::<W, F>(&values), expected);
+                assert_eq!(as_scalar::<F>(&values), expected);
             }
         }
     }
@@ -70,7 +70,7 @@ fn binding_matches_monomial_weights_binary() {
 fn test_as_scalar() {
     let f = P256Field::new();
     let vec_one = vec![f.u64_to_element(42)];
-    assert_eq!(as_scalar::<4, P256Field>(&vec_one), f.u64_to_element(42));
+    assert_eq!(as_scalar::<P256Field>(&vec_one), f.u64_to_element(42));
 }
 
 #[test]
@@ -78,5 +78,5 @@ fn test_as_scalar() {
 fn test_as_scalar_panic() {
     let f = P256Field::new();
     let vec_two = vec![f.u64_to_element(1), f.u64_to_element(2)];
-    as_scalar::<4, P256Field>(&vec_two);
+    as_scalar::<P256Field>(&vec_two);
 }

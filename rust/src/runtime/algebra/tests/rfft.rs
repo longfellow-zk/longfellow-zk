@@ -26,14 +26,14 @@ use crate::{
 #[test]
 fn test_rfft_vs_fft() {
     let p256 = P256Field::new();
-    let fp2: Fp2Field<'_, 4, _> = Fp2Field::new(&p256);
+    let fp2: Fp2Field<'_, _> = Fp2Field::new(&p256);
 
     let omega0 = fp2.omega();
     let omega_order = fp2.omega_order();
 
     let mut omega = omega0;
     for _iter in 0..2 {
-        let conj: Fp2Element<4, P256Field> = Fp2Element {
+        let conj: Fp2Element<P256Field> = Fp2Element {
             re: omega.re,
             im: p256.neg(&omega.im),
         };
@@ -56,7 +56,7 @@ fn test_rfft_vs_fft() {
 
             // Compare RFFT (r2hc) against FFT (fftb)
             fftb(&mut ac, &omega, omega_order, &fp2);
-            r2hc::<4, P256Field>(&mut ar0, &omega, omega_order, &fp2);
+            r2hc::<P256Field>(&mut ar0, &omega, omega_order, &fp2);
 
             for i in 0..n {
                 if i + i <= n {
@@ -73,7 +73,7 @@ fn test_rfft_vs_fft() {
             }
 
             // Invert and compare against original input scaled by n
-            hc2r::<4, P256Field>(&mut ar0, &omega, omega_order, &fp2);
+            hc2r::<P256Field>(&mut ar0, &omega, omega_order, &fp2);
             let scale = p256.u64_to_element(n as u64);
             for i in 0..n {
                 assert_eq!(
@@ -95,7 +95,7 @@ fn test_rfft_vs_fft() {
 #[test]
 fn test_rfft_rejects_non_power_of_two_length() {
     let p256 = P256Field::new();
-    let fp2: Fp2Field<'_, 4, _> = Fp2Field::new(&p256);
+    let fp2: Fp2Field<'_, _> = Fp2Field::new(&p256);
     let omega = fp2.omega();
     let mut values = vec![p256.zero(); 3];
 

@@ -365,9 +365,9 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
     pub(crate) fn prepare_inputs(&self, logical: &[BaseElement<X>]) -> Result<PreparedInputs<F::E>, String>;
     pub(crate) fn prepare(&self, inputs: PreparedInputs<F::E>, suffix: Vec<F::E>,
         rng: &mut impl PrivateRandom) -> (PackingState<F::E>, Vec<F::E>);   // state + committed witness (I8)
-    pub(crate) fn prove<const W: usize>(t: &mut Bound<'_, Self>, state: PackingState<F::E>,
+    pub(crate) fn prove(t: &mut Bound<'_, Self>, state: PackingState<F::E>,
         statement: CommitmentStatement<F::E>) -> Result<(PackingProof<F::E>, LinearStatement<F::E>), String>;
-    pub(crate) fn reduce<const W: usize>(t: &mut Bound<'_, Self>, statement: CommitmentStatement<F::E>,
+    pub(crate) fn reduce(t: &mut Bound<'_, Self>, statement: CommitmentStatement<F::E>,
         proof: &PackingProof<F::E>) -> Result<LinearStatement<F::E>, String>;
 }
 ```

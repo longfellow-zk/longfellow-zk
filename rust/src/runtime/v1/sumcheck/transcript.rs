@@ -38,7 +38,7 @@ use crate::{
 /// Extension trait that adds sumcheck-specific helpers to the cryptographic Transcript.
 pub trait TranscriptSumcheck {
     /// Writes the sumcheck statement and public parameters to the transcript.
-    fn write_sumcheck_statement<const W: usize, F: RuntimeField<W> + SerializableField>(
+    fn write_sumcheck_statement<F: RuntimeField + SerializableField>(
         &mut self,
         circuit: &Circuit<F>,
         public_inputs: &[ElementOf<F>],
@@ -49,16 +49,13 @@ pub trait TranscriptSumcheck {
     /// Because of a quirk of history, the format is defined to always
     /// sample `MAX_LOGW` elements from the transcript, irrespective
     /// of how many are actually needed.
-    fn begin_circuit<
-        const W: usize,
-        F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>,
-    >(
+    fn begin_circuit<F: SupportsSampling + crate::runtime::algebra::RuntimeField>(
         &mut self,
         f: &F,
     ) -> (Vec<ElementOf<F>>, Vec<ElementOf<F>>);
 
     /// Samples alpha and beta challenges at the start of a layer verification.
-    fn begin_layer<const W: usize, F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>>(
+    fn begin_layer<F: SupportsSampling + crate::runtime::algebra::RuntimeField>(
         &mut self,
         f: &F,
     ) -> (ElementOf<F>, ElementOf<F>);
@@ -67,15 +64,15 @@ pub trait TranscriptSumcheck {
     fn end_layer<F: SerializableField>(&mut self, claims: &[ElementOf<F>; 2], f: &F);
 
     /// Writes a round polynomial to the transcript and samples a challenge.
-    fn round<const W: usize, F: SerializableField + SupportsSampling>(
+    fn round<F: SerializableField + SupportsSampling>(
         &mut self,
-        poly: &RoundPoly<W, F>,
+        poly: &RoundPoly<F>,
         f: &F,
     ) -> ElementOf<F>;
 }
 
 impl TranscriptSumcheck for Transcript {
-    fn write_sumcheck_statement<const W: usize, F: RuntimeField<W> + SerializableField>(
+    fn write_sumcheck_statement<F: RuntimeField + SerializableField>(
         &mut self,
         circuit: &Circuit<F>,
         public_inputs: &[ElementOf<F>],
@@ -109,10 +106,7 @@ impl TranscriptSumcheck for Transcript {
         self.write0(nterms);
     }
 
-    fn begin_circuit<
-        const W: usize,
-        F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>,
-    >(
+    fn begin_circuit<F: SupportsSampling + crate::runtime::algebra::RuntimeField>(
         &mut self,
         f: &F,
     ) -> (Vec<ElementOf<F>>, Vec<ElementOf<F>>) {
@@ -121,10 +115,7 @@ impl TranscriptSumcheck for Transcript {
         (q, g)
     }
 
-    fn begin_layer<
-        const W: usize,
-        F: SupportsSampling + crate::runtime::algebra::RuntimeField<W>,
-    >(
+    fn begin_layer<F: SupportsSampling + crate::runtime::algebra::RuntimeField>(
         &mut self,
         f: &F,
     ) -> (ElementOf<F>, ElementOf<F>) {
@@ -137,9 +128,9 @@ impl TranscriptSumcheck for Transcript {
         self.write_elt_field_slice(claims, f);
     }
 
-    fn round<const W: usize, F: SerializableField + SupportsSampling>(
+    fn round<F: SerializableField + SupportsSampling>(
         &mut self,
-        poly: &RoundPoly<W, F>,
+        poly: &RoundPoly<F>,
         f: &F,
     ) -> ElementOf<F> {
         write_poly(self, poly, f);
@@ -147,11 +138,7 @@ impl TranscriptSumcheck for Transcript {
     }
 }
 
-fn write_poly<const W: usize, F: SerializableField>(
-    ts: &mut Transcript,
-    poly: &RoundPoly<W, F>,
-    f: &F,
-) {
+fn write_poly<F: SerializableField>(ts: &mut Transcript, poly: &RoundPoly<F>, f: &F) {
     for i in 0..2 {
         ts.write_elt_field(&poly.evaluations[i], f);
     }

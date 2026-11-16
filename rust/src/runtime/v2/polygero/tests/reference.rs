@@ -51,11 +51,10 @@ pub(super) fn snapshot<E: Clone>(
 /// Recommitting a wrong witness authenticates successfully but must fail the
 /// original linear equations, even with consistently recomputed responses.
 pub(super) fn check_recommitted_wrong_witness<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
-    D: EvaluationDomain<W, F>,
+    F: RuntimeField + RegisteredField + SupportsSampling,
+    D: EvaluationDomain<F>,
 >(
-    joint: &JointPolygeroParam<(Participant<'_, W, F, D>, ())>,
+    joint: &JointPolygeroParam<(Participant<'_, F, D>, ())>,
     prover: &JointPolygeroProver<(FieldState<F::E>, ())>,
     b: &[F::E],
     a: &[PolygeroLinearTerm<F::E>],
@@ -148,11 +147,10 @@ fn vanish<F: AlgebraicField>(nodes: &[F::E], f: &F) -> Vec<F::E> {
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn check<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
-    D: crate::runtime::algebra::range_interpolation::EvaluationDomain<W, F>,
+    F: RuntimeField + RegisteredField + SupportsSampling,
+    D: crate::runtime::algebra::range_interpolation::EvaluationDomain<F>,
 >(
-    joint: &JointPolygeroParam<(Participant<'_, W, F, D>, ())>,
+    joint: &JointPolygeroParam<(Participant<'_, F, D>, ())>,
     prover: &JointPolygeroProver<(FieldState<F::E>, ())>,
     envelope: &JointPolygeroProof<(FieldProof<F::E>, ())>,
     b: &[F::E],

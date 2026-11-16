@@ -17,7 +17,7 @@ use crate::{
 };
 /// The oracle's own assertion counts: expanded quadratic and linear terms
 /// whose coefficient is zero.
-fn assertion_counts<const W: usize, F: RuntimeField<W> + SerializableField>(
+fn assertion_counts<F: RuntimeField + SerializableField>(
     layer: &Layer,
     constants: &[F::E],
     f: &F,
@@ -31,7 +31,7 @@ fn assertion_counts<const W: usize, F: RuntimeField<W> + SerializableField>(
         .for_each(|t| counts[1] += usize::from(f.is_zero(&constants[t.k as usize])));
     counts
 }
-pub(in super::super) fn bind_l<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(in super::super) fn bind_l<F: RuntimeField + SerializableField>(
     layer: &Layer,
     constants: &[F::E],
     a: &[F::E],
@@ -56,7 +56,7 @@ pub(in super::super) fn bind_l<const W: usize, F: RuntimeField<W> + Serializable
     q
 }
 #[cfg(any(test, feature = "prover"))]
-pub(in super::super) fn bind_r<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(in super::super) fn bind_r<F: RuntimeField + SerializableField>(
     layer: &Layer,
     constants: &[F::E],
     a: &[F::E],
@@ -89,7 +89,7 @@ pub(in super::super) fn bind_r<const W: usize, F: RuntimeField<W> + Serializable
     q
 }
 #[cfg(any(test, feature = "prover"))]
-fn add_linear<const W: usize, F: RuntimeField<W> + SerializableField>(
+fn add_linear<F: RuntimeField + SerializableField>(
     layer: &Layer,
     constants: &[F::E],
     a: &[F::E],
@@ -106,10 +106,7 @@ fn add_linear<const W: usize, F: RuntimeField<W> + SerializableField>(
         }
     });
 }
-pub(in super::super) fn weights_next_affine<
-    const W: usize,
-    F: RuntimeField<W> + SerializableField,
->(
+pub(in super::super) fn weights_next_affine<F: RuntimeField + SerializableField>(
     layer: &Layer,
     constants: &[F::E],
     a: &[F::E],
@@ -133,7 +130,7 @@ pub(in super::super) fn weights_next_affine<
     blas::axpy(&mut weights, alpha, &q, f);
     (weights, linear)
 }
-pub(in super::super) fn affine_constant<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(in super::super) fn affine_constant<F: RuntimeField + SerializableField>(
     layer: &Layer,
     constants: &[F::E],
     a: &[F::E],
@@ -147,10 +144,7 @@ pub(in super::super) fn affine_constant<const W: usize, F: RuntimeField<W> + Ser
 }
 
 /// Frozen three-stream layer loop used only to check proof/transcript identity.
-pub(in super::super) fn prove_core<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
+pub(in super::super) fn prove_core<F: RuntimeField + RegisteredField + SupportsSampling>(
     witnesses: Vec<Vec<F::E>>,
     pads: &SumcheckProof<F>,
     circuit: &crate::core::proto::v2::Circuit<F>,
@@ -202,7 +196,7 @@ pub(in super::super) fn prove_core<
 }
 
 // Frozen witness evaluation over the original three streams.
-pub(in super::super) fn eval_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(in super::super) fn eval_circuit<F: RuntimeField + SerializableField>(
     mut w: Vec<F::E>,
     circuit: &Circuit<F>,
     f: &F,
@@ -228,7 +222,7 @@ pub(in super::super) fn eval_circuit<const W: usize, F: RuntimeField<W> + Serial
     saved.reverse();
     Ok(saved)
 }
-pub(in super::super) fn eval_layer<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(in super::super) fn eval_layer<F: RuntimeField + SerializableField>(
     w: &[F::E],
     layer: &Layer,
     constants: &[F::E],

@@ -34,15 +34,15 @@ use crate::{
 /// must be the definitions the prover used. As an argument of the call that
 /// draws the top weights, they are fixed before them; derive them only from
 /// data the transcript already binds, never from this proof's own messages.
-pub(crate) fn reduce<const W: usize, F: ZkField<W> + PackingField>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+pub(crate) fn reduce<F: ZkField + PackingField>(
+    t: &mut Bound<'_, FrontendPart<'_, F>>,
     proof: &CircuitProof<F>,
     virtual_inputs: &VirtualInputs<F::E>,
 ) -> Result<LinearStatement<F::E>, String> {
     reduce_parts(t, &proof.sumcheck_proof, &proof.packing, virtual_inputs)
 }
-fn reduce_parts<const W: usize, F: ZkField<W> + PackingField>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+fn reduce_parts<F: ZkField + PackingField>(
+    t: &mut Bound<'_, FrontendPart<'_, F>>,
     sumcheck: &SumcheckProof<F>,
     packing: &PackingProof<F::E>,
     virtual_inputs: &VirtualInputs<F::E>,
@@ -52,8 +52,8 @@ fn reduce_parts<const W: usize, F: ZkField<W> + PackingField>(
 }
 /// The sumcheck step: check the frontend's sumcheck proof, drawing its top
 /// weights, and derive its constraints on the committed cells.
-fn sumcheck_constraints<const W: usize, F: ZkField<W> + PackingField>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+fn sumcheck_constraints<F: ZkField + PackingField>(
+    t: &mut Bound<'_, FrontendPart<'_, F>>,
     sumcheck: &SumcheckProof<F>,
     virtual_inputs: &VirtualInputs<F::E>,
 ) -> Result<Constraints<F::E>, String> {
@@ -63,8 +63,8 @@ fn sumcheck_constraints<const W: usize, F: ZkField<W> + PackingField>(
 /// Check the sumcheck proof of a frontend of `t`'s part, drawing its top
 /// weights, and derive its constraints. Every storage mode checks its
 /// frontend here.
-pub(super) fn reduce_values<const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F, P>>,
+pub(super) fn reduce_values<F: ZkField + PackingField, P: Participant<F>>(
+    t: &mut Bound<'_, FrontendPart<'_, F, P>>,
     sumcheck: &SumcheckProof<F>,
 ) -> Result<Constraints<F::E>, String> {
     let part = t.part();
@@ -80,8 +80,8 @@ pub(super) fn reduce_values<const W: usize, F: ZkField<W> + PackingField, P: Par
 }
 /// The packing step: compile the constraints onto the packed commitment and
 /// reduce them, with the packing proof, to equations on the committed row.
-fn pack_constraints<const W: usize, F: ZkField<W> + PackingField>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
+fn pack_constraints<F: ZkField + PackingField>(
+    t: &mut Bound<'_, FrontendPart<'_, F>>,
     constraints: Constraints<F::E>,
     packing: &PackingProof<F::E>,
     virtual_inputs: &VirtualInputs<F::E>,
@@ -93,7 +93,7 @@ fn pack_constraints<const W: usize, F: ZkField<W> + PackingField>(
         .geometry
         .sumcheck()
         .pad_layout(p.backend.layout.suffix_start);
-    let statement = super::constraint_compiler::compile_packed::<W, F>(
+    let statement = super::constraint_compiler::compile_packed::<F>(
         constraints,
         &pads,
         &part.public,
@@ -101,20 +101,20 @@ fn pack_constraints<const W: usize, F: ZkField<W> + PackingField>(
         virtual_inputs,
         f,
     )?;
-    PackingCommitment::reduce::<W>(
+    PackingCommitment::reduce(
         &mut t.project(|q| &q.participant.frontend.backend),
         statement,
         packing,
     )
 }
 /// A standalone verifier of one circuit under one Polygero profile.
-pub struct ZkVerifier<const W: usize, F: ZkField<W> + PackingField> {
+pub struct ZkVerifier<F: ZkField + PackingField> {
     circuit: Circuit<F>,
-    participant: CircuitParticipant<W, F>,
+    participant: CircuitParticipant<F>,
     geometry: ZkProofGeometry,
 }
-impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
-    pub fn new<D: EvaluationDomain<W, F>>(
+impl<F: ZkField + PackingField> ZkVerifier<F> {
+    pub fn new<D: EvaluationDomain<F>>(
         circuit: Circuit<F>,
         config: PolygeroConfig,
         domain: &D,
@@ -146,7 +146,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         &'a self,
         context: &'a [u8],
         public: &'a [CircuitInput<F>],
-    ) -> Result<ZkProofStatement<'a, W, F>, ZkVerificationError> {
+    ) -> Result<ZkProofStatement<'a, F>, ZkVerificationError> {
         if public.len() != self.public_input_count() {
             return Err(ZkVerificationError::PublicInputLengthMismatch {
                 expected: self.public_input_count(),
@@ -158,9 +158,9 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
     }
     /// Verify `proof` against the statement `session` opened with.
     #[doc = include_str!("verifier_compile_fail.md")]
-    pub fn verify<D: EvaluationDomain<W, F>>(
+    pub fn verify<D: EvaluationDomain<F>>(
         &self,
-        session: Opened<'_, ZkProofStatement<'_, W, F>>,
+        session: Opened<'_, ZkProofStatement<'_, F>>,
         proof: Unverified<'_, ZkProof<F>>,
         domain: &D,
     ) -> Result<VerifiedProof, ZkVerificationError> {
@@ -168,9 +168,9 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
             .check_seal(proof)
             .map_err(|e| ZkVerificationError::InvalidTranscriptSeal(e.into()))
     }
-    pub(crate) fn reduce<D: EvaluationDomain<W, F>>(
+    pub(crate) fn reduce<D: EvaluationDomain<F>>(
         &self,
-        session: Opened<'_, ZkProofStatement<'_, W, F>>,
+        session: Opened<'_, ZkProofStatement<'_, F>>,
         proof: &ZkProof<F>,
         domain: &D,
     ) -> Result<Authenticated, ZkVerificationError> {
@@ -245,8 +245,8 @@ impl std::error::Error for ZkVerificationError {}
 /// Check the mixed split frontend proof of `t`'s part, drawing its top
 /// weights, and reduce its constraints to the claim its storage discharges
 /// (`split_claim`), before the split challenge.
-pub(crate) fn reduce_split<const W: usize, F: ZkField<W> + PackingField>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>,
+pub(crate) fn reduce_split<F: ZkField + PackingField>(
+    t: &mut Bound<'_, FrontendPart<'_, F, MixedSplit<F>>>,
     proof: &SumcheckProof<F>,
 ) -> Result<SplitClaim<F::E>, String> {
     let constraints = reduce_values(t, proof)?;

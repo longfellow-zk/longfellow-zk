@@ -109,7 +109,7 @@ impl<S> JointPolygeroProver<S> {
 /// Form the masked arithmetic response directly on the first 2k oracle
 /// points. C_i is specified by its k logical samples; interpolate each row
 /// with one plan and accumulate C_i*W_i using dense BLAS, then add V*u and z_R*m.
-fn arithmetic_response<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
+fn arithmetic_response<F: RuntimeField, D: EvaluationDomain<F>>(
     param: &PolygeroParam,
     w: &[Vec<F::E>],
     rows: &[Vec<F::E>],
@@ -146,7 +146,7 @@ fn arithmetic_response<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W
 /// on its k+s response points.
 /// Each B_i has degree at most s and is given by s+1 oracle-prefix samples.
 /// One local interpolation plan serves every batched row.
-fn primary_response<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
+fn primary_response<F: RuntimeField, D: EvaluationDomain<F>>(
     param: &PolygeroParam,
     w: &[Vec<F::E>],
     batching_samples: &[Vec<F::E>],
@@ -168,7 +168,7 @@ fn primary_response<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F
 
 /// Form one field's responses before recursing to the next participant.
 /// The dense constraint matrix is released before the next field is processed.
-pub(super) fn respond<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
+pub(super) fn respond<F: RuntimeField, D: EvaluationDomain<F>>(
     param: &PolygeroParam,
     w: &[Vec<F::E>],
     statement: &LinearStatement<F::E>,

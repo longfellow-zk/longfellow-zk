@@ -34,7 +34,7 @@ pub(crate) type Rows<E> = ((Vec<PolygeroLinearTerm<E>>, Vec<E>), LinearClaim<E>)
 /// The rows of `circuit` on `public` from its reduced `constraints`, over the
 /// values `[private inputs | pads]` with the pads laid out as `geometry`, the
 /// circuit's sumcheck geometry, says. Value `i` is coordinate `i`.
-pub(crate) fn rows<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(crate) fn rows<F: RuntimeField + SerializableField>(
     circuit: &Circuit<F>,
     public: &[F::E],
     constraints: Constraints<F::E>,
@@ -76,7 +76,7 @@ use crate::runtime::algebra::blas::{axpy, dot};
 /// input equation: `sum_c rho_c (A_c v + b_c) - rho_L (<w, v> - t) = 0`,
 /// written as the claim `<weights, v> = target`.
 #[cfg(test)]
-pub(crate) fn batch<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(crate) fn batch<F: RuntimeField + SerializableField>(
     rows: Rows<F::E>,
     rho: &[F::E],
     f: &F,

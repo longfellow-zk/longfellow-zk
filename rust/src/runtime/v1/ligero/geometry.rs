@@ -58,11 +58,7 @@ fn merkle_path_length_digests(h: usize, nreq: usize) -> usize {
 }
 
 /// Estimates the size of the Ligero commitment proof for the given parameters.
-pub fn estimate_proof_size<
-    const W: usize,
-    F: RuntimeField<W>,
-    IF: RangeInterpolatorFactory<W, F>,
->(
+pub fn estimate_proof_size<F: RuntimeField, IF: RangeInterpolatorFactory<F>>(
     nw: usize,
     nq: usize,
     config: LigeroConfig,
@@ -70,7 +66,7 @@ pub fn estimate_proof_size<
     k_subfield_bytes: usize,
     make_interpolator: &IF,
 ) -> Option<usize> {
-    let param = LigeroParam::try_new::<W, F, _>(nw, nq, config, make_interpolator)?;
+    let param = LigeroParam::try_new::<F, _>(nw, nq, config, make_interpolator)?;
 
     let mut sz = DIGEST_LEN; // sizeof(Digest)
     sz += merkle_path_length_digests(param.geom.mc_pathlen, param.geom.nreq) * DIGEST_LEN;
@@ -85,7 +81,7 @@ pub fn estimate_proof_size<
 }
 
 /// Optimizes the `block_enc` parameter to minimize the proof size.
-pub fn optimize_geometry<const W: usize, F: RuntimeField<W>, IF: RangeInterpolatorFactory<W, F>>(
+pub fn optimize_geometry<F: RuntimeField, IF: RangeInterpolatorFactory<F>>(
     nw: usize,
     nq: usize,
     rateinv: usize,
@@ -103,7 +99,7 @@ pub fn optimize_geometry<const W: usize, F: RuntimeField<W>, IF: RangeInterpolat
             nreq,
             block_enc: e,
         };
-        if let Some(proof_size) = estimate_proof_size::<W, F, IF>(
+        if let Some(proof_size) = estimate_proof_size::<F, IF>(
             nw,
             nq,
             config,

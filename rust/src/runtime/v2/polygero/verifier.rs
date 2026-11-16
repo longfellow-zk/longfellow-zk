@@ -126,7 +126,7 @@ impl<L: VerifierParticipants> JointPolygeroVerifier<L> {
         Ok(())
     }
 }
-fn verify_primary_response<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
+fn verify_primary_response<F: RuntimeField, D: EvaluationDomain<F>>(
     param: &PolygeroParam,
     response: &[F::E],
     indices: &[usize],
@@ -151,7 +151,7 @@ fn verify_primary_response<const W: usize, F: RuntimeField<W>, D: EvaluationDoma
     )
 }
 
-fn verify_arithmetic<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
+fn verify_arithmetic<F: RuntimeField, D: EvaluationDomain<F>>(
     param: &PolygeroParam,
     response: &[F::E],
     indices: &[usize],
@@ -180,7 +180,7 @@ fn verify_arithmetic<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, 
     ensure(actual == expected, "Polygero arithmetic check failed")
 }
 
-fn constraint_sum<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
+fn constraint_sum<F: RuntimeField, D: EvaluationDomain<F>>(
     param: &PolygeroParam,
     rows: &[Vec<F::E>],
     indices: &[usize],
@@ -206,7 +206,7 @@ fn opened_row<'a, E>(param: &PolygeroParam, rows: &'a [E], row: usize) -> &'a [E
 }
 
 /// Check one participant using the common opening positions and its own field.
-pub(super) fn check_response<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
+pub(super) fn check_response<F: RuntimeField, D: EvaluationDomain<F>>(
     param: &PolygeroParam,
     body: &FieldProof<F::E>,
     statement: &LinearStatement<F::E>,

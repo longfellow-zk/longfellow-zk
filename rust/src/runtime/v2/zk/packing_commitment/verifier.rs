@@ -9,13 +9,13 @@ use crate::runtime::{
 };
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
     /// Replay the packing reduction on the parameters bound to `t`.
-    pub(crate) fn reduce<const W: usize>(
+    pub(crate) fn reduce(
         t: &mut Bound<'_, Self>,
         statement: CommitmentStatement<F::E>,
         packing: &PackingProof<F::E>,
     ) -> Result<LinearStatement<F::E>, String>
     where
-        F: ZkField<W>,
+        F: ZkField,
     {
         let rows = crate::runtime::v2::dual_packing::verifier::reduce(
             &mut t.project(|c| &c.parameters),
@@ -24,7 +24,7 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         )?;
         // The source messages are already absorbed; sparse rows are derived
         // locally rather than accepted as proof data.
-        let (a, b) = t.part().append_equations::<W>(statement, &rows)?;
+        let (a, b) = t.part().append_equations(statement, &rows)?;
         Ok(LinearStatement {
             a,
             b,

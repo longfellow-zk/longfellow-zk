@@ -66,8 +66,8 @@ pub(super) fn statement<'s, DH, DS>(
     public: &'s PublicInputs,
 ) -> Result<MdocStatement<'s, DH, DS>, String>
 where
-    DH: EvaluationDomain<2, Gf2_128Field>,
-    DS: EvaluationDomain<4, P256Field>,
+    DH: EvaluationDomain<Gf2_128Field>,
+    DS: EvaluationDomain<P256Field>,
 {
     composition.statement(Identity::of(request), public.hash(), public.signature())
 }

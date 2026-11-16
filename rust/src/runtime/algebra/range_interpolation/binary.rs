@@ -35,14 +35,12 @@ use crate::{
 /// Additive point-table interpolation over a fixed binary basis.
 /// The enclosing source coset determines the transform size, which can be much
 /// larger than the sample count near a high dyadic boundary.
-pub struct BinaryInterpolatorFactory<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> {
+pub struct BinaryInterpolatorFactory<'a, F: RuntimeBinaryField<E = Gf2_128>> {
     field: &'a F,
     basis: Vec<Gf2_128>,
 }
 
-impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>
-    BinaryInterpolatorFactory<'a, W, F>
-{
+impl<'a, F: RuntimeBinaryField<E = Gf2_128>> BinaryInterpolatorFactory<'a, F> {
     /// The ambient binary field's complete 128-vector Cantor basis.
     pub fn full_field(field: &'a F) -> Self {
         Self {
@@ -103,12 +101,12 @@ struct BinaryTransform {
 
 impl BinaryTransform {
     /// Choose an ordinary transform, a contained subproblem, or a crossing merge.
-    fn new<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>(
+    fn new<F: RuntimeBinaryField<E = Gf2_128>>(
         size: usize,
         coset: usize,
         start: usize,
         count: usize,
-        fft: &Lch14<'_, W, F>,
+        fft: &Lch14<'_, F>,
         field: &F,
     ) -> Self {
         debug_assert!(size.is_power_of_two());
@@ -150,13 +148,13 @@ impl BinaryTransform {
 
     /// Apply a prefix or suffix mixed FFT and reassemble the full vectors.
     /// LCH14 handles suffix ordering and returns coefficients in the same novel basis.
-    fn ordinary<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>(
+    fn ordinary<F: RuntimeBinaryField<E = Gf2_128>>(
         log: usize,
         coset: usize,
         start: usize,
         samples: &[Gf2_128],
         tail: &[Gf2_128],
-        fft: &Lch14<'_, W, F>,
+        fft: &Lch14<'_, F>,
     ) -> MixedResult {
         let count = samples.len();
         assert!(count == 0 || start == 0 || start + count == 1 << log);
@@ -182,11 +180,11 @@ impl BinaryTransform {
     }
 
     /// Recover all coefficients and evaluations, preserving the supplied suffix.
-    fn apply<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>(
+    fn apply<F: RuntimeBinaryField<E = Gf2_128>>(
         &self,
         samples: &[Gf2_128],
         tail: &[Gf2_128],
-        fft: &Lch14<'_, W, F>,
+        fft: &Lch14<'_, F>,
         field: &F,
     ) -> MixedResult {
         debug_assert_eq!(samples.len(), self.count);
@@ -202,12 +200,12 @@ impl BinaryTransform {
 
     /// In one occupied half, P = A + X_half B restricts to U = A + c B.
     /// All coefficients of B are known, so recurse only to recover U.
-    fn apply_contained<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>(
+    fn apply_contained<F: RuntimeBinaryField<E = Gf2_128>>(
         &self,
         child: &Self,
         samples: &[Gf2_128],
         tail: &[Gf2_128],
-        fft: &Lch14<'_, W, F>,
+        fft: &Lch14<'_, F>,
         field: &F,
     ) -> MixedResult {
         let half = self.size() / 2;
@@ -226,12 +224,12 @@ impl BinaryTransform {
 
     /// Recover A = U + c B and evaluate the other half, where the restriction
     /// is U + B. The stored evaluations are returned in left-then-right order.
-    fn complete_half<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>(
+    fn complete_half<F: RuntimeBinaryField<E = Gf2_128>>(
         &self,
         result: MixedResult,
         upper: &[Gf2_128],
         offset: usize,
-        fft: &Lch14<'_, W, F>,
+        fft: &Lch14<'_, F>,
         field: &F,
     ) -> MixedResult {
         let half = self.size() / 2;
@@ -254,12 +252,12 @@ impl BinaryTransform {
 
     /// First fit the left suffix, then repair the right prefix. The correction
     /// vanishes on every left sample and has degree less than the sample count.
-    fn apply_crossing<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>(
+    fn apply_crossing<F: RuntimeBinaryField<E = Gf2_128>>(
         &self,
         merge: &CrossingMerge,
         samples: &[Gf2_128],
         tail: &[Gf2_128],
-        fft: &Lch14<'_, W, F>,
+        fft: &Lch14<'_, F>,
         field: &F,
     ) -> MixedResult {
         let half = self.size() / 2;
@@ -278,11 +276,11 @@ impl BinaryTransform {
 
     /// Temporarily set unknown coefficients from `left` to `count` to zero,
     /// retain the known high suffix, and solve only the left sample constraints.
-    fn left_baseline<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>(
+    fn left_baseline<F: RuntimeBinaryField<E = Gf2_128>>(
         &self,
         left_samples: &[Gf2_128],
         tail: &[Gf2_128],
-        fft: &Lch14<'_, W, F>,
+        fft: &Lch14<'_, F>,
         field: &F,
     ) -> MixedResult {
         let half = self.size() / 2;
@@ -305,11 +303,11 @@ impl BinaryTransform {
 
     /// A short inverse FFT recovers the correction's novel coefficients.
     /// Its degree is below `count`, so the known coefficient suffix is unchanged.
-    fn add_correction<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>(
+    fn add_correction<F: RuntimeBinaryField<E = Gf2_128>>(
         &self,
         mut baseline: MixedResult,
         correction: Vec<Gf2_128>,
-        fft: &Lch14<'_, W, F>,
+        fft: &Lch14<'_, F>,
         field: &F,
     ) -> MixedResult {
         let size = self.count.next_power_of_two();
@@ -330,7 +328,7 @@ impl BinaryTransform {
 }
 
 /// Form the novel coefficient vector `lower + twiddle * upper`.
-fn fold_coefficients<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>(
+fn fold_coefficients<F: RuntimeBinaryField<E = Gf2_128>>(
     lower: &[Gf2_128],
     upper: &[Gf2_128],
     twiddle: &Gf2_128,
@@ -351,12 +349,12 @@ struct CrossingMerge {
 impl CrossingMerge {
     /// Construct Z_left with a suffix bidirectional FFT: all left samples are
     /// zero, its leading novel coefficient is one, and higher coefficients zero.
-    fn new<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>(
+    fn new<F: RuntimeBinaryField<E = Gf2_128>>(
         log: usize,
         coset: usize,
         start: usize,
         count: usize,
-        fft: &Lch14<'_, W, F>,
+        fft: &Lch14<'_, F>,
         field: &F,
     ) -> Self {
         let half = 1 << (log - 1);
@@ -380,13 +378,13 @@ impl CrossingMerge {
     /// Interpolate q = (samples - baseline) / Z_left on the right prefix,
     /// extend q to both halves, and return the dense correction Z_left * q.
     /// Since deg(q) < right and deg(Z_left) = left, deg(correction) < count.
-    fn correction<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>>(
+    fn correction<F: RuntimeBinaryField<E = Gf2_128>>(
         &self,
         log: usize,
         coset: usize,
         samples: &[Gf2_128],
         baseline: &[Gf2_128],
-        fft: &Lch14<'_, W, F>,
+        fft: &Lch14<'_, F>,
         field: &F,
     ) -> Vec<Gf2_128> {
         let half = 1 << (log - 1);
@@ -439,13 +437,13 @@ impl OutputBlock {
 }
 
 /// A source transform and the cosets needed to cover its requested outputs.
-struct RangeTransform<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> {
-    fft: Lch14<'a, W, F>,
+struct RangeTransform<'a, F: RuntimeBinaryField<E = Gf2_128>> {
+    fft: Lch14<'a, F>,
     transform: BinaryTransform,
     blocks: Vec<OutputBlock>,
 }
 
-impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> RangeTransform<'a, W, F> {
+impl<'a, F: RuntimeBinaryField<E = Gf2_128>> RangeTransform<'a, F> {
     /// Use the smallest aligned additive coset enclosing both source endpoints.
     fn new(ranges: &Ranges, field: &'a F, basis: &[Gf2_128]) -> Self {
         let source = &ranges.source;
@@ -487,15 +485,13 @@ impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> RangeTransform<'
 }
 
 /// Binary range interpolation using a single sequential vanishing-polynomial merge.
-pub struct BinaryInterpolationPlan<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> {
+pub struct BinaryInterpolationPlan<'a, F: RuntimeBinaryField<E = Gf2_128>> {
     field: &'a F,
     ranges: Ranges,
-    transform: Option<RangeTransform<'a, W, F>>,
+    transform: Option<RangeTransform<'a, F>>,
 }
 
-impl<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> InterpolationPlan<W, F>
-    for BinaryInterpolationPlan<'_, W, F>
-{
+impl<F: RuntimeBinaryField<E = Gf2_128>> InterpolationPlan<F> for BinaryInterpolationPlan<'_, F> {
     fn apply(&self, source: &[F::E]) -> Vec<F::E> {
         let mut destination = vec![self.field.zero(); self.ranges.destination.len()];
         if !self.ranges.trivial(source, &mut destination) {
@@ -508,10 +504,10 @@ impl<const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> InterpolationPlan<W,
     }
 }
 
-impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> RangeInterpolatorFactory<W, F>
-    for BinaryInterpolatorFactory<'a, W, F>
+impl<'a, F: RuntimeBinaryField<E = Gf2_128>> RangeInterpolatorFactory<F>
+    for BinaryInterpolatorFactory<'a, F>
 {
-    type Plan = BinaryInterpolationPlan<'a, W, F>;
+    type Plan = BinaryInterpolationPlan<'a, F>;
 
     fn can_interpolate(&self, source: Range<usize>, destination: Range<usize>) -> bool {
         let limit = 1usize
@@ -562,8 +558,8 @@ impl<'a, const W: usize, F: RuntimeBinaryField<W, E = Gf2_128>> RangeInterpolato
     }
 }
 
-impl<const W: usize, F> EvaluationDomain<W, F> for BinaryInterpolatorFactory<'_, W, F>
-where F: RuntimeBinaryField<W, E = Gf2_128> + SerializableField
+impl<F> EvaluationDomain<F> for BinaryInterpolatorFactory<'_, F>
+where F: RuntimeBinaryField<E = Gf2_128> + SerializableField
 {
     fn field(&self) -> &F {
         self.field

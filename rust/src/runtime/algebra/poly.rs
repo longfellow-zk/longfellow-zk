@@ -14,17 +14,17 @@
 
 use crate::{core::algebra::SerializableField, runtime::algebra::RuntimeField};
 
-pub trait InterpolationField<const W: usize>: RuntimeField<W> + SerializableField {
+pub trait InterpolationField: RuntimeField + SerializableField {
     fn poly_evaluation_point(&self, i: usize) -> Self::E;
     fn newton_denominator(&self, k: usize, i: usize) -> Self::E;
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Poly<const N: usize, const W: usize, F: SerializableField> {
+pub struct Poly<const N: usize, F: SerializableField> {
     pub evaluations: [F::E; N],
 }
 
-impl<const N: usize, const W: usize, F: SerializableField> Clone for Poly<N, W, F> {
+impl<const N: usize, F: SerializableField> Clone for Poly<N, F> {
     fn clone(&self) -> Self {
         Self {
             evaluations: self.evaluations.clone(),
@@ -32,7 +32,7 @@ impl<const N: usize, const W: usize, F: SerializableField> Clone for Poly<N, W, 
     }
 }
 
-impl<const N: usize, const W: usize, F: SerializableField + RuntimeField<W>> Poly<N, W, F> {
+impl<const N: usize, F: SerializableField + RuntimeField> Poly<N, F> {
     pub fn zero(f: &F) -> Self {
         Self {
             evaluations: std::array::from_fn(|_| f.zero()),
@@ -40,7 +40,7 @@ impl<const N: usize, const W: usize, F: SerializableField + RuntimeField<W>> Pol
     }
 }
 
-impl<const N: usize, const W: usize, F: SerializableField + InterpolationField<W>> Poly<N, W, F> {
+impl<const N: usize, F: SerializableField + InterpolationField> Poly<N, F> {
     pub fn newton_of_lagrange(&mut self, f: &F) {
         for i in 1..N {
             for k in (i..N).rev() {
@@ -77,12 +77,12 @@ impl<const N: usize, const W: usize, F: SerializableField + InterpolationField<W
 /// coefficients $[`L_0(x)`, `L_1(x)`, \dots, L_{N-1}(x)]$. Taking the dot product
 /// of these coefficients with polynomial evaluations at interpolation points
 /// evaluates the polynomial at `x`.
-pub struct LagrangeBasis<const N: usize, const W: usize, F: InterpolationField<W>> {
+pub struct LagrangeBasis<const N: usize, F: InterpolationField> {
     /// The Kronecker delta functions (Lagrange basis polynomials) represented in the Newton basis.
-    pub delta_in_newton_basis: [Poly<N, W, F>; N],
+    pub delta_in_newton_basis: [Poly<N, F>; N],
 }
 
-impl<const N: usize, const W: usize, F: InterpolationField<W>> LagrangeBasis<N, W, F> {
+impl<const N: usize, F: InterpolationField> LagrangeBasis<N, F> {
     /// Computes the Lagrange basis polynomials in the Newton basis.
     pub fn new(f: &F) -> Self {
         let mut delta_in_newton_basis = std::array::from_fn(|_| Poly::zero(f));
@@ -98,7 +98,7 @@ impl<const N: usize, const W: usize, F: InterpolationField<W>> LagrangeBasis<N, 
     }
 
     /// Evaluates the Lagrange basis polynomials at `x` to obtain the Lagrange coefficients.
-    pub fn coef(&self, x: &F::E, f: &F) -> Poly<N, W, F> {
+    pub fn coef(&self, x: &F::E, f: &F) -> Poly<N, F> {
         let mut c = Poly::zero(f);
         for k in 0..N {
             c.evaluations[k] = self.delta_in_newton_basis[k].eval_newton(x, f);

@@ -22,12 +22,7 @@ use crate::{core::proto::sane_logw, runtime::algebra::RuntimeField};
 
 #[inline(always)]
 /// Evaluate the line through f0 at zero and f1 at one.
-pub(super) fn affine_interpolation<const W: usize, F: RuntimeField<W>>(
-    r: &F::E,
-    f0: &F::E,
-    f1: &F::E,
-    f: &F,
-) -> F::E {
+pub(super) fn affine_interpolation<F: RuntimeField>(r: &F::E, f0: &F::E, f1: &F::E, f: &F) -> F::E {
     let diff = f.subf(f1, f0);
     let mut res = f0.clone();
     f.fma(&mut res, &diff, r);
@@ -36,21 +31,13 @@ pub(super) fn affine_interpolation<const W: usize, F: RuntimeField<W>>(
 
 #[inline(always)]
 /// Bind a pair whose even entry is zero.
-pub(super) fn affine_interpolation_z_nz<const W: usize, F: RuntimeField<W>>(
-    r: &F::E,
-    f1: &F::E,
-    f: &F,
-) -> F::E {
+pub(super) fn affine_interpolation_z_nz<F: RuntimeField>(r: &F::E, f1: &F::E, f: &F) -> F::E {
     f.mulf(f1, r)
 }
 
 #[inline(always)]
 /// Bind a pair whose odd entry is zero.
-pub(super) fn affine_interpolation_nz_z<const W: usize, F: RuntimeField<W>>(
-    r: &F::E,
-    f0: &F::E,
-    f: &F,
-) -> F::E {
+pub(super) fn affine_interpolation_nz_z<F: RuntimeField>(r: &F::E, f0: &F::E, f: &F) -> F::E {
     let p = f.mulf(f0, r);
     f.subf(f0, &p)
 }
@@ -59,7 +46,7 @@ pub(super) fn affine_interpolation_nz_z<const W: usize, F: RuntimeField<W>>(
 ///   v[i] = (1 - r) * v[2 * i] + r * v[2 * i + 1]
 ///        = v[2 * i] + r * (v[2 * i + 1] - v[2 * i])
 /// This method works in-place and truncates the vector.
-pub fn bind<const W: usize, F: RuntimeField<W>>(v: &mut Vec<F::E>, r: &F::E, f: &F) {
+pub fn bind<F: RuntimeField>(v: &mut Vec<F::E>, r: &F::E, f: &F) {
     assert!(!v.is_empty(), "vector length must be >= 1 in bind");
     let in_n = v.len();
     let half = in_n / 2;
@@ -85,11 +72,7 @@ pub fn bind<const W: usize, F: RuntimeField<W>>(v: &mut Vec<F::E>, r: &F::E, f: 
 
 /// Produce a new half-sized table when the input is shared by both witness hands.
 #[cfg(any(test, feature = "prover"))]
-pub(super) fn bind_out_of_place<const W: usize, F: RuntimeField<W>>(
-    v: &[F::E],
-    r: &F::E,
-    f: &F,
-) -> Vec<F::E> {
+pub(super) fn bind_out_of_place<F: RuntimeField>(v: &[F::E], r: &F::E, f: &F) -> Vec<F::E> {
     assert!(
         !v.is_empty(),
         "vector length must be >= 1 in bind_out_of_place"
@@ -107,12 +90,7 @@ pub(super) fn bind_out_of_place<const W: usize, F: RuntimeField<W>>(
 }
 
 /// Bind the first logv coordinates, in low-bit-first order.
-pub fn bind_all<const W: usize, F: RuntimeField<W>>(
-    logv: usize,
-    v: &mut Vec<F::E>,
-    r: &[F::E],
-    f: &F,
-) {
+pub fn bind_all<F: RuntimeField>(logv: usize, v: &mut Vec<F::E>, r: &[F::E], f: &F) {
     assert!(!v.is_empty(), "vector length must be >= 1 in bind_all");
     assert!(sane_logw(logv), "logv must be sane");
     assert!(
@@ -133,7 +111,7 @@ pub fn bind_all<const W: usize, F: RuntimeField<W>>(
 /// (size 1). This simplifies implementation across the sumcheck prover and verifier by avoiding
 /// empty vector edge cases in downstream folding and binding operations (`bind` / `bind_all`).
 #[inline]
-pub fn normalize<const W: usize, F: RuntimeField<W>>(v: Vec<F::E>, f: &F) -> Vec<F::E> {
+pub fn normalize<F: RuntimeField>(v: Vec<F::E>, f: &F) -> Vec<F::E> {
     if v.is_empty() {
         vec![f.zero()]
     } else {
@@ -146,7 +124,7 @@ pub fn normalize<const W: usize, F: RuntimeField<W>>(v: Vec<F::E>, f: &F) -> Vec
 /// After folding a wire vector across all rounds of sumcheck, its length must be exactly 1.
 /// This function asserts that `v.len() == 1` and returns that final evaluated scalar claim.
 #[inline]
-pub fn as_scalar<const W: usize, F: RuntimeField<W>>(v: &[F::E]) -> F::E {
+pub fn as_scalar<F: RuntimeField>(v: &[F::E]) -> F::E {
     assert_eq!(v.len(), 1, "vector length must be 1");
     v[0].clone()
 }

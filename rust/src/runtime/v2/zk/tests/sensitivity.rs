@@ -123,7 +123,7 @@ fn standalone(
 /// after construction: the values the `CommitmentLayout` encoder reads.
 fn edited(
     circuit: &Circuit<Gf2_128Field>,
-    edit: impl FnOnce(&mut CircuitParticipant<2, Gf2_128Field>),
+    edit: impl FnOnce(&mut CircuitParticipant<Gf2_128Field>),
 ) -> Vec<u8> {
     let f = Gf2_128Field::new();
     let d = BinaryInterpolatorFactory::full_field(&f);
@@ -311,7 +311,7 @@ fn prime_circuit(p: &P256Field, ninput: usize) -> Circuit<P256Field> {
 /// `PublicInputs`, in the order and with the writers of `ZkProofStatement`.
 struct SplitStatement<'a> {
     identity: ZkStatement<'a>,
-    part: FrontendPart<'a, 4, P256Field, MixedSplit<4, P256Field>>,
+    part: FrontendPart<'a, P256Field, MixedSplit<P256Field>>,
 }
 impl<'a> Statement for SplitStatement<'a> {
     type Identity = ZkStatement<'a>;

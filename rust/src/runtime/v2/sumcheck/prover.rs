@@ -67,10 +67,7 @@ use crate::{
 /// Single-circuit convenience for tests: prove after the caller has bound
 /// the circuit statement.
 #[cfg(test)]
-pub(crate) fn evaluate_and_prove<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
+pub(crate) fn evaluate_and_prove<F: RuntimeField + RegisteredField + SupportsSampling>(
     inputs: Vec<F::E>,
     pads: &SumcheckProof<F>,
     circuit: &Circuit<F>,
@@ -83,10 +80,7 @@ pub(crate) fn evaluate_and_prove<
 /// Test convenience: prove after the caller has bound every circuit
 /// statement, with a proof as the pads.
 #[cfg(test)]
-pub(crate) fn prove_circuits<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
+pub(crate) fn prove_circuits<F: RuntimeField + RegisteredField + SupportsSampling>(
     circuits: &[&Circuit<F>],
     inputs: Vec<F::E>,
     pads: &SumcheckProof<F>,
@@ -123,10 +117,7 @@ impl<F: SerializableField> SumcheckPads<F> {
 /// weights are drawn here, before the first message. Classify each circuit once for both evaluation
 /// and proving; consume its classified layers and witnesses as the shared schedule
 /// advances toward the inputs, and the pads.
-pub(crate) fn evaluate_and_prove_circuits<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
+pub(crate) fn evaluate_and_prove_circuits<F: RuntimeField + RegisteredField + SupportsSampling>(
     circuits: &[&Circuit<F>],
     inputs: Vec<F::E>,
     pads: SumcheckPads<F>,
@@ -148,7 +139,7 @@ pub(crate) fn evaluate_and_prove_circuits<
 }
 
 #[allow(clippy::too_many_arguments)]
-fn prove_layers<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
+fn prove_layers<F: RuntimeField + RegisteredField + SupportsSampling>(
     circuits: &[&Circuit<F>],
     layers: Vec<Vec<ClassifiedLayer<'_>>>,
     witnesses: Vec<Vec<F::E>>,
@@ -231,10 +222,7 @@ fn prove_layers<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsS
 /// Return this layer's masked messages, sampled challenges, and the unmasked
 /// combined claim A + alpha*B for the next layer. The caller may extend the
 /// same combine answer with input assertion coefficients, using only a reader.
-pub(super) fn prove_dot_product<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
+pub(super) fn prove_dot_product<F: RuntimeField + RegisteredField + SupportsSampling>(
     mut w: Vec<F::E>,
     mut q_l: Vec<F::E>,
     pads: &LayerProof<F>,
@@ -253,7 +241,7 @@ pub(super) fn prove_dot_product<
         point_l.push(z);
     }
     // Both arrays now contain one scalar: claims[0] = A and claims[1] = B.
-    let claims = [as_scalar::<W, F>(&w), as_scalar::<W, F>(&q_l)];
+    let claims = [as_scalar::<F>(&w), as_scalar::<F>(&q_l)];
     let holds = claim == f.mulf(&claims[0], &claims[1]);
     #[cfg(test)]
     #[allow(clippy::shadow_reuse)]
@@ -298,7 +286,7 @@ pub(super) fn prove_dot_product<
 ///
 /// After binding, claim' = sum_i q_l'[i]*w'[i], with one fewer index bit.
 /// Return the masked message, z, and the next claim.
-fn round<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
+fn round<F: RuntimeField + RegisteredField + SupportsSampling>(
     w: &mut Vec<F::E>,
     q_l: &mut Vec<F::E>,
     pads: &RoundPoly<F>,
@@ -313,10 +301,7 @@ fn round<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling
     (m, z, claim_next)
 }
 /// Shared masking, challenge sampling and claim update for every numerical kernel.
-pub(super) fn mask_round<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
+pub(super) fn mask_round<F: RuntimeField + RegisteredField + SupportsSampling>(
     p: RoundPoly<F>,
     pads: &RoundPoly<F>,
     claim: F::E,
@@ -357,7 +342,7 @@ pub(super) fn mask_round<
 /// Accumulate c0 and p(1) together, then obtain c1 = p(1) - claim.
 /// This uses two products per pair; missing odd coefficients are zero.
 #[inline]
-pub(super) fn quad_round_poly<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub(super) fn quad_round_poly<F: RuntimeField + SerializableField>(
     q_l: &[F::E],
     w: &[F::E],
     claim: &F::E,
@@ -401,8 +386,7 @@ pub(super) fn quad_round_poly<const W: usize, F: RuntimeField<W> + SerializableF
 /// but Polygero enforces only affine equations on these cells. The cross message
 /// and fresh terminal scale check a random-point identity instead.
 pub(crate) fn sample_pads<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
+    F: RuntimeField + RegisteredField + SupportsSampling,
     R: PrivateRandom,
 >(
     geometry: &SumcheckProofGeometry,
@@ -443,8 +427,7 @@ pub(crate) fn sample_pads<
 /// the fixtures and diagnostics that take them so.
 #[cfg(test)]
 pub(crate) fn sample_pads_for_test<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
+    F: RuntimeField + RegisteredField + SupportsSampling,
     R: PrivateRandom,
 >(
     geometry: &SumcheckProofGeometry,

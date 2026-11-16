@@ -37,17 +37,12 @@ fn config() -> PolygeroConfig {
         t: 2,
     }
 }
-fn field<
-    'a,
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
-    D: EvaluationDomain<W, F>,
->(
+fn field<'a, F: RuntimeField + RegisteredField + SupportsSampling, D: EvaluationDomain<F>>(
     f: &'a F,
     d: &'a D,
     n: usize,
     c: PolygeroConfig,
-) -> (Participant<'a, W, F, D>, Vec<F::E>, LinearStatement<F::E>) {
+) -> (Participant<'a, F, D>, Vec<F::E>, LinearStatement<F::E>) {
     let mut rng = DeterministicRng::new(n as u64 + 1);
     let w = rng.elt_field_slice(n, f);
     let p = Participant::new(PolygeroParam::try_new(n, c, d).unwrap(), d).unwrap();

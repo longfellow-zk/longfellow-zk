@@ -42,9 +42,9 @@ use crate::{
 /// Independently derive local verifier data after the statement has been bound.
 /// Success validates proof shape and derives coefficients; it does not establish
 /// acceptance. Only scalar data and the final dense input weights are retained.
-pub fn derive_verifier_data<const W: usize, F: InterpolationField<W> + SupportsSampling>(
+pub fn derive_verifier_data<F: InterpolationField + SupportsSampling>(
     circuit: &Circuit<F>,
-    proof: &SumcheckProof<W, F>,
+    proof: &SumcheckProof<F>,
     transcript: &mut Transcript,
     f: &F,
 ) -> Result<VerifierData<ElementOf<F>>, String> {
@@ -120,11 +120,11 @@ pub fn derive_verifier_data<const W: usize, F: InterpolationField<W> + SupportsS
 
 /// Numerical verification with revealed inputs and pads, using the same logical
 /// relations that production ZK verification compiles into Ligero constraints.
-pub fn verify_core<const W: usize, F: InterpolationField<W> + SupportsSampling>(
+pub fn verify_core<F: InterpolationField + SupportsSampling>(
     inputs: Vec<ElementOf<F>>,
-    pad: &SumcheckProof<W, F>,
+    pad: &SumcheckProof<F>,
     circuit: &Circuit<F>,
-    proof: &SumcheckProof<W, F>,
+    proof: &SumcheckProof<F>,
     transcript: &mut Transcript,
     f: &F,
 ) -> Result<(), String> {
@@ -146,11 +146,11 @@ pub fn verify_core<const W: usize, F: InterpolationField<W> + SupportsSampling>(
 }
 
 /// Bind the public statement, then check the proof against revealed witness data.
-pub fn verify<const W: usize, F: InterpolationField<W> + SupportsSampling>(
+pub fn verify<F: InterpolationField + SupportsSampling>(
     inputs: Vec<ElementOf<F>>,
-    pad: &SumcheckProof<W, F>,
+    pad: &SumcheckProof<F>,
     circuit: &Circuit<F>,
-    proof: &SumcheckProof<W, F>,
+    proof: &SumcheckProof<F>,
     transcript: &mut Transcript,
     f: &F,
 ) -> Result<(), String> {

@@ -295,7 +295,7 @@ fn split_state_proves_only_for_its_own_participant() {
     };
     let (own, other) = (participant(7), participant(8));
     assert_eq!(own.geometry(), other.geometry());
-    let prove = |part: &MixedSplit<4, P256Field>| {
+    let prove = |part: &MixedSplit<P256Field>| {
         let (state, _) = own
             .prepare(
                 vec![f.one(), f.zero()],
@@ -315,11 +315,11 @@ fn split_state_proves_only_for_its_own_participant() {
     prove(&own).unwrap();
 }
 
-impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
+impl<F: ZkField + PackingField> MixedSplit<F> {
     /// Every field, in declaration order: the frontend, the Polygero
     /// parameter and the storage. The pattern is exhaustive, so a new field
     /// does not compile until the statement tests cover it.
-    pub(crate) fn fields_for_test(&self) -> (&Frontend<W, F>, &PolygeroParam, &MixedStorage) {
+    pub(crate) fn fields_for_test(&self) -> (&Frontend<F>, &PolygeroParam, &MixedStorage) {
         let Self {
             frontend,
             param,

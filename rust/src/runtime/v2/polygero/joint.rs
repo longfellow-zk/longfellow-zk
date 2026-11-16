@@ -31,12 +31,12 @@ cfg_verifier! {
 pub(crate) const MAX_FIELD_BYTES: usize = 128;
 
 /// Field and domain references remain typed; parameters own their initialization state.
-pub struct Participant<'a, const W: usize, F: RuntimeField<W>, D> {
+pub struct Participant<'a, F: RuntimeField, D> {
     pub(super) param: PolygeroParam,
     pub(super) f: &'a F,
     pub(super) domain: &'a D,
 }
-impl<const W: usize, F: RuntimeField<W>, D> Clone for Participant<'_, W, F, D> {
+impl<F: RuntimeField, D> Clone for Participant<'_, F, D> {
     fn clone(&self) -> Self {
         Self {
             param: self.param.clone(),
@@ -45,12 +45,8 @@ impl<const W: usize, F: RuntimeField<W>, D> Clone for Participant<'_, W, F, D> {
         }
     }
 }
-impl<
-        'a,
-        const W: usize,
-        F: RuntimeField<W> + SerializableField + SupportsSampling,
-        D: EvaluationDomain<W, F>,
-    > Participant<'a, W, F, D>
+impl<'a, F: RuntimeField + SerializableField + SupportsSampling, D: EvaluationDomain<F>>
+    Participant<'a, F, D>
 {
     pub fn new(param: PolygeroParam, domain: &'a D) -> Result<Self, PolygeroError> {
         let f = domain.field();

@@ -29,9 +29,9 @@ use crate::{
 
 // Independent numerical recurrence using full three-point interpolation.
 #[allow(clippy::too_many_arguments)]
-fn reference<const W: usize, F: InterpolationField<W>>(
-    proof: &SumcheckProof<W, F>,
-    pads: &SumcheckProof<W, F>,
+fn reference<F: InterpolationField>(
+    proof: &SumcheckProof<F>,
+    pads: &SumcheckProof<F>,
     points: &[[Vec<F::E>; 2]],
     alphas: &[F::E],
     wiring: &[F::E],
@@ -51,7 +51,7 @@ fn reference<const W: usize, F: InterpolationField<W>>(
                 let g0 = f.addf(&message.evaluations[0], &pad.evaluations[0]);
                 let g1 = f.subf(&claim, &g0);
                 let g2 = f.addf(&message.evaluations[1], &pad.evaluations[1]);
-                claim = Poly::<3, W, F> {
+                claim = Poly::<3, F> {
                     evaluations: [g0, g1, g2],
                 }
                 .eval_lagrange(&hand_points[round], f);
@@ -66,10 +66,7 @@ fn reference<const W: usize, F: InterpolationField<W>>(
     residuals
 }
 
-fn check_compilation<const W: usize, F: InterpolationField<W>>(
-    f: &F,
-    element: impl Fn(u64) -> F::E,
-) {
+fn check_compilation<F: InterpolationField>(f: &F, element: impl Fn(u64) -> F::E) {
     for widths in [vec![2, 0, 1], vec![]] {
         let geometry = SumcheckProofGeometry {
             logw_layers: widths.clone(),

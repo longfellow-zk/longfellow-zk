@@ -25,7 +25,7 @@ use crate::{
 #[cfg(feature = "v1")]
 pub(crate) trait MdocHashRuntimeField:
     Sized
-    + RuntimeField<2>
+    + RuntimeField
     + crate::core::algebra::SerializableField
     + HasLookupPoints
     + crate::core::algebra::SupportsU128Conversions
@@ -34,7 +34,7 @@ pub(crate) trait MdocHashRuntimeField:
 
 #[cfg(feature = "v1")]
 impl<F> MdocHashRuntimeField for F where F: Sized
-        + RuntimeField<2>
+        + RuntimeField
         + crate::core::algebra::SerializableField
         + HasLookupPoints
         + crate::core::algebra::SupportsU128Conversions
@@ -45,7 +45,7 @@ impl<F> MdocHashRuntimeField for F where F: Sized
 pub(crate) trait MdocSigRuntimeField:
     Sized
     + BareField
-    + RuntimeField<4>
+    + RuntimeField
     + SupportsNatConversions<4>
     + SupportsU64Conversions
     + HasLookupPoints
@@ -57,7 +57,7 @@ impl<F> MdocSigRuntimeField for F
 where
     F: Sized
         + BareField
-        + RuntimeField<4>
+        + RuntimeField
         + SupportsNatConversions<4>
         + SupportsU64Conversions
         + HasLookupPoints,

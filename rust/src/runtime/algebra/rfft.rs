@@ -144,16 +144,12 @@ use crate::{
     },
 };
 
-pub struct Twiddle<const W: usize, F: SupportsQuadraticExtension<W>> {
-    pub w: Vec<Fp2Element<W, F>>,
+pub struct Twiddle<F: SupportsQuadraticExtension> {
+    pub w: Vec<Fp2Element<F>>,
 }
 
-impl<const W: usize, F: SupportsQuadraticExtension<W>> Twiddle<W, F> {
-    pub fn new(
-        order: usize,
-        omega_order: &Fp2Element<W, F>,
-        field_ext: &Fp2Field<'_, W, F>,
-    ) -> Self {
+impl<F: SupportsQuadraticExtension> Twiddle<F> {
+    pub fn new(order: usize, omega_order: &Fp2Element<F>, field_ext: &Fp2Field<'_, F>) -> Self {
         assert!(
             order.is_power_of_two(),
             "twiddle order must be a nonzero power of two"
@@ -168,11 +164,11 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> Twiddle<W, F> {
     }
 
     pub fn reroot(
-        omega_n: &Fp2Element<W, F>,
+        omega_n: &Fp2Element<F>,
         n: u64,
         mut r: u64,
-        field_ext: &Fp2Field<'_, W, F>,
-    ) -> Fp2Element<W, F> {
+        field_ext: &Fp2Field<'_, F>,
+    ) -> Fp2Element<F> {
         assert_valid_orders(r, n);
         let mut omega_r = omega_n.clone();
         while r < n {
@@ -210,10 +206,7 @@ pub fn bitrev<T>(a: &mut [T]) {
 // The machinery in this file only works if the root is
 // on the unit circle, because we multiply by the conjugate
 // instead of by the inverse.
-fn validate_root<const W: usize, F: SupportsQuadraticExtension<W>>(
-    omega: &Fp2Element<W, F>,
-    c: &Fp2Field<'_, W, F>,
-) {
+fn validate_root<F: SupportsQuadraticExtension>(omega: &Fp2Element<F>, c: &Fp2Field<'_, F>) {
     let conj = Fp2Element {
         re: omega.re.clone(),
         im: c.base_field().neg(&omega.im),
@@ -230,10 +223,7 @@ fn validate_root<const W: usize, F: SupportsQuadraticExtension<W>>(
 // (== c.i()) as opposed to the conjugate (0, -1).  There is nothing
 // wrong with c.conj(c.i()), but we hardcode the positive sign
 // in all the radix-4 butterflies.
-fn validate_i<const W: usize, F: SupportsQuadraticExtension<W>>(
-    ii: &Fp2Element<W, F>,
-    c: &Fp2Field<'_, W, F>,
-) {
+fn validate_i<F: SupportsQuadraticExtension>(ii: &Fp2Element<F>, c: &Fp2Field<'_, F>) {
     assert_eq!(ii, &c.i(), "wrong sign for i(), need the conjugate root");
 }
 
@@ -242,11 +232,11 @@ fn validate_i<const W: usize, F: SupportsQuadraticExtension<W>>(
 // This always holds if p mod 8 == 7, in which case the
 // 8-th root is the usual +/- (1+i)/sqrt(2), assuming w8^2 = I
 // (as opposed to -I).
-fn validate_w8<const W: usize, F: SupportsQuadraticExtension<W>>(w8: &Fp2Element<W, F>) {
+fn validate_w8<F: SupportsQuadraticExtension>(w8: &Fp2Element<F>) {
     assert_eq!(w8.re, w8.im, "wrong 8-th root of unity");
 }
 
-pub fn cmul<const W: usize, F: SupportsQuadraticExtension<W>>(
+pub fn cmul<F: SupportsQuadraticExtension>(
     xr: &mut F::E,
     xi: &mut F::E,
     br: &F::E,
@@ -270,7 +260,7 @@ pub fn cmul<const W: usize, F: SupportsQuadraticExtension<W>>(
     *xi = a01;
 }
 
-fn cmul_conj<const W: usize, F: SupportsQuadraticExtension<W>>(
+fn cmul_conj<F: SupportsQuadraticExtension>(
     xr: &mut F::E,
     xi: &mut F::E,
     br: &F::E,
@@ -295,12 +285,7 @@ fn cmul_conj<const W: usize, F: SupportsQuadraticExtension<W>>(
 }
 
 // r2hcI_2() implements a real->half-complex FFT of size 2.
-fn r2hc_i_2<const W: usize, F: SupportsQuadraticExtension<W>>(
-    a: &mut [F::E],
-    idx: usize,
-    s: usize,
-    r: &F,
-) {
+fn r2hc_i_2<F: SupportsQuadraticExtension>(a: &mut [F::E], idx: usize, s: usize, r: &F) {
     let t = a[idx + s].clone();
     a[idx + s] = a[idx].clone();
     r.sub(&mut a[idx + s], &t);
@@ -308,12 +293,7 @@ fn r2hc_i_2<const W: usize, F: SupportsQuadraticExtension<W>>(
 }
 
 // r2hcI_4() implements a real->half-complex FFT of size 4.
-fn r2hc_i_4<const W: usize, F: SupportsQuadraticExtension<W>>(
-    a: &mut [F::E],
-    idx: usize,
-    s: usize,
-    r: &F,
-) {
+fn r2hc_i_4<F: SupportsQuadraticExtension>(a: &mut [F::E], idx: usize, s: usize, r: &F) {
     let x1 = a[idx + s].clone();
     let x3 = a[idx + 3 * s].clone();
 
@@ -333,11 +313,11 @@ fn r2hc_i_4<const W: usize, F: SupportsQuadraticExtension<W>>(
 }
 
 // j = m/2 butterfly in the main loop, where w8^2 = I
-fn r2hc_ii_4<const W: usize, F: SupportsQuadraticExtension<W>>(
+fn r2hc_ii_4<F: SupportsQuadraticExtension>(
     a: &mut [F::E],
     idx: usize,
     s: usize,
-    w8: &Fp2Element<W, F>,
+    w8: &Fp2Element<F>,
     r: &F,
 ) {
     let x1 = a[idx + s].clone();
@@ -365,12 +345,12 @@ fn r2hc_ii_4<const W: usize, F: SupportsQuadraticExtension<W>>(
     r.sub(&mut a[idx + 2 * s], &z0_val);
 }
 
-fn hc2hc_f_4<const W: usize, F: SupportsQuadraticExtension<W>>(
+fn hc2hc_f_4<F: SupportsQuadraticExtension>(
     a: &mut [F::E],
     idx_r: usize,
     idx_i: usize,
     s: usize,
-    twiddles: [&Fp2Element<W, F>; 3],
+    twiddles: [&Fp2Element<F>; 3],
     r: &F,
 ) {
     let [tw1, tw2, tw3] = twiddles;
@@ -427,12 +407,7 @@ fn hc2hc_f_4<const W: usize, F: SupportsQuadraticExtension<W>>(
 }
 
 // hc2rI_2: half-complex->real backward transform of size 2.
-fn hc2r_i_2<const W: usize, F: SupportsQuadraticExtension<W>>(
-    a: &mut [F::E],
-    idx: usize,
-    s: usize,
-    r: &F,
-) {
+fn hc2r_i_2<F: SupportsQuadraticExtension>(a: &mut [F::E], idx: usize, s: usize, r: &F) {
     let t = a[idx + s].clone();
     a[idx + s] = a[idx].clone();
     r.sub(&mut a[idx + s], &t);
@@ -440,12 +415,7 @@ fn hc2r_i_2<const W: usize, F: SupportsQuadraticExtension<W>>(
 }
 
 // hc2rI_4: half-complex->real backward transform of size 4.
-fn hc2r_i_4<const W: usize, F: SupportsQuadraticExtension<W>>(
-    a: &mut [F::E],
-    idx: usize,
-    s: usize,
-    r: &F,
-) {
+fn hc2r_i_4<F: SupportsQuadraticExtension>(a: &mut [F::E], idx: usize, s: usize, r: &F) {
     let mut y0 = a[idx].clone();
     r.add(&mut y0, &a[idx + 2 * s]);
     let mut y1 = a[idx].clone();
@@ -466,11 +436,11 @@ fn hc2r_i_4<const W: usize, F: SupportsQuadraticExtension<W>>(
 }
 
 // hc2rIII_4: half-complex->real backward transform with w_8^j twiddle factors.
-fn hc2r_iii_4<const W: usize, F: SupportsQuadraticExtension<W>>(
+fn hc2r_iii_4<F: SupportsQuadraticExtension>(
     a: &mut [F::E],
     idx: usize,
     s: usize,
-    w8: &Fp2Element<W, F>,
+    w8: &Fp2Element<F>,
     r: &F,
 ) {
     let mut x0 = a[idx].clone();
@@ -507,12 +477,12 @@ fn hc2r_iii_4<const W: usize, F: SupportsQuadraticExtension<W>>(
 }
 
 // hc2hcb_4(): the main complex->complex backward butterfly.
-fn hc2hc_b_4<const W: usize, F: SupportsQuadraticExtension<W>>(
+fn hc2hc_b_4<F: SupportsQuadraticExtension>(
     a: &mut [F::E],
     idx_r: usize,
     idx_i: usize,
     s: usize,
-    twiddles: [&Fp2Element<W, F>; 3],
+    twiddles: [&Fp2Element<F>; 3],
     r: &F,
 ) {
     let [tw1, tw2, tw3] = twiddles;
@@ -577,11 +547,11 @@ fn hc2hc_b_4<const W: usize, F: SupportsQuadraticExtension<W>>(
     a[idx_i + 3 * s] = x3i;
 }
 
-pub fn r2hc<const W: usize, F: SupportsQuadraticExtension<W>>(
+pub fn r2hc<F: SupportsQuadraticExtension>(
     a: &mut [F::E],
-    omega: &Fp2Element<W, F>,
+    omega: &Fp2Element<F>,
     omega_order: u64,
-    c: &Fp2Field<'_, W, F>,
+    c: &Fp2Field<'_, F>,
 ) {
     let n = a.len();
     assert_valid_orders(n as u64, omega_order);
@@ -592,8 +562,8 @@ pub fn r2hc<const W: usize, F: SupportsQuadraticExtension<W>>(
     if n == 2 {
         r2hc_i_2(a, 0, 1, r);
     } else if n >= 4 {
-        let omega_n = Twiddle::<W, F>::reroot(omega, omega_order, n as u64, c);
-        let roots = Twiddle::<W, F>::new(n, &omega_n, c);
+        let omega_n = Twiddle::<F>::reroot(omega, omega_order, n as u64, c);
+        let roots = Twiddle::<F>::new(n, &omega_n, c);
         #[cfg(debug_assertions)]
         validate_i(&roots.w[n / 4], c);
         #[cfg(debug_assertions)]
@@ -647,11 +617,11 @@ pub fn r2hc<const W: usize, F: SupportsQuadraticExtension<W>>(
     }
 }
 
-pub fn hc2r<const W: usize, F: SupportsQuadraticExtension<W>>(
+pub fn hc2r<F: SupportsQuadraticExtension>(
     a: &mut [F::E],
-    omega: &Fp2Element<W, F>,
+    omega: &Fp2Element<F>,
     omega_order: u64,
-    c: &Fp2Field<'_, W, F>,
+    c: &Fp2Field<'_, F>,
 ) {
     let n = a.len();
     assert_valid_orders(n as u64, omega_order);
@@ -662,8 +632,8 @@ pub fn hc2r<const W: usize, F: SupportsQuadraticExtension<W>>(
     if n == 2 {
         hc2r_i_2(a, 0, 1, r);
     } else if n >= 4 {
-        let omega_n = Twiddle::<W, F>::reroot(omega, omega_order, n as u64, c);
-        let roots = Twiddle::<W, F>::new(n, &omega_n, c);
+        let omega_n = Twiddle::<F>::reroot(omega, omega_order, n as u64, c);
+        let roots = Twiddle::<F>::new(n, &omega_n, c);
         #[cfg(debug_assertions)]
         validate_i(&roots.w[n / 4], c);
         #[cfg(debug_assertions)]

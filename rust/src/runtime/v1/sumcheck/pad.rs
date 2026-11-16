@@ -28,15 +28,11 @@ use crate::{
 };
 
 /// Generates a new random sumcheck proof pad for the given geometry.
-pub fn sample<
-    const W: usize,
-    F: InterpolationField<W> + SerializableField + SupportsSampling,
-    R: RandomEngine,
->(
+pub fn sample<F: InterpolationField + SerializableField + SupportsSampling, R: RandomEngine>(
     geometry: &SumcheckProofGeometry,
     rng: &mut R,
     f: &F,
-) -> (SumcheckProof<W, F>, Vec<F::E>) {
+) -> (SumcheckProof<F>, Vec<F::E>) {
     let mut pad = SumcheckProof { layers: Vec::new() };
     let mut witness = Vec::new();
 

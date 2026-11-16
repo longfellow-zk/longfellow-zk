@@ -34,13 +34,11 @@ pub struct MdocProofGeometry {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MdocProof<F1: SerializableField, F2: SerializableField> {
     pub macs: [u128; 6],
-    pub proof_hash: ZkProof<2, F1>,
-    pub proof_sig: ZkProof<4, F2>,
+    pub proof_hash: ZkProof<F1>,
+    pub proof_sig: ZkProof<F2>,
 }
 
-impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + SerializableField>
-    MdocProof<F1, F2>
-{
+impl<F1: RuntimeField + SerializableField, F2: RuntimeField + SerializableField> MdocProof<F1, F2> {
     pub fn write<SF1: SubfieldV1<E = ElementOf<F1>>, SF2: SubfieldV1<E = ElementOf<F2>>>(
         &self,
         geom: &MdocProofGeometry,

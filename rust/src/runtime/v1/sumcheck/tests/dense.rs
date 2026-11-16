@@ -24,12 +24,12 @@ use crate::{
 fn test_normalize() {
     let f = P256Field::new();
     let empty: Vec<ElementOf<P256Field>> = vec![];
-    let norm_empty = normalize::<4, P256Field>(empty, &f);
+    let norm_empty = normalize::<P256Field>(empty, &f);
     assert_eq!(norm_empty.len(), 1);
     assert_eq!(norm_empty[0], f.zero());
 
     let non_empty = vec![f.u64_to_element(42), f.u64_to_element(100)];
-    let norm_non_empty = normalize::<4, P256Field>(non_empty.clone(), &f);
+    let norm_non_empty = normalize::<P256Field>(non_empty.clone(), &f);
     assert_eq!(norm_non_empty, non_empty);
 }
 
@@ -37,7 +37,7 @@ fn test_normalize() {
 fn test_as_scalar() {
     let f = P256Field::new();
     let vec_one = vec![f.u64_to_element(42)];
-    assert_eq!(as_scalar::<4, P256Field>(&vec_one), f.u64_to_element(42));
+    assert_eq!(as_scalar::<P256Field>(&vec_one), f.u64_to_element(42));
 }
 
 #[test]
@@ -45,5 +45,5 @@ fn test_as_scalar() {
 fn test_as_scalar_panic() {
     let f = P256Field::new();
     let vec_two = vec![f.u64_to_element(1), f.u64_to_element(2)];
-    as_scalar::<4, P256Field>(&vec_two);
+    as_scalar::<P256Field>(&vec_two);
 }

@@ -50,20 +50,20 @@ use crate::{
 };
 
 /// The two points and logical width describing the current pair of output claims.
-struct Bindings<const W: usize, F: InterpolationField<W>> {
+struct Bindings<F: InterpolationField> {
     logv: usize,
     nv: usize,
     challenges: [Vec<ElementOf<F>>; 2],
 }
 
 /// Bind the circuit statement and public input prefix, then prove every layer.
-pub fn prove<const W: usize, F: InterpolationField<W> + SupportsSampling>(
+pub fn prove<F: InterpolationField + SupportsSampling>(
     in_layers: Vec<Vec<ElementOf<F>>>,
-    pad: &SumcheckProof<W, F>,
+    pad: &SumcheckProof<F>,
     circuit: &Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
-) -> (SumcheckProof<W, F>, VerifierData<ElementOf<F>>) {
+) -> (SumcheckProof<F>, VerifierData<ElementOf<F>>) {
     assert!(
         circuit.raw.ninput >= circuit.raw.npublic_input,
         "npublic_input ({}) exceeds ninput ({})",
@@ -85,13 +85,13 @@ pub fn prove<const W: usize, F: InterpolationField<W> + SupportsSampling>(
 
 /// Prove after the caller has bound the statement to the transcript. Layer inputs
 /// arrive in circuit output-to-input order; return messages and local verifier data.
-pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling>(
+pub fn prove_core<F: InterpolationField + SupportsSampling>(
     mut in_layers: Vec<Vec<ElementOf<F>>>,
-    pad: &SumcheckProof<W, F>,
+    pad: &SumcheckProof<F>,
     circuit: &Circuit<F>,
     transcript: &mut Transcript,
     f: &F,
-) -> (SumcheckProof<W, F>, VerifierData<ElementOf<F>>) {
+) -> (SumcheckProof<F>, VerifierData<ElementOf<F>>) {
     pad.validate(&SumcheckProofGeometry::from_circuit(circuit))
         .expect("pad shape mismatch");
     // The wire array is conceptually infinite (padded with zeros), but we normalize
@@ -180,19 +180,19 @@ pub fn prove_core<const W: usize, F: InterpolationField<W> + SupportsSampling>(
 /// Prove one layer with alternating r/l bindings. Return the two unmasked witness
 /// claims and their points, together with masked messages and interpolation data.
 #[allow(clippy::too_many_arguments)]
-fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling>(
+fn layer<F: InterpolationField + SupportsSampling>(
     logw: usize,
     nw: usize,
     wires: Vec<ElementOf<F>>,
-    pad: &LayerProof<W, F>,
+    pad: &LayerProof<F>,
     transcript: &mut Transcript,
-    mut hquad: HQuad<W, F>,
+    mut hquad: HQuad<F>,
     alpha: &ElementOf<F>,
     claims: [ElementOf<F>; 2],
     f: &F,
 ) -> (
-    LayerProof<W, F>,
-    Bindings<W, F>,
+    LayerProof<F>,
+    Bindings<F>,
     [ElementOf<F>; 2],
     LayerVerifierData<ElementOf<F>>,
 ) {
@@ -250,7 +250,7 @@ fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling>(
         }
     }
 
-    let claims_next = [as_scalar::<W, F>(&w[0]), as_scalar::<W, F>(&w[1])];
+    let claims_next = [as_scalar::<F>(&w[0]), as_scalar::<F>(&w[1])];
 
     let hquad_scalar = hquad.scalar();
     let mut expected_sum = claims_next[0].clone();
@@ -290,9 +290,9 @@ fn layer<const W: usize, F: InterpolationField<W> + SupportsSampling>(
 /// For hand 0, compute qw[r] = sum_l Q[r,l]*W[l]; for hand 1, compute
 /// qw[l] = sum_r Q[r,l]*W[r]. Preserve sparse-corner order in each accumulation.
 /// The caller supplies the buffer reused across all rounds of this layer.
-fn fill_round_weights<const W: usize, F: InterpolationField<W>>(
+fn fill_round_weights<F: InterpolationField>(
     qw: &mut [ElementOf<F>],
-    quad: &HQuad<W, F>,
+    quad: &HQuad<F>,
     w_other: &[ElementOf<F>],
     hand: usize,
     f: &F,
@@ -311,13 +311,13 @@ fn fill_round_weights<const W: usize, F: InterpolationField<W>>(
 /// Directly computes the evaluations [g(0), g(1), g(2)] without intermediate
 /// monomial or Newton conversions.
 #[inline]
-fn quad_round_poly<const W: usize, F: InterpolationField<W>>(
+fn quad_round_poly<F: InterpolationField>(
     n: usize,
     qw: &[ElementOf<F>],
     witness_values: &[ElementOf<F>],
     sum: &ElementOf<F>,
     f: &F,
-) -> Poly<3, W, F> {
+) -> Poly<3, F> {
     let num_pairs = n / 2;
     let mut accum_a0 = f.zero_accum();
     let mut accum_a2 = f.zero_accum();

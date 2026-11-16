@@ -325,7 +325,7 @@ impl<'s, S: ?Sized> Opened<'s, S> {
     pub(crate) fn bound<P: ?Sized + 's>(&mut self, f: impl FnOnce(&'s S) -> &'s P) -> Bound<'_, P>;
 }
 // named accessors (I2), in runtime::v2::zk and runtime::v2::foreign::compose
-impl Opened<'_, ZkProofStatement<'_, W, F>> { pub fn geometry(&mut self) -> Bound<'_, ZkProofGeometry>; }
+impl Opened<'_, ZkProofStatement<'_, F>> { pub fn geometry(&mut self) -> Bound<'_, ZkProofGeometry>; }
 impl Opened<'_, ComposedStatement<'_, ..>> { pub(crate) fn geometry(&mut self) -> Bound<'_, ComposedGeometry>; }
 // public only in testonly builds, for bare sessions (`for_test`); elsewhere
 // crate-private, and every session outside the crate is an `Opened`'s
@@ -380,7 +380,7 @@ impl ZkProof<F> {
 }
 
 // a frontend draws its top weights on entry (I8); runtime::v2::zk, crate-private
-pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, W, F>>, state: CircuitState<W, F>,
+pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, F>>, state: CircuitState<F>,
     virtual_inputs: &VirtualInputs<F::E>) -> Result<(CircuitProof<F>, LinearStatement<F::E>), String>;
 ```
 

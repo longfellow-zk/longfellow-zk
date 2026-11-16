@@ -34,9 +34,8 @@ use crate::{
 
 fn test_compile_sha256msg_for_field<
     'a,
-    const W: usize,
     FC: CompileField + FieldWrappingSum + SerializableField,
-    FR: RuntimeField<W> + SerializableField,
+    FR: RuntimeField + SerializableField,
     const MAX_BLOCKS: usize,
 >(
     fc: &'a FC,
@@ -87,8 +86,8 @@ fn test_compile_sha256msg_for_field<
 fn test_compile_sha256msg() {
     let p256_c = P256Field::new();
     let p256_r = crate::runtime::algebra::p256::P256Field::new();
-    test_compile_sha256msg_for_field::<4, _, _, 1>(&p256_c, &p256_r, "sha256msg_p256_empty", &[]);
-    test_compile_sha256msg_for_field::<4, _, _, 2>(
+    test_compile_sha256msg_for_field::<_, _, 1>(&p256_c, &p256_r, "sha256msg_p256_empty", &[]);
+    test_compile_sha256msg_for_field::<_, _, 2>(
         &p256_c,
         &p256_r,
         "sha256msg_p256_hello",
@@ -97,8 +96,8 @@ fn test_compile_sha256msg() {
 
     let gf2_c = Gf2_128Field::new();
     let gf2_r = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-    test_compile_sha256msg_for_field::<2, _, _, 1>(&gf2_c, &gf2_r, "sha256msg_gf2_empty", &[]);
-    test_compile_sha256msg_for_field::<2, _, _, 2>(
+    test_compile_sha256msg_for_field::<_, _, 1>(&gf2_c, &gf2_r, "sha256msg_gf2_empty", &[]);
+    test_compile_sha256msg_for_field::<_, _, 2>(
         &gf2_c,
         &gf2_r,
         "sha256msg_gf2_hello",

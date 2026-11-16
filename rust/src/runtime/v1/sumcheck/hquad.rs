@@ -52,12 +52,12 @@ pub struct HCorner {
 ///   };
 /// However, Elt may be 128-bit aligned, causing holes in the struct.
 /// Thus we store an array of H and an array of V.
-pub struct HQuad<const W: usize, F: RuntimeField<W>> {
+pub struct HQuad<F: RuntimeField> {
     pub hc: Vec<HCorner>,
     pub vc: Vec<F::E>,
 }
 
-impl<const W: usize, F: RuntimeField<W> + SerializableField> HQuad<W, F> {
+impl<F: RuntimeField + SerializableField> HQuad<F> {
     #[allow(clippy::too_many_arguments)]
     /// Bind output weights and combine adjacent equal (r,l) corners.
     pub fn bind_g(

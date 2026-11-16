@@ -48,7 +48,7 @@ fn evaluate<F: AlgebraicField>(f: &F, coefficients: &[F::E], x: &F::E) -> F::E {
         .fold(f.zero(), |acc, c| f.addf(&f.mulf(&acc, x), c))
 }
 
-fn case<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F>>(
+fn case<F: RuntimeField, D: RangeInterpolatorFactory<F>>(
     f: &F,
     domain: &D,
     source: Range<usize>,
@@ -92,7 +92,7 @@ fn case<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F>>(
     }
 }
 
-fn exercise<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F>>(
+fn exercise<F: RuntimeField, D: RangeInterpolatorFactory<F>>(
     f: &F,
     domain: &D,
     coefficient: impl Fn(usize) -> F::E,
@@ -128,7 +128,7 @@ fn exercise<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F
 }
 
 // Independent Lagrange formula: no production weights, FFTs, or Newton helpers.
-fn lagrange<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F>>(
+fn lagrange<F: RuntimeField, D: RangeInterpolatorFactory<F>>(
     f: &F,
     domain: &D,
     values: &[F::E],
@@ -156,7 +156,7 @@ fn lagrange<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F
     result
 }
 
-fn arbitrary_values<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F>>(
+fn arbitrary_values<F: RuntimeField, D: RangeInterpolatorFactory<F>>(
     f: &F,
     domain: &D,
     sample: impl Fn(usize) -> F::E,
@@ -171,7 +171,7 @@ fn arbitrary_values<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFact
     }
 }
 
-fn invalid_ranges<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F>>(
+fn invalid_ranges<F: RuntimeField, D: RangeInterpolatorFactory<F>>(
     f: &F,
     domain: &D,
     limit: usize,
@@ -211,11 +211,7 @@ fn invalid_ranges<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactor
     );
 }
 
-fn prefix_suffix_consistency<
-    const W: usize,
-    F: RuntimeField<W>,
-    D: RangeInterpolatorFactory<W, F>,
->(
+fn prefix_suffix_consistency<F: RuntimeField, D: RangeInterpolatorFactory<F>>(
     domain: &D,
     sample: impl Fn(usize) -> F::E,
 ) {
@@ -344,7 +340,7 @@ fn quadratic_extension_fft_range_capacity_rejects_invalid_fft_root_orders() {
 
 /// Check the backend contract independently of any proof protocol. Include the
 /// end of each finite table so a wrapping point map cannot pass a prefix check.
-fn assert_distinct_points<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F>>(
+fn assert_distinct_points<F: RuntimeField, D: RangeInterpolatorFactory<F>>(
     _field: &F,
     domain: &D,
     ranges: impl IntoIterator<Item = Range<usize>>,

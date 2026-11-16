@@ -17,12 +17,12 @@ use crate::{
     runtime::algebra::{RuntimeField, SupportsQuadraticExtension},
 };
 
-pub struct Fp2Element<const W: usize, F: SupportsQuadraticExtension<W>> {
+pub struct Fp2Element<F: SupportsQuadraticExtension> {
     pub re: F::E,
     pub im: F::E,
 }
 
-impl<const W: usize, F: SupportsQuadraticExtension<W>> Clone for Fp2Element<W, F> {
+impl<F: SupportsQuadraticExtension> Clone for Fp2Element<F> {
     fn clone(&self) -> Self {
         Self {
             re: self.re.clone(),
@@ -31,9 +31,9 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> Clone for Fp2Element<W, F
     }
 }
 
-impl<const W: usize, F: SupportsQuadraticExtension<W>> Copy for Fp2Element<W, F> where F::E: Copy {}
+impl<F: SupportsQuadraticExtension> Copy for Fp2Element<F> where F::E: Copy {}
 
-impl<const W: usize, F: SupportsQuadraticExtension<W>> std::fmt::Debug for Fp2Element<W, F> {
+impl<F: SupportsQuadraticExtension> std::fmt::Debug for Fp2Element<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Fp2Element")
             .field("re", &self.re)
@@ -42,15 +42,15 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> std::fmt::Debug for Fp2El
     }
 }
 
-impl<const W: usize, F: SupportsQuadraticExtension<W>> PartialEq for Fp2Element<W, F> {
+impl<F: SupportsQuadraticExtension> PartialEq for Fp2Element<F> {
     fn eq(&self, other: &Self) -> bool {
         self.re == other.re && self.im == other.im
     }
 }
 
-impl<const W: usize, F: SupportsQuadraticExtension<W>> Eq for Fp2Element<W, F> {}
+impl<F: SupportsQuadraticExtension> Eq for Fp2Element<F> {}
 
-impl<const W: usize, F: SupportsQuadraticExtension<W>> std::hash::Hash for Fp2Element<W, F> {
+impl<F: SupportsQuadraticExtension> std::hash::Hash for Fp2Element<F> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.re.hash(state);
         self.im.hash(state);
@@ -62,12 +62,12 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> std::hash::Hash for Fp2El
 /// This field deliberately does not implement serialization. Protocol values
 /// must remain in the base field, which has a canonical encoding.
 #[derive(Clone, Debug)]
-pub struct Fp2Field<'a, const W: usize, F: SupportsQuadraticExtension<W>> {
+pub struct Fp2Field<'a, F: SupportsQuadraticExtension> {
     base: &'a F,
-    mone: Fp2Element<W, F>,
+    mone: Fp2Element<F>,
 }
 
-impl<'a, const W: usize, F: SupportsQuadraticExtension<W>> Fp2Field<'a, W, F> {
+impl<'a, F: SupportsQuadraticExtension> Fp2Field<'a, F> {
     /// Constructs the non-serializable quadratic extension of `base`.
     pub fn new(base: &'a F) -> Self {
         let mone = Fp2Element {
@@ -82,7 +82,7 @@ impl<'a, const W: usize, F: SupportsQuadraticExtension<W>> Fp2Field<'a, W, F> {
         self.base
     }
 
-    pub fn i(&self) -> Fp2Element<W, F> {
+    pub fn i(&self) -> Fp2Element<F> {
         Fp2Element {
             re: self.base.zero(),
             im: self.base.one(),
@@ -90,13 +90,11 @@ impl<'a, const W: usize, F: SupportsQuadraticExtension<W>> Fp2Field<'a, W, F> {
     }
 }
 
-impl<const W: usize, F: SupportsQuadraticExtension<W>> BareField for Fp2Field<'_, W, F> {
-    type E = Fp2Element<W, F>;
+impl<F: SupportsQuadraticExtension> BareField for Fp2Field<'_, F> {
+    type E = Fp2Element<F>;
 }
 
-impl<const W: usize, F: SupportsQuadraticExtension<W>> crate::core::algebra::AlgebraicField
-    for Fp2Field<'_, W, F>
-{
+impl<F: SupportsQuadraticExtension> crate::core::algebra::AlgebraicField for Fp2Field<'_, F> {
     fn zero(&self) -> Self::E {
         Fp2Element {
             re: self.base.zero(),
@@ -158,22 +156,22 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> crate::core::algebra::Alg
 }
 
 #[derive(PartialEq, Eq)]
-pub struct Fp2Accum<const W: usize, F: SupportsQuadraticExtension<W>>(pub Fp2Element<W, F>);
+pub struct Fp2Accum<F: SupportsQuadraticExtension>(pub Fp2Element<F>);
 
-impl<const W: usize, F: SupportsQuadraticExtension<W>> Clone for Fp2Accum<W, F> {
+impl<F: SupportsQuadraticExtension> Clone for Fp2Accum<F> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<const W: usize, F: SupportsQuadraticExtension<W>> std::fmt::Debug for Fp2Accum<W, F> {
+impl<F: SupportsQuadraticExtension> std::fmt::Debug for Fp2Accum<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Fp2Accum").field("acc", &self.0).finish()
     }
 }
 
-impl<const W: usize, F: SupportsQuadraticExtension<W>> RuntimeField<W> for Fp2Field<'_, W, F> {
-    type Accum = Fp2Accum<W, F>;
+impl<F: SupportsQuadraticExtension> RuntimeField for Fp2Field<'_, F> {
+    type Accum = Fp2Accum<F>;
 
     fn zero_accum(&self) -> Self::Accum {
         Fp2Accum(self.zero())
@@ -190,8 +188,8 @@ impl<const W: usize, F: SupportsQuadraticExtension<W>> RuntimeField<W> for Fp2Fi
     }
 }
 
-impl<const W: usize, F: SupportsQuadraticExtension<W> + SupportsU64Conversions>
-    SupportsU64Conversions for Fp2Field<'_, W, F>
+impl<F: SupportsQuadraticExtension + SupportsU64Conversions> SupportsU64Conversions
+    for Fp2Field<'_, F>
 {
     fn u64_to_element(&self, n: u64) -> Self::E {
         Fp2Element {

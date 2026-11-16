@@ -38,7 +38,7 @@ impl XorShift {
 
 /// Three layers using general, one, minus-one and zero-coefficient
 /// (assertion) terms in every stream kind.
-fn base<const W: usize, F: RuntimeField<W> + SerializableField>(f: &F) -> Circuit<F> {
+fn base<F: RuntimeField + SerializableField>(f: &F) -> Circuit<F> {
     let two = f.addf(&f.one(), &f.one());
     let five = f.addf(&f.addf(&two, &two), &f.one());
     let layer = |nw, q: Vec<Quadratic>, l: Vec<Linear>, k: Vec<Constant>| {
@@ -82,7 +82,7 @@ fn base<const W: usize, F: RuntimeField<W> + SerializableField>(f: &F) -> Circui
     Circuit::from_raw(f, raw)
 }
 
-fn random_proof<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
+fn random_proof<F: RuntimeField + RegisteredField + SupportsSampling>(
     logw: &[usize],
     rng: &mut DeterministicRng,
     f: &F,
@@ -106,7 +106,7 @@ fn random_proof<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsS
 /// Mutate the encoded body (header excluded, stale ID ignored), and run the
 /// verifier on every reader-accepted result, alone and combined with the
 /// original. Returns the number of accepted mutants; panics propagate.
-fn check_mutations<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
+fn check_mutations<F: RuntimeField + RegisteredField + SupportsSampling>(
     f: &F,
     iterations: usize,
     seed: u64,

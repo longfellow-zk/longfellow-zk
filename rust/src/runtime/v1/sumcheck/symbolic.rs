@@ -89,8 +89,8 @@ pub struct VerificationRelations<E> {
 /// Construct constraints from locally produced verifier data.
 /// Consumes the data so the final dense weights move into the input relation.
 /// Constructing relations does not establish that they are satisfied.
-pub fn verify<const W: usize, F: RuntimeField<W> + SerializableField>(
-    proof: &SumcheckProof<W, F>,
+pub fn verify<F: RuntimeField + SerializableField>(
+    proof: &SumcheckProof<F>,
     data: VerifierData<F::E>,
     f: &F,
 ) -> Result<VerificationRelations<F::E>, String> {
@@ -190,7 +190,7 @@ pub fn verify<const W: usize, F: RuntimeField<W> + SerializableField>(
     })
 }
 
-fn endpoint_claim<const W: usize, F: RuntimeField<W>>(
+fn endpoint_claim<F: RuntimeField>(
     layer: usize,
     messages: &[F::E; 2],
     alpha: &F::E,
@@ -214,10 +214,10 @@ fn endpoint_claim<const W: usize, F: RuntimeField<W>>(
 impl<E: Clone> VerificationRelations<E> {
     /// Evaluate the logical relations using revealed inputs and pads.
     /// Returns one residual per layer followed by the input residual; all must be zero.
-    pub fn evaluate<const W: usize, F: RuntimeField<W, E = E> + SerializableField>(
+    pub fn evaluate<F: RuntimeField<E = E> + SerializableField>(
         &self,
         inputs: &[E],
-        pads: &SumcheckProof<W, F>,
+        pads: &SumcheckProof<F>,
         f: &F,
     ) -> Result<Vec<E>, String> {
         if pads.layers.len() != self.layers.len() || inputs.len() != self.input.weights.len() {
@@ -241,9 +241,9 @@ impl<E: Clone> VerificationRelations<E> {
 }
 
 impl<E: Clone> PadExpression<E> {
-    fn evaluate<const W: usize, F: RuntimeField<W, E = E> + SerializableField>(
+    fn evaluate<F: RuntimeField<E = E> + SerializableField>(
         &self,
-        pads: &SumcheckProof<W, F>,
+        pads: &SumcheckProof<F>,
         f: &F,
     ) -> Result<E, String> {
         let mut value = self.constant.clone();

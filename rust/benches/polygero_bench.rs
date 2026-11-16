@@ -23,11 +23,7 @@ use longfellow_zk::{
         v2::{polygero::*, proto::polygero::PolygeroConfig, transcript::Transcript},
     },
 };
-fn run<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
-    D: EvaluationDomain<W, F>,
->(
+fn run<F: RuntimeField + RegisteredField + SupportsSampling, D: EvaluationDomain<F>>(
     name: &str,
     f: &F,
     d: &D,

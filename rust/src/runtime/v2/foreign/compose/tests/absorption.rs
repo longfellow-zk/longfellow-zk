@@ -2,7 +2,7 @@
 //! A composed statement holds every value the composed verifier uses
 //! (transcript I1, I3): both frontends, the adapter and the joint geometry.
 use super::{
-    super::{ComposedStatement, Composition, H},
+    super::{ComposedStatement, Composition},
     circuit, Mode, CONFIG, LABEL, WIDTH,
 };
 use crate::{
@@ -34,11 +34,11 @@ use crate::{
     },
 };
 
-impl<const W: usize, F, DH, DS, M, I> ComposedStatement<'_, W, F, DH, DS, M, I>
+impl<F, DH, DS, M, I> ComposedStatement<'_, F, DH, DS, M, I>
 where
-    F: ZkField<W> + PackingField,
-    DH: EvaluationDomain<H, super::super::Host>,
-    DS: EvaluationDomain<W, F>,
+    F: ZkField + PackingField,
+    DH: EvaluationDomain<super::super::Host>,
+    DS: EvaluationDomain<F>,
     M: AdapterMode<F>,
     I: SetupMessage,
 {
@@ -135,7 +135,7 @@ fn composed_statement_round_trip() {
     let split = circuit(&p, 3, vec![p.one(), p.mone()], &[(1, 0), (2, 1)]);
     let shared = Group::new(1, WIDTH).unwrap();
     let storage = StorageMap::new(value_count(&split).unwrap(), &[(0, shared)]).unwrap();
-    let c = Composition::<4, P256Field, _, _, Mode>::new(
+    let c = Composition::<P256Field, _, _, Mode>::new(
         &host,
         &split,
         storage,

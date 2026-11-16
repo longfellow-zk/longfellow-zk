@@ -29,7 +29,7 @@ use crate::{
 // Reconstruct all three coefficients and evaluate by Horner's rule, independently
 // of the affine symbolic update, then compare each constraint residual.
 #[allow(clippy::too_many_arguments)]
-fn reference<const W: usize, F: RuntimeField<W> + SerializableField>(
+fn reference<F: RuntimeField + SerializableField>(
     proof: &SumcheckProof<F>,
     pad_values: &SumcheckProof<F>,
     points: &[Vec<F::E>],
@@ -70,10 +70,7 @@ fn reference<const W: usize, F: RuntimeField<W> + SerializableField>(
     residuals
 }
 
-fn check_compilation<const W: usize, F: RuntimeField<W> + SerializableField>(
-    f: &F,
-    element: impl Fn(u64) -> F::E,
-) {
+fn check_compilation<F: RuntimeField + SerializableField>(f: &F, element: impl Fn(u64) -> F::E) {
     for widths in [vec![2, 0, 1], vec![]] {
         let geometry = SumcheckProofGeometry::new(widths.clone()).unwrap();
         let proof = SumcheckProof {

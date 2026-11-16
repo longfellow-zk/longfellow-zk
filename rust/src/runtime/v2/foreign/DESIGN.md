@@ -444,8 +444,8 @@ bytes are the payload of its `Bits(N)` value. `Otp<N>::sample` reads exactly
 
 ```rust
 // runtime::v2::foreign::compose
-pub(crate) struct Composition<'a, const W: usize, F, DH, DS, M> { .. }
-impl<'a, const W: usize, F, DH, DS, M: AdapterMode<F>> Composition<'a, W, F, DH, DS, M> {
+pub(crate) struct Composition<'a, F, DH, DS, M> { .. }
+impl<'a, F, DH, DS, M: AdapterMode<F>> Composition<'a, F, DH, DS, M> {
     // Derives participants, reserved suffix and mode from the trusted circuits
     // and storage map; the statement's geometry messages are written from it.
     // Mixed storage only: the split participant always gets R's mask group (I2).
@@ -455,7 +455,7 @@ impl<'a, const W: usize, F, DH, DS, M: AdapterMode<F>> Composition<'a, W, F, DH,
     pub(crate) fn geometry(&self) -> Result<ComposedGeometry, String>;
     pub(crate) fn statement<'s, I: SetupMessage>(&'s self, identity: I,
         host_public: &'s [CircuitInput<Gf2_128Field>], split_public: &'s [CircuitInput<F>])
-        -> Result<ComposedStatement<'s, W, F, DH, DS, M, I>, String>;
+        -> Result<ComposedStatement<'s, F, DH, DS, M, I>, String>;
     pub(crate) fn reserved(&self) -> &ReservedSuffix;   // tests
     pub(crate) fn mode(&self) -> &M;                     // tests
 }
@@ -463,8 +463,8 @@ impl<'a, const W: usize, F, DH, DS, M: AdapterMode<F>> Composition<'a, W, F, DH,
 // frontend parts and the geometry the proof is parsed against (transcript I1).
 // Crate-private: only an application's complete prover and verifier, which
 // seal and check the seal, build one.
-pub(crate) struct ComposedStatement<'s, const W: usize, F, DH, DS, M, I> { .. }
-impl ComposedStatement<'_, W, F, DH, DS, M, I> {
+pub(crate) struct ComposedStatement<'s, F, DH, DS, M, I> { .. }
+impl ComposedStatement<'_, F, DH, DS, M, I> {
     pub(crate) fn geometry(&self) -> &ComposedGeometry;
     // compose/prover.rs and compose/verifier.rs: no public-input, circuit or
     // geometry parameter (transcript I2); the caller seals afterwards.

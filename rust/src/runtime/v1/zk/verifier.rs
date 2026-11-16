@@ -43,21 +43,21 @@ use crate::{
 };
 
 /// A trusted legacy circuit and the configuration used to decode its commitment.
-pub struct ZkVerifier<const W: usize, F: ZkField<W>> {
+pub struct ZkVerifier<F: ZkField> {
     pub circuit: Circuit<F>,
     pub config: LigeroConfig,
 }
 
-impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
+impl<F: ZkField> ZkVerifier<F> {
     /// Constructs a new `ZkVerifier` with the given Ligero configuration.
     pub fn new(circuit: Circuit<F>, config: LigeroConfig) -> Self {
         Self { circuit, config }
     }
 
     /// Derive the legacy proof dimensions from the trusted circuit and configuration.
-    pub fn geometry<IF: RangeInterpolatorFactory<W, F>>(
+    pub fn geometry<IF: RangeInterpolatorFactory<F>>(
         &self,
-        ctx: &ZkContext<'_, W, F, IF>,
+        ctx: &ZkContext<'_, F, IF>,
     ) -> ZkProofGeometry {
         ZkProofGeometry {
             sc_geom: SumcheckProofGeometry::from_circuit(&self.circuit),
@@ -66,11 +66,11 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
     }
 
     /// Replays commitment transmission from P to V.
-    pub fn recv_commitment<IF: RangeInterpolatorFactory<W, F>>(
+    pub fn recv_commitment<IF: RangeInterpolatorFactory<F>>(
         &self,
-        zkp: &ZkProof<W, F>,
+        zkp: &ZkProof<F>,
         tv: &mut Transcript,
-        ctx: &ZkContext<'_, W, F, IF>,
+        ctx: &ZkContext<'_, F, IF>,
     ) {
         let ligero_param = self.ligero_param(ctx);
         let mut lv = LigeroVerifier::new(tv, &ligero_param);
@@ -78,12 +78,12 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
     }
 
     /// Verifies ZK proof against public inputs and circuit.
-    pub fn verify<IF: RangeInterpolatorFactory<W, F>>(
+    pub fn verify<IF: RangeInterpolatorFactory<F>>(
         &self,
         pub_inputs: Vec<ElementOf<F>>,
-        zkp: &ZkProof<W, F>,
+        zkp: &ZkProof<F>,
         tv: &mut Transcript,
-        ctx: &ZkContext<'_, W, F, IF>,
+        ctx: &ZkContext<'_, F, IF>,
     ) -> Result<(), ZkVerificationError> {
         self.validate(pub_inputs.len(), zkp)?;
 
@@ -124,7 +124,7 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
     }
 
     /// Check public-input and sumcheck message dimensions in legacy error order.
-    fn validate(&self, npublic: usize, zkp: &ZkProof<W, F>) -> Result<(), ZkVerificationError> {
+    fn validate(&self, npublic: usize, zkp: &ZkProof<F>) -> Result<(), ZkVerificationError> {
         assert!(
             self.circuit.raw.ninput >= self.circuit.raw.npublic_input,
             "npublic_input ({}) exceeds ninput ({})",
@@ -158,9 +158,9 @@ impl<const W: usize, F: ZkField<W>> ZkVerifier<W, F> {
     }
 
     /// Count committed private inputs, pads, and pad products using the v1 layout.
-    fn ligero_param<IF: RangeInterpolatorFactory<W, F>>(
+    fn ligero_param<IF: RangeInterpolatorFactory<F>>(
         &self,
-        ctx: &ZkContext<'_, W, F, IF>,
+        ctx: &ZkContext<'_, F, IF>,
     ) -> LigeroParam {
         let (nw, nq) = witness_and_constraint_count(&self.circuit);
         LigeroParam::new(nw, nq, self.config, ctx.make_interpolator)

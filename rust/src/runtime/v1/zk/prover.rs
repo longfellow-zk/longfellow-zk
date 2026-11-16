@@ -47,40 +47,40 @@ use crate::{
 };
 
 /// A trusted legacy circuit and the configuration for its Ligero commitment.
-pub struct ZkProver<const W: usize, F: ZkField<W>> {
+pub struct ZkProver<F: ZkField> {
     pub circuit: Circuit<F>,
     pub config: LigeroConfig,
 }
 
 /// Private state retained between commitment and proof generation.
 /// `com` is the public Merkle commitment; pads and encoded rows stay with the prover.
-pub struct ZkCommitResult<const W: usize, F: ZkField<W>> {
-    pad: SumcheckProof<W, F>,
+pub struct ZkCommitResult<F: ZkField> {
+    pad: SumcheckProof<F>,
     lqc: Vec<LigeroQuadraticConstraint>,
-    lp: LigeroProver<W, F>,
+    lp: LigeroProver<F>,
     pub com: LigeroCommitment,
 }
 
-impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
+impl<F: ZkField> ZkProver<F> {
     pub fn new(circuit: Circuit<F>, config: LigeroConfig) -> Self {
         Self { circuit, config }
     }
     /// Computes ZK commitment of the witness and ZK pads.
     #[allow(clippy::too_many_arguments)]
     pub fn commit<
-        IF: RangeInterpolatorFactory<W, F>,
+        IF: RangeInterpolatorFactory<F>,
         R: RandomEngine,
         SF: SubfieldV1<E = ElementOf<F>>,
     >(
         &self,
         witness_only: &[ElementOf<F>],
-        ctx: &ZkContext<'_, W, F, IF>,
+        ctx: &ZkContext<'_, F, IF>,
         ts: &mut Transcript,
         rng: &mut R,
         sf: &SF,
-    ) -> (ZkCommitResult<W, F>, ZkProofGeometry)
+    ) -> (ZkCommitResult<F>, ZkProofGeometry)
     where
-        IF::Plan: InterpolationPlanV1<W, F>,
+        IF::Plan: InterpolationPlanV1<F>,
     {
         assert!(
             self.circuit.raw.ninput >= self.circuit.raw.npublic_input,
@@ -134,14 +134,14 @@ impl<const W: usize, F: ZkField<W>> ZkProver<W, F> {
     }
 
     /// Generates ZK proof over the committed witness and pads.
-    pub fn prove<IF: RangeInterpolatorFactory<W, F>>(
+    pub fn prove<IF: RangeInterpolatorFactory<F>>(
         &self,
         public_inputs: Vec<ElementOf<F>>,
         witness_only: Vec<ElementOf<F>>,
-        commit_info: &ZkCommitResult<W, F>,
+        commit_info: &ZkCommitResult<F>,
         tsp: &mut Transcript,
-        ctx: &ZkContext<'_, W, F, IF>,
-    ) -> Result<ZkProof<W, F>, String> {
+        ctx: &ZkContext<'_, F, IF>,
+    ) -> Result<ZkProof<F>, String> {
         assert!(
             self.circuit.raw.ninput >= self.circuit.raw.npublic_input,
             "npublic_input ({}) exceeds ninput ({})",

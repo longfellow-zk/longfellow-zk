@@ -32,10 +32,10 @@ fn config() -> PolygeroConfig {
         t: 2,
     }
 }
-fn field<'a, const W: usize, F: RuntimeField<W> + PackingField, D: EvaluationDomain<W, F>>(
+fn field<'a, F: RuntimeField + PackingField, D: EvaluationDomain<F>>(
     n: usize,
     d: &'a D,
-) -> Field<'a, W, F, D> {
+) -> Field<'a, F, D> {
     Field::new(
         PolygeroParam::try_new(witness_count(n).unwrap(), config(), d).unwrap(),
         d,
@@ -190,11 +190,7 @@ fn statement<E>(t: &Transcript) -> LinearStatement<E> {
         session: stamp(t),
     }
 }
-fn residuals<const W: usize, F: RuntimeField<W>>(
-    s: &LinearStatement<F::E>,
-    witness: &[F::E],
-    f: &F,
-) -> Vec<F::E> {
+fn residuals<F: RuntimeField>(s: &LinearStatement<F::E>, witness: &[F::E], f: &F) -> Vec<F::E> {
     let mut residuals = s.b.clone();
     for term in &s.a {
         f.fma(&mut residuals[term.c], &term.k, &witness[term.w]);
@@ -229,12 +225,7 @@ fn both_characteristics_cover_every_cell_and_have_dedicated_masks() {
             &stamp(&t),
         )
         .unwrap();
-    fn check<const W: usize, F: RuntimeField<W>>(
-        s: &LinearStatement<F::E>,
-        w: &[F::E],
-        n: usize,
-        f: &F,
-    ) {
+    fn check<F: RuntimeField>(s: &LinearStatement<F::E>, w: &[F::E], n: usize, f: &F) {
         assert!(residuals(s, w, f).iter().all(|x| f.is_zero(x)));
         for i in 0..n {
             let mut bad = w.to_vec();

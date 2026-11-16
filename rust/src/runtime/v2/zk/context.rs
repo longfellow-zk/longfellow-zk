@@ -45,7 +45,7 @@ pub(super) fn private_input_count<F: crate::core::algebra::SerializableField>(
 /// The Polygero parameter for `cells` frontend cells plus the witness-selection
 /// masks the joint commitment appends.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub(crate) fn prepare_parameter<const W: usize, F: ZkField<W>, D: EvaluationDomain<W, F>>(
+pub(crate) fn prepare_parameter<F: ZkField, D: EvaluationDomain<F>>(
     cells: usize,
     config: PolygeroConfig,
     domain: &D,
@@ -62,9 +62,8 @@ pub(crate) fn prepare_parameter<const W: usize, F: ZkField<W>, D: EvaluationDoma
 /// The caller still validates the parameter as a selected field.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) fn prepare_circuit_layout<
-    const W: usize,
-    F: ZkField<W> + PackingField,
-    D: EvaluationDomain<W, F>,
+    F: ZkField + PackingField,
+    D: EvaluationDomain<F>,
     X: crate::runtime::algebra::packing::PackingExtension<Ambient = F>,
 >(
     circuit: &Circuit<F>,

@@ -14,12 +14,12 @@
 
 use crate::core::algebra::{AlgebraicField, SerializableField};
 
-pub trait RuntimeSerializableField<const W: usize>: RuntimeField<W> + SerializableField {
+pub trait RuntimeSerializableField<const W: usize>: RuntimeField + SerializableField {
     fn to_words64(&self, e: &Self::E) -> [u64; W];
     fn words64_to_element(&self, words: &[u64; W]) -> Result<Self::E, String>;
 }
 
-pub trait RuntimeField<const W: usize>: AlgebraicField {
+pub trait RuntimeField: AlgebraicField {
     type Accum: Clone + std::fmt::Debug;
 
     // Arithmetic operations
@@ -63,16 +63,16 @@ pub trait SupportsSampling: AlgebraicField {
     fn sample<R: FnMut(&mut [u8])>(&self, fill: R) -> Self::E;
 }
 
-pub trait RuntimeBinaryField<const W: usize>: RuntimeField<W> {}
+pub trait RuntimeBinaryField: RuntimeField {}
 
 /// Marker for base fields that support [`crate::runtime::algebra::fp2::Fp2Field`].
 ///
 /// `Fp2Field` uses the fixed polynomial `x^2 + 1`, so implementors must ensure
 /// that `-1` is not a square in the base field. This property depends on the
 /// concrete modulus and cannot be inferred from a generic prime-field type.
-pub trait SupportsQuadraticExtension<const W: usize>: RuntimeField<W> {}
+pub trait SupportsQuadraticExtension: RuntimeField {}
 
-pub trait SupportsFFT<const W: usize>: RuntimeField<W> {
+pub trait SupportsFFT: RuntimeField {
     fn omega(&self) -> Self::E;
     fn omega_order(&self) -> u64;
 }

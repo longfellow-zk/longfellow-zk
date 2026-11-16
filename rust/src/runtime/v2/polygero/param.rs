@@ -45,11 +45,7 @@ impl PolygeroParam {
     /// select certified parameters separately; small test configurations are valid here.
     /// Participants obtain their arithmetic field from the same domain, so a
     /// runtime-configured modulus cannot differ from the interpolation field.
-    pub fn try_new<
-        const W: usize,
-        F: RuntimeField<W> + SerializableField,
-        D: EvaluationDomain<W, F>,
-    >(
+    pub fn try_new<F: RuntimeField + SerializableField, D: EvaluationDomain<F>>(
         nw: usize,
         config: PolygeroConfig,
         domain: &D,

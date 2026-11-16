@@ -31,7 +31,7 @@ pub(in crate::mdoc) fn with_domains<R>(
     p256: &P256Field,
     f: impl FnOnce(
         (
-            &BinaryInterpolatorFactory<'_, 2, Gf2_128Field>,
+            &BinaryInterpolatorFactory<'_, Gf2_128Field>,
             &QuadraticExtensionFftInterpolatorFactory<'_, 4, P256Field>,
         ),
     ) -> R,

@@ -34,11 +34,11 @@ use crate::{
 
 /// One frontend's full committed cell vector. The sibling selection protocol
 /// owns the two extra masks; they are never logical circuit inputs.
-pub(crate) struct SelectedField<'a, const W: usize, F: ZkField<W> + RegisteredField, D> {
-    selection: witness_selection::Field<'a, W, F, D>,
+pub(crate) struct SelectedField<'a, F: ZkField + RegisteredField, D> {
+    selection: witness_selection::Field<'a, F, D>,
     geometry: PolygeroGeometry,
 }
-impl<const W: usize, F: ZkField<W> + RegisteredField, D> Clone for SelectedField<'_, W, F, D> {
+impl<F: ZkField + RegisteredField, D> Clone for SelectedField<'_, F, D> {
     fn clone(&self) -> Self {
         Self {
             selection: self.selection.clone(),
@@ -46,9 +46,7 @@ impl<const W: usize, F: ZkField<W> + RegisteredField, D> Clone for SelectedField
         }
     }
 }
-impl<'a, const W: usize, F: ZkField<W> + RegisteredField, D: EvaluationDomain<W, F>>
-    SelectedField<'a, W, F, D>
-{
+impl<'a, F: ZkField + RegisteredField, D: EvaluationDomain<F>> SelectedField<'a, F, D> {
     /// Derive the augmented backend geometry from the original frontend cells.
     #[cfg(test)]
     pub(crate) fn new(cells: usize, config: PolygeroConfig, domain: &'a D) -> Result<Self, String> {
@@ -67,7 +65,7 @@ impl<'a, const W: usize, F: ZkField<W> + RegisteredField, D: EvaluationDomain<W,
 }
 
 #[cfg(test)]
-impl<const W: usize, F: ZkField<W> + RegisteredField, D> SelectedField<'_, W, F, D> {
+impl<F: ZkField + RegisteredField, D> SelectedField<'_, F, D> {
     pub(crate) fn geometry(&self) -> PolygeroGeometry {
         self.geometry
     }
@@ -85,10 +83,10 @@ impl Fields for () {
     type Selection = ();
     fn selection(&self) {}
 }
-impl<'a, const W: usize, F: ZkField<W> + RegisteredField, D: EvaluationDomain<W, F>, T: Fields>
-    Fields for (SelectedField<'a, W, F, D>, T)
+impl<'a, F: ZkField + RegisteredField, D: EvaluationDomain<F>, T: Fields> Fields
+    for (SelectedField<'a, F, D>, T)
 {
-    type Selection = (witness_selection::Field<'a, W, F, D>, T::Selection);
+    type Selection = (witness_selection::Field<'a, F, D>, T::Selection);
     fn selection(&self) -> Self::Selection {
         (self.0.selection.clone(), self.1.selection())
     }
@@ -135,7 +133,7 @@ pub(super) fn check_registered<F: RegisteredField>(f: &F) -> Result<(), String> 
 /// (`CommitmentLayout`) before any prover message. Input packing stays
 /// here; the lower-level Polygero participant only knows full-field witness
 /// cells and affine constraints over them.
-pub(crate) struct Frontend<const W: usize, F: ZkField<W> + PackingField> {
+pub(crate) struct Frontend<F: ZkField + PackingField> {
     pub(super) geometry: CircuitProofGeometry,
     #[cfg(any(test, feature = "prover"))]
     pub(super) config: PolygeroConfig,
@@ -144,7 +142,7 @@ pub(crate) struct Frontend<const W: usize, F: ZkField<W> + PackingField> {
     pub(super) additional_ids: Vec<[u8; 32]>,
     pub(super) inputs: InputLayout,
 }
-impl<const W: usize, F: ZkField<W> + PackingField> Frontend<W, F> {
+impl<F: ZkField + PackingField> Frontend<F> {
     /// Check that `circuits` are this frontend's circuits, in order, and
     /// that `public` inputs fit the primary circuit.
     fn validate_circuits(&self, circuits: &[&Circuit<F>], public: usize) -> Result<(), String> {
@@ -176,12 +174,12 @@ impl<const W: usize, F: ZkField<W> + PackingField> Frontend<W, F> {
 
 /// A participant with all its values native: a circuit list whose private
 /// inputs, sumcheck pads and packing masks it commits itself.
-pub struct CircuitParticipant<const W: usize, F: ZkField<W> + PackingField> {
-    pub(super) frontend: Frontend<W, F>,
+pub struct CircuitParticipant<F: ZkField + PackingField> {
+    pub(super) frontend: Frontend<F>,
     /// The Polygero parameter of the committed cells.
     param: PolygeroParam,
 }
-impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
+impl<F: ZkField + PackingField> CircuitParticipant<F> {
     /// Prove `circuits` as one layered sumcheck; `circuits[0]` is the primary
     /// circuit. They share the public prefix and read prefixes of one input
     /// array. Each intermediate layer has one wire array; only the sparse quad
@@ -191,7 +189,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     /// each proof defines them as affine functions of committed inputs (see
     /// `VirtualInputs`). The primary circuit cannot read them; the other
     /// components may.
-    pub fn new<D: EvaluationDomain<W, F>>(
+    pub fn new<D: EvaluationDomain<F>>(
         circuits: &[&Circuit<F>],
         virtual_inputs: usize,
         config: PolygeroConfig,
@@ -237,10 +235,10 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
     }
     /// This participant as a field of the joint commitment, over `domain`,
     /// the domain it was built with.
-    pub(crate) fn participant<'a, D: EvaluationDomain<W, F>>(
+    pub(crate) fn participant<'a, D: EvaluationDomain<F>>(
         &'a self,
         domain: &'a D,
-    ) -> Result<SelectedField<'a, W, F, D>, String> {
+    ) -> Result<SelectedField<'a, F, D>, String> {
         SelectedField::from_parameter(self.param.clone(), domain)
     }
 }
@@ -263,15 +261,15 @@ pub(crate) enum StorageLayout<'a> {
 /// (`split::MixedSplit`) or pure foreign (`split::PureSplit`). The frontend
 /// steps that every mode shares read its `Frontend`; the statement writes
 /// every mode alike from its `Frontend` and its `StorageLayout`.
-pub(crate) trait Participant<const W: usize, F: ZkField<W> + PackingField> {
-    fn frontend(&self) -> &Frontend<W, F>;
+pub(crate) trait Participant<F: ZkField + PackingField> {
+    fn frontend(&self) -> &Frontend<F>;
     fn storage(&self) -> StorageLayout<'_>;
     /// The Polygero parameter of the committed cells, if it commits any.
     #[cfg(test)]
     fn param_for_test(&self) -> Option<&PolygeroParam>;
 }
-impl<const W: usize, F: ZkField<W> + PackingField> Participant<W, F> for CircuitParticipant<W, F> {
-    fn frontend(&self) -> &Frontend<W, F> {
+impl<F: ZkField + PackingField> Participant<F> for CircuitParticipant<F> {
+    fn frontend(&self) -> &Frontend<F> {
         &self.frontend
     }
     fn storage(&self) -> StorageLayout<'_> {
@@ -289,20 +287,13 @@ impl<const W: usize, F: ZkField<W> + PackingField> Participant<W, F> for Circuit
 /// and public inputs only from here, through its `Bound` (transcript I2).
 /// `P` is the participant's storage mode, so a step for one mode takes
 /// only that mode's parts.
-pub(crate) struct FrontendPart<
-    'a,
-    const W: usize,
-    F: ZkField<W> + PackingField,
-    P = CircuitParticipant<W, F>,
-> {
+pub(crate) struct FrontendPart<'a, F: ZkField + PackingField, P = CircuitParticipant<F>> {
     pub(super) participant: &'a P,
     circuits: Vec<&'a Circuit<F>>,
     /// The public inputs as elements of the circuit's field.
     pub(super) public: Cow<'a, [F::E]>,
 }
-impl<'a, const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>>
-    FrontendPart<'a, W, F, P>
-{
+impl<'a, F: ZkField + PackingField, P: Participant<F>> FrontendPart<'a, F, P> {
     pub(crate) fn new(
         participant: &'a P,
         circuits: &[&'a Circuit<F>],
@@ -320,7 +311,7 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>>
         })
     }
     /// The participant's frontend: what every storage mode shares.
-    pub(crate) fn frontend(&self) -> &'a Frontend<W, F> {
+    pub(crate) fn frontend(&self) -> &'a Frontend<F> {
         self.participant.frontend()
     }
     /// The circuits of this frontend, primary first.

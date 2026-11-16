@@ -33,12 +33,12 @@ use crate::{
 
 /// Emit one equation per layer followed by the final input equation.
 /// Preserve term order and coefficients, including zero coefficients.
-pub fn compile<const W: usize, F: RuntimeField<W>>(
+pub fn compile<F: RuntimeField>(
     relations: &VerificationRelations<ElementOf<F>>,
     pads: &CircuitPadLayout,
     public_inputs: &[ElementOf<F>],
     f: &F,
-) -> Result<(Vec<LigeroLinearConstraint<W, F>>, Vec<ElementOf<F>>), String> {
+) -> Result<(Vec<LigeroLinearConstraint<F>>, Vec<ElementOf<F>>), String> {
     if relations.layers.len() != pads.layers.len() {
         return Err("sumcheck relation pad layer count mismatch".into());
     }
@@ -79,8 +79,8 @@ pub fn compile<const W: usize, F: RuntimeField<W>>(
 
 /// Resolve symbolic pad references to witness coordinates in equation `c`.
 /// Preserve every coefficient and check every referenced coordinate.
-fn append_pad_terms<const W: usize, F: RuntimeField<W>>(
-    constraints: &mut Vec<LigeroLinearConstraint<W, F>>,
+fn append_pad_terms<F: RuntimeField>(
+    constraints: &mut Vec<LigeroLinearConstraint<F>>,
     c: usize,
     expression: &PadExpression<ElementOf<F>>,
     pads: &CircuitPadLayout,

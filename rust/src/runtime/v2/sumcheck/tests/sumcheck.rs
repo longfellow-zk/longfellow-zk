@@ -32,10 +32,7 @@ use crate::{
     },
 };
 
-fn zero_proof<const W: usize, F: SerializableField + RuntimeField<W>>(
-    circ: &Circuit<F>,
-    f: &F,
-) -> SumcheckProof<F> {
+fn zero_proof<F: SerializableField + RuntimeField>(circ: &Circuit<F>, f: &F) -> SumcheckProof<F> {
     use crate::runtime::v2::proto::sumcheck::LayerProof;
     SumcheckProof {
         layers: circ

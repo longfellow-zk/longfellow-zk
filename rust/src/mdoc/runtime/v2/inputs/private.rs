@@ -226,7 +226,7 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_sig<F, Fn, C>(
 ) -> Result<Vec<F::E>, MdocProverErrorCode>
 where
     F: MdocSigRuntimeField<E = P256Element>,
-    Fn: RuntimeField<4> + SupportsNatConversions<4, N = F::N>,
+    Fn: RuntimeField + SupportsNatConversions<4, N = F::N>,
     C: Curve<4, F = F, N = F::N>,
     F::N: Nat<4>,
 {

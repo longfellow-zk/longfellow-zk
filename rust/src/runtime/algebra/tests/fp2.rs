@@ -39,8 +39,8 @@ fn fp2_has_no_sampling_or_packing_capability() {
     impl<T: ?Sized> AmbiguousPacking<()> for T {}
     impl<T: PackingField> AmbiguousPacking<u8> for T {}
     // Either added capability would make its inferred marker ambiguous.
-    let _ = <Fp2Field<'_, 4, P256Field> as AmbiguousSampling<_>>::check;
-    let _ = <Fp2Field<'_, 4, P256Field> as AmbiguousPacking<_>>::check;
+    let _ = <Fp2Field<'_, P256Field> as AmbiguousSampling<_>>::check;
+    let _ = <Fp2Field<'_, P256Field> as AmbiguousPacking<_>>::check;
     let _: CircuitInput<Gf2_128Field> = false;
     let _: CircuitInput<P256Field> = P256Field::new().one();
 }
@@ -48,7 +48,7 @@ fn fp2_has_no_sampling_or_packing_capability() {
 #[test]
 fn test_fp2_algebraic_properties() {
     let base = P256Field::new();
-    let field: Fp2Field<'_, 4, _> = Fp2Field::new(&base);
+    let field: Fp2Field<'_, _> = Fp2Field::new(&base);
 
     let zero = field.zero();
     let one = field.one();

@@ -27,9 +27,8 @@ use crate::{
 
 fn test_compile_cbor_decoder_for_field<
     'a,
-    const W: usize,
     FC: CompileField + SerializableField,
-    FR: RuntimeField<W> + SerializableField,
+    FR: RuntimeField + SerializableField,
 >(
     fc: &'a FC,
     fr: &'a FR,
@@ -85,9 +84,9 @@ fn test_compile_cbor_decoder_for_field<
 fn test_compile_cbor_decoder() {
     let fc_p256 = P256Field::new();
     let fr_p256 = crate::runtime::algebra::p256::P256Field::new();
-    test_compile_cbor_decoder_for_field::<4, _, _>(&fc_p256, &fr_p256, "cbor_decoder_p256");
+    test_compile_cbor_decoder_for_field::<_, _>(&fc_p256, &fr_p256, "cbor_decoder_p256");
 
     let fc_gf2 = Gf2_128Field::new();
     let fr_gf2 = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-    test_compile_cbor_decoder_for_field::<2, _, _>(&fc_gf2, &fr_gf2, "cbor_decoder_gf2");
+    test_compile_cbor_decoder_for_field::<_, _>(&fc_gf2, &fr_gf2, "cbor_decoder_gf2");
 }

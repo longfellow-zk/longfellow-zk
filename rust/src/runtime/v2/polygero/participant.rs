@@ -38,11 +38,10 @@ fn append_values<F: SerializableField>(
     }
 }
 impl<
-        const W: usize,
-        F: RuntimeField<W> + RegisteredField + SupportsSampling,
-        D: EvaluationDomain<W, F>,
+        F: RuntimeField + RegisteredField + SupportsSampling,
+        D: EvaluationDomain<F>,
         T: Participants,
-    > Participants for (Participant<'_, W, F, D>, T)
+    > Participants for (Participant<'_, F, D>, T)
 {
     type Witnesses = (Vec<F::E>, T::Witnesses);
     type Statements = (LinearStatement<F::E>, T::Statements);

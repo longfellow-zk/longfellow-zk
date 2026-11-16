@@ -87,10 +87,7 @@ impl<F: RegisteredField> ProverMessage for ClaimsMessage<'_, F> {}
 /// Send m = [c0-s0,c1-s1] before drawing the round challenge z.
 /// With the pads already committed, fixing both messages determines the
 /// quadratic p(x): its third coefficient is c2 = claim - c0.
-pub(super) fn round_challenge<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
+pub(super) fn round_challenge<F: RuntimeField + RegisteredField + SupportsSampling>(
     m: &RoundPoly<F>,
     transcript: &mut TranscriptRef<'_>,
     f: &F,
@@ -105,7 +102,7 @@ pub(super) fn round_challenge<
 /// Send the masked final claims before drawing alpha for A + alpha*B.
 /// Both roles use this step so the layer boundary has one transcript encoding.
 /// Input-level zero assertions extend this same answer after alpha is read.
-pub(super) fn end_layer<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
+pub(super) fn end_layer<F: RuntimeField + RegisteredField + SupportsSampling>(
     claims: &[F::E; 2],
     transcript: &mut TranscriptRef<'_>,
     f: &F,
@@ -154,10 +151,7 @@ impl Schedule {
     /// message (transcript I8). The statement holds the circuit list, so this
     /// sends nothing: the draw ends the node of the message that precedes the
     /// frontend, or reads further from its stream (transcript I7).
-    pub(super) fn draw_top<
-        const W: usize,
-        F: RuntimeField<W> + SerializableField + SupportsSampling,
-    >(
+    pub(super) fn draw_top<F: RuntimeField + SerializableField + SupportsSampling>(
         &self,
         circuits: &[&Circuit<F>],
         t: &mut TranscriptRef<'_>,
@@ -179,10 +173,7 @@ impl Schedule {
     /// linear markers, matching a physically concatenated quad stream. Stage
     /// zero reads them from its own boundary; every later stage reads them
     /// from the preceding stage's combine answer, after alpha.
-    pub(super) fn draw_stage<
-        const W: usize,
-        F: RuntimeField<W> + SerializableField + SupportsSampling,
-    >(
+    pub(super) fn draw_stage<F: RuntimeField + SerializableField + SupportsSampling>(
         &self,
         stage: usize,
         r: &mut Reading<'_>,
@@ -231,10 +222,7 @@ impl Schedule {
     }
     /// Extend stage `stage`'s combine answer after alpha: the next stage's
     /// weights, or the input assertions after the last stage.
-    pub(super) fn after_combine<
-        const W: usize,
-        F: RuntimeField<W> + SerializableField + SupportsSampling,
-    >(
+    pub(super) fn after_combine<F: RuntimeField + SerializableField + SupportsSampling>(
         &self,
         stage: usize,
         circuits: &[&Circuit<F>],
@@ -252,10 +240,7 @@ impl Schedule {
     /// Zero-layer circuits assert directly on the common input array. For a
     /// layered proof these coefficients extend the last combine answer, after
     /// both masked claims; with no layers they are the top weights.
-    pub(super) fn input_assertions<
-        const W: usize,
-        F: RuntimeField<W> + SerializableField + SupportsSampling,
-    >(
+    pub(super) fn input_assertions<F: RuntimeField + SerializableField + SupportsSampling>(
         &self,
         circuits: &[&Circuit<F>],
         r: &mut Reading<'_>,
@@ -277,7 +262,7 @@ impl Schedule {
     }
     /// Add the last combine's input assertions to the final input weights.
     /// With no layers the top weights already are the input weights.
-    pub(super) fn finish_inputs<const W: usize, F: RuntimeField<W> + SerializableField>(
+    pub(super) fn finish_inputs<F: RuntimeField + SerializableField>(
         &self,
         weights: &mut [F::E],
         input_assertions: Vec<F::E>,

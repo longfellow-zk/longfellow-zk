@@ -195,11 +195,7 @@ fn test_bidirectional_fft_rejects_invalid_bounds() {
     .is_err());
 }
 
-fn newton_of_lagrange<const W: usize, F: RuntimeField<W>>(
-    f: &F,
-    a: &[F::E],
-    x: &[F::E],
-) -> Vec<F::E> {
+fn newton_of_lagrange<F: RuntimeField>(f: &F, a: &[F::E], x: &[F::E]) -> Vec<F::E> {
     let n = a.len();
     assert_eq!(x.len(), n);
     let mut c = a.to_vec();
@@ -214,12 +210,7 @@ fn newton_of_lagrange<const W: usize, F: RuntimeField<W>>(
     c
 }
 
-fn eval_newton<const W: usize, F: RuntimeField<W>>(
-    f: &F,
-    c: &[F::E],
-    x: &[F::E],
-    point: &F::E,
-) -> F::E {
+fn eval_newton<F: RuntimeField>(f: &F, c: &[F::E], x: &[F::E], point: &F::E) -> F::E {
     let n = c.len();
     let mut sum = f.zero();
     let mut term = f.one();

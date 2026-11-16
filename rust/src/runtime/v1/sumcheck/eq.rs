@@ -32,7 +32,7 @@ use crate::runtime::algebra::RuntimeField;
 /// For even n, the last pair has weights a,b, giving b <- a*i0j0+b*i1j1.
 ///
 /// For odd n, its missing partner is zero, giving b <- b*i0j0.
-pub fn eq<const W: usize, F: RuntimeField<W>>(
+pub fn eq<F: RuntimeField>(
     logn: usize,
     mut n: usize,
     input_i: &[F::E],
@@ -62,7 +62,7 @@ pub fn eq<const W: usize, F: RuntimeField<W>>(
 /// Optimization for a special case: return a raw vector
 ///   eq[i] = EQ(G0, i) + alpha * EQ(G1, i)
 /// for all 0 <= i < n.
-pub(super) fn eq2<const W: usize, F: RuntimeField<W>>(
+pub(super) fn eq2<F: RuntimeField>(
     logn: usize,
     n: usize,
     g0: &[F::E],
@@ -78,7 +78,7 @@ pub(super) fn eq2<const W: usize, F: RuntimeField<W>>(
 /// `fill_recursive(eq`, l, n, G0, G1, w0, w1, f) populates eq[0..n) with
 ///   eq[i] = w0 * EQ[G0, i] + w1 * EQ[G1, i]
 #[allow(clippy::too_many_arguments)]
-fn fill_recursive<const W: usize, F: RuntimeField<W>>(
+fn fill_recursive<F: RuntimeField>(
     eq: &mut [F::E],
     l: usize,
     n: usize,

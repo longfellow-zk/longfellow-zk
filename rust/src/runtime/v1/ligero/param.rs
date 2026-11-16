@@ -125,7 +125,7 @@ pub struct LigeroParam {
 }
 
 impl LigeroParam {
-    pub fn new<const W: usize, F: RuntimeField<W>, IF: RangeInterpolatorFactory<W, F>>(
+    pub fn new<F: RuntimeField, IF: RangeInterpolatorFactory<F>>(
         nw: usize,
         nq: usize,
         config: LigeroConfig,
@@ -137,7 +137,7 @@ impl LigeroParam {
         param
     }
 
-    pub fn try_new<const W: usize, F: RuntimeField<W>, IF: RangeInterpolatorFactory<W, F>>(
+    pub fn try_new<F: RuntimeField, IF: RangeInterpolatorFactory<F>>(
         nw: usize,
         nq: usize,
         config: LigeroConfig,
@@ -248,13 +248,13 @@ impl Clone for LigeroParam {
 impl Copy for LigeroParam {}
 
 #[derive(Debug)]
-pub struct LigeroLinearConstraint<const W: usize, F: RuntimeField<W>> {
+pub struct LigeroLinearConstraint<F: RuntimeField> {
     pub c: usize,
     pub w: usize,
     pub k: F::E,
 }
 
-impl<const W: usize, F: RuntimeField<W>> Clone for LigeroLinearConstraint<W, F> {
+impl<F: RuntimeField> Clone for LigeroLinearConstraint<F> {
     fn clone(&self) -> Self {
         Self {
             c: self.c,

@@ -27,29 +27,27 @@ use crate::{
 };
 
 /// Select the first and third evaluations for the legacy wire message.
-pub trait QuadRoundPoly<const W: usize, F: SerializableField> {
-    fn to_wire(&self) -> RoundPoly<W, F>;
+pub trait QuadRoundPoly<F: SerializableField> {
+    fn to_wire(&self) -> RoundPoly<F>;
 }
 
 /// Reconstruct the missing evaluation and apply additive message pads.
-pub trait QuadWirePoly<const W: usize, F: RuntimeField<W> + SerializableField> {
-    fn to_poly(&self, claim: &F::E, f: &F) -> Poly<3, W, F>;
+pub trait QuadWirePoly<F: RuntimeField + SerializableField> {
+    fn to_poly(&self, claim: &F::E, f: &F) -> Poly<3, F>;
     fn add(&self, other: &Self, f: &F) -> Self;
     fn sub(&self, other: &Self, f: &F) -> Self;
 }
 
-impl<const W: usize, F: SerializableField> QuadRoundPoly<W, F> for Poly<3, W, F> {
-    fn to_wire(&self) -> RoundPoly<W, F> {
+impl<F: SerializableField> QuadRoundPoly<F> for Poly<3, F> {
+    fn to_wire(&self) -> RoundPoly<F> {
         RoundPoly {
             evaluations: [self.evaluations[0].clone(), self.evaluations[2].clone()],
         }
     }
 }
 
-impl<const W: usize, F: RuntimeField<W> + SerializableField> QuadWirePoly<W, F>
-    for RoundPoly<W, F>
-{
-    fn to_poly(&self, claim: &F::E, f: &F) -> Poly<3, W, F> {
+impl<F: RuntimeField + SerializableField> QuadWirePoly<F> for RoundPoly<F> {
+    fn to_poly(&self, claim: &F::E, f: &F) -> Poly<3, F> {
         let g0 = &self.evaluations[0];
         let g2 = &self.evaluations[1];
         let g1 = f.subf(claim, g0);

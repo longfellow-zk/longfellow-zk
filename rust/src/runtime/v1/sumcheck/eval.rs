@@ -27,7 +27,7 @@ use crate::{
 };
 
 /// Return each layer's input witness after checking assertions and final outputs.
-pub fn eval_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
+pub fn eval_circuit<F: RuntimeField + SerializableField>(
     mut w: Vec<F::E>,
     circuit: &Circuit<F>,
     f: &F,
@@ -61,7 +61,7 @@ pub fn eval_circuit<const W: usize, F: RuntimeField<W> + SerializableField>(
 }
 
 /// Evaluate one layer, traversing sparse terms in the circuit's stored order.
-fn eval_quad<const W: usize, F: RuntimeField<W> + SerializableField>(
+fn eval_quad<F: RuntimeField + SerializableField>(
     nv: usize,
     w: &[F::E],
     layer: &Layer<F>,

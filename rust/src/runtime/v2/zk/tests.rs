@@ -46,9 +46,7 @@ struct BoundedDomain<'a, D> {
     inner: &'a D,
     limit: usize,
 }
-impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> RangeInterpolatorFactory<W, F>
-    for BoundedDomain<'_, D>
-{
+impl<F: RuntimeField, D: EvaluationDomain<F>> RangeInterpolatorFactory<F> for BoundedDomain<'_, D> {
     type Plan = D::Plan;
     fn can_interpolate(
         &self,
@@ -75,9 +73,7 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> RangeInterpo
         self.inner.point(index)
     }
 }
-impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> EvaluationDomain<W, F>
-    for BoundedDomain<'_, D>
-{
+impl<F: RuntimeField, D: EvaluationDomain<F>> EvaluationDomain<F> for BoundedDomain<'_, D> {
     fn field(&self) -> &F {
         self.inner.field()
     }
@@ -122,11 +118,7 @@ fn circuit<F: SerializableField + crate::core::algebra::AlgebraicField>(
 ) -> crate::core::proto::v2::Circuit<F> {
     quadratic_fixture(legacy_circuit(f), f)
 }
-fn exercise<
-    const W: usize,
-    F: ZkField<W> + crate::runtime::algebra::packing::PackingField,
-    D: EvaluationDomain<W, F>,
->(
+fn exercise<F: ZkField + crate::runtime::algebra::packing::PackingField, D: EvaluationDomain<F>>(
     f: &F,
     domain: &D,
 ) -> crate::runtime::v2::transcript::Trace {
@@ -479,11 +471,10 @@ mod sensitivity;
 /// Prove `private` on `public` under `context`, on a transcript opened with
 /// the proof's statement. Returns the sealed proof and its geometry.
 pub(super) fn prove_standalone<
-    const W: usize,
-    F: ZkField<W> + crate::runtime::algebra::packing::PackingField,
-    D: EvaluationDomain<W, F>,
+    F: ZkField + crate::runtime::algebra::packing::PackingField,
+    D: EvaluationDomain<F>,
 >(
-    prover: &ZkProver<W, F>,
+    prover: &ZkProver<F>,
     context: &[u8],
     public: &[CircuitInput<F>],
     private: Vec<CircuitInput<F>>,
@@ -497,11 +488,10 @@ pub(super) fn prove_standalone<
 }
 /// Reduce and authenticate `proof` on a transcript opened with its statement.
 pub(super) fn reduce_standalone<
-    const W: usize,
-    F: ZkField<W> + crate::runtime::algebra::packing::PackingField,
-    D: EvaluationDomain<W, F>,
+    F: ZkField + crate::runtime::algebra::packing::PackingField,
+    D: EvaluationDomain<F>,
 >(
-    verifier: &ZkVerifier<W, F>,
+    verifier: &ZkVerifier<F>,
     context: &[u8],
     public: &[CircuitInput<F>],
     proof: &ZkProof<F>,
@@ -511,11 +501,8 @@ pub(super) fn reduce_standalone<
     verifier.reduce(Opened::new(&statement), proof, domain)
 }
 /// Parse a complete proof against the geometry of its statement.
-pub(super) fn read_standalone<
-    const W: usize,
-    F: ZkField<W> + crate::runtime::algebra::packing::PackingField,
->(
-    verifier: &ZkVerifier<W, F>,
+pub(super) fn read_standalone<F: ZkField + crate::runtime::algebra::packing::PackingField>(
+    verifier: &ZkVerifier<F>,
     context: &[u8],
     public: &[CircuitInput<F>],
     bytes: &[u8],

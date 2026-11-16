@@ -42,7 +42,7 @@ pub struct LigeroGeometry {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LigeroProof<const W: usize, F: SerializableField> {
+pub struct LigeroProof<F: SerializableField> {
     /// Blinding row for low-degree test. [block]
     pub y_ldt: Vec<ElementOf<F>>,
     /// Blinding row for dot-product check. [dblock]
@@ -56,7 +56,7 @@ pub struct LigeroProof<const W: usize, F: SerializableField> {
     pub merkle: MerkleProof,
 }
 
-impl<const W: usize, F: RuntimeField<W> + SerializableField> LigeroProof<W, F> {
+impl<F: RuntimeField + SerializableField> LigeroProof<F> {
     pub fn write_to_buf<SF: SubfieldV1<E = ElementOf<F>>>(
         &self,
         bytes: &mut Vec<u8>,

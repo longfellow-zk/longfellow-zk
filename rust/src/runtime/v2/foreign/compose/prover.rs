@@ -12,11 +12,11 @@ use crate::runtime::{
     },
 };
 
-impl<const W: usize, F, DH, DS, M, I> ComposedStatement<'_, W, F, DH, DS, M, I>
+impl<F, DH, DS, M, I> ComposedStatement<'_, F, DH, DS, M, I>
 where
-    F: ZkField<W> + PackingField,
-    DH: EvaluationDomain<H, Host>,
-    DS: EvaluationDomain<W, F>,
+    F: ZkField + PackingField,
+    DH: EvaluationDomain<Host>,
+    DS: EvaluationDomain<F>,
     M: AdapterMode<F>,
     I: SetupMessage,
 {
@@ -94,11 +94,11 @@ where
 }
 
 #[cfg(test)]
-impl<const W: usize, F, DH, DS, M> Composition<'_, W, F, DH, DS, M>
+impl<F, DH, DS, M> Composition<'_, F, DH, DS, M>
 where
-    F: ZkField<W> + PackingField,
-    DH: EvaluationDomain<H, Host>,
-    DS: EvaluationDomain<W, F>,
+    F: ZkField + PackingField,
+    DH: EvaluationDomain<Host>,
+    DS: EvaluationDomain<F>,
 {
     /// The split's foreign values as the host's private bits `host_private`
     /// give them, by value index: the integer of each group, least

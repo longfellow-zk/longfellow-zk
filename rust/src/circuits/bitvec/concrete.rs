@@ -14,12 +14,7 @@
 
 use crate::runtime::algebra::RuntimeField;
 
-pub fn push_bitvec_u64<const W: usize, FR: RuntimeField<W>>(
-    fr: &FR,
-    value: u64,
-    n: usize,
-    dest: &mut Vec<FR::E>,
-) {
+pub fn push_bitvec_u64<FR: RuntimeField>(fr: &FR, value: u64, n: usize, dest: &mut Vec<FR::E>) {
     assert!(n <= 64);
     let mut cur_val = value;
     for _ in 0..n {

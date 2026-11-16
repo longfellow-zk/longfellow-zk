@@ -32,10 +32,10 @@ fn build<F: CompileField>(
     (assertions, 4, 6)
 }
 
-fn check<const W: usize, FC, FR>(fc: &FC, fr: &FR, fid: FieldID, expected: [&str; 3])
+fn check<FC, FR>(fc: &FC, fr: &FR, fid: FieldID, expected: [&str; 3])
 where
     FC: CompileField + Clone + SupportsU64Conversions,
-    FR: RuntimeField<W> + SerializableField,
+    FR: RuntimeField + SerializableField,
 {
     let (v1, g1, _) = compile_v1(fc, build);
     let (v2, g2, _) = compile_v2(fc, |logic| {

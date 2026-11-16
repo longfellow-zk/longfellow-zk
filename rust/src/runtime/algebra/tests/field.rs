@@ -59,7 +59,7 @@ fn serializable_fields_use_canonical_constant_encodings() {
     check_constant_encoding(&runtime::packing::binary::Gf256::new());
 }
 
-fn check<const W: usize, F: RuntimeField<W>>(field: &F, value: F::E) {
+fn check<F: RuntimeField>(field: &F, value: F::E) {
     let mut expected = field.one();
     for exponent in 0..64 {
         assert_eq!(field.pow(&value, exponent), expected);

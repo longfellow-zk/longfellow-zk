@@ -39,9 +39,7 @@ pub(crate) struct MdocProof<F1: SerializableField, F2: SerializableField> {
     pub(crate) body: ComposedProof<F1, F2, [MaskedQuotient; 2]>,
 }
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-impl<F1: RuntimeField<2> + SerializableField, F2: RuntimeField<4> + SerializableField>
-    MdocProof<F1, F2>
-{
+impl<F1: RuntimeField + SerializableField, F2: RuntimeField + SerializableField> MdocProof<F1, F2> {
     /// The one version magic, outermost (proto I1).
     pub(crate) const MAGIC: [u8; 4] = *b"MDA7";
     /// The complete proof: `MAGIC`, the body, sealed with `transcript`

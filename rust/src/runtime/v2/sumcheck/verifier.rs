@@ -36,10 +36,7 @@ use crate::{
 
 /// Single-circuit convenience for tests; production callers pass circuit lists.
 #[cfg(test)]
-pub(crate) fn derive_constraints<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
+pub(crate) fn derive_constraints<F: RuntimeField + RegisteredField + SupportsSampling>(
     circuit: &Circuit<F>,
     proof: &SumcheckProof<F>,
     t: &mut TranscriptRef<'_>,
@@ -53,8 +50,7 @@ pub(crate) fn derive_constraints<
 /// already have been bound by the caller. The top weights are drawn here,
 /// before the first message.
 pub(crate) fn derive_constraints_for_circuits<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
+    F: RuntimeField + RegisteredField + SupportsSampling,
 >(
     circuits: &[&Circuit<F>],
     proof: &SumcheckProof<F>,

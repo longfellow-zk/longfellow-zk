@@ -60,11 +60,11 @@ impl<F: SerializableField> SetupMessage for CircuitMessage<'_, F> {}
 ///
 /// The packing masks follow from the descriptor's degree, and the
 /// committed cell count `nw` from all of these.
-struct LayoutMessage<'a, const W: usize, F: ZkField<W> + PackingField> {
-    frontend: &'a Frontend<W, F>,
+struct LayoutMessage<'a, F: ZkField + PackingField> {
+    frontend: &'a Frontend<F>,
     storage: StorageLayout<'a>,
 }
-impl<const W: usize, F: ZkField<W> + PackingField> Message for LayoutMessage<'_, W, F> {
+impl<F: ZkField + PackingField> Message for LayoutMessage<'_, F> {
     const TAG: Tag = Tag::CommitmentLayout;
     fn encode(&self, e: &mut Encoder<'_>) {
         let p = self.frontend;
@@ -118,7 +118,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> Message for LayoutMessage<'_,
         e.nats(&[mask.start() as u64, mask.width() as u64]);
     }
 }
-impl<const W: usize, F: ZkField<W> + PackingField> SetupMessage for LayoutMessage<'_, W, F> {}
+impl<F: ZkField + PackingField> SetupMessage for LayoutMessage<'_, F> {}
 
 /// `JointGeometry` (20): Nats(k, s, n, t), the one Polygero profile of the
 /// proof. It is the only place the statement holds the profile; each
@@ -147,7 +147,7 @@ impl<F: RegisteredField> Message for PublicInputsMessage<'_, F> {
 }
 impl<F: RegisteredField> SetupMessage for PublicInputsMessage<'_, F> {}
 
-impl<const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>> FrontendPart<'_, W, F, P> {
+impl<F: ZkField + PackingField, P: Participant<F>> FrontendPart<'_, F, P> {
     /// One `Circuit` message per circuit of this frontend, primary first.
     pub(crate) fn write_circuits(&self, h: &mut Header<'_>) {
         for c in self.circuits() {
@@ -181,18 +181,18 @@ pub(crate) fn write_joint_geometry(h: &mut Header<'_>, config: PolygeroConfig) {
 /// context), then the frontend's `Circuit` messages, its
 /// `CommitmentLayout`, the `JointGeometry` and its `PublicInputs`. The proof
 /// is parsed against `geometry`, the geometry it writes (transcript I2).
-pub struct ZkProofStatement<'a, const W: usize, F: ZkField<W> + PackingField> {
+pub struct ZkProofStatement<'a, F: ZkField + PackingField> {
     pub(super) identity: ZkStatement<'a>,
-    pub(super) part: FrontendPart<'a, W, F>,
+    pub(super) part: FrontendPart<'a, F>,
     pub(super) geometry: ZkProofGeometry,
 }
-impl<'a, const W: usize, F: ZkField<W> + PackingField> ZkProofStatement<'a, W, F> {
+impl<'a, F: ZkField + PackingField> ZkProofStatement<'a, F> {
     /// The statement of a proof of `circuit`, the one circuit of
     /// `participant`, on `public` under `context`. Both standalone roles
     /// build their statements here.
     pub(super) fn new(
         context: &'a [u8],
-        participant: &'a CircuitParticipant<W, F>,
+        participant: &'a CircuitParticipant<F>,
         circuit: &'a Circuit<F>,
         public: &'a [CircuitInput<F>],
     ) -> Result<Self, String> {
@@ -205,16 +205,14 @@ impl<'a, const W: usize, F: ZkField<W> + PackingField> ZkProofStatement<'a, W, F
         })
     }
 }
-impl<'s, 'a: 's, const W: usize, F: ZkField<W> + PackingField>
-    Opened<'s, ZkProofStatement<'a, W, F>>
-{
+impl<'s, 'a: 's, F: ZkField + PackingField> Opened<'s, ZkProofStatement<'a, F>> {
     /// The session, bound to the geometry its statement wrote, which the
     /// proof is parsed against (`ZkProof::read`, transcript I2).
     pub fn geometry(&mut self) -> Bound<'_, ZkProofGeometry> {
         self.bound(|s| &s.geometry)
     }
 }
-impl<'a, const W: usize, F: ZkField<W> + PackingField> Statement for ZkProofStatement<'a, W, F> {
+impl<'a, F: ZkField + PackingField> Statement for ZkProofStatement<'a, F> {
     type Identity = ZkStatement<'a>;
     fn identity(&self) -> &ZkStatement<'a> {
         &self.identity

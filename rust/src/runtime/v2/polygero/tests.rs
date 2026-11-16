@@ -40,9 +40,7 @@ struct BoundedDomain<'a, D> {
     inner: &'a D,
     limit: usize,
 }
-impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> RangeInterpolatorFactory<W, F>
-    for BoundedDomain<'_, D>
-{
+impl<F: RuntimeField, D: EvaluationDomain<F>> RangeInterpolatorFactory<F> for BoundedDomain<'_, D> {
     type Plan = D::Plan;
     fn can_interpolate(
         &self,
@@ -69,9 +67,7 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> RangeInterpo
         self.inner.point(index)
     }
 }
-impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> EvaluationDomain<W, F>
-    for BoundedDomain<'_, D>
-{
+impl<F: RuntimeField, D: EvaluationDomain<F>> EvaluationDomain<F> for BoundedDomain<'_, D> {
     fn field(&self) -> &F {
         self.inner.field()
     }
@@ -80,7 +76,7 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> EvaluationDo
     }
 }
 
-fn extend<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>>(
+fn extend<F: RuntimeField, D: EvaluationDomain<F>>(
     samples: &[F::E],
     n: usize,
     domain: &D,
@@ -98,7 +94,7 @@ struct CountingDomain<'a, D> {
     inner: &'a D,
     calls: std::cell::RefCell<Vec<(std::ops::Range<usize>, std::ops::Range<usize>)>>,
 }
-impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> RangeInterpolatorFactory<W, F>
+impl<F: RuntimeField, D: EvaluationDomain<F>> RangeInterpolatorFactory<F>
     for CountingDomain<'_, D>
 {
     type Plan = D::Plan;
@@ -123,9 +119,7 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> RangeInterpo
         self.inner.point(index)
     }
 }
-impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> EvaluationDomain<W, F>
-    for CountingDomain<'_, D>
-{
+impl<F: RuntimeField, D: EvaluationDomain<F>> EvaluationDomain<F> for CountingDomain<'_, D> {
     fn field(&self) -> &F {
         self.inner.field()
     }
@@ -134,11 +128,7 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> EvaluationDo
     }
 }
 
-fn exercise<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
-    D: EvaluationDomain<W, F>,
->(
+fn exercise<F: RuntimeField + RegisteredField + SupportsSampling, D: EvaluationDomain<F>>(
     f: &F,
     backend: &D,
 ) {
@@ -179,7 +169,7 @@ fn exercise<
             assert_eq!(suffix, output[start..n]);
         }
     }
-    assert!(extend::<W, F, _>(&[], 16, backend, f)
+    assert!(extend::<F, _>(&[], 16, backend, f)
         .iter()
         .all(|x| f.is_zero(x)));
     for (nw, k, s) in [
@@ -502,9 +492,7 @@ struct BrokenDomain<'a, D> {
     inner: &'a D,
     kind: u8,
 }
-impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> RangeInterpolatorFactory<W, F>
-    for BrokenDomain<'_, D>
-{
+impl<F: RuntimeField, D: EvaluationDomain<F>> RangeInterpolatorFactory<F> for BrokenDomain<'_, D> {
     type Plan = D::Plan;
     fn make_range(
         &self,
@@ -527,9 +515,7 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> RangeInterpo
         self.inner.point(index)
     }
 }
-impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> EvaluationDomain<W, F>
-    for BrokenDomain<'_, D>
-{
+impl<F: RuntimeField, D: EvaluationDomain<F>> EvaluationDomain<F> for BrokenDomain<'_, D> {
     fn field(&self) -> &F {
         self.inner.field()
     }
@@ -573,13 +559,13 @@ fn reject_invalid_geometry_and_backend_contracts() {
 // A global translation of the point table leaves range interpolation unchanged:
 // the backend interpolates g(X)=f(X+shift). It need not preserve the obsolete
 // point(offset+i)=point(offset)+point(i) condition.
-struct ShiftedDomain<'a, const W: usize, F: RuntimeField<W>, D> {
+struct ShiftedDomain<'a, F: RuntimeField, D> {
     inner: &'a D,
     field: &'a F,
     shift: F::E,
 }
-impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> RangeInterpolatorFactory<W, F>
-    for ShiftedDomain<'_, W, F, D>
+impl<F: RuntimeField, D: EvaluationDomain<F>> RangeInterpolatorFactory<F>
+    for ShiftedDomain<'_, F, D>
 {
     type Plan = D::Plan;
     fn can_interpolate(
@@ -600,8 +586,8 @@ impl<const W: usize, F: RuntimeField<W>, D: EvaluationDomain<W, F>> RangeInterpo
         self.field.addf(&self.inner.point(index), &self.shift)
     }
 }
-impl<const W: usize, F: RuntimeField<W> + SerializableField, D: EvaluationDomain<W, F>>
-    EvaluationDomain<W, F> for ShiftedDomain<'_, W, F, D>
+impl<F: RuntimeField + SerializableField, D: EvaluationDomain<F>> EvaluationDomain<F>
+    for ShiftedDomain<'_, F, D>
 {
     fn field(&self) -> &F {
         self.inner.field()

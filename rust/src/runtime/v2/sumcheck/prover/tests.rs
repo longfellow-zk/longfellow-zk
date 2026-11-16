@@ -23,7 +23,7 @@ fn pads_are_owned_one_use_values_matching_their_committed_copy() {
 
     let f = Gf2_128Field::new();
     let geometry = SumcheckProofGeometry::new(vec![2, 0]).unwrap();
-    let (pads, cells) = sample_pads::<2, _, _>(&geometry, &mut DeterministicRng::new(3), &f);
+    let (pads, cells) = sample_pads::<_, _>(&geometry, &mut DeterministicRng::new(3), &f);
     pads.validate(&geometry).unwrap();
     assert!(pads
         .validate(&SumcheckProofGeometry::new(vec![1, 0]).unwrap())

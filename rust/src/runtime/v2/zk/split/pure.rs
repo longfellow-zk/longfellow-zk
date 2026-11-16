@@ -39,14 +39,14 @@ use crate::{
 
 /// A participant with pure-foreign storage: a single degree-one prime
 /// circuit all of whose values are bit groups of the binary commitment.
-pub(crate) struct PureSplit<const W: usize, F: ZkField<W> + PackingField> {
-    frontend: Frontend<W, F>,
+pub(crate) struct PureSplit<F: ZkField + PackingField> {
+    frontend: Frontend<F>,
     map: StorageMap,
 }
-impl<const W: usize, F: ZkField<W> + PackingField> PureSplit<W, F> {
+impl<F: ZkField + PackingField> PureSplit<F> {
     /// The pure-foreign participant of `circuit` whose values are stored as
     /// `map` says; every value must be foreign.
-    pub(crate) fn new<D: EvaluationDomain<W, F>>(
+    pub(crate) fn new<D: EvaluationDomain<F>>(
         circuit: &Circuit<F>,
         map: StorageMap,
         config: PolygeroConfig,
@@ -69,7 +69,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> PureSplit<W, F> {
         &self,
         private: Vec<CircuitInput<F>>,
         rng: &mut impl PrivateRandom,
-    ) -> Result<PureState<W, F>, String> {
+    ) -> Result<PureState<F>, String> {
         if private.len() != self.frontend.inputs.committed() {
             return Err("split witness shape".into());
         }
@@ -107,8 +107,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> PureSplit<W, F> {
         })
     }
 }
-impl<const W: usize, F: ZkField<W> + PackingField> Participant<W, F> for PureSplit<W, F> {
-    fn frontend(&self) -> &Frontend<W, F> {
+impl<F: ZkField + PackingField> Participant<F> for PureSplit<F> {
+    fn frontend(&self) -> &Frontend<F> {
         &self.frontend
     }
     fn storage(&self) -> StorageLayout<'_> {
@@ -120,7 +120,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> Participant<W, F> for PureSpl
 }
 
 /// Prover state of a pure-foreign participant before its frontend.
-pub(crate) struct PureState<const W: usize, F: ZkField<W>> {
+pub(crate) struct PureState<F: ZkField> {
     pads: SumcheckPads<F>,
     /// `[private inputs | pads]`, in value order.
     values: Vec<F::E>,
@@ -141,8 +141,8 @@ pub(crate) struct PurePending<E> {
 }
 
 /// The frontend's rows from its reduced constraints, on its values.
-fn frontend_claim<const W: usize, F: ZkField<W> + PackingField>(
-    part: &FrontendPart<'_, W, F, PureSplit<W, F>>,
+fn frontend_claim<F: ZkField + PackingField>(
+    part: &FrontendPart<'_, F, PureSplit<F>>,
     constraints: sumcheck::symbolic::Constraints<F::E>,
 ) -> Result<PureClaim<F::E>, String> {
     let (rows, claim) = batching::rows(
@@ -157,9 +157,9 @@ fn frontend_claim<const W: usize, F: ZkField<W> + PackingField>(
 
 /// Run the pure-foreign frontend of `t`'s part and reduce its constraints to
 /// its unbatched rows.
-pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F, PureSplit<W, F>>>,
-    state: PureState<W, F>,
+pub(crate) fn prove<F: ZkField + PackingField>(
+    t: &mut Bound<'_, FrontendPart<'_, F, PureSplit<F>>>,
+    state: PureState<F>,
 ) -> Result<(SumcheckProof<F>, PurePending<F::E>), String> {
     let p = t.part().participant;
     if !p.frontend.prepared(&state.participant, &p.map) {
@@ -178,8 +178,8 @@ pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField>(
 
 /// Check the pure-foreign frontend proof of `t`'s part and reduce its
 /// constraints to its unbatched rows.
-pub(crate) fn reduce<const W: usize, F: ZkField<W> + PackingField>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F, PureSplit<W, F>>>,
+pub(crate) fn reduce<F: ZkField + PackingField>(
+    t: &mut Bound<'_, FrontendPart<'_, F, PureSplit<F>>>,
     proof: &SumcheckProof<F>,
 ) -> Result<PureClaim<F::E>, String> {
     let constraints = reduce_values(t, proof)?;
@@ -196,12 +196,12 @@ impl<E> PureClaim<E> {
     /// the frontend's last message, and batch every row and the input
     /// equation with them into one foreign claim with a public target. The
     /// weights are internal to this step (transcript I8).
-    pub(crate) fn batch<const W: usize, F>(
+    pub(crate) fn batch<F>(
         self,
-        t: &mut Bound<'_, FrontendPart<'_, W, F, PureSplit<W, F>>>,
+        t: &mut Bound<'_, FrontendPart<'_, F, PureSplit<F>>>,
     ) -> Result<ModularClaim<E>, String>
     where
-        F: ZkField<W> + PackingField + BareField<E = E>,
+        F: ZkField + PackingField + BareField<E = E>,
     {
         let (p, f) = (t.part().participant, t.part().field());
         let weights = transcript::row_weights(&mut t.transcript(), self.row_weight_count(), f);

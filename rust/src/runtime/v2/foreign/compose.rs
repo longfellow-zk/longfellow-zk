@@ -41,15 +41,10 @@ use crate::{
 cfg_prover! { mod prover; }
 cfg_verifier! { mod verifier; }
 
-/// Width of the binary host's field.
-const H: usize = 2;
 type Host = Gf2_128Field;
 
 /// The joint field list of a composition: the host, then the split participant.
-type Fields<'s, const W: usize, F, DH, DS> = (
-    SelectedField<'s, H, Host, DH>,
-    (SelectedField<'s, W, F, DS>, ()),
-);
+type Fields<'s, F, DH, DS> = (SelectedField<'s, Host, DH>, (SelectedField<'s, F, DS>, ()));
 
 /// A composition's fixed layout, derived from its two circuits and the split
 /// participant's storage map.
@@ -57,17 +52,17 @@ type Fields<'s, const W: usize, F, DH, DS> = (
 /// The host is a GF(2^128) participant; the split participant is a
 /// degree-one prime participant whose storage is mixed: some values native,
 /// the others bit groups of the host's private inputs (`MixedSplit`).
-pub(crate) struct Composition<'a, const W: usize, F: ZkField<W> + PackingField, DH, DS, M>
+pub(crate) struct Composition<'a, F: ZkField + PackingField, DH, DS, M>
 where
-    DH: EvaluationDomain<H, Host>,
-    DS: EvaluationDomain<W, F>,
+    DH: EvaluationDomain<Host>,
+    DS: EvaluationDomain<F>,
 {
     host_circuit: &'a Circuit<Host>,
     split_circuit: &'a Circuit<F>,
     /// The interpolation domains of the host and of the split participant.
     domains: (&'a DH, &'a DS),
-    host: CircuitParticipant<H, Host>,
-    split: MixedSplit<W, F>,
+    host: CircuitParticipant<Host>,
+    split: MixedSplit<F>,
     /// R and the mode's pads after the host circuit's inputs, filled by the
     /// prover.
     #[cfg_attr(not(any(test, feature = "prover")), allow(dead_code))]
@@ -77,11 +72,11 @@ where
     mask: Group,
     mode: M,
 }
-impl<'a, const W: usize, F, DH, DS, M> Composition<'a, W, F, DH, DS, M>
+impl<'a, F, DH, DS, M> Composition<'a, F, DH, DS, M>
 where
-    F: ZkField<W> + PackingField,
-    DH: EvaluationDomain<H, Host>,
-    DS: EvaluationDomain<W, F>,
+    F: ZkField + PackingField,
+    DH: EvaluationDomain<Host>,
+    DS: EvaluationDomain<F>,
     M: AdapterMode<F>,
 {
     /// `storage` covers the split circuit's values `[private inputs | pads]`.
@@ -127,7 +122,7 @@ where
             mode,
         })
     }
-    fn param(&self) -> Result<JointParam<Fields<'_, W, F, DH, DS>>, String> {
+    fn param(&self) -> Result<JointParam<Fields<'_, F, DH, DS>>, String> {
         JointParam::new((
             self.host.participant(self.domains.0)?,
             (self.split.participant(self.domains.1)?, ()),
@@ -146,7 +141,7 @@ where
         identity: I,
         host_public: &'s [CircuitInput<Host>],
         split_public: &'s [CircuitInput<F>],
-    ) -> Result<ComposedStatement<'s, W, F, DH, DS, M, I>, String> {
+    ) -> Result<ComposedStatement<'s, F, DH, DS, M, I>, String> {
         Ok(ComposedStatement {
             identity,
             composition: self,
@@ -177,22 +172,22 @@ where
 /// `AdapterLayout`, the `JointGeometry`, and the `PublicInputs` of each
 /// field (host, then split). Proving and verifying take a session opened
 /// with it and read the frontends from it (transcript I2).
-pub(crate) struct ComposedStatement<'s, const W: usize, F: ZkField<W> + PackingField, DH, DS, M, I>
+pub(crate) struct ComposedStatement<'s, F: ZkField + PackingField, DH, DS, M, I>
 where
-    DH: EvaluationDomain<H, Host>,
-    DS: EvaluationDomain<W, F>,
+    DH: EvaluationDomain<Host>,
+    DS: EvaluationDomain<F>,
 {
     identity: I,
-    composition: &'s Composition<'s, W, F, DH, DS, M>,
-    host: FrontendPart<'s, H, Host>,
-    split: FrontendPart<'s, W, F, MixedSplit<W, F>>,
+    composition: &'s Composition<'s, F, DH, DS, M>,
+    host: FrontendPart<'s, Host>,
+    split: FrontendPart<'s, F, MixedSplit<F>>,
     geometry: ComposedGeometry,
 }
-impl<const W: usize, F, DH, DS, M, I> ComposedStatement<'_, W, F, DH, DS, M, I>
+impl<F, DH, DS, M, I> ComposedStatement<'_, F, DH, DS, M, I>
 where
-    F: ZkField<W> + PackingField,
-    DH: EvaluationDomain<H, Host>,
-    DS: EvaluationDomain<W, F>,
+    F: ZkField + PackingField,
+    DH: EvaluationDomain<Host>,
+    DS: EvaluationDomain<F>,
 {
     /// The geometry the statement writes, which the proof is parsed against.
     /// The prover seals against it.
@@ -201,11 +196,11 @@ where
         &self.geometry
     }
 }
-impl<const W: usize, F, DH, DS, M, I> Statement for ComposedStatement<'_, W, F, DH, DS, M, I>
+impl<F, DH, DS, M, I> Statement for ComposedStatement<'_, F, DH, DS, M, I>
 where
-    F: ZkField<W> + PackingField,
-    DH: EvaluationDomain<H, Host>,
-    DS: EvaluationDomain<W, F>,
+    F: ZkField + PackingField,
+    DH: EvaluationDomain<Host>,
+    DS: EvaluationDomain<F>,
     M: AdapterMode<F>,
     I: SetupMessage,
 {

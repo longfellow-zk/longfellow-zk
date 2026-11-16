@@ -34,11 +34,7 @@ use crate::{
     },
 };
 
-fn sample_assertions<
-    'a,
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
+fn sample_assertions<'a, F: RuntimeField + RegisteredField + SupportsSampling>(
     layer: ClassifiedLayer<'a>,
     stage: usize,
     transcript: &mut Transcript,
@@ -53,7 +49,7 @@ fn sample_assertions<
     (layer, rho)
 }
 
-fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
+fn check<F: RuntimeField + RegisteredField + SupportsSampling>(
     f: &F,
     element: impl Fn(u64) -> F::E,
 ) {
@@ -104,12 +100,7 @@ fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling
     check_quad_order(f, element);
 }
 
-fn check_repeated_output<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
-    f: &F,
-) {
+fn check_repeated_output<F: RuntimeField + RegisteredField + SupportsSampling>(f: &F) {
     let constants = [f.zero()];
     let mut transcript = Transcript::for_test(b"repeated-assertion-output");
     let repeated_output = Layer::new_compressed(
@@ -153,7 +144,7 @@ fn check_repeated_output<
     assert_ne!(q_l[0], f.zero());
 }
 
-fn check_quad_order<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
+fn check_quad_order<F: RuntimeField + RegisteredField + SupportsSampling>(
     f: &F,
     element: impl Fn(u64) -> F::E,
 ) {
@@ -219,12 +210,7 @@ fn functional_transition_and_independent_assertions_binary() {
 /// Check the initial weights and the next PRF bytes independently of the
 /// prover/verifier roundtrip. Both roles could otherwise share the same extra
 /// sampling bug. Include a scalar output, which receives one independent weight.
-fn check_output_sampling<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
->(
-    f: &F,
-) {
+fn check_output_sampling<F: RuntimeField + RegisteredField + SupportsSampling>(f: &F) {
     use crate::core::proto::v2::{Circuit, RawCircuitBuilder};
     for (logv, noutput) in [(0, 1), (1, 2), (3, 5), (7, 93)] {
         let circuit = Circuit::with_test_id(

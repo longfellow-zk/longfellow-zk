@@ -5,7 +5,7 @@ use crate::core::algebra::ElementOf;
 /// Emit one equation per circuit layer and one final input equation, in that order.
 /// Preserve all terms, including zero coefficients; repeated terms remain additive.
 /// Equations and their constants remain even when every variable coefficient vanishes.
-pub(in crate::runtime::v2::zk) fn compile<const W: usize, F: RuntimeField<W>>(
+pub(in crate::runtime::v2::zk) fn compile<F: RuntimeField>(
     constraints: &Constraints<ElementOf<F>>,
     pads: &CircuitPadLayout,
     public_inputs: &[ElementOf<F>],
@@ -25,7 +25,7 @@ pub(in crate::runtime::v2::zk) fn compile<const W: usize, F: RuntimeField<W>>(
 ///   + (claim.constant - sum_{i=0}^{N-1} a_i*public[i]) = 0.
 /// ```
 /// Pad coefficients already have their constraint signs and pass through unchanged.
-fn append_input_constraint<const W: usize, F: RuntimeField<W>>(
+fn append_input_constraint<F: RuntimeField>(
     a: &mut Vec<PolygeroLinearTerm<F::E>>,
     b: &mut Vec<F::E>,
     constraints: &Constraints<F::E>,

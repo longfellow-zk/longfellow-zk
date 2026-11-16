@@ -41,8 +41,8 @@
 //!     v2::zk::{ZkProofStatement, ZkProverCommitment, ZkVerificationError},
 //! };
 //! fn _named(
-//!     _: ZkProofStatement<'_, 4, P256Field>,
-//!     _: ZkProverCommitment<'_, 4, P256Field>,
+//!     _: ZkProofStatement<'_, P256Field>,
+//!     _: ZkProverCommitment<'_, P256Field>,
 //!     _: ZkVerificationError,
 //! ) {
 //! }

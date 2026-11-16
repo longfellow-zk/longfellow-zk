@@ -20,7 +20,7 @@ use crate::{
 };
 
 /// Draw stage `stage`'s weights from a fresh boundary and enter the stage.
-fn draw_and_enter<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
+fn draw_and_enter<F: RuntimeField + RegisteredField + SupportsSampling>(
     schedule: &Schedule,
     stage: usize,
     entering: &mut Vec<F::E>,
@@ -134,7 +134,7 @@ fn early_output_weights_cannot_hide_a_false_shorter_circuit_output() {
     check_early_output_weights(true);
 }
 
-fn fixture<const W: usize, F: RuntimeField<W> + SerializableField>(f: &F) -> [Circuit<F>; 4] {
+fn fixture<F: RuntimeField + SerializableField>(f: &F) -> [Circuit<F>; 4] {
     let layer = |nw, q, l, k| {
         Layer::new(
             nw,
@@ -228,7 +228,7 @@ fn fixture<const W: usize, F: RuntimeField<W> + SerializableField>(f: &F) -> [Ci
     );
     [long, short, wide, circuit(vec![], 4)]
 }
-fn check<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(f: &F) {
+fn check<F: RuntimeField + RegisteredField + SupportsSampling>(f: &F) {
     let all = fixture(f);
     let mut rng = DeterministicRng::new(8191);
     for pattern in [
@@ -351,7 +351,7 @@ fn depth_order_uses_the_bound_input_index_for_ties_and_duplicates() {
 
 // Materialize the same concatenation independently by shifting raw gate indices.
 // Compare every saved witness, both contractions and the affine correction.
-fn compare_merged<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(f: &F) {
+fn compare_merged<F: RuntimeField + RegisteredField + SupportsSampling>(f: &F) {
     let all = fixture(f);
     let circuits = [&all[0], &all[2], &all[0]];
     let schedule = Schedule::new(&circuits, f).unwrap();
@@ -535,9 +535,7 @@ fn quad_fragments_match_a_physically_merged_circuit() {
 
 /// Components may declare different input widths. Each reads a prefix of the
 /// shared input array, whose width is the largest declared width.
-fn check_prefix_widths<const W: usize, F: RuntimeField<W> + RegisteredField + SupportsSampling>(
-    f: &F,
-) {
+fn check_prefix_widths<F: RuntimeField + RegisteredField + SupportsSampling>(f: &F) {
     let layer = |nw: usize, quadratic: Vec<Quadratic>, linear: Vec<Linear>| {
         Layer::new(
             nw,

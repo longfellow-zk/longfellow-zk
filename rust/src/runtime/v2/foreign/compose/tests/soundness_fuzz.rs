@@ -140,7 +140,7 @@ fn cheating_provers_of_false_random_compositions_are_rejected() {
         );
         let split = build(&p, &sgen);
         let storage = StorageMap::new(value_count(&split).unwrap(), &foreign).unwrap();
-        let c = Composition::<4, P256Field, _, _, FuzzMode>::new(
+        let c = Composition::<P256Field, _, _, FuzzMode>::new(
             &host,
             &split,
             storage,

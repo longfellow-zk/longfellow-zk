@@ -44,7 +44,7 @@ pub(super) struct Identity<S> {
     inputs: InputLayout,
     storage: S,
 }
-impl<const W: usize, F: ZkField<W> + PackingField> Frontend<W, F> {
+impl<F: ZkField + PackingField> Frontend<F> {
     pub(super) fn identity<S>(&self, storage: S) -> Identity<S> {
         Identity {
             id: self.id,
@@ -76,20 +76,20 @@ impl<const W: usize, F: ZkField<W> + PackingField> Frontend<W, F> {
 }
 
 /// Owned private inputs and masks for reduction after the shared commitment.
-pub(crate) struct CircuitState<const W: usize, F: ZkField<W> + PackingField> {
+pub(crate) struct CircuitState<F: ZkField + PackingField> {
     private: Vec<CircuitInput<F>>,
     pads: SumcheckPads<F>,
     packing: PackingState<F::E>,
     participant: Identity<()>,
 }
-impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
+impl<F: ZkField + PackingField> CircuitParticipant<F> {
     /// Own, validate and pack typed inputs before sampling any masks. The returned
     /// witness belongs in the corresponding position of the Polygero tuple.
     pub(crate) fn prepare(
         &self,
         private: Vec<CircuitInput<F>>,
         rng: &mut impl PrivateRandom,
-    ) -> Result<(CircuitState<W, F>, Vec<F::E>), String> {
+    ) -> Result<(CircuitState<F>, Vec<F::E>), String> {
         let p = &self.frontend;
         let inputs = p.backend.prepare_inputs(&private)?;
         let (pads, suffix) = sumcheck::sample_pads(p.geometry.sumcheck(), rng, p.field());
@@ -119,9 +119,9 @@ impl<const W: usize, F: ZkField<W> + PackingField> CircuitParticipant<W, F> {
 /// completes the shared Polygero proof against the original commitment.
 /// Continue the transcript used for that commitment. All participants must
 /// finish this reduction before the joint backend samples its challenges.
-pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F>>,
-    state: CircuitState<W, F>,
+pub(crate) fn prove<F: ZkField + PackingField>(
+    t: &mut Bound<'_, FrontendPart<'_, F>>,
+    state: CircuitState<F>,
     virtual_inputs: &VirtualInputs<F::E>,
 ) -> Result<(CircuitProof<F>, LinearStatement<F::E>), String> {
     let part = t.part();
@@ -164,7 +164,7 @@ pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField>(
         virtual_inputs,
         f,
     )?;
-    let (packing, statement) = PackingCommitment::prove::<W>(
+    let (packing, statement) = PackingCommitment::prove(
         &mut t.project(|q| &q.participant.frontend.backend),
         state.packing,
         statement,
@@ -179,15 +179,15 @@ pub(crate) fn prove<const W: usize, F: ZkField<W> + PackingField>(
 }
 
 /// A standalone prover of one circuit under one Polygero profile.
-pub struct ZkProver<const W: usize, F: ZkField<W> + PackingField> {
+pub struct ZkProver<F: ZkField + PackingField> {
     pub(super) circuit: Circuit<F>,
-    participant: CircuitParticipant<W, F>,
+    participant: CircuitParticipant<F>,
 }
 /// A commitment on a transcript opened with `statement`; the proof is completed
 /// against that same statement.
-pub struct ZkProverCommitment<'s, const W: usize, F: ZkField<W> + PackingField> {
-    statement: &'s ZkProofStatement<'s, W, F>,
-    state: CircuitState<W, F>,
+pub struct ZkProverCommitment<'s, F: ZkField + PackingField> {
+    statement: &'s ZkProofStatement<'s, F>,
+    state: CircuitState<F>,
     joint: JointProver<
         (FieldState<F::E>, ()),
         ([Vec<F::E>; FINGERPRINTS], ()),
@@ -196,8 +196,8 @@ pub struct ZkProverCommitment<'s, const W: usize, F: ZkField<W> + PackingField> 
     commitment: PolygeroCommitment,
     fingerprints: FingerprintResponse<F::E>,
 }
-impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
-    pub fn new<D: EvaluationDomain<W, F>>(
+impl<F: ZkField + PackingField> ZkProver<F> {
+    pub fn new<D: EvaluationDomain<F>>(
         circuit: Circuit<F>,
         config: PolygeroConfig,
         domain: &D,
@@ -213,18 +213,18 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
         &'a self,
         context: &'a [u8],
         public: &'a [CircuitInput<F>],
-    ) -> Result<ZkProofStatement<'a, W, F>, String> {
+    ) -> Result<ZkProofStatement<'a, F>, String> {
         ZkProofStatement::new(context, &self.participant, &self.circuit, public)
     }
     /// Open a transcript with `statement` and commit to `private`. The
     /// commitment remembers the statement, which `prove` completes.
-    pub fn commit<'s, D: EvaluationDomain<W, F>, R: PrivateRandom>(
+    pub fn commit<'s, D: EvaluationDomain<F>, R: PrivateRandom>(
         &self,
         private: Vec<CircuitInput<F>>,
-        statement: &'s ZkProofStatement<'s, W, F>,
+        statement: &'s ZkProofStatement<'s, F>,
         domain: &D,
         rng: &mut R,
-    ) -> Result<ZkProverCommitment<'s, W, F>, String> {
+    ) -> Result<ZkProverCommitment<'s, F>, String> {
         if !std::ptr::eq(statement.part.participant, &self.participant) {
             return Err("statement belongs to another prover".into());
         }
@@ -245,9 +245,9 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkProver<W, F> {
     }
     /// Complete the proof of the statement `committed` was opened with and
     /// seal it against the geometry that statement wrote (transcript I10).
-    pub fn prove<D: EvaluationDomain<W, F>>(
+    pub fn prove<D: EvaluationDomain<F>>(
         &self,
-        mut committed: ZkProverCommitment<'_, W, F>,
+        mut committed: ZkProverCommitment<'_, F>,
         domain: &D,
     ) -> Result<EncodedProof, String> {
         let statement = committed.statement;
@@ -285,7 +285,7 @@ mod tests;
 
 /// Prover state of a mixed split participant between commitment and
 /// reduction.
-pub(crate) struct SplitState<const W: usize, F: ZkField<W>> {
+pub(crate) struct SplitState<F: ZkField> {
     pads: SumcheckPads<F>,
     /// `[private inputs | pads]`, in value order.
     values: Vec<F::E>,
@@ -293,7 +293,7 @@ pub(crate) struct SplitState<const W: usize, F: ZkField<W>> {
     mask: F::E,
     participant: Identity<MixedStorage>,
 }
-impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
+impl<F: ZkField + PackingField> MixedSplit<F> {
     /// Sample pads and return the native witness `[native private inputs |
     /// pads | R]`; `mask` is R.
     pub(crate) fn prepare(
@@ -301,7 +301,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
         private: Vec<CircuitInput<F>>,
         mask: F::E,
         rng: &mut impl PrivateRandom,
-    ) -> Result<(SplitState<W, F>, Vec<F::E>), String> {
+    ) -> Result<(SplitState<F>, Vec<F::E>), String> {
         let p = &self.frontend;
         if private.len() != p.inputs.committed() {
             return Err("split witness shape".into());
@@ -339,8 +339,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
 /// Run the sumcheck of a split frontend of `t`'s part over `[public |
 /// private inputs]`, the private inputs leading `values`; it draws its top
 /// weights on entry. Every split storage mode runs its frontend here.
-pub(super) fn prove_values<const W: usize, F: ZkField<W> + PackingField, P: Participant<W, F>>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F, P>>,
+pub(super) fn prove_values<F: ZkField + PackingField, P: Participant<F>>(
+    t: &mut Bound<'_, FrontendPart<'_, F, P>>,
     values: &[F::E],
     pads: SumcheckPads<F>,
 ) -> Result<(SumcheckProof<F>, Constraints<F::E>), String> {
@@ -358,9 +358,9 @@ pub(super) fn prove_values<const W: usize, F: ZkField<W> + PackingField, P: Part
 /// Run the mixed split frontend of `t`'s part and reduce its constraints to
 /// the claim its storage discharges (`split_claim`), before the split
 /// challenge.
-pub(crate) fn prove_split<const W: usize, F: ZkField<W> + PackingField>(
-    t: &mut Bound<'_, FrontendPart<'_, W, F, MixedSplit<W, F>>>,
-    state: SplitState<W, F>,
+pub(crate) fn prove_split<F: ZkField + PackingField>(
+    t: &mut Bound<'_, FrontendPart<'_, F, MixedSplit<F>>>,
+    state: SplitState<F>,
 ) -> Result<(SumcheckProof<F>, PendingSplit<F::E>), String> {
     let p = t.part().participant;
     if !p.frontend.prepared(&state.participant, &p.storage) {

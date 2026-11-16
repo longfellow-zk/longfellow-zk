@@ -48,9 +48,9 @@ use crate::runtime::{
 ///   by `ry`.
 /// - `Z_iw` coefficient accumulates `rz`, while the corresponding `W_{l.z}` coefficient is reduced
 ///   by `rz`.
-pub fn inner_product_vector<const W: usize, F: RuntimeField<W>>(
+pub fn inner_product_vector<F: RuntimeField>(
     param: &LigeroParam,
-    llterm: &[LigeroLinearConstraint<W, F>],
+    llterm: &[LigeroLinearConstraint<F>],
     alphal: &[F::E],
     lqc: &[LigeroQuadraticConstraint],
     alphaq: &[[F::E; 3]],
@@ -103,7 +103,7 @@ pub fn inner_product_vector<const W: usize, F: RuntimeField<W>>(
 
 /// Write logical samples for coefficient row i into an existing buffer. Mask
 /// slots and any extension workspace are zero; witness slots receive row i of a.
-pub fn layout_aext_into<const W: usize, F: RuntimeField<W>>(
+pub fn layout_aext_into<F: RuntimeField>(
     param: &LigeroParam,
     i: usize,
     a: &[F::E],

@@ -129,9 +129,8 @@ fn admitted_profiles_encode_and_verify() {
 }
 
 fn admitted_profiles_roundtrip<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
-    D: EvaluationDomain<W, F>,
+    F: RuntimeField + RegisteredField + SupportsSampling,
+    D: EvaluationDomain<F>,
 >(
     f: &F,
     d: &D,
@@ -153,9 +152,8 @@ fn admitted_profiles_roundtrip<
 }
 
 fn roundtrip_profiles<
-    const W: usize,
-    F: RuntimeField<W> + RegisteredField + SupportsSampling,
-    D: EvaluationDomain<W, F>,
+    F: RuntimeField + RegisteredField + SupportsSampling,
+    D: EvaluationDomain<F>,
 >(
     f: &F,
     d: &D,

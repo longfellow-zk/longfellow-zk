@@ -35,9 +35,8 @@ use crate::runtime::{
 /// Own the witness so it is released before Merkle construction. Each helper
 /// constructs the interpolation plans it uses.
 pub(super) fn encode_rows<
-    const W: usize,
-    F: RuntimeField<W> + SupportsSampling,
-    D: EvaluationDomain<W, F>,
+    F: RuntimeField + SupportsSampling,
+    D: EvaluationDomain<F>,
     R: PrivateRandom,
 >(
     param: &PolygeroParam,
@@ -57,9 +56,8 @@ pub(super) fn encode_rows<
 /// Lay out each ordinary witness block after its T masking samples.
 /// All rows use ambient-field masks, including rows with base-field witnesses.
 fn encode_witness_rows<
-    const W: usize,
-    F: RuntimeField<W> + SupportsSampling,
-    D: EvaluationDomain<W, F>,
+    F: RuntimeField + SupportsSampling,
+    D: EvaluationDomain<F>,
     R: PrivateRandom,
 >(
     w: &mut Vec<Vec<F::E>>,
@@ -84,12 +82,7 @@ fn encode_witness_rows<
 
 /// Encode the full-field primary mask fstar, of dimension K+S. Uniform
 /// samples at any K+S distinct points specify a uniform polynomial of this dimension.
-fn encode_fstar<
-    const W: usize,
-    F: RuntimeField<W> + SupportsSampling,
-    D: EvaluationDomain<W, F>,
-    R: PrivateRandom,
->(
+fn encode_fstar<F: RuntimeField + SupportsSampling, D: EvaluationDomain<F>, R: PrivateRandom>(
     w: &mut Vec<Vec<F::E>>,
     param: &PolygeroParam,
     domain: &D,
@@ -107,9 +100,8 @@ fn encode_fstar<
 /// the oracle prefix. Mask m is specified on the logical points, with its sum
 /// over witness slots constrained to zero so z_R*m preserves the global sum.
 fn encode_arithmetic_masks<
-    const W: usize,
-    F: RuntimeField<W> + SupportsSampling,
-    D: EvaluationDomain<W, F>,
+    F: RuntimeField + SupportsSampling,
+    D: EvaluationDomain<F>,
     R: PrivateRandom,
 >(
     w: &mut Vec<Vec<F::E>>,

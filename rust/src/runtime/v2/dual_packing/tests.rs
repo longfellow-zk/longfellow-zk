@@ -585,12 +585,12 @@ fn gf128_over_gf256_packs_non_boolean_coordinates() {
     roundtrip(&p, &values, || V::from(rng.u128()));
 }
 
-fn authenticate<const W: usize, X: PackingExtension, D: EvaluationDomain<W, X::Ambient>>(
+fn authenticate<X: PackingExtension, D: EvaluationDomain<X::Ambient>>(
     p: &PackingParameters<X>,
     domain: &D,
     values: &[BaseElement<X>],
 ) where
-    X::Ambient: RuntimeField<W> + crate::runtime::algebra::SupportsSampling + SerializableField,
+    X::Ambient: RuntimeField + crate::runtime::algebra::SupportsSampling + SerializableField,
 {
     use crate::runtime::v2::{
         polygero::{

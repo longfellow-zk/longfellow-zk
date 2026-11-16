@@ -36,13 +36,13 @@ const CONFIG: PolygeroConfig = PolygeroConfig {
 
 /// A complete standalone proof of the test circuit, its public inputs and
 /// a verifier of it.
-pub(super) struct Standalone<const W: usize, F: ZkField<W> + PackingField> {
+pub(super) struct Standalone<F: ZkField + PackingField> {
     pub(super) bytes: Vec<u8>,
     pub(super) public: Vec<CircuitInput<F>>,
-    pub(super) verifier: ZkVerifier<W, F>,
+    pub(super) verifier: ZkVerifier<F>,
 }
-impl<const W: usize, F: ZkField<W> + PackingField> Standalone<W, F> {
-    pub(super) fn new<D: EvaluationDomain<W, F>>(f: &F, domain: &D) -> Self {
+impl<F: ZkField + PackingField> Standalone<F> {
+    pub(super) fn new<D: EvaluationDomain<F>>(f: &F, domain: &D) -> Self {
         let extension = f.packing_extension();
         let base = extension.base();
         let public = vec![base.one()];
@@ -64,7 +64,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> Standalone<W, F> {
     }
     /// The complete verification of `bytes`: open the session, parse
     /// against its geometry, verify and check the seal.
-    pub(super) fn verify<D: EvaluationDomain<W, F>>(
+    pub(super) fn verify<D: EvaluationDomain<F>>(
         &self,
         bytes: &[u8],
         f: &F,
@@ -85,7 +85,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> Standalone<W, F> {
 /// Alter every prover message of the standalone proof in turn, one byte
 /// where the proof carries it: each is absorbed as altered before the next
 /// draw, which changes, and the proof is rejected.
-fn every_message<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
+fn every_message<F: ZkField + PackingField, D: EvaluationDomain<F>>(
     f: &F,
     domain: &D,
     tags: &[Tag],
@@ -175,10 +175,7 @@ fn first_block_is_the_strands_first_prf_block() {
 
 /// Flip each byte of the complete standalone proof, once in its lowest bit
 /// and once in its highest: the complete verifier rejects every flip.
-fn every_byte_flip<const W: usize, F: ZkField<W> + PackingField, D: EvaluationDomain<W, F>>(
-    f: &F,
-    domain: &D,
-) {
+fn every_byte_flip<F: ZkField + PackingField, D: EvaluationDomain<F>>(f: &F, domain: &D) {
     let proof = Standalone::new(f, domain);
     proof.verify(&proof.bytes, f, domain).unwrap();
     let mut flipped = proof.bytes.clone();

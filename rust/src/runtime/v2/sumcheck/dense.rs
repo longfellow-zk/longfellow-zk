@@ -28,7 +28,7 @@ use crate::runtime::algebra::RuntimeField;
 /// P(z,x_1,...). For n input coefficients, its length is ceil(n/2), with the
 /// remaining variables reindexed.
 /// A missing odd coefficient is zero, so an unpaired entry or scalar is unchanged.
-pub fn bind<const W: usize, F: RuntimeField<W>>(v: &mut Vec<F::E>, z: &F::E, f: &F) {
+pub fn bind<F: RuntimeField>(v: &mut Vec<F::E>, z: &F::E, f: &F) {
     assert!(!v.is_empty(), "cannot bind an empty vector");
     let pairs = v.len() / 2;
     for i in 0..pairs {
@@ -43,7 +43,7 @@ pub fn bind<const W: usize, F: RuntimeField<W>>(v: &mut Vec<F::E>, z: &F::E, f: 
 }
 
 /// Extract the scalar remaining after all variables have been bound.
-pub(super) fn as_scalar<const W: usize, F: RuntimeField<W>>(v: &[F::E]) -> F::E {
+pub(super) fn as_scalar<F: RuntimeField>(v: &[F::E]) -> F::E {
     assert_eq!(v.len(), 1, "vector length must be 1");
     v[0].clone()
 }

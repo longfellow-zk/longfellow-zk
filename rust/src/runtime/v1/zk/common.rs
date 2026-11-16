@@ -20,7 +20,7 @@ use crate::runtime::{
 };
 
 /// Bundles the field implementation and the interpolator factory.
-pub struct ZkContext<'a, const W: usize, F: ZkField<W>, IF: RangeInterpolatorFactory<W, F>> {
+pub struct ZkContext<'a, F: ZkField, IF: RangeInterpolatorFactory<F>> {
     pub f: &'a F,
     pub make_interpolator: &'a IF,
 }

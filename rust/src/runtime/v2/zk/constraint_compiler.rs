@@ -100,7 +100,7 @@ mod tests;
 /// The right-hand side of the input claim once the public inputs are
 /// substituted: `constant - <w_pub, x_pub>`. Every lowering of a frontend's
 /// input claim starts from it (`compile_packed`, `batching::rows`).
-pub(crate) fn input_target<const W: usize, F: RuntimeField<W>>(
+pub(crate) fn input_target<F: RuntimeField>(
     constraints: &Constraints<F::E>,
     public: &[F::E],
     f: &F,
@@ -124,7 +124,7 @@ pub(crate) fn compile_layers<E: Clone>(
     Ok((a, b))
 }
 
-pub(crate) fn compile_packed<const W: usize, F: RuntimeField<W>>(
+pub(crate) fn compile_packed<F: RuntimeField>(
     constraints: Constraints<F::E>,
     pads: &CircuitPadLayout,
     public: &[F::E],

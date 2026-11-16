@@ -71,7 +71,7 @@ fn append_equations_rejects_rows_of_another_shape() {
         auxiliary: vec![(auxiliary, f.one())],
         masks: vec![f.one(); m],
     };
-    let append = |rows: &[FieldEquation<_>]| backend.append_equations::<2>(statement(), rows);
+    let append = |rows: &[FieldEquation<_>]| backend.append_equations(statement(), rows);
     let (a, b) = append(&[row(words, masks, 0), row(0, masks, pads - 1)]).unwrap();
     assert_eq!((a.len(), b.len()), (words + 2 * masks + 2, 2));
     for rows in [

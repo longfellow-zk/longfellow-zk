@@ -31,7 +31,7 @@ use crate::runtime::{
 };
 
 /// Evaluate V, the monic polynomial vanishing on all K logical points, on the oracle.
-pub(super) fn vanishing<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F>>(
+pub(super) fn vanishing<F: RuntimeField, D: RangeInterpolatorFactory<F>>(
     geom: &PolygeroGeometry,
     domain: &D,
     f: &F,
@@ -50,7 +50,7 @@ pub(super) fn vanishing<const W: usize, F: RuntimeField<W>, D: RangeInterpolator
 }
 
 /// Evaluate z_R, zero on logical mask slots and one on witness slots, on the oracle.
-pub(super) fn selector<const W: usize, F: RuntimeField<W>, D: RangeInterpolatorFactory<W, F>>(
+pub(super) fn selector<F: RuntimeField, D: RangeInterpolatorFactory<F>>(
     geom: &PolygeroGeometry,
     domain: &D,
     f: &F,

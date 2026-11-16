@@ -12,11 +12,10 @@ use crate::{
 };
 
 impl<
-        const W: usize,
-        F: RuntimeField<W> + RegisteredField + SupportsSampling,
-        D: EvaluationDomain<W, F>,
+        F: RuntimeField + RegisteredField + SupportsSampling,
+        D: EvaluationDomain<F>,
         T: VerifierParticipants,
-    > VerifierParticipants for (Participant<'_, W, F, D>, T)
+    > VerifierParticipants for (Participant<'_, F, D>, T)
 {
     fn append_opened(&self, w: &Self::Bodies, q: usize, t: usize, h: &mut Sha256) {
         // Proof rows store t values in query order. Here q is the position in
