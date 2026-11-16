@@ -139,7 +139,7 @@ storage then maps from value indices to its native cells
 (`MixedSplit::split_claim`).
 *Enforced by:* the compiler lives in shared code used by both role modules;
 tests `symbolic_and_compiled_constraints_match_numerical_binary` and
-`_prime`; Lean `LfzkV2.Compiler.compile_correct`.
+`_prime`; Lean `LfzkV2.compile_correct`.
 
 **I6. The witness is selected before any frontend challenge.** The joint
 handle takes the `Transcript` by value at commit or receive, sends the
@@ -585,8 +585,8 @@ How the API carries the invariants:
 | Check | Purpose | Error | Lean |
 |---|---|---|---|
 | Fingerprint rows (witness selection) | Fix the committed witness before frontend challenges | 1/#F^2 per candidate pair | `ZkJoint`, `FingerprintRows`, `WitnessSelection.Collision` |
-| Sumcheck rows (layer and input) | Reduce circuit satisfaction to affine rows | two roots per round, 2/(#F-1) per terminal, 1/#F per combine | sumcheck-v2 `Challenges.challenge_bad_card_le`, `LinearTerminal` |
-| Constraint compiler | Rows hold iff the symbolic constraints hold | none (exact) | `LfzkV2.Compiler.compile_correct`, `compiled_iff_clear` |
+| Sumcheck rows (layer and input) | Reduce circuit satisfaction to affine rows | two roots per round, 2/(#F-1) per terminal, 1/#F per combine | sumcheck-v2 `SumcheckV2.challenge_bad_card_le`, `LinearTerminal` |
+| Constraint compiler | Rows hold iff the symbolic constraints hold | none (exact) | `LfzkV2.compile_correct`, `compiled_iff_clear` |
 | Virtual substitution | Rows over committed inputs equal rows over the full input array | none (exact) | `LfzkV2.InputBinding` |
 | Dual packing, `d > 1` | Reduce the input claim to two rows over packed words | 1/#F per packing challenge | dual-packing `Instance.nativeLinearVerify` |
 | Split (rescaling) | Native row and modular claim imply the input equation and equal masks | at most one bad nonzero eta: `1/(p-1)` | `Prime.rescaling_bad_card`, `Prime.Claim.true_or_rescaling_bad`, `Handoff.split_handoff` |

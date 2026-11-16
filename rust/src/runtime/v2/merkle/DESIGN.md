@@ -96,7 +96,7 @@ position from one helper, `frontier_child` (`heap.rs`); `verify_proof`
 returns `OpeningError::ProofLengthMismatch` unless the
 traversal consumes every frontier digest (runtime); the test
 `duplicate_opening_indices_and_noncanonical_frontiers_reject`;
-`Merkle.Heap.frontier`.
+`Heap.frontier`.
 
 **I8. Opened indices are distinct and in range.** The verifier rejects an
 empty list, a repeated index or an index `>= n` before it indexes the heap
@@ -109,7 +109,7 @@ before the check.
 
 The heap is an array of `2n` digests; position 0 is unused. Leaf `j` is at
 position `n+j`, so leaves of a non-power-of-two heap sit at two depths. The
-depth of the heap is `floor(log2(2n-1)) = ceil(log2 n)` (`Merkle.Heap.heapDepth`),
+depth of the heap is `floor(log2(2n-1)) = ceil(log2 n)` (`Heap.heapDepth`),
 so one opened leaf contributes at most `ceil(log2 n)` frontier digests. For
 `n = 1` the root is the leaf digest itself. Example, `n = 5`:
 

@@ -159,7 +159,7 @@ cells (none for m = 1); the joint wrapper appends its fingerprint cells
 after them.
 *Enforced by:* `PackingLayout::new` (checked arithmetic, private fields);
 the shape check in `append_equations` (runtime); Lean
-`FrontendPackingCells.cells_eq`.
+`Frontend.PackingCells.cells_eq`.
 
 ## Protocol
 

@@ -632,7 +632,7 @@ The frontends draw their top weights themselves, on their `Bound`.
 For mixed storage, `Handoff.product_handoff` and `Handoff.split_handoff`
 combine the rows: either the claim is true and both copies of R agree modulo
 `p`, or the rescaling event or the conversion event occurred.
-`Application.Bad` lists these events beside the circuit, packing and backend
+`Application.System.Bad` lists these events beside the circuit, packing and backend
 events, and `Mdoc.Soundness.averaged_ratio_le` is the endpoint. The per-tree
 error is about `2^(Q+1-128)` (`2^-117` for mdoc); the two independent trees
 square it (I4). The composition's boundaries enter the endpoint bound only
@@ -652,7 +652,7 @@ conversion challenges are read and the conversion bound applies unchanged:
 composes it with both frontends as `Composition.rows_reduction` does. No
 application may use pure-foreign storage until its application model lists
 these events beside its circuit, packing and backend events and charges them
-in its schedule, as `Application.Bad` and `ApplicationCharging` do for mdoc.
+in its schedule, as `Application.System.Bad` and `ApplicationCharging` do for mdoc.
 
 A test exercises this end to end on random compositions:
 `cheating_provers_of_false_random_compositions_are_rejected` changes one
@@ -670,7 +670,7 @@ The Lean model fixes the field pair and the budget to mdoc
 |---|---|---|
 | `mu` (mixed) | R is uniform in `F_p`, and `mu` is the only directly published value it masks, so `mu` is uniform and independent of `<w_F, v_F>`. R also enters the native row and the modular claim, and its bits feed the adapter (I8); hiding of the whole view rests on the joint simulation, not on R being used once | `Mdoc.ZeroKnowledge.statClose` |
 | claim target (pure) | a public function of the statement, the frontend's messages and the row weights | none needed |
-| `m_t` | `o_t` is uniform in GF(2)^Q and used only here, so `k_t xor o_t` is uniform | `FrontendAdapterBits.rawOtpEquiv` |
+| `m_t` | `o_t` is uniform in GF(2)^Q and used only here, so `k_t xor o_t` is uniform | `Frontend.AdapterBits.rawOtpEquiv` |
 | Leaf definitions | public functions of public values; never absorbed | `Adapter.Leaves` |
 | R bits, pads, foreign split values | committed; hidden by the joint commitment | `StrandCanonicalCommitmentHiding` |
 

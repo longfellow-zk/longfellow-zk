@@ -3,7 +3,8 @@
 //! Lean module, and check local Markdown links in the formal and Rust
 //! documentation. Run inside the repo; `rustc --test` builds its tests.
 //! It also pins the offline Hahn certificate sources under `parameters/`, and
-//! checks that the Lean names and Rust test names the Rust designs cite exist.
+//! checks that the Lean names the Rust designs cite resolve to real declaration
+//! paths and that the Rust test names they cite exist.
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -600,6 +601,57 @@ mod tests {
     }
 
     #[test]
+    fn citations_resolve_by_full_declaration_path() {
+        let source = "namespace LfzkV2\n\
+            theorem compile_correct : True := trivial\n\
+            end LfzkV2\n\
+            noncomputable section\n\
+            namespace LfzkV2.Current.Adapter.Fragment\n\
+            def Layout := Nat\n\
+            end LfzkV2.Current.Adapter.Fragment\n\
+            namespace LfzkV2.Current.Prime\n\
+            /-- A claim. -/\n\
+            structure Claim (F : Type) where\n  rows : F\n  target : F\n\
+            section Rows\n\
+            theorem rows_le : True := trivial\n\
+            end Rows\n\
+            inductive Kind where\n  | host\n  | split\n\
+            def _root_.Absolute.name := 0\n\
+            end LfzkV2.Current.Prime\n\
+            end\n\
+            namespace SumcheckV2\n\
+            theorem challenge_bad_card_le : True := trivial\n\
+            end SumcheckV2\n";
+        let mut names = BTreeSet::from(["LfzkV2".to_owned(), "LfzkV2.Native".to_owned()]);
+        lean_declarations(&code(source), &mut names);
+        let names = LeanNames::new(names);
+        for cited in [
+            "LfzkV2.compile_correct",
+            "Adapter.Fragment",
+            "Adapter.Fragment.Layout",
+            "Prime.Claim.rows",
+            "LfzkV2.Current.Prime.Claim.target",
+            "Prime.rows_le",
+            "Kind.split",
+            "Absolute.name",
+            "LfzkV2.Native",
+            "SumcheckV2.challenge_bad_card_le",
+        ] {
+            assert!(names.resolves(cited), "{cited}");
+        }
+        for cited in [
+            "LfzkV2.Compiler.compile_correct",
+            "Challenges.challenge_bad_card_le",
+            "Current.Fragment.Layout",
+            "Prime.Rows.rows_le",
+            "LfzkV2.Current.Prime.Absolute.name",
+            "Prime.Claim.missing",
+            "ragment.Layout",
+        ] {
+            assert!(!names.resolves(cited), "{cited}");
+        }
+    }
+    #[test]
     fn every_tracked_module_must_reach_the_axiom_audit() {
         let mut graph = BTreeMap::from([
             (
@@ -640,8 +692,6 @@ fn main() {
         .collect();
     let (mut lean_count, mut link_count, mut failures) = (0, 0, 0);
     let mut partial_metaprograms = BTreeSet::new();
-    let (citation_failures, citation_count) = check_design_citations(&paths);
-    failures += citation_failures;
     let mut roots = vec!["formal/".to_owned()];
     for line in fs::read_to_string("formal/lakefile.toml").unwrap().lines() {
         if let Some(directory) = line.trim().strip_prefix("srcDir = ") {
@@ -653,6 +703,8 @@ fn main() {
     }
     roots.sort_by_key(|root| std::cmp::Reverse(root.len()));
     roots.dedup();
+    let (citation_failures, citation_count) = check_design_citations(&paths, &roots);
+    failures += citation_failures;
     let mut dependencies = BTreeMap::new();
     // Tests need direct aggregate imports: a sibling's transitive import must
     // not be their only coverage under the normal build.
@@ -720,11 +772,7 @@ fn main() {
                 );
                 failures += 1;
             }
-            let relative = roots
-                .iter()
-                .find_map(|root| name.strip_prefix(root.as_str()))
-                .unwrap();
-            let module = relative.trim_end_matches(".lean").replace('/', ".");
+            let module = lean_module(&roots, name);
             assert!(
                 dependencies
                     .insert(module.clone(), imports(&source))
@@ -1021,8 +1069,10 @@ fn identifiers(text: &str) -> impl Iterator<Item = &str> {
         .filter(|word| word.starts_with(|c: char| c.is_alphabetic() || c == '_'))
 }
 
-/// The names a Lean source (comments and strings blanked) declares: each
-/// component of a declared name, constructors and structure fields.
+/// The full names a Lean source (comments and strings blanked) declares, as
+/// Lean resolves them: each declaration under the enclosing namespaces, each
+/// namespace, and the fields and constructors of a structure, class or
+/// inductive type under the type's name. A `_root_.` name is absolute.
 fn lean_declarations(code: &str, out: &mut BTreeSet<String>) {
     const KEYWORDS: &[&str] = &[
         "theorem",
@@ -1034,23 +1084,75 @@ fn lean_declarations(code: &str, out: &mut BTreeSet<String>) {
         "class",
         "instance",
         "opaque",
-        "namespace",
-        "section",
+        "axiom",
     ];
+    const TYPES: &[&str] = &["structure", "inductive", "class"];
+    // The open scopes: the namespace components each one adds.
+    let mut scopes: Vec<usize> = Vec::new();
+    let mut namespace: Vec<String> = Vec::new();
+    // The type whose fields or constructors the following lines declare.
+    let mut owner: Option<String> = None;
+    let qualify = |namespace: &[String], name: &str| match name.strip_prefix("_root_.") {
+        Some(absolute) => absolute.to_owned(),
+        None => namespace
+            .iter()
+            .map(String::as_str)
+            .chain([name])
+            .collect::<Vec<_>>()
+            .join("."),
+    };
     for line in code.lines() {
+        let mut words = line.split_whitespace();
+        match words.next() {
+            Some("namespace") => {
+                let name = words.next().unwrap_or_default();
+                let components: Vec<_> = name.split('.').filter(|c| !c.is_empty()).collect();
+                scopes.push(components.len());
+                for component in components {
+                    namespace.push(component.to_owned());
+                    out.insert(namespace.join("."));
+                }
+                owner = None;
+                continue;
+            }
+            Some("section" | "mutual") => {
+                scopes.push(0);
+                owner = None;
+                continue;
+            }
+            Some("noncomputable") if words.next() == Some("section") => {
+                scopes.push(0);
+                owner = None;
+                continue;
+            }
+            Some("end") => {
+                let added = scopes.pop().unwrap_or(0);
+                namespace.truncate(namespace.len() - added.min(namespace.len()));
+                owner = None;
+                continue;
+            }
+            _ => {}
+        }
         let mut words = line.split_whitespace();
         while let Some(word) = words.next() {
             if KEYWORDS.contains(&word)
                 && let Some(name) = words.clone().next()
             {
                 let name = name.split(['(', '[', '{', ':']).next().unwrap();
-                out.extend(name.split('.').filter(|c| !c.is_empty()).map(str::to_owned));
+                if name.is_empty() {
+                    break;
+                }
+                let full = qualify(&namespace, name);
+                out.insert(full.clone());
+                owner = TYPES.contains(&word).then_some(full);
+                break;
             }
         }
+        let Some(owner) = &owner else { continue };
         let trimmed = line.trim_start();
         let first = |text: &str| identifiers(text).next().map(str::to_owned);
-        if let Some(rest) = trimmed.strip_prefix('|') {
-            out.extend(first(rest));
+        let member = if let Some(rest) = trimmed.strip_prefix('|') {
+            first(rest)
         } else if trimmed.len() < line.len()
             && let Some((field, _)) = trimmed.split_once(':')
             && identifiers(field).count() == 1
@@ -1059,7 +1161,12 @@ fn lean_declarations(code: &str, out: &mut BTreeSet<String>) {
                 .chars()
                 .all(|c| c.is_alphanumeric() || c == '_' || c == '\'')
         {
-            out.extend(first(field));
+            first(field)
+        } else {
+            None
+        };
+        if let Some(member) = member {
+            out.insert(format!("{owner}.{member}"));
         }
     }
 }
@@ -1110,20 +1217,21 @@ fn code_spans(markdown: &str) -> Vec<(usize, String)> {
 
 /// A dotted Lean name, `Namespace.Sub.name`: CamelCase namespaces, then a
 /// declaration name. File names such as `DESIGN.md` are not.
-fn lean_citation(span: &str) -> Option<&str> {
-    let (namespaces, name) = span.rsplit_once('.')?;
+fn lean_citation(span: &str) -> bool {
+    let Some((namespaces, name)) = span.rsplit_once('.') else {
+        return false;
+    };
     let camel = |part: &str| {
         part.starts_with(|c: char| c.is_ascii_uppercase())
             && part.chars().all(|c| c.is_ascii_alphanumeric() || c == '\'')
     };
     let file = ["rs", "md", "txt", "lean", "toml", "json", "py", "sh"].contains(&name);
-    (!file
+    !file
         && namespaces.split('.').all(camel)
         && name.starts_with(|c: char| c.is_alphabetic() || c == '_')
         && name
             .chars()
-            .all(|c| c.is_alphanumeric() || "_'!?".contains(c)))
-    .then_some(name)
+            .all(|c| c.is_alphanumeric() || "_'!?".contains(c))
 }
 
 /// A snake-case name of three or more words, as Rust test names are; a
@@ -1142,13 +1250,56 @@ fn test_citation(span: &str) -> Option<&str> {
     .then_some(span)
 }
 
-/// Every Lean name a `rust/**/DESIGN.md` cites must be declared in some Lean
-/// source, matching on its last component (a cited namespace may abbreviate
-/// or nest differently), and every Rust test name it cites must exist in the
-/// Rust code, a Lean source, or as a file. Returns the failures and the
+/// The Lean names a citation can resolve to: the full name of every
+/// declaration, namespace, structure field and constructor, and every
+/// module and module directory (`LfzkV2.Native`), indexed by last component.
+struct LeanNames {
+    by_last: BTreeMap<String, Vec<String>>,
+}
+
+impl LeanNames {
+    fn new(names: BTreeSet<String>) -> Self {
+        let mut by_last: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for name in names {
+            let last = name.rsplit('.').next().unwrap().to_owned();
+            by_last.entry(last).or_default().push(name);
+        }
+        Self { by_last }
+    }
+
+    /// Whether a cited dotted name resolves: it equals a full name, or is a
+    /// suffix of one that starts at a component, as Lean resolves a name
+    /// inside the namespaces that end with the cited prefix. A citation that
+    /// prefixes a declaration with its file's name, not its namespace, does
+    /// not resolve.
+    fn resolves(&self, cited: &str) -> bool {
+        let last = cited.rsplit('.').next().unwrap();
+        let suffix = format!(".{cited}");
+        self.by_last.get(last).is_some_and(|names| {
+            names
+                .iter()
+                .any(|name| name == cited || name.ends_with(&suffix))
+        })
+    }
+}
+
+/// The module a tracked Lean file defines, under the library source roots
+/// (`roots`, longest first).
+fn lean_module(roots: &[String], path: &str) -> String {
+    let relative = roots
+        .iter()
+        .find_map(|root| path.strip_prefix(root.as_str()))
+        .unwrap();
+    relative.trim_end_matches(".lean").replace('/', ".")
+}
+
+/// Every Lean name a `rust/**/DESIGN.md` cites must resolve to a Lean
+/// declaration, namespace or module by its full dotted name (see
+/// `LeanNames::resolves`), and every Rust test name it cites must exist in
+/// the Rust code, a Lean source, or as a file. Returns the failures and the
 /// number of citations checked.
-fn check_design_citations(paths: &BTreeSet<&str>) -> (usize, usize) {
-    let (mut lean, mut rust) = (BTreeSet::new(), BTreeSet::new());
+fn check_design_citations(paths: &BTreeSet<&str>, roots: &[String]) -> (usize, usize) {
+    let (mut lean, mut words, mut rust) = (BTreeSet::new(), BTreeSet::new(), BTreeSet::new());
     let mut failures = 0;
     for name in paths {
         let path = Path::new(name);
@@ -1159,10 +1310,19 @@ fn check_design_citations(paths: &BTreeSet<&str>) -> (usize, usize) {
             continue;
         }
         let stems = name.trim_end_matches(".lean").trim_end_matches(".rs");
-        let names = if is_lean { &mut lean } else { &mut rust };
+        let names = if is_lean { &mut words } else { &mut rust };
         names.extend(stems.split('/').map(str::to_owned));
         let source = fs::read_to_string(path).unwrap();
         if is_lean {
+            let module = lean_module(roots, name);
+            let mut prefix = String::new();
+            for component in module.split('.') {
+                if !prefix.is_empty() {
+                    prefix.push('.');
+                }
+                prefix.push_str(component);
+                lean.insert(prefix.clone());
+            }
             lean_declarations(&code(&source), &mut lean);
         } else {
             match rust_code(&source) {
@@ -1174,6 +1334,12 @@ fn check_design_citations(paths: &BTreeSet<&str>) -> (usize, usize) {
             }
         }
     }
+    words.extend(
+        lean.iter()
+            .flat_map(|name| name.split('.'))
+            .map(str::to_owned),
+    );
+    let lean = LeanNames::new(lean);
     let mut checked = 0;
     for name in paths {
         if !(name.starts_with("rust/") && name.ends_with("/DESIGN.md")) {
@@ -1181,17 +1347,19 @@ fn check_design_citations(paths: &BTreeSet<&str>) -> (usize, usize) {
         }
         for (line, span) in code_spans(&fs::read_to_string(name).unwrap()) {
             let span = span.trim();
-            if let Some(last) = lean_citation(span) {
+            if lean_citation(span) {
                 checked += 1;
-                if !lean.contains(last) {
-                    eprintln!("{name}:{line}: cites `{span}`, but no Lean source declares {last}");
+                if !lean.resolves(span) {
+                    eprintln!(
+                        "{name}:{line}: cites `{span}`, which names no Lean declaration, namespace or module"
+                    );
                     failures += 1;
                 }
             } else if let Some(test) = test_citation(span) {
                 checked += 1;
                 let found = match test.strip_suffix('*') {
                     Some(prefix) => rust.iter().any(|n| n.starts_with(prefix)),
-                    None => rust.contains(test) || lean.contains(test),
+                    None => rust.contains(test) || words.contains(test),
                 };
                 if !found {
                     eprintln!(

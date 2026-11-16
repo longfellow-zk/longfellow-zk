@@ -676,7 +676,7 @@ prover's coins (R, the quotient pads, Polygero masks and nonces) fresh and
 uniform: `run_mdoc_prover` draws them from the operating system, and
 `run_mdoc_prover_inner` requires the same of its generator. R makes `mu`
 uniform; each quotient pad is two fresh bytes, of which the high six bits are
-discarded (`FrontendAdapterBits.rawOtpEquiv`). `Mdoc.Completeness` covers
+discarded (`Frontend.AdapterBits.rawOtpEquiv`). `Mdoc.Completeness` covers
 honest acceptance.
 
 ### What the prover leaves to its host

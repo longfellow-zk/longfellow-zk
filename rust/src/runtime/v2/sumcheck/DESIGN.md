@@ -462,7 +462,7 @@ count and GF(2^128), the smaller field, sets the leading term. Completeness is
 `LinearTerminal.eval_row`/`eval_nextClaim` show the symbolic equations equal
 the numerical ones. `LfzkV2.Current.FrontendReplay` and `FrontendVerifier`
 reconstruct the composed constraints from layered topology and carried
-fragment weights; `FrontendFailures.accepted_failure_cover` derives a failing
+fragment weights; `FrontendReplay.accepted_failure_cover` derives a failing
 test from an accepted false frontend.
 
 **Zero knowledge.** Each round message is its coefficient minus a fresh
