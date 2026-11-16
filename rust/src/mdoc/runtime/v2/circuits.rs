@@ -85,22 +85,7 @@ fn load(
     spec: Option<&ZkSpecStruct>,
 ) -> Result<DecodedCircuits, String> {
     let archive = super::archive::read(compressed)?;
-    if archive.entries.len() != 2 {
-        return Err("V2 archive must contain exactly the signature and hash circuits".into());
-    }
-    if let Some(expected) = spec {
-        if archive.combined_id != expected.combined_hash
-            || archive.circuit_version as usize != expected.version
-        {
-            return Err("Circuit archive does not match the selected v2 specification".into());
-        }
-    }
-    let sig_entry = archive
-        .get("sig")
-        .ok_or("Missing 'sig' entry in circuit archive")?;
-    let hash_entry = archive
-        .get("hash")
-        .ok_or("Missing 'hash' entry in circuit archive")?;
+    let (sig_entry, hash_entry) = super::archive::circuit_entries(&archive, spec)?;
     let (signature, signature_tail) = CircuitReader::new(p256).from_bytes(&sig_entry.payload)?;
     if !signature_tail.is_empty() || signature.id != sig_entry.circuit_id {
         return Err("Signature payload does not match its archive entry".into());

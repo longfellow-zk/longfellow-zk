@@ -2,9 +2,12 @@
 //! V2 compressed artifact loading, shared by circuit loading and providers.
 use std::io::{BufRead, Read};
 
-use crate::core::proto::{
-    archive::CircuitArchive,
-    v2::{archive, limits::*},
+use crate::{
+    core::proto::{
+        archive::{ArchiveEntry, CircuitArchive},
+        v2::{archive, limits::*},
+    },
+    mdoc::v2::ZkSpecStruct,
 };
 
 pub(in crate::mdoc) fn read_compressed(reader: impl Read) -> Result<Vec<u8>, String> {
@@ -37,4 +40,30 @@ pub(super) fn read(compressed: &[u8]) -> Result<CircuitArchive, String> {
         return Err("Trailing compressed circuit archive data".into());
     }
     Ok(result)
+}
+
+/// The `sig` and `hash` entries of an mdoc archive. The archive holds exactly
+/// these two, and, given a spec, has its combined ID and circuit version.
+/// Callers map the error to their own codes.
+pub(super) fn circuit_entries<'a>(
+    archive: &'a CircuitArchive,
+    spec: Option<&ZkSpecStruct>,
+) -> Result<(&'a ArchiveEntry, &'a ArchiveEntry), &'static str> {
+    if archive.entries.len() != 2 {
+        return Err("V2 archive must contain exactly the signature and hash circuits");
+    }
+    if let Some(expected) = spec {
+        if archive.combined_id != expected.combined_hash
+            || archive.circuit_version as usize != expected.version
+        {
+            return Err("Circuit archive does not match the selected v2 specification");
+        }
+    }
+    let sig = archive
+        .get("sig")
+        .ok_or("Missing 'sig' entry in circuit archive")?;
+    let hash = archive
+        .get("hash")
+        .ok_or("Missing 'hash' entry in circuit archive")?;
+    Ok((sig, hash))
 }

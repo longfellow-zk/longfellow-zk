@@ -91,13 +91,8 @@ pub(in crate::mdoc) fn from_compressed(
     }
     let archive = super::archive::read(&compressed)
         .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
-    if archive.combined_id != spec.combined_hash || archive.circuit_version as usize != spec.version
-    {
-        return Err(MdocProverErrorCode::CircuitParsingFailure);
-    }
-    if archive.entries.len() != 2 || archive.get("sig").is_none() || archive.get("hash").is_none() {
-        return Err(MdocProverErrorCode::CircuitParsingFailure);
-    }
+    super::archive::circuit_entries(&archive, Some(&spec))
+        .map_err(|_| MdocProverErrorCode::CircuitParsingFailure)?;
     Ok(ProvidedCircuit { spec, compressed })
 }
 
