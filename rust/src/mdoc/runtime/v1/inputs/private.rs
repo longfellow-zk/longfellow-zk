@@ -15,7 +15,7 @@
 //! Longfellow v1 private assignment encoding.
 
 use crate::{
-    circuits::sha256::{constants::INITIAL, ConcreteDerived},
+    circuits::sha256::{constants::INITIAL, Derived},
     core::algebra::{AlgebraicField, Nat, SupportsNatConversions, SupportsU64Conversions},
     mdoc::{
         circuits::cbor::mdoc::ParsedMdoc,
@@ -41,7 +41,7 @@ fn max_shablocks(version: usize) -> usize {
     }
 }
 
-fn push_legacy_sha_witness(builder: &mut AssignmentBuilder<Gf2_128Field>, sha: &ConcreteDerived) {
+fn push_legacy_sha_witness(builder: &mut AssignmentBuilder<Gf2_128Field>, sha: &Derived<u32>) {
     for val in sha.legacy_elements() {
         builder.push_v32_legacy(val);
     }

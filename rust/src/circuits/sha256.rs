@@ -14,22 +14,14 @@
 
 mod concrete;
 pub mod constants;
+mod shape;
 
-pub use concrete::{derived, ConcreteDerived, ConcreteGiven};
+pub use concrete::derived;
+pub use shape::{Derived, Given};
 
 cfg_compiler! {
-    mod allocate;
     mod circuit;
-
-    pub use self::{
-        allocate::{allocate_derived, allocate_given},
-        circuit::{Derived, Given, Sha256},
-    };
-}
-
-cfg_testonly! {
-    mod evaluate;
-    pub use evaluate::{evaluate_derived, evaluate_given};
+    pub use circuit::Sha256;
 }
 
 #[cfg(test)]

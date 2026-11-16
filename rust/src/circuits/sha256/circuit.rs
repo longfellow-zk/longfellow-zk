@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::constants::K;
+use super::{
+    constants::K,
+    shape::{Derived, Given},
+};
 use crate::{
     circuits::{
         analog_adder::{AnalogAdder, FieldWrappingSum},
@@ -20,19 +23,6 @@ use crate::{
     },
     compile::logic::Logic,
 };
-
-#[derive(Clone)]
-pub struct Given<L: Logic> {
-    pub input_block: [V32<L>; 16],
-    pub h0: [V32<L>; 8],
-}
-
-pub struct Derived<L: Logic> {
-    pub outw: [V32<L>; 48],
-    pub oute: [V32<L>; 64],
-    pub outa: [V32<L>; 64],
-    pub h1: [V32<L>; 8],
-}
 
 pub struct Sha256<'a, L: Logic> {
     logic: &'a L,
@@ -90,7 +80,11 @@ where L::F: FieldWrappingSum
         )
     }
 
-    pub fn assert_transform_block(&self, given: &Given<L>, derived: &Derived<L>) -> L::Assertions {
+    pub fn assert_transform_block(
+        &self,
+        given: &Given<V32<L>>,
+        derived: &Derived<V32<L>>,
+    ) -> L::Assertions {
         let mut w = Vec::with_capacity(64);
         w.extend(given.input_block.iter().cloned());
         w.extend(derived.outw.iter().cloned());

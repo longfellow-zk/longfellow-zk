@@ -16,7 +16,7 @@ use super::test_support;
 use crate::{
     circuits::{
         bitvec::BitvecLogic,
-        sha256::{derived, evaluate_derived, evaluate_given, ConcreteGiven, Sha256},
+        sha256::{derived, Given, Sha256},
     },
     compile::{
         algebra::gf2_128::Gf2_128Field,
@@ -46,7 +46,7 @@ fn test_eval_sha256() {
     ];
 
     // Run simulator and verify simulator outputs
-    let given = ConcreteGiven {
+    let given = Given {
         input_block: input,
         h0,
     };
@@ -54,8 +54,8 @@ fn test_eval_sha256() {
     assert_eq!(derived.h1, want);
 
     // Build the EvalLogic inputs
-    let given_wires = evaluate_given(&given, &bv);
-    let derived_wires = evaluate_derived(&derived, &bv);
+    let given_wires = given.map(|&w| bv.of_u32(w));
+    let derived_wires = derived.map(|&w| bv.of_u32(w));
 
     // Run the round checker directly under EvalLogic.
     let sha256 = Sha256::new(&l);
@@ -80,7 +80,7 @@ fn test_eval_sha256_tampering() {
         0, 0xabadcafe, 0x575b95fc, 0x30960fa, 0xaeb72bf8, 0x5a64f6f6, 0x612c1f4, 0xb1c08cf2,
     ];
 
-    let given = ConcreteGiven {
+    let given = Given {
         input_block: input,
         h0,
     };
@@ -94,8 +94,8 @@ fn test_eval_sha256_tampering() {
         let mut d = derived_val.clone();
         (c.corrupt)(&mut g, &mut d);
 
-        let given_wires = evaluate_given(&g, &bv);
-        let derived_wires = evaluate_derived(&d, &bv);
+        let given_wires = g.map(|&w| bv.of_u32(w));
+        let derived_wires = d.map(|&w| bv.of_u32(w));
         let res = sha256.assert_transform_block(&given_wires, &derived_wires);
 
         assert!(

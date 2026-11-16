@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::circuits::sha256::{
-    constants::INITIAL, derived as sha256_generate_derived,
-    ConcreteDerived as Sha256ConcreteDerived, ConcreteGiven as Sha256ConcreteGiven,
+    constants::INITIAL, derived as sha256_generate_derived, Derived as Sha256Derived,
+    Given as Sha256Given,
 };
 
 #[derive(Clone, Debug)]
@@ -27,7 +27,7 @@ pub struct ConcreteGiven {
 
 #[derive(Clone, Debug)]
 pub struct ConcreteDerived {
-    pub sha_derived: Vec<Sha256ConcreteDerived>,
+    pub sha_derived: Vec<Sha256Derived<u32>>,
 }
 
 pub fn given(
@@ -89,7 +89,7 @@ pub fn sha256_msg_derived(
     padded_preimage: &[u8],
     initial_state: &[u32; 8],
     max_blocks: usize,
-) -> Vec<Sha256ConcreteDerived> {
+) -> Vec<Sha256Derived<u32>> {
     let mut intermediate_state = *initial_state;
     let mut sha_derived = Vec::with_capacity(max_blocks);
     let nblocks = padded_preimage.len() / 64;
@@ -109,7 +109,7 @@ pub fn sha256_msg_derived(
             ];
             *item = u32::from_be_bytes(be);
         }
-        let given_block = Sha256ConcreteGiven {
+        let given_block = Sha256Given {
             input_block,
             h0: intermediate_state,
         };

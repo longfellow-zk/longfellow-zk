@@ -16,10 +16,8 @@ use super::test_support;
 use crate::{
     circuits::{
         analog_adder::FieldWrappingSum,
-        bitvec::BitvecLogic,
-        sha256::{
-            allocate_derived, allocate_given, derived, ConcreteDerived, ConcreteGiven, Sha256,
-        },
+        bitvec::{BitvecIO, BitvecLogic},
+        sha256::{derived, Derived, Given, Sha256},
     },
     compile::{
         algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
@@ -42,29 +40,13 @@ fn push_u32_bits<const W: usize, FR: RuntimeField<W>>(inputs: &mut Vec<FR::E>, v
 }
 
 fn make_inputs<const W: usize, FR: RuntimeField<W>>(
-    given: &ConcreteGiven,
-    derived: &ConcreteDerived,
+    given: &Given<u32>,
+    derived: &Derived<u32>,
     fr: &FR,
 ) -> Vec<FR::E> {
     let mut inputs = initial_inputs(fr);
-    for &val in &given.input_block {
-        push_u32_bits(&mut inputs, val, fr);
-    }
-    for &val in &given.h0 {
-        push_u32_bits(&mut inputs, val, fr);
-    }
-    for &val in &derived.outw {
-        push_u32_bits(&mut inputs, val, fr);
-    }
-    for &val in &derived.oute {
-        push_u32_bits(&mut inputs, val, fr);
-    }
-    for &val in &derived.outa {
-        push_u32_bits(&mut inputs, val, fr);
-    }
-    for &val in &derived.h1 {
-        push_u32_bits(&mut inputs, val, fr);
-    }
+    given.for_each(|&val| push_u32_bits(&mut inputs, val, fr));
+    derived.for_each(|&val| push_u32_bits(&mut inputs, val, fr));
     inputs
 }
 
@@ -87,7 +69,7 @@ fn test_compile_sha256_for_field<
     let h0 = [
         0, 0xabadcafe, 0x575b95fc, 0x30960fa, 0xaeb72bf8, 0x5a64f6f6, 0x612c1f4, 0xb1c08cf2,
     ];
-    let given = ConcreteGiven {
+    let given = Given {
         input_block: input,
         h0,
     };
@@ -97,8 +79,9 @@ fn test_compile_sha256_for_field<
         let mut pos = K_FIRST_WIRE_POSITION;
         let sha256 = Sha256::new(&iologic);
         let bv = BitvecLogic::new(&iologic);
-        let given_wires = allocate_given(&bv, &mut pos);
-        let derived_wires = allocate_derived(&bv, &mut pos);
+        let io = BitvecIO::new(&bv);
+        let given_wires = Given::from_fn(|| io.next(&mut pos));
+        let derived_wires = Derived::from_fn(|| io.next(&mut pos));
 
         (
             sha256.assert_transform_block(&given_wires, &derived_wires),
@@ -166,7 +149,7 @@ fn test_compile_sha256_tampering() {
     let h0 = [
         0, 0xabadcafe, 0x575b95fc, 0x30960fa, 0xaeb72bf8, 0x5a64f6f6, 0x612c1f4, 0xb1c08cf2,
     ];
-    let given = ConcreteGiven {
+    let given = Given {
         input_block: input,
         h0,
     };
@@ -176,8 +159,9 @@ fn test_compile_sha256_tampering() {
         let mut pos = K_FIRST_WIRE_POSITION;
         let sha256 = Sha256::new(&iologic);
         let bv = BitvecLogic::new(&iologic);
-        let given_wires = allocate_given(&bv, &mut pos);
-        let derived_wires = allocate_derived(&bv, &mut pos);
+        let io = BitvecIO::new(&bv);
+        let given_wires = Given::from_fn(|| io.next(&mut pos));
+        let derived_wires = Derived::from_fn(|| io.next(&mut pos));
 
         (
             sha256.assert_transform_block(&given_wires, &derived_wires),

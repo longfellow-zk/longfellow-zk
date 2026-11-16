@@ -29,7 +29,7 @@ pub struct Given<L: Logic, const S: usize> {
     pub expected_hash: V256<L>,
 }
 
-pub type Derived<L> = Vec<Sha256Derived<L>>;
+pub type Derived<L> = Vec<Sha256Derived<V32<L>>>;
 
 pub struct Sha256Msg<'a, L: Logic, const MAX_BLOCKS: usize>
 where L::F: FieldWrappingSum
@@ -72,7 +72,7 @@ where L::F: FieldWrappingSum
     fn assert_intermediate_hashes(
         &self,
         input_bytes: &[V8<L>],
-        derived: &[Sha256Derived<L>],
+        derived: &[Sha256Derived<V32<L>>],
     ) -> L::Assertions {
         let mut h = self.initial_context();
         self.logic
@@ -104,7 +104,7 @@ where L::F: FieldWrappingSum
         &self,
         expected_hash: &V256<L>,
         nblocks: &Bitvec<L, S>,
-        derived: &[Sha256Derived<L>],
+        derived: &[Sha256Derived<V32<L>>],
     ) -> L::Assertions {
         // Create a selector vector where the b-th bit is true if and
         // only if nblocks == b + 1.  Because the number of blocks
@@ -288,7 +288,7 @@ where L::F: FieldWrappingSum
     pub fn assert_message_hash<const S: usize>(
         &self,
         given: &Given<L, S>,
-        derived: &[Sha256Derived<L>],
+        derived: &[Sha256Derived<V32<L>>],
     ) -> L::Assertions {
         let nblocks_assertion = self.assert_nblocks(&given.nblocks, &given.length_bytes);
         let length_assertion =

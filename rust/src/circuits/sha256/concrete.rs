@@ -12,21 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::constants::K;
-
-#[derive(Clone, Debug)]
-pub struct ConcreteGiven {
-    pub input_block: [u32; 16],
-    pub h0: [u32; 8],
-}
-
-#[derive(Clone, Debug)]
-pub struct ConcreteDerived {
-    pub outw: [u32; 48],
-    pub oute: [u32; 64],
-    pub outa: [u32; 64],
-    pub h1: [u32; 8],
-}
+use super::{
+    constants::K,
+    shape::{Derived, Given},
+};
 
 #[inline]
 fn ch(x: u32, y: u32, z: u32) -> u32 {
@@ -59,7 +48,7 @@ fn sigma1_lower(x: u32) -> u32 {
 }
 
 #[must_use]
-pub fn derived(given: &ConcreteGiven) -> ConcreteDerived {
+pub fn derived(given: &Given<u32>) -> Derived<u32> {
     let mut w = [0u32; 64];
     w[..16].copy_from_slice(&given.input_block);
     for i in 16..64 {
@@ -122,7 +111,7 @@ pub fn derived(given: &ConcreteGiven) -> ConcreteDerived {
     let mut outw = [0u32; 48];
     outw.copy_from_slice(&w[16..64]);
 
-    ConcreteDerived {
+    Derived {
         outw,
         oute,
         outa,
@@ -130,65 +119,17 @@ pub fn derived(given: &ConcreteGiven) -> ConcreteDerived {
     }
 }
 
-impl ConcreteDerived {
-    pub fn modern_elements(&self) -> impl Iterator<Item = u32> + '_ {
-        self.outw
-            .iter()
-            .chain(&self.oute)
-            .chain(&self.outa)
-            .chain(&self.h1)
-            .copied()
-    }
-
-    pub fn legacy_elements(&self) -> impl Iterator<Item = u32> + '_ {
-        self.outw
-            .iter()
-            .copied()
-            .chain(self.oute.iter().zip(&self.outa).flat_map(|(&e, &a)| [e, a]))
-            .chain(self.h1.iter().copied())
-    }
-}
-
 cfg_testonly! {
-    impl ConcreteDerived {
+    impl Derived<u32> {
         pub fn push_derived<const W: usize, FR: crate::runtime::algebra::RuntimeField<W>>(
             &self,
             fr: &FR,
             mut push: impl FnMut(FR::E),
         ) {
             let mut dest = Vec::with_capacity(168 * 32);
-            for &val in &self.outw {
-                crate::circuits::bitvec::push_bitvec_u64(
-                    fr,
-                    u64::from(val),
-                    32,
-                    &mut dest,
-                );
-            }
-            for &val in &self.oute {
-                crate::circuits::bitvec::push_bitvec_u64(
-                    fr,
-                    u64::from(val),
-                    32,
-                    &mut dest,
-                );
-            }
-            for &val in &self.outa {
-                crate::circuits::bitvec::push_bitvec_u64(
-                    fr,
-                    u64::from(val),
-                    32,
-                    &mut dest,
-                );
-            }
-            for &val in &self.h1 {
-                crate::circuits::bitvec::push_bitvec_u64(
-                    fr,
-                    u64::from(val),
-                    32,
-                    &mut dest,
-                );
-            }
+            self.for_each(|&val| {
+                crate::circuits::bitvec::push_bitvec_u64(fr, u64::from(val), 32, &mut dest);
+            });
             for e in dest {
                 push(e);
             }

@@ -46,9 +46,12 @@ pub fn allocate_derived<L: LogicIO, const MAX_BLOCKS: usize>(
     bv: &BitvecLogic<L>,
     pos: &mut usize,
 ) -> Derived<L> {
+    let bitvec_io = BitvecIO::new(bv);
     let mut all_args = Vec::with_capacity(MAX_BLOCKS);
     for _ in 0..MAX_BLOCKS {
-        all_args.push(crate::circuits::sha256::allocate_derived(bv, pos));
+        all_args.push(crate::circuits::sha256::Derived::from_fn(|| {
+            bitvec_io.next(pos)
+        }));
     }
     all_args
 }

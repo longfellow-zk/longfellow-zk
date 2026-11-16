@@ -99,11 +99,9 @@ cfg_prover! {
 
         fn push_sha256_derived(
             &mut self,
-            derived: &crate::circuits::sha256::ConcreteDerived,
+            derived: &crate::circuits::sha256::Derived<u32>,
         ) {
-            for val in derived.modern_elements() {
-                self.push_v32(val);
-            }
+            derived.for_each(|&val| self.push_v32(val));
         }
 
         pub(super) fn push_sha256msg_derived(

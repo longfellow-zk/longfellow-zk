@@ -18,9 +18,9 @@ use super::{
 };
 use crate::{
     circuits::{
-        bitvec::BitvecLogic,
+        bitvec::{BitvecLogic, V32},
         boolean::Boolean,
-        sha256::{evaluate_derived as sha256_evaluate_derived, Derived},
+        sha256::Derived,
     },
     compile::logic::Logic,
 };
@@ -53,10 +53,10 @@ pub fn evaluate_given<L: Logic, const S: usize>(
 pub fn evaluate_derived<L: Logic>(
     derived: &ConcreteDerived,
     bv: &BitvecLogic<L>,
-) -> Vec<Derived<L>> {
+) -> Vec<Derived<V32<L>>> {
     derived
         .sha_derived
         .iter()
-        .map(|w| sha256_evaluate_derived(w, bv))
+        .map(|w| w.map(|&x| bv.of_u32(x)))
         .collect()
 }
