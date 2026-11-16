@@ -20,7 +20,7 @@
 //!   every layer row and the input equation into one foreign claim with a public target
 //!   (`batching`).
 use super::{
-    batching::LinearClaim,
+    batching::{rows, LinearClaim},
     context::prepare_parameter,
     joint::{check_registered, Frontend, FrontendPart, Participant, SelectedField, StorageLayout},
     packing_commitment::{PackingCommitment, PackingLayout},
@@ -34,7 +34,6 @@ use crate::{
     },
     runtime::{
         algebra::{
-            blas,
             packing::{PackingExtension, PackingField},
             range_interpolation::EvaluationDomain,
             ZkField,
@@ -187,43 +186,31 @@ pub(crate) struct SplitClaim<E> {
 }
 
 impl<const W: usize, F: ZkField<W> + PackingField> MixedSplit<W, F> {
-    /// Reduce the frontend's constraints to the claim its storage discharges.
-    /// Both roles call this after the frontend's last message, on the
-    /// frontend's own part: its circuit and public inputs.
+    /// Reduce the frontend's constraints to the claim its storage discharges:
+    /// the frontend's rows over its values (`batching::rows`), with the layer
+    /// rows moved from value indices to this field's native cells. Every pad
+    /// is native, so every layer row has a native cell. Both roles call this
+    /// after the frontend's last message, on the frontend's own part: its
+    /// circuit and public inputs.
     pub(super) fn split_claim(
         t: &mut Bound<'_, FrontendPart<'_, W, F, Self>>,
         constraints: Constraints<F::E>,
     ) -> Result<SplitClaim<F::E>, String> {
         let part = t.part();
-        let f = part.field();
-        let (p, circuit, public) = (part.participant, part.circuits()[0], &part.public[..]);
-        let split = &p.storage;
-        let private = p.frontend.inputs.committed();
-        let pads = p.frontend.geometry.sumcheck().pad_layout(private);
-        if public.len() != circuit.raw.npublic_input
-            || constraints.input_weights.len() != circuit.raw.ninput
-            || constraints.layers.len() != pads.layers.len()
-        {
-            return Err("split frontend constraint shape".into());
-        }
-        let (mut a, b) = super::constraint_compiler::compile_layers(&constraints, &pads)?;
+        let p = part.participant;
+        let ((mut a, b), claim) = rows(
+            part.circuits()[0],
+            &part.public,
+            constraints,
+            p.frontend.geometry.sumcheck(),
+            part.field(),
+        )?;
         for term in &mut a {
-            term.w = split.native_cell(term.w)?;
+            term.w = p.storage.native_cell(term.w)?;
         }
-        // Input equation: <w_in, inputs> = constant + sum k*pad.
-        let mut weights = vec![f.zero(); split.map.entries().len()];
-        weights[..private].clone_from_slice(&constraints.input_weights[public.len()..]);
-        for (pad, k) in constraints.input_claim.terms {
-            let j = super::constraint_compiler::pad_coordinate(pad, &pads)?;
-            f.sub(&mut weights[j], &k);
-        }
-        let target = f.subf(
-            &constraints.input_claim.constant,
-            &blas::dot(&constraints.input_weights[..public.len()], public, f),
-        );
         Ok(SplitClaim {
             rows: (a, b),
-            claim: LinearClaim { weights, target },
+            claim,
         })
     }
     /// Check that `claim` covers this participant's values.

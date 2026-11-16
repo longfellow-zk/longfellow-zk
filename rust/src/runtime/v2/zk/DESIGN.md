@@ -132,7 +132,11 @@ their weighted constants move into `b`, and each virtual coefficient joins
 its source input's weight. Logical pads `(layer, round, slot)` map to
 committed cells through `CircuitPadLayout`. Both roles call
 `compile_layers` and `compile_packed` on the `Constraints` that sumcheck
-returns.
+returns; a split participant's rows over its values come from one lowering,
+`batching::rows` (the layer rows from `compile_layers`, the input target
+from the compiler's `input_target`, as in `compile_packed`), which mixed
+storage then maps from value indices to its native cells
+(`MixedSplit::split_claim`).
 *Enforced by:* the compiler lives in shared code used by both role modules;
 tests `symbolic_and_compiled_constraints_match_numerical_binary` and
 `_prime`; Lean `LfzkV2.Compiler.compile_correct`.
@@ -283,7 +287,8 @@ Both roles run the same arithmetic after the frontend's messages.
    packing masks, appended after the layer rows.
 4. **Mixed.** Over the value vector `v = [private | pads]`, the weights are
    `w[i] = w_priv[i]` for inputs and `w[j] = -k` for pad `j`, so the input
-   equation is `<w, v> = t`. With `F` the foreign and `N` the native values:
+   equation is `<w, v> = t` (`batching::rows`, as for pure foreign storage;
+   the layer rows then move from value `i` to its native cell). With `F` the foreign and `N` the native values:
 
    ```text
    mu = eta*<w_F, v_F> + R                                  (prover)

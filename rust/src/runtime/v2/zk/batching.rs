@@ -1,19 +1,21 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Batch the complete masked sumcheck rows into one authenticated linear claim.
+//! The unbatched rows of a split frontend over its values, and their batching
+//! into one authenticated linear claim.
 //!
-//! Fresh independent row weights cover every layer equation and the final
-//! input equation. The pure split step (`split::pure::PureClaim::batch`) draws
-//! them after every frontend message and uses them at once (transcript I8);
+//! Both split storage modes reduce their frontend's constraints to the same
+//! rows (`rows`): mixed storage then maps the layer rows to its native cells,
+//! and pure-foreign storage batches every row. Fresh independent row weights cover every layer
+//! equation and the final input equation. The pure split step (`split::pure::PureClaim::batch`)
+//! draws them after every frontend message and uses them at once (transcript I8);
 //! the resulting claim is reconstructed locally by both parties, and derived
 //! coefficients are not absorbed.
-#[cfg(test)]
 use crate::{
     core::{algebra::SerializableField, proto::v2::Circuit},
     runtime::{
-        algebra::{blas::dot, RuntimeField},
+        algebra::RuntimeField,
         v2::{
-            polygero::PolygeroLinearTerm,
-            sumcheck::{self, symbolic::Constraints},
+            polygero::PolygeroLinearTerm, proto::sumcheck::SumcheckProofGeometry,
+            sumcheck::symbolic::Constraints,
         },
     },
 };
@@ -27,15 +29,16 @@ pub(crate) struct LinearClaim<E> {
 /// The unbatched rows of a frontend over its values `[private inputs |
 /// pads]`: the compiled layer rows `A*v + b = 0` and the input equation
 /// `<w, v> = t`.
-#[cfg(test)]
 pub(crate) type Rows<E> = ((Vec<PolygeroLinearTerm<E>>, Vec<E>), LinearClaim<E>);
 
-/// The rows of `circuit` on `public` from its reduced `constraints`.
-#[cfg(test)]
+/// The rows of `circuit` on `public` from its reduced `constraints`, over the
+/// values `[private inputs | pads]` with the pads laid out as `geometry`, the
+/// circuit's sumcheck geometry, says. Value `i` is coordinate `i`.
 pub(crate) fn rows<const W: usize, F: RuntimeField<W> + SerializableField>(
     circuit: &Circuit<F>,
     public: &[F::E],
     constraints: Constraints<F::E>,
+    geometry: &SumcheckProofGeometry,
     f: &F,
 ) -> Result<Rows<F::E>, String> {
     let private = circuit
@@ -48,7 +51,6 @@ pub(crate) fn rows<const W: usize, F: RuntimeField<W> + SerializableField>(
     {
         return Err("batched frontend input shape".into());
     }
-    let geometry = sumcheck::circuit_geometry(&[circuit])?;
     if constraints.layers.len() != geometry.layers().len() {
         return Err("batched frontend layer count".into());
     }
@@ -58,21 +60,18 @@ pub(crate) fn rows<const W: usize, F: RuntimeField<W> + SerializableField>(
     let pads = geometry.pad_layout(private);
     let layers = super::constraint_compiler::compile_layers(&constraints, &pads)?;
     // Input equation: <w_in, inputs> = constant + sum k*pad.
+    let target = super::constraint_compiler::input_target(&constraints, public, f);
     let mut weights = vec![f.zero(); count];
     weights[..private].clone_from_slice(&constraints.input_weights[public.len()..]);
     for (pad, k) in constraints.input_claim.terms {
         let j = super::constraint_compiler::pad_coordinate(pad, &pads)?;
         f.sub(&mut weights[j], &k);
     }
-    let target = f.subf(
-        &constraints.input_claim.constant,
-        &dot(&constraints.input_weights[..public.len()], public, f),
-    );
     Ok((layers, LinearClaim { weights, target }))
 }
 
 #[cfg(test)]
-use crate::runtime::algebra::blas::axpy;
+use crate::runtime::algebra::blas::{axpy, dot};
 /// Batch `rows` with `rho`, one weight per layer row and a last one for the
 /// input equation: `sum_c rho_c (A_c v + b_c) - rho_L (<w, v> - t) = 0`,
 /// written as the claim `<weights, v> = target`.

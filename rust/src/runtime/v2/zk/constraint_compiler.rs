@@ -97,6 +97,20 @@ fn validate<E>(
 #[cfg(test)]
 mod tests;
 
+/// The right-hand side of the input claim once the public inputs are
+/// substituted: `constant - <w_pub, x_pub>`. Every lowering of a frontend's
+/// input claim starts from it (`compile_packed`, `batching::rows`).
+pub(crate) fn input_target<const W: usize, F: RuntimeField<W>>(
+    constraints: &Constraints<F::E>,
+    public: &[F::E],
+    f: &F,
+) -> F::E {
+    f.subf(
+        &constraints.input_claim.constant,
+        &blas::dot(&constraints.input_weights[..public.len()], public, f),
+    )
+}
+
 pub(crate) fn compile_layers<E: Clone>(
     constraints: &Constraints<E>,
     pads: &CircuitPadLayout,
@@ -125,10 +139,7 @@ pub(crate) fn compile_packed<const W: usize, F: RuntimeField<W>>(
         return Err("input claim shape".into());
     }
     let (a, b) = compile_layers(&constraints, pads)?;
-    let mut constant = f.subf(
-        &constraints.input_claim.constant,
-        &blas::dot(&constraints.input_weights[..public.len()], public, f),
-    );
+    let mut constant = input_target(&constraints, public, f);
     // Substitute each virtual entry v = c0 + c1 * x[source] like a public
     // input: its constant moves to the right-hand side and its linear part
     // joins the weight of the committed source input.

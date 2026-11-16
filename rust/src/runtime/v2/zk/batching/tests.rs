@@ -68,11 +68,17 @@ fn batching_uses_widths_instead_of_cached_logw() {
                 .draw(|r| r.elements(&f, rows.0 .1.len() + 1).collect::<Vec<_>>());
             batch(rows, &rho, &f).unwrap()
         };
-        let claim = draw(rows(&circuit, &public, constraints, &f).unwrap(), &mut tp);
+        let claim = draw(
+            rows(&circuit, &public, constraints, &geometry, &f).unwrap(),
+            &mut tp,
+        );
         let derived =
             sumcheck::derive_constraints_for_circuits(&[&circuit], &proof, &mut tv.borrow(), &f)
                 .unwrap();
-        let checked = draw(rows(&circuit, &public, derived, &f).unwrap(), &mut tv);
+        let checked = draw(
+            rows(&circuit, &public, derived, &geometry, &f).unwrap(),
+            &mut tv,
+        );
         assert_eq!(claim.weights, checked.weights);
         assert_eq!(claim.target, checked.target);
         assert_eq!(blas::dot(&claim.weights, &values, &f), claim.target);

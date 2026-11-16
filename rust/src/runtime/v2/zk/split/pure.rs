@@ -145,8 +145,13 @@ fn frontend_claim<const W: usize, F: ZkField<W> + PackingField>(
     part: &FrontendPart<'_, W, F, PureSplit<W, F>>,
     constraints: sumcheck::symbolic::Constraints<F::E>,
 ) -> Result<PureClaim<F::E>, String> {
-    let (rows, claim) =
-        batching::rows(part.circuits()[0], &part.public, constraints, part.field())?;
+    let (rows, claim) = batching::rows(
+        part.circuits()[0],
+        &part.public,
+        constraints,
+        part.frontend().geometry.sumcheck(),
+        part.field(),
+    )?;
     Ok(PureClaim { rows, claim })
 }
 
