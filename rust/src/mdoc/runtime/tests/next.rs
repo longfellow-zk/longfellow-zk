@@ -26,7 +26,7 @@ use crate::{
     mdoc::{
         cbor::{mdoc::ParsedMdoc, test_utils::parse_test_data},
         development_provider::tests::fixtures::next_circuit,
-        proto::NEXT_VERSION,
+        proto::{layout::public, NEXT_VERSION},
         runtime::v2::run_mdoc_prover_encoded,
         testcases::{ALL_TEST_CASES, TEST_DATA},
         v2::{
@@ -1168,7 +1168,7 @@ fn next_error_table() {
     );
     // A spec naming a well-formed archive whose hash circuit is compiled for
     // another attribute count: its public-input count is not the request's
-    // `901 + 788 * A` (DESIGN.md I3).
+    // `HASH_FIXED + HASH_PER_ATTRIBUTE * A` (DESIGN.md I3).
     let entries = |p: &provider::ProvidedCircuit| {
         CircuitArchive::from_bytes(&zstd::decode_all(p.compressed()).unwrap()).unwrap()
     };
@@ -1420,7 +1420,11 @@ fn check_mdoc_trace(
         .take(2)
         .map(|m| m.schema[0].1)
         .collect();
-    assert_eq!(public, [901 + 788 * count as u64, 258]);
+    let counts = [
+        public::HASH_FIXED + public::HASH_PER_ATTRIBUTE * count,
+        public::SIGNATURE,
+    ];
+    assert_eq!(public, counts.map(|x| x as u64));
     // The absorbed geometry is the parsing geometry (transcript I2, I3):
     // the one profile is in `JointGeometry`, and it is the spec's.
     let joint = trace.messages().nth(7).unwrap();

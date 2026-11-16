@@ -18,6 +18,7 @@ use crate::{
     mdoc::{
         cbor::test_utils::parse_test_data,
         development_provider::tests::fixtures::next_circuit,
+        proto::layout::public,
         testcases::TEST_DATA,
         v2::{
             decompress_circuits,
@@ -97,7 +98,10 @@ where
     );
     // The circuits' public input counts follow from the attribute count.
     let counts = d.public.iter().map(|p| p.elements.len());
-    assert!(counts.eq([901 + 788 * num_attributes, 258]));
+    assert!(counts.eq([
+        public::HASH_FIXED + public::HASH_PER_ATTRIBUTE * num_attributes,
+        public::SIGNATURE,
+    ]));
     used.check_absorbed_for_test(&d, |mode| mode.check_absorbed_for_test(&d));
     OBSERVED.with_borrow_mut(|o| o.as_mut().unwrap().push(bytes));
 }

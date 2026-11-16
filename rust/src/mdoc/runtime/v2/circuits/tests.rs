@@ -25,15 +25,18 @@ use crate::{
         },
     },
     mdoc::{
-        proto::NEXT_VERSION,
+        proto::{layout::public, NEXT_VERSION},
         v2::{circuits::*, inputs::PublicInputs, req_attr, request::Request},
     },
     runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
 };
 
 /// The signature and hash public-input counts of DESIGN.md I3 for the
-/// one-attribute requests of these tests: 258 and 901 + 788.
-const PUBLIC_INPUTS: [usize; 2] = [258, 1689];
+/// one-attribute requests of these tests.
+const PUBLIC_INPUTS: [usize; 2] = [
+    public::SIGNATURE,
+    public::HASH_FIXED + public::HASH_PER_ATTRIBUTE,
+];
 
 /// A one-layer circuit whose inputs are all `npublic` public inputs.
 fn tiny<F: SerializableField + AlgebraicField>(f: &F, npublic: usize) -> Circuit<F> {
@@ -217,14 +220,15 @@ fn instance_load_checks_public_input_counts() {
     let honest = fixture(&p, &f);
     assert!(load_for(&spec_for(honest.combined_id), &compressed(&honest), &p, &f).is_ok());
     // Each self-consistent archive the spec names, but with a wrong count, is
-    // rejected; 2477 is the hash count for two attributes.
+    // rejected, the hash count for two attributes included.
+    let [s, h] = PUBLIC_INPUTS;
     for counts in [
-        [258, 1688],
-        [258, 1690],
-        [258, 2477],
-        [257, 1689],
-        [259, 1689],
-        [1689, 258],
+        [s, h - 1],
+        [s, h + 1],
+        [s, h + public::HASH_PER_ATTRIBUTE],
+        [s - 1, h],
+        [s + 1, h],
+        [h, s],
     ] {
         let archive = fixture_with(&p, &f, counts);
         assert!(

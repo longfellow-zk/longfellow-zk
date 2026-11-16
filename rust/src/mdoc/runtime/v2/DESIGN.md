@@ -215,7 +215,8 @@ from the checked request's spec. It requires an archive whose combined ID
 and circuit version equal the spec's, exactly two entries named `sig` and
 `hash`, each payload decoding completely to a circuit whose recomputed ID
 equals its entry, and a hash circuit with `901 + 788 * spec.num_attributes`
-public inputs and a signature circuit with 258. There is no unchecked
+public inputs and a signature circuit with 258 (`mdoc::proto::layout::public`,
+whose const assertion pins these counts). There is no unchecked
 loading path for proving or verification.
 *Enforced by:* `Instance` has one constructor (type); `CircuitReader` and
 `from_stream` recompute IDs (runtime);

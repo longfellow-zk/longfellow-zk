@@ -1,6 +1,6 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Named private-input positions of the mdoc v2 circuits, shared by the
-//! circuit compiler, the witness encoders and the runtime link.
+//! Named input positions and public-input counts of the mdoc v2 circuits,
+//! shared by the circuit compiler, the witness encoders and the runtime link.
 //!
 //! Positions are relative to each circuit's public prefix. The signature
 //! circuit stores its first private inputs, one input per bit, as bits of the
@@ -11,10 +11,45 @@
 //! reads them, so this table is the single description of the shared positions.
 use core::ops::Range;
 
-use super::hash::constants::{K_HASH_INDEX_BITS, K_MSO_PREIMAGE_LEN};
+use super::{
+    hash::constants::{
+        K_DOC_TYPE_BYTES, K_HASH_INDEX_BITS, K_MSO_PREIMAGE_LEN, K_NAMESPACE_BYTES,
+        K_TIMESTAMP_DIGITS,
+    },
+    mso_attribute::constants::{K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_VALUE_BYTES},
+};
 
 const fn after(previous: Range<usize>, width: usize) -> Range<usize> {
     previous.end..previous.end + width
+}
+
+/// Public-input counts of both circuits (mdoc v2 DESIGN.md I3), in
+/// allocation order. Each byte is 8 inputs and each length
+/// `K_ATTR_INDEX_BITS` inputs.
+pub mod public {
+    use super::{
+        K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_VALUE_BYTES, K_DOC_TYPE_BYTES,
+        K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS,
+    };
+    /// The hash circuit's leading time: its 14 digits.
+    const HASH_TIME: usize = 8 * K_TIMESTAMP_DIGITS.len();
+    /// Each attribute of the hash circuit: its CBOR identifier and its CBOR
+    /// value, each with its length.
+    pub const HASH_PER_ATTRIBUTE: usize =
+        8 * K_ATTR_ID_BYTES + K_ATTR_INDEX_BITS + 8 * K_ATTR_VALUE_BYTES + K_ATTR_INDEX_BITS;
+    /// The hash circuit's inputs after the attributes: the document-type
+    /// flag, then the document type and the namespace, each with its length.
+    const HASH_TRAILER: usize =
+        1 + 8 * K_DOC_TYPE_BYTES + K_ATTR_INDEX_BITS + 8 * K_NAMESPACE_BYTES + K_ATTR_INDEX_BITS;
+    /// The hash circuit's inputs other than the attributes: it has
+    /// `HASH_FIXED + HASH_PER_ATTRIBUTE * A` for A attributes.
+    pub const HASH_FIXED: usize = HASH_TIME + HASH_TRAILER;
+    /// The signature circuit's: the issuer key's two coordinates and the 256
+    /// bits of `e2`.
+    pub const SIGNATURE: usize = 2 + 256;
+
+    // The counts DESIGN.md I3 states; changing one changes the circuits.
+    const _: () = assert!(HASH_FIXED == 901 && HASH_PER_ATTRIBUTE == 788 && SIGNATURE == 258);
 }
 
 /// The hash circuit's leading private inputs, in allocation order.

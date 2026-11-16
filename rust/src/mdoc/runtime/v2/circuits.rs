@@ -14,7 +14,7 @@
 
 //! Longfellow v2 circuit loading with mandatory payload ID verification.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-use crate::mdoc::v2::request::Request;
+use crate::mdoc::{proto::layout::public, v2::request::Request};
 use crate::{
     core::proto::v2::{Circuit, CircuitReader},
     mdoc::v2::ZkSpecStruct,
@@ -55,7 +55,7 @@ impl Instance {
         // A is `spec.num_attributes`, which `Request::check` made equal to
         // the number of requested attributes.
         if Some(hash.raw.npublic_input) != hash_public_inputs(request.spec().num_attributes)
-            || signature.raw.npublic_input != SIGNATURE_PUBLIC_INPUTS
+            || signature.raw.npublic_input != public::SIGNATURE
         {
             return Err("Circuit public-input counts do not match the request".into());
         }
@@ -69,19 +69,14 @@ impl Instance {
     }
 }
 
-/// The hash circuit's public-input count for A attributes, `901 + 788 * A`
-/// (DESIGN.md I3): the time (112), each attribute (788), then the
-/// document-type flag, the document type and the namespace (789). None if it
-/// overflows.
+/// The hash circuit's public-input count for A attributes (DESIGN.md I3).
+/// None if it overflows.
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 fn hash_public_inputs(attributes: usize) -> Option<usize> {
-    attributes.checked_mul(788)?.checked_add(901)
+    attributes
+        .checked_mul(public::HASH_PER_ATTRIBUTE)?
+        .checked_add(public::HASH_FIXED)
 }
-
-/// The signature circuit's public-input count (DESIGN.md I3): the issuer key
-/// and the 256 bits of `e2`.
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-const SIGNATURE_PUBLIC_INPUTS: usize = 258;
 
 fn load(
     compressed: &[u8],
