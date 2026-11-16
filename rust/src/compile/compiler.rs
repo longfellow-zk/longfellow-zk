@@ -24,16 +24,19 @@ pub mod node;
 mod scheduling;
 mod segment;
 mod stats;
-mod v1;
 mod v2;
 mod v2_segment;
 
 pub use arena::CompilerArena;
 pub use logic_impl::{CompilerAssertions, CompilerLogic};
 pub use stats::dump_stats;
-pub use v1::{compile_v1, segment_circuit_v1, segment_layer_v1};
 pub use v2::compile_v2;
 pub use v2_segment::segment_circuit_v2;
+
+cfg_testonly! {
+    mod v1;
+    pub use v1::{compile_v1, segment_circuit_v1, segment_layer_v1};
+}
 
 #[cfg(test)]
 pub(crate) mod tests;
