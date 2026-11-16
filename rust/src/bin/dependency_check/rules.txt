@@ -47,10 +47,9 @@ compile/compiler: compile/algebra compile/logic compile/debug core/algebra core/
 compile/logic: compile/algebra core/algebra util
 compile/debug: compile/logic core/algebra core/proto
 core/algebra:
-core/bits:
 core/proto: core/algebra util
 runtime:
-runtime/algebra: core/algebra core/bits
+runtime/algebra: core/algebra
 runtime/random: core/algebra runtime/algebra
 runtime/v1:
 runtime/v1/random: runtime/random runtime/v1/subfield

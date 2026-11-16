@@ -2,10 +2,7 @@
 //! The existing polynomial GF(2^128) representation over GF(2).
 use super::{PackingExtension, PackingField};
 use crate::{
-    core::{
-        algebra::{AlgebraicField, BareField, FieldID, SerializableField},
-        bits::PackedBits,
-    },
+    core::algebra::{AlgebraicField, BareField, FieldID, SerializableField},
     runtime::algebra::{
         gf2_128::{Gf2_128, Gf2_128Field},
         SupportsSampling,
@@ -139,6 +136,43 @@ impl PackingExtension for Binary128Extension {
     }
     fn relative_trace(&self, _: &Gf2_128Field, x: &Gf2_128) -> Gf2_128 {
         super::binary128::trace(*x)
+    }
+}
+
+/// Owned logical bits, independent of fields and proof protocols.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct PackedBits {
+    words: Vec<u64>,
+    len: usize,
+}
+
+impl PackedBits {
+    fn push(&mut self, bit: bool) {
+        if self.len.is_multiple_of(64) {
+            self.words.push(0);
+        }
+        self.words[self.len / 64] |= u64::from(bit) << (self.len % 64);
+        self.len += 1;
+    }
+
+    /// Raw logical coordinates, not a field's polynomial-basis encoding.
+    fn word128(&self, index: usize) -> u128 {
+        let Some(base) = index.checked_mul(2) else {
+            return 0;
+        };
+        let lo = self.words.get(base).copied().unwrap_or(0);
+        let hi = self.words.get(base.saturating_add(1)).copied().unwrap_or(0);
+        u128::from(lo) | (u128::from(hi) << 64)
+    }
+}
+
+impl FromIterator<bool> for PackedBits {
+    fn from_iter<T: IntoIterator<Item = bool>>(bits: T) -> Self {
+        let mut result = Self::default();
+        for bit in bits {
+            result.push(bit);
+        }
+        result
     }
 }
 
@@ -368,3 +402,6 @@ fn pow_binary128(field: &Gf2_128Field, value: &Gf2_128, mut exponent: u128) -> G
     }
     result
 }
+
+#[cfg(test)]
+mod tests;

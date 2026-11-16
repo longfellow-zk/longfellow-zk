@@ -70,7 +70,6 @@ pub(crate) mod util;
 
 pub mod core {
     pub mod algebra;
-    pub mod bits;
     pub mod proto;
 }
 
