@@ -50,7 +50,7 @@ pub(crate) fn all() -> Vec<Step> {
         step("tests", "release tests", tests),
         step(
             "doctests",
-            "doctests on nightly (compile_fail codes)",
+            "doctests: nightly testonly (compile_fail codes) and stable default features",
             doctests,
         ),
         step("cross", "other backends, when arch code changed", cross),
@@ -490,11 +490,19 @@ fn tests(cx: &Context, log: &mut Log) -> Outcome {
 }
 
 fn doctests(cx: &Context, log: &mut Log) -> Outcome {
-    let mut command = cx.cargo_into(
+    // On nightly with testonly, which checks the compile_fail error codes;
+    // then on stable with the default features, as a plain `cargo test`
+    // builds them.
+    let mut nightly_command = cx.cargo_into(
         &cx.work.join("nightly"),
         "+nightly test --release --features testonly --doc",
     );
-    test_outcome(&log.run(&mut command))
+    let nightly = log.run(&mut nightly_command);
+    let default = log.run(&mut cx.cargo("test --release --doc"));
+    test_outcome(&Run {
+        success: nightly.success && default.success,
+        output: nightly.output + &default.output,
+    })
 }
 
 /// Whether the change since `base` touches architecture-specific code: a

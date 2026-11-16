@@ -227,9 +227,10 @@ It prints one line per step and stops at the first failing step
    changes and `HEAD^` when it has none; or the counts given with
    `--clippy-counts`.
 6. `cargo test --release --features testonly` and `cargo test --release -p
-   longfellow-zk-tools`, and the doctests on nightly, which also check
-   `compile_fail` error codes:
-   `cargo +nightly test --release --features testonly --doc`.
+   longfellow-zk-tools`, the doctests on nightly, which also check
+   `compile_fail` error codes
+   (`cargo +nightly test --release --features testonly --doc`), and the
+   doctests with the default features (`cargo test --release --doc`).
 7. When architecture-specific code changes since the base (`runtime/algebra/arch`,
    limbs, `cfg(target_arch)`), or with `--cross`, the builds for every backend,
    since x86-64 does not compile the others: `--target aarch64-unknown-linux-gnu`,
