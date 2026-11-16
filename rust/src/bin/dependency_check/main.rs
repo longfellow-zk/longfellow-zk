@@ -145,7 +145,7 @@ fn phase(path: &str) -> Phase {
         Compile
     } else if under("runtime") || under("mdoc/runtime") {
         Runtime
-    } else if under("mdoc/circuits/cbor") {
+    } else if under("mdoc/cbor") {
         // Native CBOR and mdoc parsing.
         Runtime
     } else if let Some(rest) = m

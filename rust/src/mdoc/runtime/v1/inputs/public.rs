@@ -17,7 +17,7 @@
 use crate::{
     core::algebra::{AlgebraicField, Nat, SupportsU64Conversions},
     mdoc::{
-        circuits::cbor::encode_cbor_string_into,
+        cbor::encode_cbor_string_into,
         v1::{attribute::RequestedAttribute, inputs::builder::AssignmentBuilder},
     },
     runtime::algebra::{

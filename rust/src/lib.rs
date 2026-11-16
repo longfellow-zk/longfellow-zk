@@ -108,6 +108,7 @@ pub mod circuits {
 
 #[cfg(feature = "mdoc")]
 pub mod mdoc {
+    pub mod cbor;
     pub mod circuits;
     pub mod proto;
     mod runtime;

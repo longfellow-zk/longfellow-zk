@@ -24,7 +24,7 @@ use crate::{
         },
     },
     mdoc::{
-        circuits::cbor::{mdoc::ParsedMdoc, test_utils::parse_test_data},
+        cbor::{mdoc::ParsedMdoc, test_utils::parse_test_data},
         development_provider::tests::fixtures::next_circuit,
         proto::NEXT_VERSION,
         runtime::v2::run_mdoc_prover_encoded,

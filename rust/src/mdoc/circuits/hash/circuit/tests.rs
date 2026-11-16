@@ -12,10 +12,8 @@ use crate::{
     },
     core::algebra::Nat,
     mdoc::{
-        circuits::{
-            cbor::test_utils::parse_test_data,
-            hash::{concrete, evaluate_derived, evaluate_given},
-        },
+        cbor::test_utils::parse_test_data,
+        circuits::hash::{concrete, evaluate_derived, evaluate_given},
         testcases::TEST_DATA,
     },
 };

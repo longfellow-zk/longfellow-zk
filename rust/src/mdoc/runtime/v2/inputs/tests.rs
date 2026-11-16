@@ -15,7 +15,7 @@
 //! V2 private witness encoding.
 use crate::{
     mdoc::{
-        circuits::cbor::mdoc::{parse_mdoc, ParsedMdoc},
+        cbor::mdoc::{parse_mdoc, ParsedMdoc},
         runtime::tests::specs::v2_spec,
         testcases::{
             TestDataStatic, BIRTHDATE_1971_09_01_MDOC_3, DHS_COMPLIANCE_MDOC_10, TEST_DATA,

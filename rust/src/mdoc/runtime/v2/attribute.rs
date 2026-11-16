@@ -48,33 +48,27 @@ pub(in crate::mdoc::runtime) fn same_namespace(attrs: &[RequestedAttribute]) -> 
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 #[must_use]
 pub(in crate::mdoc::runtime) fn circuit_supports(data: &[u8]) -> bool {
-    let mut parser = crate::mdoc::circuits::cbor::parse::CborParser::new(data);
+    let mut parser = crate::mdoc::cbor::parse::CborParser::new(data);
     let Ok(el) = parser.parse_exact() else {
         return false;
     };
     match &el.value {
-        crate::mdoc::circuits::cbor::parse::CborValue::Text(_)
-        | crate::mdoc::circuits::cbor::parse::CborValue::Bytes(_)
-        | crate::mdoc::circuits::cbor::parse::CborValue::Integer(_) => true,
-        crate::mdoc::circuits::cbor::parse::CborValue::Simple(info) => *info == 20 || *info == 21,
-        crate::mdoc::circuits::cbor::parse::CborValue::Tag(tag, inner) => match tag {
+        crate::mdoc::cbor::parse::CborValue::Text(_)
+        | crate::mdoc::cbor::parse::CborValue::Bytes(_)
+        | crate::mdoc::cbor::parse::CborValue::Integer(_) => true,
+        crate::mdoc::cbor::parse::CborValue::Simple(info) => *info == 20 || *info == 21,
+        crate::mdoc::cbor::parse::CborValue::Tag(tag, inner) => match tag {
             1004 => {
                 if data.len() != 14 {
                     return false;
                 }
-                matches!(
-                    inner.value,
-                    crate::mdoc::circuits::cbor::parse::CborValue::Text(_)
-                )
+                matches!(inner.value, crate::mdoc::cbor::parse::CborValue::Text(_))
             }
             0 => {
                 if data.len() != 22 {
                     return false;
                 }
-                matches!(
-                    inner.value,
-                    crate::mdoc::circuits::cbor::parse::CborValue::Text(_)
-                )
+                matches!(inner.value, crate::mdoc::cbor::parse::CborValue::Text(_))
             }
             _ => false,
         },

@@ -25,8 +25,8 @@ use crate::{
     },
     core::algebra::Nat,
     mdoc::{
+        cbor::test_utils::parse_test_data,
         circuits::{
-            cbor::test_utils::parse_test_data,
             hash::{
                 derived, evaluate_derived, evaluate_given, given, hash_input_of_parsed_mdoc,
                 MdocHash,

@@ -25,7 +25,7 @@ use longfellow_zk::{
     compile::algebra::CompileNat,
     core::algebra::Nat,
     mdoc::{
-        circuits::cbor::test_utils::parse_test_data,
+        cbor::test_utils::parse_test_data,
         v2::{self as runtime, req_attr, run_mdoc_prover_inner, run_mdoc_verifier},
     },
     runtime::{random::DeterministicRng, v2::proto::composed::BodySizes},

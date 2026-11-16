@@ -7,10 +7,8 @@ use crate::{
         logic::{AssertionScope, EvalLogic},
     },
     mdoc::{
-        circuits::{
-            cbor::{encode_cbor_string, test_utils::parse_test_data},
-            hash::{concrete, evaluate_derived, evaluate_given},
-        },
+        cbor::{encode_cbor_string, test_utils::parse_test_data},
+        circuits::hash::{concrete, evaluate_derived, evaluate_given},
         testcases::TEST_DATA,
     },
 };

@@ -14,7 +14,7 @@ use crate::{
     compile::algebra::CompileNat,
     core::algebra::Nat,
     mdoc::{
-        circuits::cbor::{parse::CborParser, test_utils::parse_test_data},
+        cbor::{parse::CborParser, test_utils::parse_test_data},
         testcases::TEST_DATA,
         v2::{
             circuits::Instance,

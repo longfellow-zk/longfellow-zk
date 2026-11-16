@@ -10,20 +10,21 @@
 # `--current` prints the current graph in this format.
 #
 # Notes on individual edges:
-# - mdoc/circuits -> mdoc/testcases: test
-#   fixtures in src/mdoc/circuits/cbor/test_utils.rs, compiled only with `testonly`.
+# - mdoc/cbor -> mdoc/testcases: test fixtures in src/mdoc/cbor/test_utils.rs,
+#   compiled only with `testonly`.
 # - runtime/v2/proto/tags has no dependencies, so the transcript can name the
 #   message tag registry without depending on the rest of the proof contract
 #   (transcript I6, proto I7). Its parent then owns only `proto.rs`, so every
 #   proto module has its own line.
 
 mdoc/artifacts:
-mdoc/circuits: mdoc/proto mdoc/testcases circuits/analog_adder circuits/bitvec circuits/boolean circuits/memcmp circuits/routing circuits/sha256 circuits/sha256msg compile/algebra compile/logic core/algebra
+mdoc/cbor: core/algebra mdoc/proto mdoc/testcases
+mdoc/circuits: mdoc/cbor mdoc/proto circuits/analog_adder circuits/bitvec circuits/boolean circuits/memcmp circuits/routing circuits/sha256 circuits/sha256msg compile/algebra compile/logic core/algebra
 mdoc/compile: core/algebra mdoc/circuits mdoc/proto circuits/arithmetic circuits/bitvec circuits/boolean circuits/ecdsa2 compile/algebra compile/compiler compile/logic core/proto
 mdoc/development_provider: mdoc/compile mdoc/proto mdoc/runtime core/proto runtime/algebra runtime/v2/polygero runtime/v2/proto/polygero
 mdoc/proto:
 bin/prover_only: mdoc/runtime
-mdoc/runtime: mdoc/circuits mdoc/proto circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v1/ligero runtime/v1/proto runtime/v1/subfield runtime/v1/transcript runtime/v1/zk runtime/v2/foreign runtime/v2/transcript runtime/v2/zk runtime/v2/proto/composed runtime/v2/proto/polygero runtime/v2/proto/tags
+mdoc/runtime: mdoc/cbor mdoc/proto circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v1/ligero runtime/v1/proto runtime/v1/subfield runtime/v1/transcript runtime/v1/zk runtime/v2/foreign runtime/v2/transcript runtime/v2/zk runtime/v2/proto/composed runtime/v2/proto/polygero runtime/v2/proto/tags
 mdoc/testcases:
 bin/verifier_only: mdoc/runtime
 circuits/analog_adder: circuits/bitvec circuits/boolean compile/algebra compile/logic core/algebra

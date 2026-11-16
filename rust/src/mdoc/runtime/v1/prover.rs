@@ -17,7 +17,7 @@
 use crate::{
     core::algebra::GF2_16_BASIS_V1,
     mdoc::{
-        circuits::cbor::mdoc::{parse_mdoc, MdocParseError, ParsedMdoc},
+        cbor::mdoc::{parse_mdoc, MdocParseError, ParsedMdoc},
         v1::{MdocProverErrorCode, RequestedAttribute, ZkSpecStruct},
     },
     runtime::{

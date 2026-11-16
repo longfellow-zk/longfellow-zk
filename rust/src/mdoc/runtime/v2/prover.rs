@@ -18,7 +18,7 @@
 
 use crate::{
     mdoc::{
-        circuits::cbor::mdoc::{MdocParseError, ParsedMdoc},
+        cbor::mdoc::{MdocParseError, ParsedMdoc},
         v2::{
             circuits::Instance,
             inputs::{push_witness_hash, push_witness_sig, PublicInputs},

@@ -4,7 +4,7 @@
 use crate::{
     core::algebra::{ec::Curve, AlgebraicField, SerializableField},
     mdoc::{
-        circuits::cbor::{
+        cbor::{
             mdoc::{map_entry_unique, parse_mdoc_with_mso_check, MdocParseError, ParsedMdoc},
             parse::{CborElement, CborValue},
         },

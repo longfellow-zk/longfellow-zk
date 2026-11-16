@@ -22,7 +22,7 @@ use longfellow_zk::{
     compile::algebra::CompileNat,
     core::algebra::Nat,
     mdoc::{
-        circuits::cbor::test_utils::parse_test_data,
+        cbor::test_utils::parse_test_data,
         v1::{
             decompress_circuits, req_attr, run_mdoc_prover_inner, run_mdoc_verifier,
             RequestedAttribute,

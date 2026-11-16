@@ -27,7 +27,7 @@ use crate::{
         Nat, SupportsNatConversions,
     },
     mdoc::{
-        circuits::cbor::mdoc::{ParsedAttr, ParsedMdoc},
+        cbor::mdoc::{ParsedAttr, ParsedMdoc},
         proto::{
             hash::constants::{
                 K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN, K_TAG32,

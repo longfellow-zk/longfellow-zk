@@ -2,7 +2,7 @@
 use crate::{
     core::algebra::encoding::P256_MODULUS,
     mdoc::{
-        circuits::cbor::mdoc::parse_mdoc,
+        cbor::mdoc::parse_mdoc,
         proto::hash::constants::K_MSO_OFFSET,
         runtime::tests::specs::v2_spec,
         testcases::TEST_DATA,
@@ -15,7 +15,7 @@ fn map() -> CborElement {
         parse_mdoc::<RuntimeNat<4>>(TEST_DATA.mdoc, TEST_DATA.transcript, TEST_DATA.doc_type)
             .unwrap();
     let start = K_MSO_OFFSET;
-    crate::mdoc::circuits::cbor::parse::CborParser::new(&parsed.cbor_mso[start..])
+    crate::mdoc::cbor::parse::CborParser::new(&parsed.cbor_mso[start..])
         .parse_exact()
         .unwrap()
 }
@@ -151,7 +151,7 @@ fn v2_document_preserves_structural_errors_and_predicate_failures() {
 
 #[test]
 fn v2_document_requires_the_circuit_timestamp_headers() {
-    use crate::mdoc::circuits::cbor::parse::CborParser;
+    use crate::mdoc::cbor::parse::CborParser;
     for (prefix, accepted) in [
         (&[0xc0, 0x74][..], true),
         (&[0xc0, 0x78, 20][..], false),

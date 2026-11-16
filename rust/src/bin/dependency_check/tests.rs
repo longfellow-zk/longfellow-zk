@@ -41,7 +41,7 @@ fn phases_follow_the_layout() {
         ("src/runtime/v2/zk/prover.rs", Runtime),
         ("src/mdoc/runtime/v2/link.rs", Runtime),
         ("src/circuits/sha256/concrete.rs", Runtime),
-        ("src/mdoc/circuits/cbor/mdoc.rs", Runtime),
+        ("src/mdoc/cbor/mdoc.rs", Runtime),
         ("src/core/algebra/encoding.rs", Shared),
         ("src/mdoc/proto/adapter.rs", Shared),
         ("src/circuits/sha256/constants.rs", Shared),

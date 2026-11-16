@@ -28,8 +28,8 @@ use crate::{
         },
     },
     mdoc::{
+        cbor::{encode_cbor_string, test_utils::parse_test_data},
         circuits::{
-            cbor::{encode_cbor_string, test_utils::parse_test_data},
             hash::{
                 allocate, derived, given, hash_input_of_parsed_mdoc, ConcreteDerived,
                 ConcreteGiven, MdocHash,

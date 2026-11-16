@@ -16,7 +16,7 @@ use crate::{
     compile::algebra::CompileNat,
     core::{algebra::Nat, proto::v2::Circuit},
     mdoc::{
-        circuits::cbor::test_utils::parse_test_data,
+        cbor::test_utils::parse_test_data,
         development_provider::tests::fixtures::next_circuit,
         testcases::TEST_DATA,
         v2::{

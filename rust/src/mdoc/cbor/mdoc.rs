@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::mdoc::circuits::cbor::{
+use crate::mdoc::cbor::{
     append_bytes_len, append_text_len,
     constants::{K_COSE_SIGN1_SIGNING_HEADER, K_DEVICE_AUTHENTICATION_HEADER, K_TAG24},
 };
@@ -21,7 +21,7 @@ use crate::mdoc::circuits::cbor::{
 use crate::{
     core::algebra::Nat,
     mdoc::{
-        circuits::cbor::parse::{CborElement, CborIndexVal, CborParser, CborValue},
+        cbor::parse::{CborElement, CborIndexVal, CborParser, CborValue},
         proto::hash::constants::{K_COSE1_PREFIX_LEN, K_MSO_OFFSET},
     },
 };

@@ -18,7 +18,7 @@ use crate::{
     circuits::sha256::{constants::INITIAL, Derived},
     core::algebra::{AlgebraicField, Nat, SupportsNatConversions, SupportsU64Conversions},
     mdoc::{
-        circuits::cbor::mdoc::ParsedMdoc,
+        cbor::mdoc::ParsedMdoc,
         v1::{
             attribute::RequestedAttribute, error::MdocProverErrorCode,
             inputs::builder::AssignmentBuilder,

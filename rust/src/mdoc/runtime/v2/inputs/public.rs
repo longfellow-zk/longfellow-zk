@@ -17,7 +17,7 @@
 use crate::{
     core::algebra::Nat,
     mdoc::{
-        circuits::cbor::{encode_cbor_string, mdoc::compute_transcript_hash},
+        cbor::{encode_cbor_string, mdoc::compute_transcript_hash},
         proto::{
             hash::constants::{K_DOC_TYPE_BYTES, K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS},
             mso_attribute::constants::{K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_VALUE_BYTES},

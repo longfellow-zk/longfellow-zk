@@ -19,7 +19,7 @@
 
 use crate::{
     mdoc::{
-        circuits::cbor::{encode_cbor_string, parse::CborParser},
+        cbor::{encode_cbor_string, parse::CborParser},
         proto::{
             hash::constants::{
                 K_DOC_TYPE_BYTES, K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS, K_TIMESTAMP_LEN,

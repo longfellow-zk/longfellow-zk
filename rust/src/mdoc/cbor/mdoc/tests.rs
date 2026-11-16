@@ -7,7 +7,7 @@ use super::{
 };
 use crate::{
     compile::algebra::CompileNat,
-    mdoc::circuits::cbor::{
+    mdoc::cbor::{
         constants::{K_COSE_SIGN1_SIGNING_HEADER, K_DEVICE_AUTHENTICATION_HEADER},
         parse::CborParser,
     },

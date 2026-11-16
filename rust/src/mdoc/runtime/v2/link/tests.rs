@@ -10,7 +10,7 @@ use crate::{
 fn shared_positions_match_signature_inputs() {
     use crate::{
         mdoc::{
-            circuits::cbor::test_utils::parse_test_data,
+            cbor::test_utils::parse_test_data,
             proto::layout::SHARED_BITS,
             runtime::tests::specs::v2_spec,
             v2::{inputs, req_attr, request::Request},

@@ -20,8 +20,8 @@ rules in `rust/src/bin/dependency_check/rules.txt` consistent with what follows.
   reviewed change. The classes are:
   - compile time: `compile`, `mdoc::compile`, and the `circuit`, `allocate` and
     `fields` halves of each circuit in `circuits` and `mdoc::circuits`;
-  - run time: `runtime`, `mdoc::runtime`, `mdoc::circuits::cbor` (native CBOR
-    and mdoc parsing), and the `concrete` native-witness halves of circuits;
+  - run time: `runtime`, `mdoc::runtime`, `mdoc::cbor` (native CBOR and mdoc
+    parsing), and the `concrete` native-witness halves of circuits;
   - shared: `core`, `mdoc::proto`, `mdoc::testcases`, `util`, and the
     `constants`, `points` and `shape` halves of circuits (a `shape` is the
     witness layout: generic structs the circuit holds wires in and the native

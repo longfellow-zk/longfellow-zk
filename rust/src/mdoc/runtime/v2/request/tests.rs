@@ -17,7 +17,7 @@
 use super::{Request, RequestError};
 use crate::{
     mdoc::{
-        circuits::cbor::encode_cbor_string,
+        cbor::encode_cbor_string,
         runtime::tests::specs::v2_spec,
         testcases::TEST_DATA,
         v2::{

@@ -17,7 +17,7 @@
 use crate::{
     core::algebra::{Nat, GF2_16_BASIS_V1},
     mdoc::{
-        circuits::cbor::mdoc::compute_transcript_hash,
+        cbor::mdoc::compute_transcript_hash,
         v1::{
             attribute::same_namespace,
             inputs::{push_input_hash, push_input_sig},

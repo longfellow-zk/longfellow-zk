@@ -17,7 +17,7 @@ use num_bigint::BigUint;
 use crate::{
     core::algebra::Nat,
     mdoc::{
-        circuits::cbor::mdoc::{parse_mdoc, ParsedMdoc},
+        cbor::mdoc::{parse_mdoc, ParsedMdoc},
         testcases::TestDataStatic,
     },
 };

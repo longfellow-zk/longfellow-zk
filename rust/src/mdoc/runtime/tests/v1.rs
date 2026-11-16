@@ -22,12 +22,12 @@ mod tests {
 
     use crate::{
         compile::algebra::CompileNat,
-        mdoc::{circuits::cbor::test_utils::parse_test_data, v1::*},
+        mdoc::{cbor::test_utils::parse_test_data, v1::*},
     };
 
     fn is_supported_by_prior_version<N>(
         spec: &ZkSpecStruct,
-        parsed: &crate::mdoc::circuits::cbor::mdoc::ParsedMdoc<N>,
+        parsed: &crate::mdoc::cbor::mdoc::ParsedMdoc<N>,
     ) -> bool {
         if spec.version <= 7 {
             let max_mso_blocks = if spec.version <= 6 { 35 } else { 40 };
@@ -148,8 +148,8 @@ mod tests {
 
                         let attrs = &attrs_ref[..spec.num_attributes];
 
-                        let parsed: crate::mdoc::circuits::cbor::mdoc::ParsedMdoc<CompileNat<4>> =
-                            crate::mdoc::circuits::cbor::mdoc::parse_mdoc(
+                        let parsed: crate::mdoc::cbor::mdoc::ParsedMdoc<CompileNat<4>> =
+                            crate::mdoc::cbor::mdoc::parse_mdoc(
                                 test_data.mdoc,
                                 test_data.transcript,
                                 "org.iso.18013.5.1.mDL",

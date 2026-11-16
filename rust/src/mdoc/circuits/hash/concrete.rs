@@ -16,7 +16,7 @@ use crate::{
     circuits::{sha256::constants::INITIAL, sha256msg::sha256_msg_derived},
     core::algebra::Nat,
     mdoc::{
-        circuits::cbor::{
+        cbor::{
             encode_cbor_string,
             mdoc::{FieldLocator as MsoFieldLocator, ParsedMdoc},
         },
