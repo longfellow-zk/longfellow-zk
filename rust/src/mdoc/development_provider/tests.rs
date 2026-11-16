@@ -16,6 +16,8 @@
 use super::*;
 use crate::{core::proto::archive::CircuitArchiveBuilder, mdoc::proto::NEXT_VERSION};
 
+pub(crate) mod fixtures;
+
 #[test]
 fn frozen_requests_delegate_and_never_compile_next() {
     let provided = materialize(CircuitRequest::FrozenV1 {
@@ -42,8 +44,15 @@ fn frozen_requests_delegate_and_never_compile_next() {
 
 #[test]
 fn next_compilation_is_reproducible_and_unregistered() {
+    // Two real compilations, never the cached circuit.
+    let one = fixtures::one_compilation();
     let first = compile_next(1).unwrap();
-    let second = compile_next(1).unwrap();
+    let ProvidedCircuit::V2(second) =
+        materialize(CircuitRequest::Next { num_attributes: 1 }).unwrap()
+    else {
+        panic!("NEXT must use v2")
+    };
+    drop(one);
     assert_eq!(first.spec(), second.spec());
     assert_eq!(first.compressed(), second.compressed());
     assert!(first.spec().supports_version());
@@ -54,6 +63,10 @@ fn next_compilation_is_reproducible_and_unregistered() {
     let restored = read_next(saved.as_slice()).unwrap();
     assert_eq!(restored.spec(), first.spec());
     assert_eq!(restored.compressed(), first.compressed());
+    // The tests' cached circuit is the one the compiler produces.
+    let cached = fixtures::next_circuit(1);
+    assert_eq!(cached.spec(), first.spec());
+    assert_eq!(cached.compressed(), first.compressed());
 }
 
 #[test]

@@ -75,4 +75,4 @@ pub fn materialize(request: CircuitRequest) -> Result<ProvidedCircuit, String> {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

@@ -25,6 +25,7 @@ use crate::{
     },
     mdoc::{
         circuits::cbor::{mdoc::ParsedMdoc, test_utils::parse_test_data},
+        development_provider::tests::fixtures::next_circuit,
         proto::NEXT_VERSION,
         runtime::v2::run_mdoc_prover_encoded,
         testcases::{ALL_TEST_CASES, TEST_DATA},
@@ -42,28 +43,16 @@ struct TestCircuits {
 }
 
 impl TestCircuits {
+    /// The NEXT circuits of one to four attributes, compiled once per test
+    /// binary.
     fn compile_all() -> Self {
-        let compile = |count| {
-            use crate::mdoc::development_provider::{materialize, CircuitRequest, ProvidedCircuit};
-            let ProvidedCircuit::V2(provided) = materialize(CircuitRequest::Next {
-                num_attributes: count,
+        let circuits = (1..=4)
+            .map(|count| {
+                let provided = next_circuit(count);
+                assert_v2_parameters(provided.spec(), provided.compressed());
+                (count, provided)
             })
-            .unwrap() else {
-                panic!("NEXT must use v2")
-            };
-            assert_v2_parameters(provided.spec(), provided.compressed());
-            (count, provided)
-        };
-        // Concurrent compiler allocations exceed the 32-bit address space.
-        #[cfg(target_pointer_width = "32")]
-        let circuits = (1..=4).map(compile).collect();
-        #[cfg(not(target_pointer_width = "32"))]
-        let circuits = std::thread::scope(|scope| {
-            let tasks: Vec<_> = (1..=4)
-                .map(|count| scope.spawn(move || compile(count)))
-                .collect();
-            tasks.into_iter().map(|task| task.join().unwrap()).collect()
-        });
+            .collect();
         Self { circuits }
     }
 
