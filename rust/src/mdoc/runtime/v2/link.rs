@@ -40,14 +40,16 @@ pub(super) type Statement<'s, DH, DS, I> =
 
 /// The shared values as (signature value, hash input) pairs, from the shared
 /// layout table that the compilers and witness encoders also check against.
-fn shared_positions(npublic: usize, width: usize) -> Result<Vec<(usize, usize)>, String> {
+fn shared_positions(
+    npublic: usize,
+    width: usize,
+) -> Result<impl Iterator<Item = (usize, usize)>, String> {
     if npublic + layout::hash::DEVICE_Y.end > width {
         return Err("hash circuit too narrow for the shared values".into());
     }
     Ok(layout::SHARED
         .into_iter()
-        .flat_map(|(sig, hash)| sig.zip(hash.map(|h| npublic + h)))
-        .collect())
+        .flat_map(move |(sig, hash)| sig.zip(hash.map(move |h| npublic + h))))
 }
 
 /// mdoc's composition of its two trusted circuits.
@@ -62,7 +64,6 @@ where
     DS: EvaluationDomain<P256Field>,
 {
     let foreign: Vec<_> = shared_positions(hash.raw.npublic_input, hash.raw.ninput)?
-        .into_iter()
         .map(|(value, start)| Ok((value, Group::new(start, 1)?)))
         .collect::<Result<_, String>>()?;
     let storage = StorageMap::new(split::value_count(signature)?, &foreign)?;

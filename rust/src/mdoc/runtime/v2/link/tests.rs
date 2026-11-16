@@ -47,7 +47,7 @@ fn shared_positions_match_signature_inputs() {
         let public = derived.hash();
         let private = inputs::push_witness_hash(&request, &parsed).unwrap();
         let width = public.len() + private.len();
-        let positions = shared_positions(public.len(), width).unwrap();
+        let positions: Vec<_> = shared_positions(public.len(), width).unwrap().collect();
         let mut expected = inputs::push_witness_sig(&f, &q, &curve, &request, &parsed).unwrap();
         expected.truncate(SHARED_BITS);
         assert!(positions
