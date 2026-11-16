@@ -4,6 +4,8 @@
 
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 mod bound;
+#[cfg(test)]
+pub(crate) mod cheat;
 mod message;
 mod prover;
 

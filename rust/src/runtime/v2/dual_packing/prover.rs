@@ -3,6 +3,8 @@ use super::{
     generic::*,
     transcript::{challenges, finish},
 };
+#[cfg(test)]
+use crate::runtime::v2::transcript::cheat;
 use crate::{
     core::algebra::{AlgebraicField, SerializableField},
     runtime::{
@@ -85,6 +87,24 @@ where
             )
         })
         .collect::<Vec<_>>();
+    // A cheating test prover (`transcript::cheat`) moves each U_k onto the
+    // trace-zero hyperplane instead of stopping, so the verifier's later
+    // checks face the false claim.
+    #[cfg(test)]
+    #[allow(clippy::shadow_reuse, clippy::shadow_unrelated)]
+    let u = if cheat::active() {
+        let unit = p
+            .basis()
+            .iter()
+            .find(|beta| !f.is_zero(&p.trace(beta)))
+            .map(|beta| f.mulf(beta, &f.invert(&p.trace(beta))))
+            .expect("an element of trace one");
+        u.iter()
+            .map(|x| f.subf(x, &f.mulf(&p.trace(x), &unit)))
+            .collect()
+    } else {
+        u
+    };
     validate_u(p, &u)?;
     let mut session = ts.transcript();
     let delta = challenges(p, &u, &mut session);

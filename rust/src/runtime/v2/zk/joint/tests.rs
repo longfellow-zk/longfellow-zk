@@ -696,3 +696,5 @@ fn participants_reject_unregistered_fields() {
     let other = P256Field::new_generic([0xffff_ffff_ffff_ff43, u64::MAX, u64::MAX, u64::MAX]);
     assert!(check_registered(&other).is_err());
 }
+
+mod soundness_fuzz;

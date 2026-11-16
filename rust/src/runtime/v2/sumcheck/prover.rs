@@ -48,6 +48,8 @@ use super::{
     symbolic::{build_constraints, Constraints, LayerChallenges},
     transcript::{accept_top, end_layer, round_challenge, StageWeights, TopWeights},
 };
+#[cfg(test)]
+use crate::runtime::v2::transcript::cheat;
 use crate::{
     core::algebra::{RegisteredField, SerializableField},
     runtime::{
@@ -252,10 +254,11 @@ pub(super) fn prove_dot_product<
     }
     // Both arrays now contain one scalar: claims[0] = A and claims[1] = B.
     let claims = [as_scalar::<W, F>(&w), as_scalar::<W, F>(&q_l)];
-    assert!(
-        claim == f.mulf(&claims[0], &claims[1]),
-        "single-hand terminal product mismatch"
-    );
+    let holds = claim == f.mulf(&claims[0], &claims[1]);
+    #[cfg(test)]
+    #[allow(clippy::shadow_reuse)]
+    let holds = holds || cheat::active();
+    assert!(holds, "single-hand terminal product mismatch");
     // Hide the cross coefficient independently, before choosing the scale.
     let mut cross = f.mulf(&claims[0], &pads.claims[1]);
     f.fma(&mut cross, &claims[1], &pads.claims[0]);

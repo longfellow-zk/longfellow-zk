@@ -3,6 +3,8 @@ use super::{
     circuit::CircuitSource,
     split::{ConstantCoordinates, LinearCoordinates, QuadraticCoordinates, SplitLayer},
 };
+#[cfg(test)]
+use crate::runtime::v2::transcript::cheat;
 use crate::{
     core::{
         algebra::SerializableField,
@@ -43,6 +45,10 @@ pub(super) fn eval_layer_into<const W: usize, F: RuntimeField<W> + SerializableF
         &layer.quadratic_runs,
         |QuadraticCoordinates { g: _, l, r }| {
             if !f.is_zero(&f.mulf(&w[l as usize], &w[r as usize])) {
+                #[cfg(test)]
+                if cheat::active() {
+                    return Ok(());
+                }
                 return Err("quadratic assertion not satisfied".to_string());
             }
             Ok(())
@@ -67,6 +73,10 @@ pub(super) fn eval_layer_into<const W: usize, F: RuntimeField<W> + SerializableF
         .linear_assertions
         .try_for_each(&layer.linear_runs, |LinearCoordinates { g: _, l }| {
             if !f.is_zero(&w[l as usize]) {
+                #[cfg(test)]
+                if cheat::active() {
+                    return Ok(());
+                }
                 return Err("linear assertion not satisfied".to_string());
             }
             Ok(())
@@ -112,6 +122,10 @@ pub(super) fn eval_circuits<const W: usize, F: RuntimeField<W> + SerializableFie
     // A zero-layer component's outputs are its own input prefix.
     for c in circuits.iter().filter(|c| c.raw().layers.is_empty()) {
         if let Some(g) = w[..c.raw().ninput].iter().position(|v| !f.is_zero(v)) {
+            #[cfg(test)]
+            if cheat::active() {
+                continue;
+            }
             return Err(format!("Circuit output at index {g} is not zero"));
         }
     }
@@ -127,7 +141,11 @@ pub(super) fn eval_circuits<const W: usize, F: RuntimeField<W> + SerializableFie
         // Depth ordering places the completed circuits' outputs at the tail.
         // Check every one, then retain the preceding global array in place.
         let carried = layout.nv - layout.output_assertions;
-        if let Some(g) = out[carried..].iter().position(|v| !f.is_zero(v)) {
+        let nonzero = out[carried..].iter().position(|v| !f.is_zero(v));
+        #[cfg(test)]
+        #[allow(clippy::shadow_reuse)]
+        let nonzero = nonzero.filter(|_| !cheat::active());
+        if let Some(g) = nonzero {
             return Err(format!(
                 "Circuit output at index {} is not zero",
                 carried + g
