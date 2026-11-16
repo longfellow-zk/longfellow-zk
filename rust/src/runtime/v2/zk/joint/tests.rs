@@ -75,6 +75,7 @@ fn selected_joint_wrapper_supports_three_typed_fields() {
     };
     let tp = Transcript::for_test(b"zk-v2/selected-three-fields");
     let (mut prover, root, responses) = param
+        .clone()
         .commit(
             (vec![f.one(), f.zero()], (vec![p.one()], (vec![], ()))),
             tp,
@@ -82,7 +83,7 @@ fn selected_joint_wrapper_supports_three_typed_fields() {
         )
         .unwrap();
     let equations = statements(prover.bound(&()).session());
-    let (proof, mut tp) = prover.finish(&param, equations).unwrap();
+    let (proof, mut tp) = prover.finish(equations).unwrap();
     let verify = |responses| {
         let tv = Transcript::for_test(b"zk-v2/selected-three-fields");
         let mut verifier = param.clone().receive(&root, responses, tv);
@@ -124,6 +125,7 @@ fn finish_rejects_equations_derived_on_another_session() {
     };
     let commit = || {
         param
+            .clone()
             .commit(
                 (vec![f.one(), f.zero()], ()),
                 Transcript::for_test(b"zk-v2/stamp"),
@@ -138,22 +140,16 @@ fn finish_rejects_equations_derived_on_another_session() {
         .fork_for_test()
         .session_for_test();
     assert_eq!(
-        forked_prover
-            .finish(&param, derived(prover_fork))
-            .err()
-            .unwrap(),
+        forked_prover.finish(derived(prover_fork)).err().unwrap(),
         ERROR
     );
     let (static_prover, _, _) = commit();
     let prover_fixed = (LinearStatement::new(vec![], vec![]), ());
-    assert_eq!(
-        static_prover.finish(&param, prover_fixed).err().unwrap(),
-        ERROR
-    );
+    assert_eq!(static_prover.finish(prover_fixed).err().unwrap(), ERROR);
 
     let (mut prover, root, responses) = commit();
     let prover_equations = derived(prover.bound(&()).session());
-    let (proof, _) = prover.finish(&param, prover_equations).unwrap();
+    let (proof, _) = prover.finish(prover_equations).unwrap();
     let receive = || {
         param.clone().receive(
             &root,
@@ -307,14 +303,14 @@ fn binary_circuits_authenticate_one_shared_input() {
             crate::runtime::v2::zk::joint::JointParam::new((p.participant(&domain).unwrap(), ()))
                 .unwrap();
         let t = Transcript::for_test(b"fragmented-pcs-test");
-        let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
+        let (mut joint, root, responses) = param.clone().commit((w, ()), t, &mut rng).unwrap();
         let (proof, statement) = zk::prove(
             &mut joint.bound(&FrontendPart::new(&p, &components, &[true]).unwrap()),
             state,
             &VirtualInputs::none(),
         )
         .unwrap();
-        let (opening, _) = joint.finish(&param, (statement, ())).unwrap();
+        let (opening, _) = joint.finish((statement, ())).unwrap();
         let verify = |candidate: &CircuitProof<Gf2_128Field>, public: bool| {
             let t = Transcript::for_test(b"fragmented-pcs-test");
             let mut v = param.clone().receive(&root, responses.clone(), t);
@@ -386,7 +382,7 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
         crate::runtime::v2::zk::joint::JointParam::new((p.participant(&domain).unwrap(), ()))
             .unwrap();
     let t = Transcript::for_test(b"prime-fragmented-pcs-test");
-    let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
+    let (mut joint, root, responses) = param.clone().commit((w, ()), t, &mut rng).unwrap();
     let (proof, statement) = zk::prove(
         &mut joint.bound(&FrontendPart::new(&p, &components, &public).unwrap()),
         state,
@@ -394,7 +390,7 @@ fn prime_direct_packing_uses_the_owned_committed_witness() {
     )
     .unwrap();
     assert!(matches!(proof.packing, PackingProof::Direct));
-    let (opening, mut tp) = joint.finish(&param, (statement, ())).unwrap();
+    let (opening, mut tp) = joint.finish((statement, ())).unwrap();
     let t = Transcript::for_test(b"prime-fragmented-pcs-test");
     let mut v = param.receive(&root, responses, t);
     let statement = zk::reduce(
@@ -464,7 +460,7 @@ fn final_seal_failure_has_its_own_verification_error() {
             &mut DeterministicRng::new(45),
         )
         .unwrap();
-    let mut bytes = prover.prove(committed, &domain).unwrap().into_bytes();
+    let mut bytes = prover.prove(committed).unwrap().into_bytes();
     drop(statement);
     let verifier = ZkVerifier::new(prover.circuit, config, &domain).unwrap();
     let check = |bytes: &[u8]| {
@@ -536,14 +532,14 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     let mut rng = DeterministicRng::new(91);
     let (state, w) = p.prepare(vec![true, true, false], &mut rng).unwrap();
     let t = Transcript::for_test(b"virtual-inputs-test");
-    let (mut joint, root, responses) = param.commit((w, ()), t, &mut rng).unwrap();
+    let (mut joint, root, responses) = param.clone().commit((w, ()), t, &mut rng).unwrap();
     let (proof, statement) = zk::prove(
         &mut joint.bound(&FrontendPart::new(&p, &[&main, &fragment], &[true]).unwrap()),
         state,
         &honest,
     )
     .unwrap();
-    let (opening, _) = joint.finish(&param, (statement, ())).unwrap();
+    let (opening, _) = joint.finish((statement, ())).unwrap();
     let verify = |definition: &VirtualInputs<_>| {
         let t = Transcript::for_test(b"virtual-inputs-test");
         let mut v = param.clone().receive(&root, responses.clone(), t);
@@ -574,6 +570,7 @@ fn binary_virtual_inputs_are_substituted_not_committed() {
     let mut rng = DeterministicRng::new(91);
     let (state, w) = p.prepare(vec![true, true, false], &mut rng).unwrap();
     let (mut joint, _, _) = param
+        .clone()
         .commit(
             (w, ()),
             Transcript::for_test(b"virtual-inputs-test"),

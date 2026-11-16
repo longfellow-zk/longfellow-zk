@@ -154,7 +154,7 @@ fn exercise<F: ZkField + crate::runtime::algebra::packing::PackingField, D: Eval
     )
     .unwrap();
     assert_eq!(prover_geometry.circuit().nw(), source.witness_count + 2);
-    let encoded_proof = p.prove(committed, &bounded).unwrap();
+    let encoded_proof = p.prove(committed).unwrap();
     let bytes = encoded_proof.as_bytes().to_vec();
     assert_eq!(&bytes[..4], b"LFV9");
 
@@ -282,10 +282,7 @@ fn exercise<F: ZkField + crate::runtime::algebra::packing::PackingField, D: Eval
                 &mut DeterministicRng::new(42),
             )
             .unwrap();
-        let other_bytes = other_prover
-            .prove(committed, &bounded)
-            .unwrap()
-            .into_bytes();
+        let other_bytes = other_prover.prove(committed).unwrap().into_bytes();
         let other_verifier = ZkVerifier::new(other_circuit(), config, &bounded).unwrap();
         let other_proof =
             read_standalone(&other_verifier, CONTEXT, &public, &other_bytes, f).unwrap();
@@ -495,7 +492,7 @@ pub(super) fn prove_standalone<
 ) -> Result<(EncodedProof, crate::runtime::v2::proto::zk::ZkProofGeometry), String> {
     let statement = prover.statement(context, public)?;
     let committed = prover.commit(private, &statement, domain, rng)?;
-    let proof = prover.prove(committed, domain)?;
+    let proof = prover.prove(committed)?;
     Ok((proof, statement.geometry.clone()))
 }
 /// Reduce and authenticate `proof` on a transcript opened with its statement.

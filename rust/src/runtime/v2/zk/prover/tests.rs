@@ -165,7 +165,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         .unwrap();
     assert_eq!(committed.commitment, reference.commitment);
     let geometry = statement.geometry.clone();
-    let actual = prover.prove(committed, &domain).unwrap().into_bytes();
+    let actual = prover.prove(committed).unwrap().into_bytes();
 
     let independent_param = JointParam::new((
         selected_field(
@@ -244,8 +244,7 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         source,
     )
     .unwrap();
-    let joint = JointParam::new((prover.participant.participant(&domain).unwrap(), ())).unwrap();
-    let (com_proof, numerical) = reference.joint.finish(&joint, (native, ())).unwrap();
+    let (com_proof, numerical) = reference.joint.finish((native, ())).unwrap();
     let rows = reduce(
         &mut independent_verifier.bound(&verifier_backend.parameters),
         &verifier_source.claim,

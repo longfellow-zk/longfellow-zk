@@ -327,11 +327,12 @@ where
                 let (state, w) = p.prepare(private.clone(), &mut prover_rng)?;
                 let param = JointParam::new((p.participant(domain)?, ()))?;
                 let t = Transcript::for_test(label.as_bytes());
-                let (mut joint, root, responses) = param.commit((w, ()), t, &mut prover_rng)?;
+                let (mut joint, root, responses) =
+                    param.clone().commit((w, ()), t, &mut prover_rng)?;
                 let part = FrontendPart::new(&p, &components, &public)?;
                 let (proof, statement) =
                     zk::prove(&mut joint.bound(&part), state, &VirtualInputs::none())?;
-                let (opening, _) = joint.finish(&param, (statement, ()))?;
+                let (opening, _) = joint.finish((statement, ()))?;
                 Ok((param, root, responses, proof, opening))
             };
             let (param, root, responses, proof, opening) = if cheat {

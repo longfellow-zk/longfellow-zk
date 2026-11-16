@@ -77,7 +77,7 @@ where
         let (host, statement_host) = zk::prove(&mut th, state_host, &leaves)?;
         // The opening follows the host frontend's last message.
         let equations = (statement_host, (split.statement, ()));
-        let (polygero, transcript) = joint.finish(&param, equations)?;
+        let (polygero, transcript) = joint.finish(equations)?;
         Ok((
             ComposedProof {
                 commitment,

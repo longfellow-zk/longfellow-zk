@@ -37,12 +37,12 @@
 //!
 //! ```
 //! use longfellow_zk::runtime::{
-//!     algebra::p256::P256Field,
+//!     algebra::{p256::P256Field, range_interpolation::EvaluationDomain},
 //!     v2::zk::{ZkProofStatement, ZkProverCommitment, ZkVerificationError},
 //! };
-//! fn _named(
+//! fn _named<D: EvaluationDomain<P256Field>>(
 //!     _: ZkProofStatement<'_, P256Field>,
-//!     _: ZkProverCommitment<'_, P256Field>,
+//!     _: ZkProverCommitment<'_, P256Field, D>,
 //!     _: ZkVerificationError,
 //! ) {
 //! }

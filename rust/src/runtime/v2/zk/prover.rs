@@ -10,15 +10,16 @@ use crate::{
         },
         random::PrivateRandom,
         v2::{
-            polygero::{FieldState, LinearStatement},
+            polygero::LinearStatement,
             proto::{
                 polygero::{PolygeroCommitment, PolygeroConfig},
                 sumcheck::SumcheckProof,
-                witness_selection::{FingerprintResponse, FINGERPRINTS},
+                witness_selection::FingerprintResponse,
                 zk::{CircuitProof, ZkProof},
             },
             sumcheck::{self, symbolic::Constraints, SumcheckPads},
             transcript::{Bound, EncodedProof, Transcript},
+            witness_selection::Field,
             zk::{
                 context::private_input_count,
                 joint::{CircuitParticipant, Frontend, FrontendPart, JointParam, Participant},
@@ -176,16 +177,13 @@ pub struct ZkProver<F: ZkField + PackingField> {
     pub(super) circuit: Circuit<F>,
     participant: CircuitParticipant<F>,
 }
-/// A commitment on a transcript opened with `statement`; the proof is completed
-/// against that same statement.
-pub struct ZkProverCommitment<'s, F: ZkField + PackingField> {
+/// A commitment on a transcript opened with `statement`, over the domain
+/// `D`; the proof is completed against that same statement, with the joint
+/// parameter that committed.
+pub struct ZkProverCommitment<'s, F: ZkField + PackingField, D: EvaluationDomain<F>> {
     statement: &'s ZkProofStatement<'s, F>,
     state: CircuitState<'s, F>,
-    joint: JointProver<
-        (FieldState<F::E>, ()),
-        ([Vec<F::E>; FINGERPRINTS], ()),
-        (FingerprintResponse<F::E>, ()),
-    >,
+    joint: JointProver<(Field<'s, F, D>, ())>,
     commitment: PolygeroCommitment,
     fingerprints: FingerprintResponse<F::E>,
 }
@@ -215,9 +213,9 @@ impl<F: ZkField + PackingField> ZkProver<F> {
         &self,
         private: Vec<CircuitInput<F>>,
         statement: &'s ZkProofStatement<'s, F>,
-        domain: &D,
+        domain: &'s D,
         rng: &mut R,
-    ) -> Result<ZkProverCommitment<'s, F>, String> {
+    ) -> Result<ZkProverCommitment<'s, F, D>, String> {
         if !std::ptr::eq(statement.part.participant, &self.participant) {
             return Err("statement belongs to another prover".into());
         }
@@ -225,8 +223,9 @@ impl<F: ZkField + PackingField> ZkProver<F> {
             return Err("witness length mismatch".into());
         }
         // The statement's participant, checked above to be this prover's.
-        let (state, witness) = statement.part.participant.prepare(private, rng)?;
-        let param = JointParam::new((self.participant.participant(domain)?, ()))?;
+        let participant = statement.part.participant;
+        let (state, witness) = participant.prepare(private, rng)?;
+        let param = JointParam::new((participant.participant(domain)?, ()))?;
         let (joint, commitment, (fingerprints, ())) =
             param.commit((witness, ()), Transcript::new(statement), rng)?;
         Ok(ZkProverCommitment {
@@ -241,8 +240,7 @@ impl<F: ZkField + PackingField> ZkProver<F> {
     /// seal it against the geometry that statement wrote (transcript I10).
     pub fn prove<D: EvaluationDomain<F>>(
         &self,
-        mut committed: ZkProverCommitment<'_, F>,
-        domain: &D,
+        mut committed: ZkProverCommitment<'_, F, D>,
     ) -> Result<EncodedProof, String> {
         let statement = committed.statement;
         if !std::ptr::eq(statement.part.participant, &self.participant) {
@@ -250,9 +248,8 @@ impl<F: ZkField + PackingField> ZkProver<F> {
         }
         let mut t = committed.joint.bound(&statement.part);
         let (circuit, linear) = prove(&mut t, committed.state, &VirtualInputs::none())?;
-        let param = JointParam::new((self.participant.participant(domain)?, ()))?;
         // The opening follows the frontend's last message.
-        let (com_proof, transcript) = committed.joint.finish(&param, (linear, ()))?;
+        let (com_proof, transcript) = committed.joint.finish((linear, ()))?;
         let proof = ZkProof {
             com: committed.commitment,
             fingerprints: committed.fingerprints,

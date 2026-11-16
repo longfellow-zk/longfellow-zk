@@ -441,15 +441,15 @@ impl MixedSplit<F> {
     pub(crate) fn foreign_values(&self, pending: &PendingSplit<F::E>) -> Vec<F::E>;  // claim term order, R last
 }
 impl<L: ProverFields> JointParam<L> {
-    pub(crate) fn commit(&self, witnesses: Witnesses<L>, transcript: Transcript,
+    // the returned JointProver owns this parameter
+    pub(crate) fn commit(self, witnesses: Witnesses<L>, transcript: Transcript,
                          rng: &mut impl PrivateRandom)
-        -> Result<(JointProver<..>, PolygeroCommitment, L::Responses), String>;  // I6
+        -> Result<(JointProver<L>, PolygeroCommitment, L::Responses), String>;  // I6
 }
-impl<S, C, R> JointProver<S, C, R> {
+impl<L: ProverFields> JointProver<L> {
     pub(crate) fn bound<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P>;
     // I4: each field's equations, derived on this session; draws the batching weights
-    pub(crate) fn finish<L: Fields<Coefficients = C, Responses = R>>(self, param: &JointParam<L>,
-        equations: Statements<L>)
+    pub(crate) fn finish(self, equations: Statements<L>)
         -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>;
 }
 pub(crate) fn prove(t: &mut Bound<'_, FrontendPart<'_, F>>, state: CircuitState<'_, F>,
@@ -516,9 +516,9 @@ impl ZkProver<F> {
     pub fn statement<'a>(&'a self, context: &'a [u8], public: &'a [CircuitInput<F>])
         -> Result<ZkProofStatement<'a, F>, String>;
     pub fn commit<'s>(&self, private: Vec<CircuitInput<F>>, statement: &'s ZkProofStatement<'s, F>,
-                      domain: &D, rng: &mut impl PrivateRandom)
-        -> Result<ZkProverCommitment<'s, F>, String>;  // opens the session
-    pub fn prove(&self, committed: ZkProverCommitment<'_, F>, domain: &D)
+                      domain: &'s D, rng: &mut impl PrivateRandom)
+        -> Result<ZkProverCommitment<'s, F, D>, String>;  // opens the session, owns the parameter
+    pub fn prove(&self, committed: ZkProverCommitment<'_, F, D>)
         -> Result<EncodedProof, String>;               // sealed with the statement's geometry
 }
 impl ZkVerifier<F> {

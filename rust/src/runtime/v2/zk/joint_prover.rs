@@ -7,34 +7,37 @@ use crate::runtime::{
         polygero::ProverParticipants,
         proto::polygero::{JointPolygeroProof, PolygeroCommitment},
         transcript::{Bound, Transcript},
-        witness_selection::{self, Bodies, Fields, ProverFields, Statements, Witnesses},
+        witness_selection::{self, Bodies, ProverFields, Statements, Witnesses},
     },
 };
 
-/// Owns the session from the commitment through the opening. The underlying
+/// The witness-selection prover state of the field list `L`.
+type Selection<L> = witness_selection::Prover<
+    <<L as witness_selection::Fields>::Backend as ProverParticipants>::States,
+    <L as witness_selection::Fields>::Coefficients,
+    <L as witness_selection::Fields>::Responses,
+>;
+
+/// Owns the parameter and the session from the commitment through the
+/// opening, so the opening uses the parameter that committed. The underlying
 /// backend state is inaccessible to frontend callers.
-pub(crate) struct JointProver<S, C, R> {
+pub(crate) struct JointProver<L: ProverFields> {
+    param: JointParam<L>,
     transcript: Transcript,
-    selection: witness_selection::Prover<S, C, R>,
+    selection: Selection<L>,
 }
 impl<L: ProverFields> JointParam<L> {
     pub(crate) fn commit(
-        &self,
+        self,
         witnesses: Witnesses<L>,
         mut transcript: Transcript,
         rng: &mut impl PrivateRandom,
-    ) -> Result<
-        (
-            JointProver<<L::Backend as ProverParticipants>::States, L::Coefficients, L::Responses>,
-            PolygeroCommitment,
-            L::Responses,
-        ),
-        String,
-    > {
+    ) -> Result<(JointProver<L>, PolygeroCommitment, L::Responses), String> {
         let (selection, root, responses) =
             witness_selection::commit(&mut transcript.bound(&self.selection), witnesses, rng)?;
         Ok((
             JointProver {
+                param: self,
                 transcript,
                 selection,
             },
@@ -43,7 +46,7 @@ impl<L: ProverFields> JointParam<L> {
         ))
     }
 }
-impl<S, C, R> JointProver<S, C, R> {
+impl<L: ProverFields> JointProver<L> {
     /// The owned session, for tests that read it directly.
     #[cfg(test)]
     pub(crate) fn transcript(&mut self) -> crate::runtime::v2::transcript::TranscriptRef<'_> {
@@ -61,17 +64,16 @@ impl<S, C, R> JointProver<S, C, R> {
     /// fingerprint equations, draws the Polygero batching weights at the
     /// current boundary (transcript I8), sends each field's response, draws
     /// the columns and returns the opening with the transcript.
-    pub(crate) fn finish<L: Fields<Coefficients = C, Responses = R>>(
-        mut self,
-        param: &JointParam<L>,
+    pub(crate) fn finish(
+        self,
         equations: Statements<L>,
-    ) -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String>
-    where
-        L::Backend: ProverParticipants<States = S>,
-    {
-        let proof = self
-            .selection
-            .finish(&mut self.transcript.bound(&param.selection), equations)?;
-        Ok((proof, self.transcript))
+    ) -> Result<(JointPolygeroProof<Bodies<L>>, Transcript), String> {
+        let Self {
+            param,
+            mut transcript,
+            selection,
+        } = self;
+        let proof = selection.finish(&mut transcript.bound(&param.selection), equations)?;
+        Ok((proof, transcript))
     }
 }
