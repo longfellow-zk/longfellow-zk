@@ -34,14 +34,22 @@ abbrev runtime (SHA : Bytes → Digest) :=
 omit [Fintype B] [DecidableEq B] in
 theorem setup_merge (outside inside : Bytes → Digest) :
     setup binary prime cantor scalars ids bounds (SHAOracle.merge SHAOracle.merkleDomain outside inside) =
-      setup binary prime cantor scalars ids bounds outside := rfl
+      setup binary prime cantor scalars ids bounds outside := by
+  have same : MdocIdentifiers.fragmentId binary scalars
+      (identifiers ids (SHAOracle.merge SHAOracle.merkleDomain outside inside)) =
+        MdocIdentifiers.fragmentId binary scalars (identifiers ids outside) := by
+    simp only [MdocIdentifiers.fragmentId,identifiers,SHAOracle.fragment_identifier]
+  unfold setup MdocIdentifiers.setup
+  rw [same]
+  rfl
 
 end LfzkV2.Current.Mdoc.PublicSetup
 
 
 /-! The oracle-dependent public values form a finite family of digests.
-Circuit descriptions, scalar codecs and layout remain fixed, and so does the
-format setup, which reads no hash. This family is chosen before sampling the
+Circuit descriptions, scalar codecs and layout remain fixed; the format setup
+reads only the adapter fragment identifier, which its statement binds, as one
+of these values. This family is chosen before sampling the
 oracle marginal; observer programs may depend on its public values without
 exposing an oracle implementation. -/
 namespace LfzkV2.Current.Mdoc.SetupFamily
@@ -74,9 +82,10 @@ def values (_prime : PrimeCircuit) (_cantor : Module.Basis (Fin 128) (ZMod 2) B)
     (_bounds : MdocIdentifiers.Bounds binary _prime) (SHA : Bytes → Digest) : Values where
   fragment := MdocIdentifiers.fragmentId binary scalars (Mdoc.PublicSetup.identifiers ids SHA)
 
-/-- The format setup of every family member: it reads no hash. -/
-def setup (_visible : Values) : MdocRuntime.FormatSetup :=
-  Mdoc.PublicSetup.setup binary prime cantor scalars ids bounds (fun _ => fun _ => 0)
+/-- The format setup of the family member with public values `visible`: its
+statement binds the member's adapter fragment identifier. -/
+def setup (visible : Values) : MdocRuntime.FormatSetup :=
+  MdocIdentifiers.setupOf binary prime cantor scalars ids bounds visible.fragment
 
 omit [Fintype B] [DecidableEq B] in
 theorem values_merge (outside inside : Bytes → Digest) :

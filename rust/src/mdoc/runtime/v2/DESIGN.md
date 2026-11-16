@@ -630,7 +630,7 @@ malformed archive or one whose metadata does not match the spec, as
 |---|---|---|
 | Spec version, combined hash, recomputed IDs | the circuits are the trusted ones the spec names | premise: trusted application circuits and archives |
 | `Request::check` | the public inputs are canonical: no truncation, every length encoded; with the statement's spec and session they bind the request | outside the model (request encoding) |
-| Statement | Fiat–Shamir binds the instance and every public input before the commitment | Rust, not Lean (transcript I3): the geometry messages are written from the participants, and the parsing geometry is a copy derived from them; tests check that the absorbed geometry equals the parsing geometry, that the statement comes first, every message's schema, and the golden pins; the Lean model takes the statement messages after the combined hash as fixed setup bytes |
+| Statement | Fiat–Shamir binds the instance and every public input before the commitment | Rust, not Lean (transcript I3): the geometry messages are written from the participants, and the parsing geometry is a copy derived from them; tests check that the absorbed geometry equals the parsing geometry, that the statement comes first, every message's schema, and the golden pins; the Lean model takes the statement messages after the combined hash as fixed setup bytes, except the adapter fragment's identifier, which it computes as Rust does |
 | Composition | extraction of one witness pair satisfying both circuits at the requested public inputs | `CanonicalRuntime.decoded_true_at_request`, `MdocWitness.valid_at_request` |
 | Exact envelope and seal | the accepted bytes are one complete canonical proof | `ProofBodyCodec`, `ProofOutput` |
 

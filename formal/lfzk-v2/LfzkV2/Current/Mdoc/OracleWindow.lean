@@ -24,6 +24,8 @@ local notation "Setup" visible => Mdoc.SetupFamily.setup binary prime cantor sca
 local notation "Leaves" visible => StrandCanonicalHiding.leafWindow binary prime.description prime.plan Nodes scalars
   bounds.inputFits bounds.privateFits (Setup visible)
 
+/-- The leaf domains of every family member. Members differ in the adapter
+fragment identifier their statement binds, and so in their format setup. -/
 def leafWindow : Finset Bytes := Finset.univ.biUnion fun visible => Leaves visible
 
 theorem leaves_subset (visible : Mdoc.SetupFamily.Values) :

@@ -153,10 +153,12 @@ the split participant's native storage runs as (first, count, cell) triples and
 its bit-stored runs as (first, count, start, width) quadruples (both lists
 empty for a native participant), and R's bit group. The `AdapterLayout` and
 `JointGeometry` messages follow. In the model these statement messages after
-the combined hash are opaque setup bytes (`MdocIdentifiers.Identifiers.statement`),
-tied to Rust only by the golden tests (`Tests/TaggedFormat`): Lean does not
-derive them from the setup, so it does not prove that they determine the
-instance. After the root, only prover messages are absorbed. Values derived per
+the combined hash are opaque setup bytes (`MdocIdentifiers.Identifiers`), except
+the adapter fragment's identifier, which the model computes from the hash
+circuit's shape (`MdocIdentifiers.fragmentId`) and binds in its `Circuit`
+message, as Rust does. The golden tests (`Tests/TaggedFormat`) tie the composed
+bytes to Rust: Lean does not derive the opaque bytes from the setup, so it does
+not prove that they determine the instance. After the root, only prover messages are absorbed. Values derived per
 proof, such as claim weights, virtual leaf definitions and quotients, are never
 absorbed; both roles recompute them.
 

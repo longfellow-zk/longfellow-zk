@@ -71,7 +71,8 @@ equals the parsing geometry (the mdoc trace test, for the profile against
 the parsing geometry's and the spec's), that the statement precedes every
 prover message, that every message has its tag's schema, and the golden
 pins of the standalone transcript and the mdoc first node. Lean does not prove I3: its model takes the statement messages
-after the combined hash as fixed setup bytes.
+after the combined hash as fixed setup bytes, except the adapter fragment's
+identifier, which it computes from the hash circuit's shape as Rust does.
 
 **I4. Every prover message is absorbed exactly once, when sent.** Each
 proof-body field is either interactive (it has a tag and is absorbed where it

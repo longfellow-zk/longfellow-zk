@@ -340,8 +340,11 @@ establish that a cryptographic implementation satisfies their premises.
   application semantics; payload IDs are verified at load time.
 - **Statement setup bytes.** The statement messages after the combined hash
   (`Circuit`, `CommitmentLayout`, `AdapterLayout`, `JointGeometry`) are fixed
-  setup bytes in the model (`MdocIdentifiers.Identifiers.statement`), equal to
-  the Rust encoding by the golden tests (`LfzkV2.Current.Tests.TaggedFormat`).
+  setup bytes in the model (`MdocIdentifiers.Identifiers`), except the adapter
+  fragment's identifier in its `Circuit` message, which the model computes
+  from the hash circuit's shape (`MdocIdentifiers.fragmentId`), as Rust does.
+  The composed bytes equal the Rust encoding by the golden tests
+  (`LfzkV2.Current.Tests.TaggedFormat`).
   The endpoints hold for that fixed deployed setup; Lean does not prove that
   these bytes determine the circuits, layouts and geometry the verifier uses
   (transcript I3), which the Rust tests check instead.

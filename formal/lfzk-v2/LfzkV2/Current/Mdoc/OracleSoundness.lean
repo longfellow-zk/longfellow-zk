@@ -38,6 +38,12 @@ theorem setup_merge (outside inside : Bytes → Digest) :
     MdocIdentifiers.setup binary prime cantor scalars
         (identifiers ids (SHAOracle.merge StrandDomains.protocol outside inside)) bounds =
       MdocIdentifiers.setup binary prime cantor scalars (identifiers ids outside) bounds := by
+  have same : MdocIdentifiers.fragmentId binary scalars
+      (identifiers ids (SHAOracle.merge StrandDomains.protocol outside inside)) =
+        MdocIdentifiers.fragmentId binary scalars (identifiers ids outside) := by
+    simp only [MdocIdentifiers.fragmentId,identifiers,StrandDomains.fragment_identifier]
+  unfold MdocIdentifiers.setup
+  rw [same]
   rfl
 
 variable {fuel blocks Q : ℕ}

@@ -11,8 +11,10 @@ Lean codecs and compared byte for byte by kernel evaluation.
   and claims, packing U and A, a Polygero response) and the seal node, each
   with its strand header and parent digest.
 - The 1-attribute mdoc proof's node 0: the statement head, the session, the
-  setup constants as recorded, both `PublicInputs` messages and the
-  `Commitment`, which `TaggedFormat.first` writes from the request and root.
+  setup constants as recorded and as `MdocIdentifiers.constants` composes
+  them around the adapter fragment identifier, both `PublicInputs` messages
+  and the `Commitment`, which `TaggedFormat.first` writes from the request
+  and root.
 - The proof body's physical order on a small geometry, its frontier and seal.
 
 The digests in the vectors (the parents and the Rust tests' pinned SHA-256
@@ -636,6 +638,34 @@ private def rootDigest : ℕ := 0x1f9b4bf5817530391f62a1d780297c24d650fb43d371ae
 private def setup : TaggedFormat.Setup where
   head := MdocIdentifiers.statementHead
   constants := constantsBytes
+
+/-! The recorded constants are the model's composition
+(`MdocIdentifiers.constants`) around the adapter fragment's `Circuit`
+message, bytes 136 to 191: the combined hash, then the statement value and
+the hash circuit's `Circuit` message, then the fragment's message with the
+vector's fragment identifier, then the rest. -/
+
+private def combinedValue : ℕ := 0x2415638ce35153075262e00950e3e3d0c15ef9ebaa1c1e797a67f583099c08a1
+
+private def beforeFragmentValue : ℕ :=
+  0xae8d4fad7fb85c40f03c403b37550969c6d59df52ca4f58218d466241e8326b40000000000000020000000000000000000000000000000120000000000000001000000000000000c00000000000000020000000000000001
+
+private def fragmentValue : ℕ := 0xa95838213a5dacb3b6636513cc30e065568128a75f21420b3972ac6e147f434a
+
+private def recordedIds : MdocIdentifiers.Identifiers where
+  combinedHash := digest combinedValue
+  beforeFragment := encodeLE 88 beforeFragmentValue
+  afterFragment := constantsBytes.drop 192
+  hash _ := digest 0
+
+example : MdocIdentifiers.constants recordedIds (digest fragmentValue) = constantsBytes := by
+  have head : digestValue.encode (digest combinedValue) ++ encodeLE 88 beforeFragmentValue ++
+      MdocIdentifiers.circuitMessage (digest fragmentValue) = constantsBytes.take 192 := by
+    apply eq_of_beq
+    decide +kernel
+  conv_rhs => rw [← List.take_append_drop 192 constantsBytes]
+  rw [← head]
+  rfl
 
 private def key : TaggedFormat.Key 1689 258 (Fin 32 → Byte) where
   session := ⟨sessionBytes,by

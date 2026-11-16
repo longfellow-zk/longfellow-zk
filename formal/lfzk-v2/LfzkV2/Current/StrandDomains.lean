@@ -29,6 +29,34 @@ private theorem outside {raw : Bytes} (notZero : raw.head? ≠ some 0) (notOne :
   · exact notOne one
   · exact notMerkle merkle
 
+
+section Setup
+variable {F : Type} [Field F]
+
+/-- Setup identifiers hash LFC3 circuit bytes, which start with `L`, so
+they lie outside the protocol domain. -/
+theorem identifier_not_protocol (fieldId : ℕ) (isBinary : Bool) (width : ℕ) (encode : F → Bytes)
+    (outputs logOutput inputs publicInputs : ℕ) (constants : List F) (layers : List SegmentedCircuit.Layer) :
+    ¬protocol (MetadataIdentifiers.circuitBytes fieldId isBinary width encode outputs logOutput inputs publicInputs
+      constants layers) := by
+  have head : (MetadataIdentifiers.circuitBytes fieldId isBinary width encode outputs logOutput inputs publicInputs
+      constants layers).head? = some (76 : Framing.Byte) := rfl
+  exact outside (by rw [head]; decide) (by rw [head]; decide)
+    (SHAOracle.identifier_not_domain fieldId isBinary width encode outputs logOutput inputs publicInputs constants layers)
+
+/-- Fixing the complement of the protocol domain fixes the adapter fragment
+identifier. -/
+theorem fragment_identifier (complement inside : Bytes → Digest) {leaves : ℕ}
+    (encode : F → Bytes) (shape : Adapter.ProductTree.Shape (Adapter.Circuit.half leaves))
+    (inputs publicInputs virtualStart : ℕ) :
+    MetadataIdentifiers.fragmentId (SHAOracle.merge protocol complement inside) encode shape
+        inputs publicInputs virtualStart =
+      MetadataIdentifiers.fragmentId complement encode shape inputs publicInputs virtualStart := by
+  apply SHAOracle.merge_outside
+  exact identifier_not_protocol (F := F) _ _ _ _ _ _ _ _ _ _
+
+end Setup
+
 section Transcript
 variable {Point C Out : Type} {rounds blocks : ℕ}
 variable (history : Point → Strand.History)
