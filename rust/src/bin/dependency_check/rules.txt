@@ -99,7 +99,7 @@ runtime/v2/transcript/message/impl#[*]*(). only src/runtime/v2/*/transcript.rs s
 # checks the seal; only the complete verifiers accept.
 runtime/v2/transcript/prover/impl#[Transcript]append_final_seal(). only src/mdoc/runtime/v2/proto.rs src/runtime/v2/polygero/joint.rs src/runtime/v2/proto/zk.rs
 runtime/v2/transcript/verifier/impl#[Transcript]verify_final_seal(). only src/runtime/v2/transcript/verifier.rs
-runtime/v2/transcript/verifier/impl#[*]checked(). only src/mdoc/runtime/v2/verifier.rs src/runtime/v2/polygero/verifier.rs src/runtime/v2/zk/verifier.rs
+runtime/v2/transcript/verifier/impl#[Transcript]check_seal(). only src/runtime/v2/polygero/verifier.rs src/runtime/v2/zk/joint_verifier.rs
 # Frontends see only TranscriptRef; the owning session belongs to the role
 # drivers and codecs.
 runtime/v2/transcript/session/Transcript# only src/runtime/v2/transcript.rs src/runtime/v2/transcript/* src/mdoc/runtime/v2/proto.rs src/mdoc/runtime/v2/prover.rs src/mdoc/runtime/v2/verifier.rs src/runtime/v2/foreign/compose/prover.rs src/runtime/v2/foreign/compose/verifier.rs src/runtime/v2/polygero/joint.rs src/runtime/v2/polygero/prover.rs src/runtime/v2/polygero/verifier.rs src/runtime/v2/proto/zk.rs src/runtime/v2/witness_selection/prover.rs src/runtime/v2/witness_selection/verifier.rs src/runtime/v2/zk/joint_prover.rs src/runtime/v2/zk/joint_verifier.rs src/runtime/v2/zk/prover.rs src/runtime/v2/zk/verifier.rs

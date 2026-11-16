@@ -513,7 +513,7 @@ pub(super) fn prove_standalone<
     let proof = prover.prove(committed, ctx)?;
     Ok((proof, statement.geometry.clone()))
 }
-/// Reduce `proof` on a transcript opened with its statement.
+/// Reduce and authenticate `proof` on a transcript opened with its statement.
 pub(super) fn reduce_standalone<
     const W: usize,
     F: ZkField<W> + crate::runtime::algebra::packing::PackingField,
@@ -524,7 +524,7 @@ pub(super) fn reduce_standalone<
     public: &[CircuitInput<F>],
     proof: &ZkProof<W, F>,
     ctx: &ZkContext<'_, W, F, D>,
-) -> Result<Transcript, super::ZkVerificationError> {
+) -> Result<super::Authenticated, super::ZkVerificationError> {
     let statement = verifier.statement(context, public)?;
     verifier.reduce(Opened::new(&statement), proof, ctx)
 }

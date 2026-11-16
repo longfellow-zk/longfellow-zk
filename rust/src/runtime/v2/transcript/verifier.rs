@@ -16,7 +16,7 @@ impl VerifiedProof {
 
 impl Transcript {
     #[cfg(any(test, feature = "verifier"))]
-    pub(crate) fn verify_final_seal(mut self, bytes: &[u8]) -> Result<VerifiedProof, &'static str> {
+    pub(super) fn verify_final_seal(mut self, bytes: &[u8]) -> Result<VerifiedProof, &'static str> {
         let n = bytes
             .len()
             .checked_sub(super::SEAL_BYTES)
@@ -30,12 +30,24 @@ impl Transcript {
             trace: self.trace,
         })
     }
+    /// Check the seal of the complete proof `proof` on this session
+    /// (transcript I10). Only an authenticated verifier holds the session
+    /// here: `zk::Authenticated::check_seal`, after the joint opening
+    /// check, and the bare Polygero `verify` of tests, after its own.
+    #[cfg(any(test, feature = "verifier"))]
+    pub(in crate::runtime::v2) fn check_seal<P>(
+        self,
+        proof: Unverified<'_, P>,
+    ) -> Result<VerifiedProof, &'static str> {
+        self.verify_final_seal(proof.encoded)
+    }
 }
 /// Parsed, immutable protocol data. Decoding alone grants no verification token.
 #[derive(Debug)]
 pub struct Unverified<'a, P> {
     body: P,
-    _encoded: &'a [u8],
+    #[cfg_attr(not(any(test, feature = "verifier")), allow(dead_code))]
+    encoded: &'a [u8],
 }
 impl<P> std::ops::Deref for Unverified<'_, P> {
     type Target = P;
@@ -61,11 +73,7 @@ impl<'a, P> Unverified<'a, P> {
         *remaining = &[];
         Ok(Self {
             body,
-            _encoded: input,
+            encoded: input,
         })
-    }
-    #[cfg(any(test, feature = "verifier"))]
-    pub(crate) fn checked(self, transcript: Transcript) -> Result<VerifiedProof, &'static str> {
-        transcript.verify_final_seal(self._encoded)
     }
 }

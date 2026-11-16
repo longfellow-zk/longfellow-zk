@@ -151,7 +151,12 @@ and the boundary count is checked against Lean.
 **I10. Every proof ends in the seal.** The last node holds the Seal message
 with the whole proof body and ends with the seal terminator. Its first PRF
 block is appended to the proof, and complete verification requires it.
-*Enforced by:* `VerifiedProof` is obtained only from the seal check (type).
+*Enforced by:* `VerifiedProof` is obtained only from the seal check, which
+takes the `Unverified` proof and the session by value. Outside the
+transcript the check is reached only through `zk::Authenticated::check_seal`,
+and an `Authenticated` exists only after the joint opening check (zk I7),
+so no seal is checked on an unauthenticated session (type). The
+bare Polygero `verify` of tests checks its opening before its seal.
 
 **I11. Proof bytes hold only prover data.** One version magic at the
 outermost layer (`MDA7` for mdoc). The proof contains no nested magic and no
@@ -328,6 +333,9 @@ impl Transcript {
     #[cfg(feature = "testonly")]
     pub fn bound_for_test<'a, P: ?Sized>(&'a mut self, part: &'a P) -> Bound<'a, P>;
     pub(crate) fn append_final_seal(self, body: Vec<u8>) -> EncodedProof; // I10
+    // I10; called only after an opening check (zk::Authenticated::check_seal)
+    pub(in crate::runtime::v2) fn check_seal<P>(self, proof: Unverified<'_, P>)
+        -> Result<VerifiedProof, &'static str>;
 }
 pub struct Bound<'a, P: ?Sized> { part: &'a P, owner: &'a mut Transcript }
 impl<'a, P: ?Sized> Bound<'a, P> {

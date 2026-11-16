@@ -463,10 +463,10 @@ impl ComposedStatement<'_, W, F, DH, DS, M, I> {
                  split_private: Vec<CircuitInput<F>>, rng: &mut impl PrivateRandom)
         -> Result<(ComposedProof<2, Gf2_128Field, W, F, M::Message>, Transcript), String>;
     // Not complete verification: the caller checks the complete proof's seal
-    // on the returned transcript (mdoc's run_mdoc_verifier).
+    // with the returned Authenticated (mdoc's run_mdoc_verifier, zk I7).
     pub(crate) fn reduce_and_authenticate(session: Opened<'_, Self>,
         proof: &ComposedProof<2, Gf2_128Field, W, F, M::Message>)
-        -> Result<Transcript, String>;
+        -> Result<Authenticated, String>;
 }
 impl Opened<'_, ComposedStatement<'_, ..>> {
     pub(crate) fn geometry(&mut self) -> Bound<'_, ComposedGeometry>;   // for MdocProof::read

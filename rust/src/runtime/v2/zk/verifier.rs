@@ -15,12 +15,12 @@ use crate::{
                 zk::{CircuitProof, ZkProof, ZkProofGeometry},
             },
             sumcheck::{self, symbolic::Constraints, TopWeights},
-            transcript::{Bound, Challenge, Opened, Transcript, Unverified, VerifiedProof},
+            transcript::{Bound, Challenge, Opened, Unverified, VerifiedProof},
             zk::{
                 joint::{top_weights, CircuitParticipant, FrontendPart, JointParam},
                 packing_commitment::PackingCommitment,
                 split::SplitClaim,
-                CircuitInput, VirtualInputs, ZkContext, ZkProofStatement,
+                Authenticated, CircuitInput, VirtualInputs, ZkContext, ZkProofStatement,
             },
         },
     },
@@ -175,9 +175,8 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         proof: Unverified<'_, ZkProof<W, F>>,
         ctx: &ZkContext<'_, W, F, D>,
     ) -> Result<VerifiedProof, ZkVerificationError> {
-        let transcript = self.reduce(session, &proof, ctx)?;
-        proof
-            .checked(transcript)
+        self.reduce(session, &proof, ctx)?
+            .check_seal(proof)
             .map_err(|e| ZkVerificationError::InvalidTranscriptSeal(e.into()))
     }
     pub(crate) fn reduce<D: EvaluationDomain<W, F>>(
@@ -185,7 +184,7 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
         session: Opened<'_, ZkProofStatement<'_, W, F>>,
         proof: &ZkProof<W, F>,
         ctx: &ZkContext<'_, W, F, D>,
-    ) -> Result<Transcript, ZkVerificationError> {
+    ) -> Result<Authenticated, ZkVerificationError> {
         let (statement, t) = session.into_parts();
         if !std::ptr::eq(statement.part.participant, &self.participant) {
             return Err(ZkVerificationError::InvalidStatement(
@@ -213,7 +212,6 @@ impl<const W: usize, F: ZkField<W> + PackingField> ZkVerifier<W, F> {
             .map_err(ZkVerificationError::InvalidPacking)?;
         verifier
             .finish((linear, ()), &proof.com_proof)
-            .map(|authenticated| authenticated.into_transcript())
             .map_err(ZkVerificationError::PolygeroVerification)
     }
 }

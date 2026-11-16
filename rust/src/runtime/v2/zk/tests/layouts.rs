@@ -366,11 +366,13 @@ fn test_zk_supported_layouts_multibit_roundtrip_and_tampering() {
                 let reduce = |p: &ZkProof<2, Gf2_128Field>| {
                     super::reduce_standalone(&verifier, LABEL, &witness_inputs[..1], p, &context)
                 };
-                // Both roles end in one transcript state: the prover's seal checks.
-                assert!(reduce(&decoded_proof)
-                    .unwrap()
-                    .verify_final_seal(&proof_bytes)
-                    .is_ok());
+                // Both roles end in one transcript state: the prover's seal
+                // checks on the authenticated session.
+                let statement = verifier.statement(LABEL, &witness_inputs[..1]).unwrap();
+                let mut session = Transcript::new(&statement);
+                let parsed =
+                    ZkProof::read(&proof_bytes, &session.bound(&statement.geometry), &f).unwrap();
+                assert!(reduce(&decoded_proof).unwrap().check_seal(parsed).is_ok());
 
                 for slot in 0..2 {
                     let mut tampered_claim = decoded_proof.clone();

@@ -144,11 +144,14 @@ public transcript accessor (type); Lean `ZkJoint`, `FingerprintRows`.
 
 **I7. A frontend output is not an acceptance decision.** `LinearStatement`
 and `ModularClaim` are `#[must_use]` claims. Acceptance requires
-`JointVerifier::finish`, which returns `Authenticated`; only
-`Authenticated::into_transcript` gives back the transcript the seal needs
-(transcript I10).
-*Enforced by:* `Authenticated` is obtainable only from `finish`, and
-the verifier's transcript leaves the handle only through it (type).
+`JointVerifier::finish`, which returns `Authenticated`, and then
+`Authenticated::check_seal`, which checks the complete proof's seal on the
+authenticated session and alone returns its `VerifiedProof` (transcript
+I10).
+*Enforced by:* `Authenticated` is obtainable only from `finish`; the
+verifier's transcript leaves the joint handle only inside it and never
+leaves `Authenticated` outside tests, so the seal can be checked only on an
+authenticated session (type).
 
 **I8. Virtual inputs are substituted, never committed and never absorbed.**
 The primary circuit ends before the virtual suffix and cannot read it. Each
@@ -438,7 +441,10 @@ impl<L: Fields> JointVerifier<L> {
     pub(crate) fn finish(self, equations: Statements<L>, proof: &JointPolygeroProof<Bodies<L>>)
         -> Result<Authenticated, String>;                // I7
 }
-impl Authenticated { pub(crate) fn into_transcript(self) -> Transcript; }
+impl Authenticated {
+    // the seal of the proof whose opening this authenticated, on its session (I7)
+    pub(crate) fn check_seal<P>(self, proof: Unverified<'_, P>) -> Result<VerifiedProof, &'static str>;
+}
 pub(crate) fn reduce(t: &mut Bound<'_, FrontendPart<'_, W, F>>, proof: &CircuitProof<W, F>,
                      top: Challenge<TopWeights<F::E>>, virtual_inputs: &VirtualInputs<F::E>,
                      ctx: &ZkContext<'_, W, F, D>) -> Result<LinearStatement<F::E>, String>;
@@ -528,7 +534,7 @@ How the API carries the invariants:
 | Two storage maps with the same statement encoding | I10: canonical maximal runs |
 | Committing virtual inputs, or letting the primary circuit read them | I8: `InputLayout::new`, `compile_packed` substitution |
 | Batching mixed-storage rows, so the native row depends on `rho` | I11: `SplitClaim::batch` rejects mixed storage |
-| Treating a reduced `LinearStatement` as acceptance | I7: the seal needs the transcript, which only `Authenticated` returns |
+| Treating a reduced `LinearStatement` as acceptance | I7: only `Authenticated::check_seal` returns a `VerifiedProof`, and only `finish` returns an `Authenticated` |
 | Dropping a coefficient or a zero row when lowering constraints | I5: the compiler keeps every term; compile tests and Lean |
 | Reusing a prover state across proofs or participants | `CircuitState` and `SplitState` are consumed; `prove` and `prove_split` compare the participant each recorded with the part's |
 

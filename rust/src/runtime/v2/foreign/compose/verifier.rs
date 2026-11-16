@@ -3,8 +3,8 @@
 use super::*;
 use crate::runtime::v2::{
     proto::composed::ComposedProof,
-    transcript::{Bound, Opened, SetupMessage, Transcript},
-    zk::{self, joint, split},
+    transcript::{Bound, Opened, SetupMessage},
+    zk::{self, joint, split, Authenticated},
 };
 
 impl<const W: usize, F, DH, DS, M, I> ComposedStatement<'_, W, F, DH, DS, M, I>
@@ -18,13 +18,13 @@ where
     /// Reduce both circuits of the composition statement `session` opened
     /// with and authenticate the joint opening. This is not complete
     /// verification: the caller must check the complete proof's final seal
-    /// on the returned transcript, as `run_mdoc_verifier` does.
+    /// with the returned `Authenticated`, as `run_mdoc_verifier` does.
     #[doc = include_str!("verifier_compile_fail.md")]
     #[cfg_attr(not(any(test, feature = "mdoc")), allow(dead_code))]
     pub(crate) fn reduce_and_authenticate(
         session: Opened<'_, Self>,
         proof: &ComposedProof<H, Host, W, F, M::Message>,
-    ) -> Result<Transcript, String> {
+    ) -> Result<Authenticated, String> {
         let (this, transcript) = session.into_parts();
         let c = this.composition;
         let (fh, fs) = (c.host_ctx.field(), c.split_ctx.field());
@@ -50,7 +50,7 @@ where
         let statement_host = zk::reduce(&mut th, &proof.host, top_host, &leaves, &c.host_ctx)?;
         // The opening follows the host frontend's last message.
         let equations = (statement_host, (split.statement, ()));
-        Ok(joint.finish(equations, &proof.polygero)?.into_transcript())
+        joint.finish(equations, &proof.polygero)
     }
 }
 impl<'s, 'a: 's, const W: usize, F, DH, DS, M, I>

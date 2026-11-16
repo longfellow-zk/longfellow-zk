@@ -117,7 +117,7 @@ fn composition_round_trip_rejects_tampering() {
         |proof: &_| ComposedStatement::reduce_and_authenticate(Opened::new(&statement), proof);
 
     let (proof, mut tp) = prove(bits.clone()).unwrap();
-    let mut tv = verify(&proof).unwrap();
+    let mut tv = verify(&proof).unwrap().into_transcript();
     assert_eq!(tp.bytes(32), tv.bytes(32));
 
     // A changed split message mu.

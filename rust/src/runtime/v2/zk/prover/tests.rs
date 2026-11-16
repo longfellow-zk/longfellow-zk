@@ -282,12 +282,15 @@ fn zk_prover_matches_numerical_prover_and_symbolic_verifier() {
         },
         (),
     );
-    // The independent verifier ends where the prover did: its seal checks.
-    let independent = independent_verifier
+    // The independent verifier ends where the prover did: the prover's seal
+    // checks on the authenticated session.
+    let mut session = Transcript::new(&statement);
+    let parsed = ZkProof::read(&actual, &session.bound(&statement.geometry), &f).unwrap();
+    assert!(independent_verifier
         .finish(equations, &expected.com_proof)
         .unwrap()
-        .into_transcript();
-    assert!(independent.verify_final_seal(&actual).is_ok());
+        .check_seal(parsed)
+        .is_ok());
 }
 
 /// `prove` takes a commitment state only from the participant that prepared

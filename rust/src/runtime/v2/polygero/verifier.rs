@@ -69,8 +69,8 @@ impl<L: Participants> JointPolygeroVerifier<L> {
         proof: Unverified<'_, JointPolygeroProof<L::Bodies>>,
     ) -> Result<VerifiedProof, PolygeroError> {
         self.reduce(&mut transcript.bound(param), statements, &proof)?;
-        proof
-            .checked(transcript)
+        transcript
+            .check_seal(proof)
             .map_err(|e| PolygeroError(e.into()))
     }
     /// Check the opening on the session that received the commitment against

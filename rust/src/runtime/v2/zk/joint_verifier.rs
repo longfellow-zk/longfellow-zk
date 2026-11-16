@@ -3,16 +3,29 @@
 use super::joint::{Bodies, Fields, JointParam, Responses, Statements};
 use crate::runtime::v2::{
     proto::polygero::{JointPolygeroProof, PolygeroCommitment},
-    transcript::{Bound, Transcript},
+    transcript::{Bound, Transcript, Unverified, VerifiedProof},
     witness_selection,
 };
 
-/// Intermediate authentication; the complete proof verifier still checks its seal.
+/// Evidence that a joint opening authenticated every frontend equation on
+/// the verifier's session, which it keeps. It is not complete verification:
+/// only its `check_seal`, which consumes the session, turns the proof into a
+/// `VerifiedProof` (zk I7, transcript I10).
 pub(crate) struct Authenticated {
     transcript: Transcript,
     _selection: witness_selection::Authenticated,
 }
 impl Authenticated {
+    /// Check the seal of `proof`, the complete proof whose opening this
+    /// authenticated, on the authenticated session (transcript I10).
+    pub(crate) fn check_seal<P>(
+        self,
+        proof: Unverified<'_, P>,
+    ) -> Result<VerifiedProof, &'static str> {
+        self.transcript.check_seal(proof)
+    }
+    /// The authenticated session, for tests that read it directly.
+    #[cfg(test)]
     pub(crate) fn into_transcript(self) -> Transcript {
         self.transcript
     }
@@ -62,7 +75,7 @@ impl<L: Fields> JointVerifier<L> {
     /// fingerprint equations, draws the Polygero batching weights at the
     /// current boundary (transcript I8), absorbs each field's response, draws
     /// the columns and checks the opening. The caller still checks the
-    /// complete proof's seal on the returned transcript.
+    /// complete proof's seal (`Authenticated::check_seal`).
     ///
     /// It takes every field's equations, in their types: a list without the
     /// split participant's, or none, does not compile.
