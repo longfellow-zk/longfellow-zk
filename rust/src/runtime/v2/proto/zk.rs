@@ -4,7 +4,7 @@
 use crate::runtime::v2::transcript::{EncodedProof, Transcript};
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::runtime::v2::{
-    proto::{polygero::checked_body, witness_selection::FINGERPRINTS},
+    proto::{merkle::DIGEST_LEN, polygero::checked_body, witness_selection::FINGERPRINTS},
     transcript::{Bound, Unverified, SEAL_BYTES},
 };
 use crate::{
@@ -207,7 +207,7 @@ impl ZkProofGeometry {
     fn fixed_len(&self, width: usize) -> Option<usize> {
         let [response, rows] = FieldProof::<()>::wire_lengths(&self.polygero(), width)?;
         [
-            Some(32),
+            Some(DIGEST_LEN),
             FINGERPRINTS.checked_mul(width),
             self.circuit.proof_len(width),
             Some(response),

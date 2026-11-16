@@ -22,7 +22,7 @@ use std::io::{Error, ErrorKind, Result};
 
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use super::read_field;
-use super::{Digest, MerkleProof, NONCE_LEN};
+use super::{merkle::DIGEST_LEN, Digest, MerkleProof, NONCE_LEN};
 use crate::core::algebra::SerializableField;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::runtime::v2::transcript::SEAL_BYTES;
@@ -167,7 +167,7 @@ impl<B> JointPolygeroProof<B> {
     pub fn authentication_bytes(&self) -> (usize, usize) {
         (
             NONCE_LEN * self.opening.nonce.len(),
-            8 + 32 * self.opening.path.len(),
+            8 + DIGEST_LEN * self.opening.path.len(),
         )
     }
 }
@@ -305,7 +305,7 @@ pub(crate) fn checked_body(
     let expected = usize::try_from(u64::from_le_bytes(*count))
         .ok()
         .filter(|&f| f <= cap)
-        .and_then(|f| f.checked_mul(32))
+        .and_then(|f| f.checked_mul(DIGEST_LEN))
         .and_then(|x| x.checked_add(8 + SEAL_BYTES))
         .and_then(|x| x.checked_add(start))
         .ok_or_else(|| invalid("Merkle frontier count"))?;

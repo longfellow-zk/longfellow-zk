@@ -17,7 +17,8 @@
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 use crate::runtime::v2::proto::util::read_bytes_32;
 
-const DIGEST_LEN: usize = 32;
+/// Bytes per digest: a root, a frontier node or a leaf hash.
+pub(super) const DIGEST_LEN: usize = 32;
 /// Salt bytes per v2 column, shared by commitment sampling and the proof codec.
 /// Independent 256-bit salts give indexed-leaf statistical hiding error at
 /// most (Qpre + Qpost)/2^256 in the ideal-oracle model.

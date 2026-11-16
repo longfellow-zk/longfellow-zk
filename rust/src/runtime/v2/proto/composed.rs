@@ -18,6 +18,7 @@ use crate::{
     runtime::{
         algebra::RuntimeField,
         v2::proto::{
+            merkle::DIGEST_LEN,
             polygero::{FieldProof, JointPolygeroProof, PolygeroCommitment},
             sumcheck::SumcheckProof,
             witness_selection::{FingerprintResponse, FINGERPRINTS},
@@ -134,7 +135,7 @@ impl<
         let [host_response, host_rows] = FieldProof::<()>::wire_lengths(&gh, wh)?;
         let [split_response, split_rows] = FieldProof::<()>::wire_lengths(&gs, ws)?;
         [
-            Some(32),
+            Some(DIGEST_LEN),
             FINGERPRINTS.checked_mul(wh),
             FINGERPRINTS.checked_mul(ws),
             g.split.proof_len(ws),
