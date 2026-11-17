@@ -135,9 +135,14 @@ pub(crate) fn evaluate_and_prove_circuits<F: RuntimeField + RegisteredField + Su
     let layers = schedule.classify_layers(circuits);
     let witnesses = super::eval::eval_circuits(inputs, circuits, &layers, &schedule, f)
         .map_err(|e| format!("eval_circuit failed: {e}"))?;
-    prove_layers(circuits, layers, witnesses, pads, schedule, entering, t, f)
+    Ok(prove_layers(
+        circuits, layers, witnesses, pads, schedule, entering, t, f,
+    ))
 }
 
+/// Prove the classified layers of `circuits` on their witnesses. The caller
+/// has checked that `pads` have `schedule.geometry`'s shape
+/// (`evaluate_and_prove_circuits` does, before the top weights).
 #[allow(clippy::too_many_arguments)]
 fn prove_layers<F: RuntimeField + RegisteredField + SupportsSampling>(
     circuits: &[&Circuit<F>],
@@ -148,9 +153,7 @@ fn prove_layers<F: RuntimeField + RegisteredField + SupportsSampling>(
     mut entering: StageWeights<F::E>,
     t: &mut TranscriptRef<'_>,
     f: &F,
-) -> Result<(SumcheckProof<F>, Constraints<F::E>), String> {
-    pads.validate(&schedule.geometry)
-        .map_err(|e| e.to_string())?;
+) -> (SumcheckProof<F>, Constraints<F::E>) {
     assert_eq!(layers.len(), circuits.len());
     assert_eq!(witnesses.len(), schedule.layers.len());
     let mut layers: Vec<_> = layers.into_iter().map(Vec::into_iter).collect();
@@ -213,7 +216,7 @@ fn prove_layers<F: RuntimeField + RegisteredField + SupportsSampling>(
         layers: proof_layers,
     };
     let constraints = build_constraints(&proof, challenges, weights, f);
-    Ok((proof, constraints))
+    (proof, constraints)
 }
 
 /// Reduce `claim = sum_l q_l[l] W[l]`.
@@ -286,6 +289,11 @@ pub(super) fn prove_dot_product<F: RuntimeField + RegisteredField + SupportsSamp
 ///
 /// After binding, claim' = sum_i q_l'[i]*w'[i], with one fewer index bit.
 /// Return the masked message, z, and the next claim.
+///
+/// It stays out of line, so the code of its kernels (the round polynomial and
+/// the two binds, the prover's hot loops) does not depend on what the stage
+/// loop around it inlines.
+#[inline(never)]
 fn round<F: RuntimeField + RegisteredField + SupportsSampling>(
     w: &mut Vec<F::E>,
     q_l: &mut Vec<F::E>,

@@ -5,7 +5,11 @@ use crate::{
     runtime::v2::transcript::Transcript,
 };
 
-/// Diagnostic entry point for tests that supply arbitrary intermediate witnesses.
+/// Diagnostic entry point for tests that supply arbitrary intermediate
+/// witnesses. The pads may hold arbitrary proof data, such as an earlier
+/// proof, but must have the circuit's proof geometry: `prove_layers` relies
+/// on its caller for that check, so this fixture makes it, as
+/// `evaluate_and_prove_circuits` does.
 pub(crate) fn prove_core<F: RuntimeField + RegisteredField + SupportsSampling>(
     w_layers: Vec<Vec<ElementOf<F>>>,
     pads: &SumcheckProof<F>,
@@ -15,19 +19,15 @@ pub(crate) fn prove_core<F: RuntimeField + RegisteredField + SupportsSampling>(
 ) -> (SumcheckProof<F>, Constraints<ElementOf<F>>) {
     let circuits = [circuit];
     let schedule = Schedule::new(&circuits, f).unwrap();
+    let checked = SumcheckPads::from_proof(pads.clone());
+    checked
+        .validate(&schedule.geometry)
+        .expect("pads of the circuit's proof geometry");
     let entering = schedule.draw_top(&circuits, transcript, f);
     let layers = schedule.classify_layers(&circuits);
     prove_layers(
-        &circuits,
-        layers,
-        w_layers,
-        SumcheckPads::from_proof(pads.clone()),
-        schedule,
-        entering,
-        transcript,
-        f,
+        &circuits, layers, w_layers, checked, schedule, entering, transcript, f,
     )
-    .unwrap()
 }
 
 /// Bind the statement and run the prover for a test with at least one layer.
