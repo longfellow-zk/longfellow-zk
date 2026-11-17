@@ -150,7 +150,12 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
             self.boolean
                 .tree_andb(&self.boolean.precious(eq0), &self.boolean.precious(eq1)),
             self.boolean.or_assuming_at_most_one_true(
-                &self.boolean.precious(lt1),
+                &if self.logic.retain_bit_assertions_v1() {
+                    self.boolean.precious(lt1)
+                } else {
+                    // Let v2 merge the upper less-than result into this sum.
+                    self.boolean.b(lt1)
+                },
                 &self
                     .boolean
                     .andb(&self.boolean.precious(eq1), &self.boolean.precious(lt0)),

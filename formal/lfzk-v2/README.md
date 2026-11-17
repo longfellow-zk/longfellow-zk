@@ -29,7 +29,7 @@ top-down [proof map](../README.md#proof-map). The endpoints are
 rational bound is `LfzkV2.Current.Soundness.Rate7.failureBound`.
 
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
-449/454/459/462 rounds. `MdocRoundShape.rounds_eq` derives the total from each
+442/446/450/452 rounds. `MdocRoundShape.rounds_eq` derives the total from each
 per-layer schedule; [`check_mdoc_round_shapes.rs`](../scripts/check_mdoc_round_shapes.rs)
 checks those schedules and totals against the current Rust compiler. The
 approximation takes a supported-shape witness and derives the round bound
@@ -192,7 +192,7 @@ layers has one input-assertion boundary. Besides both frontends there are four
 ordinary boundaries (witness selection, conversion, joint Polygero batching and
 shared opening), one optional packing boundary, and the final seal. There is no row-batching boundary; it remains only for pure foreign
 storage, which mdoc does not use. The one-/two-/three-/four-attribute
-presentations have respectively 449/454/459/462 ordinary boundaries. The Rust
+presentations have respectively 442/446/450/452 ordinary boundaries. The Rust
 `next_measured_round_counts` test counts the boundaries of both the complete prover's and the verifier's sessions (`round_count_for_test`) and checks
 these values independently of the geometry-derived schedule. Finalization
 then uses a strand-node query and a seal PRF query. Binding source circuit identifiers

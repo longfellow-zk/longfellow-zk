@@ -184,7 +184,7 @@ $$
 P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
 $$
 
-The supported one-/two-/three-/four-attribute circuits have 457/461/466/469 rounds.
+The supported one-/two-/three-/four-attribute circuits have 442/446/450/452 rounds.
 
 Here `r` counts ordinary transcript boundaries, one per draw that follows a
 message; a draw with no message since the last boundary reads further from
@@ -266,7 +266,8 @@ Complete NEXT v12 mdoc presentations, measured on 2026-11-16 with Rust 1.99.1
 on a Ryzen 9 9950X, single-threaded with boost disabled and the native CPU target.
 Times are medians of 21 samples: three interleaved runs of seven, each
 after one warmup. Heap measurements use separate allocation-tracking runs.
-The four-slot case repeats the fixture's two disclosures.
+The four-slot case repeats the fixture's two disclosures. These measurements
+use the earlier compiler with a 20-layer hash circuit.
 
 | Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---|---:|---:|---:|---:|---:|

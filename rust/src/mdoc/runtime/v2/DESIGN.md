@@ -682,7 +682,7 @@ c*Q/q + (1 - c*(q-1)/(2q)) * (1 - (1 - 2/(q-1))^Q) + (C(Q,2) + r + 15)/q^2
 ```
 
 `c = 1.00000123121...` is the Polygero coefficient for `(349, 12, 2443, 84)`
-and `r` the boundary count, at most 462, so `r + 15 = 477 < 2^10`.
+and `r` the boundary count, at most 452, so `r + 15 = 467 < 2^10`.
 `averaged_nonvacuous` gives a strict cap of 0.97, and
 `averaged_mdoc_approximation` the all-`Q` form
 `Q*2^-127 + Q^2*2^-257 + 2^-246`. `MdocRoundShape.rounds_eq` derives `r`
