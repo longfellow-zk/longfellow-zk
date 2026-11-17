@@ -3,7 +3,8 @@ import LfzkV2.Current.StrandCut
 /-! The extractor's first-context cut is observable from raw SHA queries.
 Only fresh node inputs affect the decoder registry. A repeated node keeps
 its original name even if a missing parent has since become available;
-PRF reads never contribute an authentication input to this cut. -/
+PRF reads never contribute an authentication input to this cut. `logCut`
+reads the same cut from a byte-addressed query log alone. -/
 noncomputable section
 namespace LfzkV2.Current.StrandCutObservation
 open Merkle.RandomOracle TranscriptV2 TranscriptV2.Strand TranscriptV2.StrandCoupling
@@ -58,6 +59,58 @@ theorem scan_mem (schema : History.Codec T) (bytes : P → Framing.Bytes)
 def byteCut (schema : History.Codec T) (bytes : P → Framing.Bytes) (context : T → Key)
     (key : Key) (trace : List (Point P PrfKey Word × Digest)) : List (Framing.Bytes × Digest) :=
   (scan schema bytes context key (fun _ => none) [] trace).map fun qa => (bytes qa.1,qa.2)
+
+/-- Renaming node addresses injectively renames the cut and nothing else:
+the scan reads a node only through its bytes and its first occurrence. -/
+theorem scan_map {Q : Type} [DecidableEq Q] (schema : History.Codec T) (bytes : Q → Framing.Bytes)
+    (context : T → Key) (key : Key) (f : P → Q) (injective : Function.Injective f)
+    (known : P → Option Digest) (known' : Q → Option Digest) (agree : ∀ raw, known' (f raw) = known raw)
+    (past : List Strand.Entry) (trace : List (Point P PrfKey Word × Digest)) :
+    scan schema bytes context key known' past (trace.map fun qa => (Sum.map f id qa.1,qa.2)) =
+      (scan schema (bytes ∘ f) context key known past trace).map fun qa => (f qa.1,qa.2) := by
+  induction trace generalizing known known' past with
+  | nil => rfl
+  | cons first rest ih =>
+      rcases first with ⟨input,answer⟩
+      cases input with
+      | inr prf =>
+          simp only [List.map_cons,Sum.map_inr,scan]
+          exact ih known known' agree past
+      | inl raw =>
+          simp only [List.map_cons,Sum.map_inl,scan,agree raw]
+          cases found : known raw with
+          | some _ => exact ih known known' agree past
+          | none =>
+              dsimp only
+              change (if (StrandSearch.decode schema (bytes ∘ f) past raw).map context = some key then [] else _) =
+                List.map _ (if (StrandSearch.decode schema (bytes ∘ f) past raw).map context = some key then [] else _)
+              split_ifs with stop
+              · rfl
+              · rw [List.map_cons]
+                congr 1
+                apply ih
+                intro other
+                by_cases same : other = raw
+                · subst same
+                  simp only [Function.update_self]
+                · rw [Function.update_of_ne (injective.ne same),Function.update_of_ne same,agree]
+
+theorem byteCut_map {Q : Type} [DecidableEq Q] (schema : History.Codec T) (bytes : Q → Framing.Bytes)
+    (context : T → Key) (key : Key) (f : P → Q) (injective : Function.Injective f)
+    (trace : List (Point P PrfKey Word × Digest)) :
+    byteCut schema bytes context key (trace.map fun qa => (Sum.map f id qa.1,qa.2)) =
+      byteCut schema (bytes ∘ f) context key trace := by
+  unfold byteCut
+  rw [scan_map schema bytes context key f injective (fun _ => none) (fun _ => none) (fun _ => rfl),List.map_map]
+  rfl
+
+/-- The extraction cut read from a byte-addressed query log alone: each
+input is split into a PRF point or another input by `rawPoint`, which needs
+no finite address window, no oracle and no knowledge of the program that
+produced the log. -/
+def logCut (schema : History.Codec T) (context : T → Key) (key : Key)
+    (log : List (Framing.Bytes × Digest)) : List (Framing.Bytes × Digest) :=
+  byteCut schema (fun point : OtherPoint => point.val) context key (log.map fun qa => (rawPoint qa.1,qa.2))
 
 omit [DecidableEq P] in
 private theorem trace_node {fuel : ℕ} (context : T → Key) (raw : P) (logical : Option T)
