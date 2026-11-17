@@ -22,7 +22,10 @@ use crate::{
             ir::{Expr, RewriteT},
         },
     },
-    core::algebra::{AlgebraicField, Nat, SupportsNatConversions, SupportsU64Conversions},
+    core::algebra::{
+        AlgebraicField, Nat, SerializableField, SupportsNatConversions, SupportsU64Conversions,
+    },
+    runtime::algebra::{gf2_128, p256, RuntimeField},
 };
 
 fn run_test<
@@ -137,7 +140,7 @@ fn prime_precious_sum_coalesces_its_flattened_alias() {
 }
 
 #[test]
-fn bilinear_2x2_expands_when_enabled() {
+fn bilinear_only_constant_linear_factors_expand_when_enabled() {
     let f = Gf2_128Field::new();
     let arena = CompilerArena::new();
     let algebraic = AlgebraicRewriter::with_bilinear_expansion(&f, Cse::new(&arena), true);
@@ -150,16 +153,10 @@ fn bilinear_2x2_expands_when_enabled() {
     let cd = algebraic.sum(&[c, d], false);
     let prod = algebraic.quadratic(&f.one(), &ab, &cd);
 
-    let expected = algebraic.sum(
-        &[
-            algebraic.quadratic(&f.one(), &a, &c),
-            algebraic.quadratic(&f.one(), &a, &d),
-            algebraic.quadratic(&f.one(), &b, &c),
-            algebraic.quadratic(&f.one(), &b, &d),
-        ],
-        false,
+    assert!(
+        matches!(&prod.v, Expr::Quadratic(_, x, y) if (*x == ab && *y == cd) || (*x == cd && *y == ab)),
+        "two variable terms in each factor must stay factored"
     );
-    assert_eq!(prod, expected);
 
     // Low-degree constant summands `(a + 1) * (b + 1)` also fold cleanly to `a*b + a + b + 1`.
     let one = algebraic.one();
@@ -168,6 +165,12 @@ fn bilinear_2x2_expands_when_enabled() {
     let prod_const = algebraic.quadratic(&f.one(), &a1, &b1);
     let expected_const = algebraic.sum(&[algebraic.quadratic(&f.one(), &a, &b), a, b, one], false);
     assert_eq!(prod_const, expected_const);
+
+    for (left, right) in [(a1, cd), (cd, a1)] {
+        let mixed = algebraic.quadratic(&f.one(), &left, &right);
+        assert!(matches!(&mixed.v, Expr::Quadratic(_, x, y)
+            if (*x == left && *y == right) || (*x == right && *y == left)));
+    }
 }
 
 #[test]
@@ -176,17 +179,15 @@ fn bilinear_2x2_not_expanded_when_disabled() {
     let arena = CompilerArena::new();
     let algebraic = AlgebraicRewriter::new(&f, Cse::new(&arena));
     let a = algebraic.input(1);
-    let b = algebraic.input(2);
     let c = algebraic.input(3);
-    let d = algebraic.input(4);
 
-    let ab = algebraic.sum(&[a, b], false);
-    let cd = algebraic.sum(&[c, d], false);
+    let ab = algebraic.sum(&[a, algebraic.one()], false);
+    let cd = algebraic.sum(&[c, algebraic.one()], false);
     let prod = algebraic.quadratic(&f.one(), &ab, &cd);
 
     assert!(
         matches!(&prod.v, Expr::Quadratic(_, x, y) if (*x == ab && *y == cd) || (*x == cd && *y == ab)),
-        "expected unexpanded Quadratic over (a+b) and (c+d), got {prod:?}"
+        "expected disabled product over (a+1) and (c+1) to stay factored, got {prod:?}"
     );
 }
 
@@ -277,4 +278,132 @@ fn bilinear_not_expanded_when_summand_not_low_degree() {
         matches!(&nested_prod.v, Expr::Quadratic(_, x, y) if (*x == nested_precious_sum && *y == de) || (*x == de && *y == nested_precious_sum)),
         "expected product with precious summand to stay unexpanded, got {nested_prod:?}"
     );
+}
+
+fn weighted_constant_linear_shapes<F: CompileField + SupportsU64Conversions>(f: &F) {
+    let arena = CompilerArena::new();
+    let algebraic = AlgebraicRewriter::with_bilinear_expansion(f, Cse::new(&arena), true);
+    let x = algebraic.input(1);
+    let y = algebraic.input(2);
+    let c3 = f.u64_to_element(3);
+    let c5 = f.u64_to_element(5);
+    let c7 = f.u64_to_element(7);
+    let c11 = f.u64_to_element(11);
+    let c13 = f.u64_to_element(13);
+    let left = algebraic.sum(&[algebraic.constant(&c7), algebraic.linear(&c3, &x)], false);
+    let right = algebraic.sum(
+        &[algebraic.linear(&c5, &y), algebraic.constant(&c11)],
+        false,
+    );
+    let expected = algebraic.sum(
+        &[
+            algebraic.quadratic(&f.mulf(&c13, &f.mulf(&c3, &c5)), &x, &y),
+            algebraic.linear(&f.mulf(&c13, &f.mulf(&c3, &c11)), &x),
+            algebraic.linear(&f.mulf(&c13, &f.mulf(&c7, &c5)), &y),
+            algebraic.constant(&f.mulf(&c13, &f.mulf(&c7, &c11))),
+        ],
+        false,
+    );
+    assert_eq!(algebraic.quadratic(&c13, &left, &right), expected);
+    assert_eq!(algebraic.quadratic(&c13, &right, &left), expected);
+
+    // The accepted shape must retain its existing precious/degree/size guards.
+    let precious = algebraic.sum(&[x, algebraic.constant(&c7)], true);
+    let high = algebraic.sum(
+        &[
+            algebraic.quadratic(&f.one(), &x, &y),
+            algebraic.constant(&c7),
+        ],
+        false,
+    );
+    let large = algebraic.sum(&[x, y, algebraic.constant(&c7)], false);
+    for blocked in [precious, high, large] {
+        for (a, b) in [(blocked, right), (right, blocked)] {
+            let product = algebraic.quadratic(&f.one(), &a, &b);
+            assert!(matches!(&product.v, Expr::Quadratic(_, u, v)
+                if (*u == a && *v == b) || (*u == b && *v == a)));
+        }
+    }
+    // Existing one-sided distribution stays enabled without a constant in its sum.
+    let two_variables = algebraic.sum(&[x, y], false);
+    let one_sided = algebraic.quadratic(&f.one(), &two_variables, &x);
+    assert_eq!(
+        one_sided,
+        algebraic.sum(
+            &[
+                algebraic.quadratic(&f.one(), &x, &x),
+                algebraic.quadratic(&f.one(), &y, &x),
+            ],
+            false
+        )
+    );
+}
+
+#[test]
+fn constant_linear_weighted_shapes_both_fields() {
+    weighted_constant_linear_shapes(&P256Field::new());
+    weighted_constant_linear_shapes(&Gf2_128Field::new());
+}
+
+fn compiled_constant_linear_controls<FC, FR>(fc: &FC, fr: &FR)
+where
+    FC: CompileField + SerializableField + SupportsU64Conversions,
+    FR: RuntimeField + SerializableField,
+{
+    use crate::compile::{
+        compiler::{compile_v2, segment_circuit_v2},
+        debug::evaluate::eval_circuit_fc,
+        logic::{Logic, LogicIO},
+    };
+    let (raw, _, symbols) = compile_v2(fc, |logic| {
+        let x = logic.input(1);
+        let y = logic.input(2);
+        let expected = logic.input(3);
+        let left = logic.add(
+            &logic.konst(&fc.u64_to_element(7)),
+            &logic.mulk(&fc.u64_to_element(3), &x),
+        );
+        let right = logic.add(
+            &logic.mulk(&fc.u64_to_element(5), &y),
+            &logic.konst(&fc.u64_to_element(11)),
+        );
+        let product = logic.mulk(&fc.u64_to_element(13), &logic.mul(&left, &right));
+        (logic.assert_eq("weighted_product", &product, &expected), 1)
+    });
+    let circuit = segment_circuit_v2(fc, raw);
+    let convert = |n| {
+        fr.bytes_to_element(&fc.to_bytes(&fc.u64_to_element(n)))
+            .unwrap()
+    };
+    for (x_value, y_value) in [(0, 0), (0, 1), (1, 0), (2, 7), (19, 23)] {
+        let x = convert(x_value);
+        let y = convert(y_value);
+        let left = fr.addf(&convert(7), &fr.mulf(&convert(3), &x));
+        let right = fr.addf(&fr.mulf(&convert(5), &y), &convert(11));
+        let product = fr.mulf(&convert(13), &fr.mulf(&left, &right));
+        eval_circuit_fc(
+            fc,
+            fr,
+            &circuit,
+            &symbols,
+            &[x.clone(), y.clone(), product.clone()],
+        )
+        .unwrap()
+        .assert_all_passed();
+        eval_circuit_fc(
+            fc,
+            fr,
+            &circuit,
+            &symbols,
+            &[x, y, fr.addf(&product, &fr.one())],
+        )
+        .unwrap()
+        .assert_any_failed_at("weighted_product");
+    }
+}
+
+#[test]
+fn constant_linear_compiled_controls_both_fields() {
+    compiled_constant_linear_controls(&P256Field::new(), &p256::P256Field::new());
+    compiled_constant_linear_controls(&Gf2_128Field::new(), &gf2_128::Gf2_128Field::new());
 }

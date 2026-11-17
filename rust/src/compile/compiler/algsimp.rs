@@ -93,6 +93,16 @@ where NEXT: RewriteT<'a, F>
         !matches!(&x.v, Expr::Quadratic(..) | Expr::Sum(_, true))
     }
 
+    fn constant_plus_linear(&self, terms: &[ExprNode<'a, F>]) -> bool {
+        terms.len() == 2
+            && terms
+                .iter()
+                .filter(|term| matches!(term.v, Expr::Constant(_)))
+                .count()
+                == 1
+            && terms.iter().all(|term| self.low_degree(term))
+    }
+
     fn ground_linear(&self, e: &F::E, x: &ExprNode<'a, F>) -> ExprNode<'a, F> {
         assert!(!self.f.is_zero(e));
         self.next.linear(e, x)
@@ -278,10 +288,8 @@ where NEXT: RewriteT<'a, F>
             (_, Expr::Linear(e1, ref x1)) => self.quadratic(&f.mulf(e, e1), x1, a),
             (Expr::Sum(la, false), Expr::Sum(lb, false))
                 if self.expand_bilinear
-                    && la.len() <= 2
-                    && lb.len() <= 2
-                    && la.iter().all(|x| self.low_degree(x))
-                    && lb.iter().all(|x| self.low_degree(x)) =>
+                    && self.constant_plus_linear(la)
+                    && self.constant_plus_linear(lb) =>
             {
                 let mut mapped = Vec::with_capacity(la.len() * lb.len());
                 for xa in *la {
