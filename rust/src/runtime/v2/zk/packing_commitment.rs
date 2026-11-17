@@ -78,6 +78,11 @@ pub(crate) struct PackingCommitment<
 }
 impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
     pub(crate) fn new(f: F, layout: PackingLayout, extension: X) -> Result<Self, String> {
+        // The layout counts packed words and masks for its own degree; the
+        // parameters pack and sample masks for the extension's.
+        if layout.degree != extension.degree() {
+            return Err("packing layout degree differs from the extension degree".into());
+        }
         Ok(Self {
             parameters: PackingParameters::new(f, extension)?,
             layout,

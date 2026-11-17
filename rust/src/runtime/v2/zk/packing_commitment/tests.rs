@@ -84,3 +84,25 @@ fn append_equations_rejects_rows_of_another_shape() {
         assert_eq!(append(&rows).err().unwrap(), "packing field equation shape");
     }
 }
+
+/// The layout counts packed words and masks for its packing degree, and the
+/// parameters pack words and sample masks for the extension's. A layout of
+/// another degree would describe cells the commitment does not produce
+/// (`PackingLayout::new(128, 0, 1)` with the degree-128 binary extension
+/// declares 128 cells, the packing produces 130), so construction rejects
+/// it.
+#[test]
+fn packing_commitment_rejects_a_layout_of_another_degree() {
+    let f = Gf2_128Field::new();
+    let extension = Binary128Extension;
+    assert_eq!(extension.degree(), 128);
+    let narrow = PackingLayout::new(128, 0, 1).unwrap();
+    assert_eq!(
+        PackingCommitment::new(f.clone(), narrow, extension)
+            .err()
+            .unwrap(),
+        "packing layout degree differs from the extension degree"
+    );
+    let matching = PackingLayout::new(128, 0, extension.degree()).unwrap();
+    assert!(PackingCommitment::new(f, matching, extension).is_ok());
+}
