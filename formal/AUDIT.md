@@ -115,13 +115,16 @@ Three review passes cover the current soundness path.
    little-endian indices, indexed Merkle leaves and nodes, 32-byte nonces,
    canonical proof parsing and the mandatory final seal with Rust. The Rust
    transcript and adapter bind prover messages and static statements while
-   retaining challenge-derived coefficients in verifier state. Before the
-   shared root, every participant binds its packing frame (for packing degree
-   above one) and `layered-sumcheck/commitment-layout/v1` (additional circuit
-   IDs and layer widths); the split participant also binds
-   `foreign-storage/mixed-layout/v1` (circuit ID, storage runs and R's bit
-   group). After the root, only the statement, prover messages and fixed
-   labels are absorbed; virtual leaf definitions and quotients never are.
+   retaining challenge-derived coefficients in verifier state. Node 0
+   (`TaggedFormat.first`) binds the statement message with the session, every
+   setup message (the three `Circuit` IDs, both `CommitmentLayout`s with their
+   packing descriptors and storage runs, `AdapterLayout`, `JointGeometry`)
+   and both `PublicInputs` vectors, then the `Commitment` root, before the
+   first draw. Later nodes carry only tagged prover messages, with no domain
+   label, setup constant or derived value. The masked quotients are prover
+   messages, absorbed as `P256AdapterQuotients` (tag 65, two `Bits(Q)`); the
+   private unmasked quotients and the derived virtual-leaf definitions and
+   coefficients never are.
 
 The endpoint tests and native Rust library tests are source-correspondence
 checks. The current composition, transcript and sumcheck test aggregates each

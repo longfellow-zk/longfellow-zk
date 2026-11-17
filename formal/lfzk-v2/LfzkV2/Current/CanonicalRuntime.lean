@@ -78,8 +78,9 @@ theorem hashPublic_replay (request : Request binary fmt) (initial : Digest)
     (binaryRequest binary prime P R fmt cfg binaryCount) metadata request initial proof H index
 
 omit [DecidableEq B] in
-/-- The scalar parser and field representation recover exactly the late
-request vector. The count casts change only indices, not values or bytes. -/
+/-- The scalar parser and field representation recover exactly the request's
+prime vector from the node at `primeIndex` (node 0 in `TaggedFormat`, whose
+key carries it). The count casts change only indices, not values or bytes. -/
 theorem primePublic_replay (request : Request binary fmt) (initial : Digest)
     (proof : Replay.Output g fields Advice (OpeningBody.Authentication g))
     (H : Point binary fmt → Digest × C) (index : ℕ)
@@ -105,7 +106,8 @@ def batchingPoint (output : FormatOutput binary fmt) (H : Point binary fmt → D
     (earlier binary prime P R fmt cfg binaryCount metadata)).point output H g.batchingIndex.val
 
 /-- At the backend boundary both parsed public vectors are precisely the
-chosen request. The early key still omits the late prime vector. -/
+chosen request. In `TaggedFormat` both are read from the first node's key,
+which binds them before the commitment. -/
 theorem batching_publics (output : FormatOutput binary fmt)
     (H : Point binary fmt → Digest × C) :
     fmt.hashPublic
