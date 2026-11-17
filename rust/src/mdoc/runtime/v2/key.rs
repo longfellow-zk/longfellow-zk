@@ -15,11 +15,8 @@
 //! Longfellow v2 public-key parsing for application entry points.
 
 use crate::{
-    core::algebra::{Nat, SerializableField},
-    runtime::algebra::{
-        p256::{P256Element, P256Field},
-        RuntimeNat,
-    },
+    core::algebra::SerializableField,
+    runtime::algebra::p256::{P256Element, P256Field},
 };
 
 fn hex_decode_to_32_bytes_be(s: &str) -> Result<[u8; 32], String> {
@@ -54,14 +51,11 @@ fn char_to_digit(c: u8) -> Result<u8, String> {
     }
 }
 
-fn parse_hex_nat<const W: usize, N: Nat<W>>(s: &str) -> Result<N, String> {
-    let s_clean = s.strip_prefix("0x").unwrap_or(s);
-    let mut bytes_be = hex_decode_to_32_bytes_be(s_clean)?;
-    bytes_be.reverse();
-    Ok(N::from_bytes_le(&bytes_be))
-}
-
+/// A public-key coordinate: at most 64 hex digits, optionally after `0x`,
+/// naming a canonical P-256 field element (below the modulus).
 pub(super) fn parse_pk_coordinate(s: &str, field: &P256Field) -> Result<P256Element, String> {
-    let nat = parse_hex_nat::<4, RuntimeNat<4>>(s)?;
-    field.bytes_to_element(&nat.to_bytes_le())
+    let mut bytes = hex_decode_to_32_bytes_be(s.strip_prefix("0x").unwrap_or(s))?;
+    // The field's serialization is little-endian.
+    bytes.reverse();
+    field.bytes_to_element(&bytes)
 }
