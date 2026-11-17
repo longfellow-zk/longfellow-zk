@@ -3,7 +3,7 @@ import LfzkV2.Current.MetadataIdentifiers
 
 /-! Exact setup values for the current mdoc verifier. The trusted statement
 constants and the identifier hash are inputs; the statement message's head
-and the archived adapter fragment identifier are constructed here, and the
+and the generated adapter fragment identifier are constructed here, and the
 statement binds that identifier in its own `Circuit` message, as Rust does.
 The fragment hash is an ordinary auxiliary hash input, not an additional
 transcript query. The Merkle hash domain is a protocol constant
@@ -81,7 +81,7 @@ structure Bounds where
   binaryRowsFit : (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).affineRows .binary < 2^64
   primeRowsFit : (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).affineRows .prime < 2^64
 
-/-- Identifier of the archived adapter fragment, rebuilt from the hash
+/-- Identifier of the generated adapter fragment, rebuilt from the hash
 circuit's shape: its virtual leaves start after the committed inputs. -/
 def fragmentId (ids : Identifiers) : Digest :=
   MetadataIdentifiers.fragmentId ids.hash scalars.binary.encode binary.description.shape

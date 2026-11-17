@@ -5,7 +5,7 @@ import LfzkV2.Current.SegmentedCircuit
 /-! Identifier inputs used by the current runtime. Hashing is an explicit
 auxiliary function; the bytes it receives are fixed here, rather than supplied
 by a proof-dependent metadata callback. In particular the identifier of the
-archived adapter fragment uses the same sparse rows as its algebraic model.
+generated adapter fragment uses the same sparse rows as its algebraic model.
 
 The LFC3 hash input authenticates the stored coefficient table, delta
 dictionaries, segment indices and tokens. Compression changes the identity.
@@ -74,7 +74,7 @@ def storedLayer (layer : Layer F)
 def finalLayer : Layer F :=
   ⟨4,(stream (finalRows (F := F))).map (Term.map Fin.val (fun wire => (wireIndex 2 wire).val))⟩
 
-/-- LFC3 identity bytes of the archived adapter fragment. Its first
+/-- LFC3 identity bytes of the generated adapter fragment. Its first
 reduction reads the virtual leaves from `virtualStart` of the shared input
 array of width `inputs`; every coefficient is table entry zero, the one. -/
 def fragmentBytes (encode : F → Bytes) {leaves : ℕ} (shape : Shape (half leaves))

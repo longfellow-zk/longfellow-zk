@@ -4,10 +4,11 @@ import LfzkV2.Current.FrontendVerifier
 import LfzkV2.Current.GeneratorChecks
 
 /-! Construct the application's frontend system from public circuit data and
-parsed messages. The binary circuit is fixed: the hash circuit and the archived
-adapter fragment. Per-proof adapter values are virtual inputs, derived from the
-prime claim and the adapter exchange. Product semantics and cell addresses
-are constructed here; neither is accepted as a semantic certificate. -/
+parsed messages. The binary circuit is fixed: the archived hash circuit and the
+generated adapter fragment. Per-proof adapter values are virtual inputs,
+derived from the prime claim and the adapter exchange. Product semantics and
+cell addresses are constructed here; neither is accepted as a semantic
+certificate. -/
 noncomputable section
 namespace LfzkV2.Current.ApplicationSetup
 open SumcheckV2 WitnessSelection Application

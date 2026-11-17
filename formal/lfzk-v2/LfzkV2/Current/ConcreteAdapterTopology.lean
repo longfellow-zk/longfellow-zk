@@ -2,7 +2,7 @@ import LfzkV2.Current.ConcreteTopology
 import LfzkV2.Current.AdapterFragment
 
 /-! Sparse trusted hash topology around the fixed adapter fragment. The hash
-is component zero and the archived adapter fragment component one. At every
+is component zero and the generated adapter fragment component one. At every
 shared layer the hash fragments precede the adapter's, as in the runtime
 schedule, which orders components by decreasing depth. The adapter's two zero
 outputs enter together at its first layer.

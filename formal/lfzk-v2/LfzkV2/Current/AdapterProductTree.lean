@@ -1,6 +1,6 @@
 import LfzkV2.Current.AdapterCircuit
 
-/-! The archived adapter fragment of `runtime::v2::foreign::adapter`. It is
+/-! The generated adapter fragment of `runtime::v2::foreign::adapter`. It is
 one fixed product tree per conversion tree over virtual leaves: adjacent
 products with odd carries until two wires remain in each tree, then one output
 `l*r + 1`, which must vanish. In characteristic two this says that the tree's
