@@ -30,9 +30,11 @@ impl From<MdocParseError> for Error {
     }
 }
 
-/// The largest document the prover parses: 256 KiB, well above a full mDL with
-/// its portrait (DESIGN.md, "Size limits"). It bounds the CBOR trees that
-/// parsing builds.
+/// The largest document the prover parses: 256 KiB, room for the MSO and
+/// hundreds of issuer-signed items. It bounds the CBOR trees that parsing
+/// builds. Every item, requested or not, must also have the attribute
+/// circuit's short form (an inner map of at most 255 bytes), so a document
+/// carrying a portrait is rejected (DESIGN.md, "Size limits").
 pub(super) const MAX_DOCUMENT_BYTES: usize = 256 * 1024;
 
 /// Parse the document the checked request presents: its session transcript,
