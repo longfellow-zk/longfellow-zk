@@ -141,7 +141,7 @@ The largest supported mdoc circuit (four attributes) has 462 rounds:
 `275 + 118 + 2*(20 + 11) + 7 = 462`. Thus `r+15 = 477 < 2^10`.
 The proof rounds the constant correction up to $2^{-246}$.
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
-450/454/459/462 rounds. `MdocRoundShape.rounds_eq` derives the total from each
+449/454/459/462 rounds. `MdocRoundShape.rounds_eq` derives the total from each
 per-layer schedule; [`check_mdoc_round_shapes.rs`](../scripts/check_mdoc_round_shapes.rs)
 checks those schedules and totals against the current Rust compiler. The
 approximation takes a supported-shape witness and derives the round bound

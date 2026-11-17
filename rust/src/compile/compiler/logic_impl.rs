@@ -57,7 +57,7 @@ impl<'a, F: CompileField> CompilerLogic<'a, F> {
         retain_bit_assertions_v1: bool,
     ) -> Self {
         let cse = Cse::new(arena);
-        let next = AlgebraicRewriter::new(f, cse);
+        let next = AlgebraicRewriter::with_bilinear_expansion(f, cse, !retain_bit_assertions_v1);
         Self {
             arena,
             f,

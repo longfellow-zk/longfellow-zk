@@ -293,7 +293,7 @@ draws after it read further from the node that precedes it; a zero-layer
 frontend of packing degree above one still sends its packing messages.
 Pure-foreign storage (no native cells) adds its row weights, drawn by the
 pure split step at the frontend's last boundary, before the conversion pair. The four
-supported mdoc shapes (one to four attributes) have 450/454/459/462
+supported mdoc shapes (one to four attributes) have 449/454/459/462
 boundaries; four attributes: 400 + 2 x 31 + 7 = 469. The boundary count
 enters the soundness bound only as r/2^256.
 

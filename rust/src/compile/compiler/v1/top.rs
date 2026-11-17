@@ -46,8 +46,13 @@ where
     let source_logic = CompilerLogic::new(&source_arena, f, &source_tracker, true);
     let (assertions, npublic_input, subfield_boundary) = build(source_logic);
     let arena1 = CompilerArena::new();
-    let simplified =
-        crate::compile::compiler::assertion::rewrite(&arena1, f, assertions.items, &source_tracker);
+    let simplified = crate::compile::compiler::assertion::rewrite(
+        &arena1,
+        f,
+        assertions.items,
+        &source_tracker,
+        false,
+    );
 
     // Source arena can be dropped after rewriting source assertions into arena1.
     drop(source_arena);

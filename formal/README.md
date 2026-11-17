@@ -64,7 +64,7 @@ The proof rounds the constant correction up to $2^{-246}$.
 `Mdoc.Soundness.averaged_mdoc_approximation` proves this all-budget consequence.
 
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
-450/454/459/462 rounds. `MdocRoundShape.rounds_eq` derives the total from each
+449/454/459/462 rounds. `MdocRoundShape.rounds_eq` derives the total from each
 per-layer schedule; [`check_mdoc_round_shapes.rs`](scripts/check_mdoc_round_shapes.rs)
 checks those schedules and totals against the current Rust compiler. Each layer
 has its sumcheck rounds, a terminal and a combine round; a later layer's

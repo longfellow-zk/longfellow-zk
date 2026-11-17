@@ -21,13 +21,22 @@ use crate::compile::{
 pub struct AlgebraicRewriter<'a, F: CompileField, NEXT> {
     f: &'a F,
     next: NEXT,
+    expand_bilinear: bool,
 }
 
 impl<'a, F: CompileField, NEXT> AlgebraicRewriter<'a, F, NEXT>
 where NEXT: RewriteT<'a, F>
 {
     pub fn new(f: &'a F, next: NEXT) -> Self {
-        AlgebraicRewriter { f, next }
+        Self::with_bilinear_expansion(f, next, false)
+    }
+
+    pub(super) fn with_bilinear_expansion(f: &'a F, next: NEXT, expand_bilinear: bool) -> Self {
+        AlgebraicRewriter {
+            f,
+            next,
+            expand_bilinear,
+        }
     }
 
     fn flatten_sum(&self, l: &[ExprNode<'a, F>]) -> Vec<ExprNode<'a, F>> {
@@ -267,6 +276,21 @@ where NEXT: RewriteT<'a, F>
             (_, Expr::Constant(e1)) => self.linear(&f.mulf(e, e1), a),
             (Expr::Linear(e1, ref x1), _) => self.quadratic(&f.mulf(e, e1), x1, b),
             (_, Expr::Linear(e1, ref x1)) => self.quadratic(&f.mulf(e, e1), x1, a),
+            (Expr::Sum(la, false), Expr::Sum(lb, false))
+                if self.expand_bilinear
+                    && la.len() <= 2
+                    && lb.len() <= 2
+                    && la.iter().all(|x| self.low_degree(x))
+                    && lb.iter().all(|x| self.low_degree(x)) =>
+            {
+                let mut mapped = Vec::with_capacity(la.len() * lb.len());
+                for xa in *la {
+                    for xb in *lb {
+                        mapped.push(self.quadratic(e, xa, xb));
+                    }
+                }
+                self.sum(&mapped, false)
+            }
             (Expr::Sum(_, _), Expr::Sum(_, _)) => self.ground_quadratic(e, a, b),
             (_, Expr::Sum(l, false)) if l.iter().all(|x| self.low_degree(x)) => {
                 let mapped: Vec<ExprNode<'a, F>> =

@@ -75,7 +75,7 @@ fn test_rewrite_coalesces_algebraically_equal_assertions() {
     ]);
 
     let target_arena = CompilerArena::new();
-    let rewritten = rewrite(&target_arena, &f, assertions, &tracker);
+    let rewritten = rewrite(&target_arena, &f, assertions, &tracker, false);
     assert_eq!(rewritten.len(), 1);
     assert_eq!(rewritten[0].id, aid1);
 }

@@ -153,10 +153,11 @@ pub fn rewrite<'src, 'dst, F: CompileField>(
     f: &'dst F,
     assertions: &'src [AssertionItem<'src, F>],
     tracker: &AssertionScope,
+    expand_bilinear: bool,
 ) -> Assertions<'dst, F> {
     let stripped = strip_all(arena, assertions, tracker);
     let cse = Cse::new(arena);
-    let algebraic = AlgebraicRewriter::new(f, cse);
+    let algebraic = AlgebraicRewriter::with_bilinear_expansion(f, cse, expand_bilinear);
     let rewritten = walk(arena, stripped, &algebraic);
     dedup_assertions(arena, rewritten, tracker)
 }

@@ -82,6 +82,7 @@ where
                     f,
                     assertions.items,
                     &source_tracker,
+                    true,
                 );
                 let declared_inputs = source_arena
                     .input_end()
