@@ -4,7 +4,8 @@ The current numbered-strand soundness endpoint is
 [`Mdoc.Soundness.averaged_ratio_le`](LfzkV2/Current/Mdoc/Soundness.lean).
 It connects one SHA oracle, the original raw adversarial query log, the
 complete serialized proof, the runtime verifier and the first-context
-paired extractor. Its conclusion is ordinary hash-witness validity and
+paired extractor. The extractor is straight-line: it reads only the submitted
+request and proof bytes and the adversary's own query log. Its conclusion is ordinary hash-witness validity and
 signature-circuit satisfaction at the submitted request's public inputs,
 using the same extracted pair. The complete numbered-strand privacy endpoint is
 [`Mdoc.ZeroKnowledge.statClose`](LfzkV2/Current/Mdoc/ZeroKnowledge.lean).
@@ -293,13 +294,18 @@ validity of the extracted private bits for any virtual suffix. Separation is a
 theorem, not a premise, so challenges cannot affect the ordinary hash
 predicate. Its Rust counterpart is that each sumcheck component reads only its
 own input prefix; there is no runtime scan. `Mdoc.Soundness.event` states
-actual acceptance with failure of the original-cut extractor to produce an
-application-valid witness; its probability bounds use this bridge.
+actual acceptance with failure of the straight-line extractor, run on the
+adversary's submission and query log, to produce an application-valid
+witness; its probability bounds use this bridge. The extractor reads the
+original cut from the log (`StrandCutObservation.logCut`) and needs no
+challenge: its list of decoded pairs contains the fingerprint-selected pair
+(`Mdoc.Soundness.extract_of_selected`).
 Application-circuit correctness remains trusted.
 
-The extractor is a mathematical finite search. No efficient enumeration bound
-is claimed for the worst-case binary/prime candidate caps
-`21898356682154715916` and `451457457136012100305`. The theorem establishes
+The extractor is a mathematical finite search over pairs of listed
+candidates. No efficient enumeration bound is claimed for the worst-case
+binary/prime candidate caps `21898356682154715916` and
+`451457457136012100305`. The theorem establishes
 extractor soundness; the separate complete privacy theorem follows below.
 
 The default build checks the current tests and endpoint axioms, allowing only

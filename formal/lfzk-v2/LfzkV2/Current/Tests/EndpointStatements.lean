@@ -12,8 +12,9 @@ definition it mentions, fails this module until the pinned value is updated
 after review. The pins cover the four endpoints (soundness, zero knowledge,
 simulator acceptance and completeness) and their corollaries at the Rust
 challenge reader (`Mdoc.Rust`), and each of them must reach the definitions
-that carry its meaning (`required`). Axiom and connectivity
-checks live in `Tests.MdocSoundness`. -/
+that carry its meaning (`required`). The soundness extractor must reach no
+oracle, verifier replay or challenge reader (`straightLine`). Axiom and
+connectivity checks live in `Tests.MdocSoundness`. -/
 namespace LfzkV2.Current.Tests.EndpointStatements
 open Lean Elab Command
 
@@ -49,20 +50,20 @@ def fingerprint (env : Environment) (root : Name) : UInt64 × NameSet := Id.run 
 /-- Reviewed statement fingerprints. Update a value only after reviewing the
 statement change it reflects. -/
 def pinned : List (Name × UInt64) := [
-  (``Current.Mdoc.Soundness.ratio_le, 12513049308035022),
-  (``Current.Mdoc.Soundness.linear_ratio_le, 8149359971269711468),
-  (``Current.Mdoc.Soundness.averaged_ratio_le, 1343762886749493020),
-  (``Current.Mdoc.Soundness.averaged_linear_ratio_le, 2199048693965618856),
-  (``Current.Mdoc.Soundness.averaged_nonvacuous, 15240982601471283804),
-  (``Current.Mdoc.Soundness.averaged_polynomial_ratio_le, 327645463245882727),
-  (``Current.Mdoc.Soundness.averaged_mdoc_approximation, 5162694118443197585),
+  (``Current.Mdoc.Soundness.ratio_le, 10985864768759244270),
+  (``Current.Mdoc.Soundness.linear_ratio_le, 10114806132965037328),
+  (``Current.Mdoc.Soundness.averaged_ratio_le, 4231206299229382500),
+  (``Current.Mdoc.Soundness.averaged_linear_ratio_le, 17813800602284372428),
+  (``Current.Mdoc.Soundness.averaged_nonvacuous, 10513584422030038440),
+  (``Current.Mdoc.Soundness.averaged_polynomial_ratio_le, 16601424018980447383),
+  (``Current.Mdoc.Soundness.averaged_mdoc_approximation, 16759450319921056937),
   (``Current.Mdoc.ZeroKnowledge.statClose, 11089277535653201106),
   (``Current.Mdoc.ZeroKnowledge.statClose_at_query_budget, 3608117319759410495),
   (``Current.Mdoc.VerifierPrivacy.acceptance_probability, 17334613443263901531),
   (``Current.Mdoc.Completeness.some_accepts, 4494509276498619142),
   (``Current.Mdoc.Completeness.accepts, 14703360873936376765),
   (``Current.Mdoc.Completeness.accepts_rust, 7576761460556919049),
-  (``Current.Mdoc.Soundness.averaged_ratio_le_rust, 10790887318093611518),
+  (``Current.Mdoc.Soundness.averaged_ratio_le_rust, 1540217881327781894),
   (``Current.Mdoc.ZeroKnowledge.statClose_rust, 9355581669937741965),
   (``Current.Mdoc.VerifierPrivacy.acceptance_probability_rust, 11679471597644133134)]
 
@@ -73,7 +74,9 @@ def required : List (Name × List Name) := [
   (``Current.Mdoc.Soundness.averaged_ratio_le,
     [``Soundness.Rate7.failureBound, ``Soundness.Rate7.polygeroConstant,
       ``Current.Mdoc.Soundness.event, ``Current.Mdoc.Soundness.Valid,
-      ``Current.Mdoc.Soundness.extract, ``MdocWitness.HashValid, ``MdocWitness.HashChecks,
+      ``Current.Mdoc.Soundness.extract, ``Current.Mdoc.Soundness.listed,
+      ``Current.Mdoc.Soundness.submitted, ``Soundness.Runtime.candidates,
+      ``StrandCutObservation.logCut, ``MdocWitness.HashValid, ``MdocWitness.HashChecks,
       ``ConcreteAdapterTopology.Others, ``MdocIdentifiers.setup, ``MdocIdentifiers.fragmentId,
       ``Protocol.Sampler, ``Protocol.SamplerLaws]),
   (``Current.Mdoc.ZeroKnowledge.statClose,
@@ -99,7 +102,7 @@ def required : List (Name × List Name) := [
   -- The deployed corollaries must reach the Rust reader itself: its lazy
   -- block reading, its role programs and the exact draws.
   (``Current.Mdoc.Soundness.averaged_ratio_le_rust,
-    [``Current.Mdoc.Soundness.event, ``Soundness.Rate7.failureBound,
+    [``Current.Mdoc.Soundness.event, ``Current.Mdoc.Soundness.extract, ``Soundness.Rate7.failureBound,
       ``Protocol.RustSampler.sampler, ``Protocol.RustSampler.lazySampler,
       ``Protocol.RustSampler.kindProg, ``Protocol.RustSampler.gfBits, ``Protocol.RustSampler.fp,
       ``Protocol.RustSampler.fpNonzero, ``Protocol.RustSampler.natDec,
@@ -116,6 +119,16 @@ def required : List (Name × List Name) := [
     [``Current.Mdoc.Completeness.prove, ``Current.Mdoc.Completeness.verify,
       ``Protocol.RustSampler.prfWindow, ``Protocol.RustSampler.lazySampler,
       ``Protocol.RustSampler.kindProg, ``Protocol.RustSampler.rustBlocks])]
+
+/-- What the straight-line extractor `Mdoc.Soundness.extract` must not reach:
+the oracle of the soundness experiment, the verifier's replay and decoding,
+and the challenge reader. -/
+def straightLine : List Name := [
+  ``Current.Mdoc.OracleSoundness.sha, ``Current.Mdoc.OracleSoundness.observation,
+  ``Current.Mdoc.RuntimeSoundness.Raw, ``Soundness.OracleTransport.rawSHA,
+  ``Soundness.OracleTransport.other, ``StrandAuthentication.replay,
+  ``TranscriptV2.StrandVerifier.oracle, ``Protocol.Observation.decoded,
+  ``Soundness.Runtime.viewAuthentication, ``Protocol.SamplerData]
 
 run_cmd do
   let env ← getEnv
@@ -139,5 +152,11 @@ run_cmd do
     let (_, reached) := fingerprint env name
     if reached.contains ``HashCircuit.ReadDisjoint then
       throwError "Endpoint {name} depends on a read-separation premise"
+  -- The soundness extractor is straight-line: it reads the submission and the
+  -- adversary's own query log, never an oracle, a verifier replay or a challenge.
+  let (_, reached) := fingerprint env ``Current.Mdoc.Soundness.extract
+  for name in straightLine do
+    if reached.contains name then
+      throwError "The soundness extractor reaches {name}"
 
 end LfzkV2.Current.Tests.EndpointStatements

@@ -8,9 +8,10 @@ consider any finite classical adaptive adversary making at most `Q` distinct
 original SHA queries.
 
 Let $P_{\mathrm{fail}}$ denote the probability that the verifier accepts
-and the paired extractor fails to recover a witness satisfying the ordinary
-hash constraints and signature circuit at the actual requested public inputs.
-Both use the same selected pair. Then
+and the straight-line extractor fails to recover a witness satisfying the
+ordinary hash constraints and signature circuit at the actual requested
+public inputs. The extractor reads only the submitted proof and the
+adversary's own query log, and both circuits use the same extracted pair. Then
 
 $$
 \begin{aligned}
@@ -105,8 +106,25 @@ The endpoint constructs the mdoc metadata, quotient-advice decoder, layout,
 frontend plans and rate certificate. `submitted_output`, `original_trace`,
 `verifier_actual`, `event_verified`, `setup_merge` and `parameters_merge`
 connect its event to the original submitted proof, original query log and
-complete runtime verifier. The extractor scans the original protocol-domain
-prefix at the commitment cut. Both fields use the same extracted tuple.
+complete runtime verifier.
+
+The extractor `Mdoc.Soundness.extract` is straight-line: a function of the
+public statement setup, the request and proof bytes the adversary submits and
+the adversary's own query log, with no oracle argument. It reads the
+commitment cut of the submitted context from the log's protocol-domain
+entries, in query order, taking each node at its first occurrence, up to the
+context's own node (`StrandCutObservation.logCut`). This is the cut the
+observation records (`Soundness.OracleTransport.viewMap_cuts`), so a repeated
+entry changes nothing. Both fields use the tuple extracted from that cut. The
+extractor returns a pair valid at the submitted request among the selected
+cells the tuple list-decodes to (`Soundness.Runtime.candidates`). It reads no
+challenge: an adversary may query a round's node without its PRF words, so
+Round 0's fingerprint coins need not be in the log. The list contains the
+pair that fingerprint selection with the verifier's coins picks
+(`Soundness.Runtime.selected_mem_candidates`), so the extractor succeeds
+whenever that pair is valid (`Mdoc.Soundness.extract_of_selected`).
+`Tests.EndpointStatements` checks that the extractor reaches no oracle,
+verifier replay or challenge reader.
 Runtime acceptance, ordered query recovery, column agreement and algebraic
 failure coverage are proved internally.
 
@@ -141,7 +159,7 @@ row 5; every other row is shared.
 
 | # | Declaration | Module | Step |
 |---|---|---|---|
-| 1 | `Mdoc.Soundness.averaged_ratio_le` | [`Mdoc.Soundness`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean) | `event_implies_extraction_failure`: an accepted proof whose extracted pair is not valid for the hash and signature circuits at the request (`MdocWitness.valid_at_request`) is a row-2 event. |
+| 1 | `Mdoc.Soundness.averaged_ratio_le` | [`Mdoc.Soundness`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean) | `event_implies_extraction_failure`: an accepted proof on which the extractor fails has a fingerprint-selected pair that is not valid for the hash and signature circuits at the request (`extract_of_selected`, `MdocWitness.valid_at_request`), a row-2 event. |
 | 2 | `Mdoc.OracleSoundness.averaged_ratio_le` | [`Mdoc.OracleSoundness`](lfzk-v2/LfzkV2/Current/Mdoc/OracleSoundness.lean) | Fixes the complementary setup slice (`setup_merge`, `residual_budget`, `event_eq`) and averages it and the adversary coin with no extra error. Domains: [`StrandDomains`](lfzk-v2/LfzkV2/Current/StrandDomains.lean), [`SHAOracle`](lfzk-v2/LfzkV2/Current/SHAOracle.lean), [`StrandRoutedObserver`](lfzk-v2/LfzkV2/Current/StrandRoutedObserver.lean). |
 | 3 | `Mdoc.RuntimeSoundness.ratio_le` | [`Mdoc.RuntimeSoundness`](lfzk-v2/LfzkV2/Current/Mdoc/RuntimeSoundness.lean) | Builds the concrete `Soundness.Setup` and discharges the numerical premises with [`Soundness.RuntimeRate7`](lfzk-v2/LfzkV2/Current/Soundness/RuntimeRate7.lean) and [`Soundness.Rate7`](lfzk-v2/LfzkV2/Current/Soundness/Rate7.lean). |
 | 4 | `Soundness.Composition.soundness` | [`Soundness.Composition`](lfzk-v2/LfzkV2/Current/Soundness/Composition.lean) | Transports raw SHA to named queries (`OracleTransport.observation_law`) and adds the hash exception (`Recovery.hashException_ratio_le`, [`Soundness.OracleBounds`](lfzk-v2/LfzkV2/Current/Soundness/OracleBounds.lean)). |
@@ -437,7 +455,8 @@ establish that a cryptographic implementation satisfies their premises.
   crate (mdoc's `Identity`): an application's identity encoding is trusted
   crate code.
 - **Efficiency and implementation.** Extraction uses mathematical finite
-  search; no polynomial-time extractor bound is proved. The explicit public
+  search: list decoding of the committed tuple and a validity check of each
+  listed pair. No polynomial-time extractor bound is proved. The explicit public
   simulator has no witness argument, but its running time is not formally
   bounded. Rust correspondence is reviewed and tested, rather than a
   mechanized refinement. A complete Rust-to-Lean verifier replay vector remains

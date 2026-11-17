@@ -87,7 +87,7 @@ run_cmd ProofAudit.standardAxioms #[``Mdoc.Soundness.averaged_ratio_le,
   ``Mdoc.ZeroKnowledge.statClose_at_query_budget, ``Mdoc.VerifierPrivacy.acceptance_probability,
   ``Mdoc.Completeness.some_accepts, ``Mdoc.Completeness.prove_some,
   ``Mdoc.Completeness.accepts, ``Mdoc.Completeness.accepts_rust, ``Mdoc.Completeness.rawReal_output,
-  ``Mdoc.Soundness.averaged_ratio_le_rust,
-  ``Mdoc.ZeroKnowledge.statClose_rust, ``Mdoc.VerifierPrivacy.acceptance_probability_rust]
+  ``Mdoc.Soundness.averaged_ratio_le_rust, ``Mdoc.Soundness.extract_of_selected,
+  ``Mdoc.Soundness.selected_listed, ``Mdoc.ZeroKnowledge.statClose_rust, ``Mdoc.VerifierPrivacy.acceptance_probability_rust]
 
 end LfzkV2.Current.Tests.RuntimeBoundary

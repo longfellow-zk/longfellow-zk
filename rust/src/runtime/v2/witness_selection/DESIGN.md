@@ -413,9 +413,12 @@ and the responses bound in the next boundary, and
 `LfzkV2.Current.Selection.atPoint_replay` proves the path identity.
 `LfzkV2.Current.FingerprintRows.decoded_view` derives both the frontend rows
 and the fingerprint match from the backend decoder, so authentication is a
-theorem, not a premise. Selection is an analysis object: the Polygero
-extractor still replays the frontends to rebuild its statement, and no
-extractor running-time bound is claimed.
+theorem, not a premise. Selection is an analysis object: the mdoc extractor
+(`LfzkV2.Current.Mdoc.Soundness.extract`) reads no fingerprint coin. It
+searches the pairs the committed tuple list-decodes to for one valid at the
+request, and that list contains the selected pair
+(`LfzkV2.Current.Soundness.Runtime.selected_mem_candidates`). No extractor
+running-time bound is claimed.
 
 **Zero knowledge.** For fixed `a` and `w`, the map from masks to responses is
 a translation, `WitnessSelection.maskTranslation`, so uniform private masks

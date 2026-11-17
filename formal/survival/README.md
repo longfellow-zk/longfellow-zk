@@ -510,7 +510,8 @@ obligations are derived facts, not additional hypotheses in these endpoints.
 `Mdoc.Soundness.decoded_valid` connects the decoded application to the actual
 request and ordinary hash/signature witness validity. Hash read separation is
 a theorem about the typed hash topology, not a premise; the application event includes actual acceptance and
-failure of that extractor. Thus the endpoint bounds application extraction
+failure of the straight-line extractor `Mdoc.Soundness.extract`, which reads only the
+submitted proof and the adversary's own query log. Thus the endpoint bounds application extraction
 failure, not only an internal algebraic predicate.
 
 

@@ -6,7 +6,10 @@ The checked current endpoint is
 [`Mdoc.Soundness.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean).
 It bounds the probability that a finite classical adaptive adversary making at
 most `Q` distinct original SHA queries obtains an accepted proof from which the
-extractor recovers no application-valid witness. The exact bound
+straight-line extractor recovers no application-valid witness. The extractor
+(`Mdoc.Soundness.extract`) reads only the submitted request and proof bytes
+and the adversary's own query log; it takes no oracle and reads no
+challenge. The exact bound
 `LfzkV2.Current.Soundness.Rate7.failureBound`, its coefficient
 `c = q * LfzkV2.Current.Soundness.Rate7.parentBudget`, the strict `0.97` cap
 (`Mdoc.Soundness.averaged_nonvacuous`) and the all-`Q` corollaries are stated
@@ -52,6 +55,14 @@ The proof path has the following checked boundaries, listed bottom-up; the
 8. `Mdoc.Soundness` composes `CanonicalRuntime.decoded_true_at_request`
    with `MdocWitness.hashValid_of_satisfies`. The same extracted pair satisfies
    ordinary hash constraints and the signature circuit at the actual request.
+   The extractor reads the commitment cut from the protocol-domain entries of
+   the adversary's log (`StrandCutObservation.logCut`), which equals the
+   observed cut (`Soundness.OracleTransport.viewMap_cuts`), and searches the
+   pairs the committed tuple list-decodes to for one valid at the request.
+   That list contains the fingerprint-selected pair
+   (`Soundness.Runtime.selected_mem_candidates`), so the extractor succeeds
+   whenever selection does (`extract_of_selected`), with no new event in the
+   bound.
    Hash read separation is structural: the hash circuit reads only its own
    input prefix, ahead of R, the quotient pads and the virtual leaves.
    `HashSeparation` proves it for typed hash topologies
