@@ -481,8 +481,13 @@ establish that a cryptographic implementation satisfies their premises.
   distance is classical (Berlekamp–Welch). The Lean decoder is a noncomputable
   specification (`recoverOnAt` chooses the unique row decodings), so the
   extractor's polynomial running time is argued on paper, not formally. The explicit public
-  simulator has no witness argument, but its running time is not formally
-  bounded. Rust correspondence is reviewed and tested, rather than a
+  simulator has no witness argument and performs no search: it runs the prior
+  observer, samples its tapes, reads the verifier's challenges and applies
+  linear maps and Reed–Solomon interpolation
+  (`PolynomialDirect.responsePolynomial`, `PolygeroZk.basePolynomial`). Those
+  Lean definitions are noncomputable specifications of interpolation, which is
+  treated as computable, so the simulator's polynomial running time is likewise
+  argued on paper, not formally. Rust correspondence is reviewed and tested, rather than a
   mechanized refinement. A complete Rust-to-Lean verifier replay vector remains
   absent. The separate honest-acceptance theorem covers every successfully
   returned proof, including indexed authentication and the final seal. No timing,
