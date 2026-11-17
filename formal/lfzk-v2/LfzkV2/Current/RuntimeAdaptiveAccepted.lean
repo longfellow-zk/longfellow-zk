@@ -196,7 +196,7 @@ theorem parsed_charged
 
 variable [Inhabited (RuntimeVerifier.Family binary prime P R cfg).Leaf]
 
-/-- Actual decoding supplies all late data and the selected pair. Each
+/-- Actual decoding supplies all late data and the recovered pair. Each
 failure is then charged at its real earlier boundary, including selection
 collisions at the first fingerprint query. -/
 theorem decoded_failure_cover
@@ -207,7 +207,7 @@ theorem decoded_failure_cover
     (output : Output) (H : Point → Digest × C) (decoded : Decoded)
     (hd : RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw output H = some decoded)
     (hfailure : ¬ ∃ w,
-      (RuntimeAdaptiveBackend.authentication binary prime P R cfg earlier cutOracle cutoff output H decoded).context.extract = some w ∧
+      (RuntimeAdaptiveBackend.authentication binary prime P R cfg earlier cutOracle cutoff output H decoded).recover = some w ∧
         decoded.application.True w) :
     RuntimeAdaptiveBackend.Bad binary prime P R cfg earlier cutOracle cutoff output H decoded ∨
       Charged binary prime P R cfg earlier hashPublic decodePublic layout cutoff cutOracle cutOff laws

@@ -27,6 +27,24 @@ structure Authentication
   response : JointResponse.Response P.participant R.participant
   cutoff : ℕ × ℕ
 
+/-- Transcript-assisted extraction, as in Polygero (`scanRecoverAt`): in each
+field the backend coin and response identify the good columns of the
+committed rows, each row is uniquely decoded on them, and the recovered
+tableau is projected to its selected cells. It forms no candidate list and
+reads no list-decoding cutoff. -/
+def StatementData.recover {A : System B I J SlotB PadB Other PadN IB IN CB CN p shared maskBits M K}
+    {P : FieldBackend B k s n t} {R : FieldBackend (ZMod p) k s n t} (d : StatementData A P R)
+    (oracle : JointResponse.Oracle P.participant R.participant)
+    (coin : JointResponse.Coin P.participant R.participant)
+    (response : JointResponse.Response P.participant R.participant) :
+    Option (Selection.Pair B (ZMod p) IB IN) :=
+  (scanRecoverAt P.backend d.statement.1 oracle.1 coin.1 response.1).bind fun gB =>
+    (scanRecoverAt R.backend d.statement.2 oracle.2 coin.2 response.2).map fun gN =>
+      (FingerprintRows.view P.backend d.primaryB
+        (fun i => A.binaryLayout (.inl i)) (fun j => A.binaryLayout (.inr j)) gB,
+       FingerprintRows.view R.backend d.primaryN
+        (fun i => A.primeLayout (.inl i)) (fun j => A.primeLayout (.inr j)) gN)
+
 namespace Authentication
 variable {A : System B I J SlotB PadB Other PadN IB IN CB CN p shared maskBits M K}
   {P : FieldBackend B k s n t} {R : FieldBackend (ZMod p) k s n t}
@@ -53,37 +71,72 @@ def BackendBad : Prop :=
     decodedOutsideList R.backend a.statement.2 a.oracle.2 a.coin.2 a.response.2 a.cutoff.2 ∨
     a.context.Collision
 
-/-- Actual recovery of the two appended affine statements identifies the
-selected pair and authenticates the rows consumed by the frontend reduction.
-Backend lifts with identical selected cells introduce no new candidate. -/
-theorem rows_or_backend :
-    (∃ w, a.context.extract = some w ∧
-      RowsHold A.binary.rows (A.binaryRead w) ∧ RowsHold A.primeRows (A.primeRead w)) ∨
-      a.BackendBad := by
-  exact BackendSelection.extraction_reduction P.participant R.participant
-    A.binary.rows A.primeRows a.primaryB a.primaryN A.binaryLayout A.primeLayout
-    a.coinsB a.coinsN a.targetB a.targetN a.equationsB a.equationsN
-    a.oracle a.coin a.response a.cutoff
+/-- Transcript-assisted extraction at the authenticated data. -/
+def recover : Option (Selection.Pair B (ZMod p) IB IN) :=
+  a.prefixData.recover a.oracle a.coin a.response
 
-/-- The selected pair is a satisfying application witness, or recovery,
-list membership, fingerprint selection, or an explicitly located frontend
-algebraic event fails.  Both compiler reductions and the prime handoff are
-proved by composition; there is no assumed application failure cover. -/
+/-- Recovery fails exactly on the backend's own failure event. -/
+theorem recover_isSome (hrecovered : ¬ JointResponse.failure P.participant R.participant
+    a.statement a.oracle a.coin a.response) : a.recover.isSome := by
+  obtain ⟨gB,hB⟩ : ∃ gB, scanRecoverAt P.backend a.prefixData.statement.1 a.oracle.1 a.coin.1 a.response.1 = some gB :=
+    Option.ne_none_iff_exists'.mp fun h => hrecovered (Or.inl h)
+  obtain ⟨gN,hN⟩ : ∃ gN, scanRecoverAt R.backend a.prefixData.statement.2 a.oracle.2 a.coin.2 a.response.2 = some gN :=
+    Option.ne_none_iff_exists'.mp fun h => hrecovered (Or.inr h)
+  simp only [recover,StatementData.recover,hB,hN,Option.bind_some]
+  rfl
+
+/-- Every recovered pair satisfies the frontend rows of both fields. The
+proof reads only the uniquely decoded tableaux and the appended affine
+statements (`scanRecoverAt_valid`); it uses no candidate list. -/
+theorem recover_rows (w : Selection.Pair B (ZMod p) IB IN) (hw : a.recover = some w) :
+    RowsHold A.binary.rows (A.binaryRead w) ∧ RowsHold A.primeRows (A.primeRead w) := by
+  simp only [recover,StatementData.recover,Option.bind_eq_some_iff,Option.map_eq_some_iff] at hw
+  obtain ⟨gB,hB,gN,hN,rfl⟩ := hw
+  have hb := FingerprintRows.decoded_view P.backend A.binary.rows a.primaryB _ _ a.coinsB a.targetB
+    a.equationsB a.oracle.1 a.coin.1 a.response.1 gB hB
+  have hn := FingerprintRows.decoded_view R.backend A.primeRows a.primaryN _ _ a.coinsN a.targetN
+    a.equationsN a.oracle.2 a.coin.2 a.response.2 gN hN
+  exact ⟨(FingerprintRows.rows_realized A.binaryLayout A.binary.rows _).mpr hb.1,
+    (FingerprintRows.rows_realized A.primeLayout A.primeRows _).mpr hn.1⟩
+
+/-- Outside the backend events, the recovered pair is the pair that early
+fingerprint selection picks from the commitment-only lists. This
+identification is used only to charge the frontend's algebraic event to a
+witness fixed before the frontend challenges. -/
+theorem recover_eq_extract (hgood : ¬ a.BackendBad) : a.recover = a.context.extract := by
+  obtain ⟨gB,gN,hB,hN,hs,_,_⟩ := BackendSelection.recovered_selected P.participant R.participant
+    A.binary.rows A.primeRows a.primaryB a.primaryN (fun i => A.binaryLayout (.inl i))
+    (fun i => A.primeLayout (.inl i)) (fun j => A.binaryLayout (.inr j)) (fun j => A.primeLayout (.inr j))
+    a.coinsB a.coinsN a.targetB a.targetN a.equationsB a.equationsN a.oracle a.coin a.response a.cutoff
+    (fun h => hgood (Or.inl h)) (fun h => hgood (Or.inr (Or.inl h)))
+    (fun h => hgood (Or.inr (Or.inr (Or.inl h)))) (fun h => hgood (Or.inr (Or.inr (Or.inr h))))
+  have hB' : scanRecoverAt P.backend a.prefixData.statement.1 a.oracle.1 a.coin.1 a.response.1 = some gB := hB
+  have hN' : scanRecoverAt R.backend a.prefixData.statement.2 a.oracle.2 a.coin.2 a.response.2 = some gN := hN
+  rw [show a.context.extract = _ from hs]
+  simp only [recover,StatementData.recover,hB',hN']
+  rfl
+
+/-- The recovered pair is a satisfying application witness, or the backend
+events hold, or the frontend's algebraic event holds for the early-selected
+pair. Both compiler reductions and the prime handoff are proved by
+composition; there is no assumed application failure cover. -/
 theorem extraction_reduction :
-    (∃ w, a.context.extract = some w ∧ A.True w) ∨ a.BackendBad ∨
+    (∃ w, a.recover = some w ∧ A.True w) ∨ a.BackendBad ∨
       (∃ w, a.context.extract = some w ∧ A.Bad w) := by
-  rcases a.rows_or_backend with ⟨w,hs,hb,hn⟩ | hbackend
-  · rcases A.rows_reduction w hb hn with htrue | hbad
-    · exact Or.inl ⟨w,hs,htrue⟩
-    · exact Or.inr (Or.inr ⟨w,hs,hbad⟩)
-  · exact Or.inr (Or.inl hbackend)
+  by_cases hbad : a.BackendBad
+  · exact Or.inr (Or.inl hbad)
+  obtain ⟨w,hw⟩ := Option.isSome_iff_exists.mp (a.recover_isSome fun h => hbad (Or.inl h))
+  obtain ⟨hb,hn⟩ := a.recover_rows w hw
+  rcases A.rows_reduction w hb hn with htrue | hfront
+  · exact Or.inl ⟨w,hw,htrue⟩
+  · exact Or.inr (Or.inr ⟨w,(a.recover_eq_extract hbad) ▸ hw,hfront⟩)
 
-/-- Specialization to extractor failure, retaining the exact selected pair
-for the later query-local causal cover. -/
+/-- Specialization to failure of transcript-assisted extraction, retaining
+the early-selected pair for the later query-local causal cover. -/
 theorem extraction_failure_cover
-    (hfailure : ¬ ∃ w, a.context.extract = some w ∧ A.True w) :
-    a.BackendBad ∨ (∃ w, a.context.extract = some w ∧ A.Bad w) := by
-  exact a.extraction_reduction.resolve_left hfailure
+    (hfailure : ¬ ∃ w, a.recover = some w ∧ A.True w) :
+    a.BackendBad ∨ (∃ w, a.context.extract = some w ∧ A.Bad w) :=
+  a.extraction_reduction.resolve_left hfailure
 
 end Authentication
 end LfzkV2.Current.Application

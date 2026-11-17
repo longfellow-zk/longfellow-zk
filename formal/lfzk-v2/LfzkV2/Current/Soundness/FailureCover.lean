@@ -68,7 +68,7 @@ theorem decoded_charge_cover (epsilon : ℚ) (output : Output) (H : Point → Di
     (hd : RuntimeAdaptiveVerifier.decode binary prime P R cfg earlier hashPublic decodePublic draw output H = some decoded)
     (hverify : let auth := RuntimeAdaptiveBackend.authentication binary prime P R cfg earlier cutOracle cutoff output H decoded
       JointResponse.Verify (First).participant (Second).participant auth.statement auth.oracle auth.coin auth.response decoded.query)
-    (hfailure : ¬ ∃ w, (RuntimeAdaptiveBackend.authentication binary prime P R cfg earlier cutOracle cutoff output H decoded).context.extract =
+    (hfailure : ¬ ∃ w, (RuntimeAdaptiveBackend.authentication binary prime P R cfg earlier cutOracle cutoff output H decoded).recover =
       some w ∧ decoded.application.True w) :
     let charge := single laws readers (RuntimeVerifier.encodeResponses binary prime P R cfg)
       (RuntimeAdaptiveBackend.derive binary prime P R cfg hashPublic decodePublic)

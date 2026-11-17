@@ -304,61 +304,23 @@ def viewAuthentication (view : View) (decoded : RuntimeVerifier.Decoded E.binary
 
 local notation "viewAuth" => viewAuthentication E
 
-/-- Failure concerns the witness selected from the original commitment cut. -/
+/-- Transcript-assisted extraction at the original commitment cut of the
+observed proof: the decoded statement, the tuple read from the cut, and the
+backend coin and response (`Application.StatementData.recover`). It is definitionally
+`(viewAuthentication view decoded).recover`, without the list-decoding cutoff
+that the authentication record also carries for the analysis. -/
+def viewRecover (view : View) (decoded : RuntimeVerifier.Decoded E.binary E.prime E.P E.R (E.wire)) :=
+  decoded.statement.recover
+    (Protocol.Observation.extracted E.First E.Second E.merkleCodec E.merkleDecoders E.fmt.root view (keyOf view.original.1))
+    decoded.coin (RuntimeVerifier.responses E.binary E.prime E.P E.R (E.wire) view.original.1.proof)
+
+/-- Failure concerns the pair recovered by transcript-assisted decoding of
+the tuple committed at the original commitment cut. -/
 def extractionFails (view : View) : Prop :=
   ∃ decoded, decodeView view = some decoded ∧
-    ¬ ∃ witness, (viewAuth view decoded).context.extract = some witness ∧ decoded.application.True witness
+    ¬ ∃ witness, (viewAuth view decoded).recover = some witness ∧ decoded.application.True witness
 
 local notation "failsView" => extractionFails E D
-
-/-- The committed tuple at one context, read from that context's cut. -/
-def cutTuple (key : E.fmt.Key) (cut : List (Bytes × Digest)) : JointResponse.Oracle E.First E.Second :=
-  Joint.Pair.oracleEquiv E.First E.Second
-    ((Joint.Pair.family E.First E.Second).indexedOracle E.merkleDecoders (E.fmt.root key) cut)
-
-/-- Every selected-cell pair that the tuple committed at `key` list-decodes
-to. The cell maps are the fixed layouts, so the list reads no challenge,
-no response and no decoded statement. -/
-def candidates (key : E.fmt.Key) (cut : List (Bytes × Digest)) :
-    Finset (Selection.Pair B (ZMod Adapter.Mdoc.primeOrder) E.binary.Original E.prime.Original) :=
-  match StatementCompiler.addresses E.P E.R E.binary.cells E.prime.remaining E.prime.pads with
-  | none => ∅
-  | some layout =>
-      ((Counting.committedCandidates (RuntimeVerifier.first E.binary E.prime E.P E.R (E.wire)).backend
-          (cutTuple E key cut).1 c.cutoff.1).image
-        ((RuntimeSource.selectedParam E.binary E.prime E.P E.R (E.wire) layout c.cutoff).first.view key)) ×ˢ
-      ((Counting.committedCandidates (RuntimeVerifier.second E.binary E.prime E.P E.R (E.wire)).backend
-          (cutTuple E key cut).2 c.cutoff.2).image
-        ((RuntimeSource.selectedParam E.binary E.prime E.P E.R (E.wire) layout c.cutoff).second.view key))
-
-omit [∀ side, Fintype (fields side)] [Fintype Advice] [Inhabited (Fin c.n × MerkleNonce)] in
-/-- The pair selected by fingerprints from the original cut is listed: the
-fingerprint coins and responses only choose among `candidates`. -/
-theorem selected_mem_candidates (view : View)
-    (decoded : RuntimeVerifier.Decoded E.binary E.prime E.P E.R (E.wire))
-    (found : decodeView view = some decoded)
-    (w : Selection.Pair B (ZMod Adapter.Mdoc.primeOrder) E.binary.Original E.prime.Original)
-    (selected : (viewAuth view decoded).context.extract = some w) :
-    w ∈ candidates E (keyOf view.original.1) (view.cuts (keyOf view.original.1)) := by
-  have spec := RuntimeAdaptiveVerifier.decode_spec E.binary E.prime E.P E.R (E.wire) (E.earlier) E.hashPublic E.primePublic E.draw
-    _ _ decoded found
-  have statement := RuntimeAdaptiveStatement.statementAt_spec E.binary E.prime E.P E.R (E.wire) E.hashPublic E.primePublic
-    _ _ _ spec.1
-  obtain ⟨layout,fingerprint,_,hlayout,_,_,hcompile⟩ := statement.2
-  set key := keyOf view.original.1
-  have context := RuntimeAdaptiveStatement.compiled_context E.binary E.prime E.P E.R (E.wire) E.hashPublic E.primePublic
-    _ _ layout decoded.application statement.1 decoded.statement fingerprint _ _ hcompile
-    (cutTuple E key (view.cuts key)) decoded.coin
-    (RuntimeVerifier.responses E.binary E.prime E.P E.R (E.wire) view.original.1.proof) c.cutoff key
-  have unfolded : viewAuth view decoded = ZkJoint.authenticate decoded.statement (cutTuple E key (view.cuts key))
-      decoded.coin (RuntimeVerifier.responses E.binary E.prime E.P E.R (E.wire) view.original.1.proof) c.cutoff := rfl
-  rw [unfolded,context] at selected
-  simp only [Selection.Context.extract,Option.bind_eq_bind,Option.bind_eq_some_iff] at selected
-  obtain ⟨b,hb,n,hn,hw⟩ := selected
-  cases Option.some.inj hw
-  unfold candidates
-  rw [hlayout]
-  exact Finset.mem_product.mpr ⟨(WitnessSelection.select_valid _ _ _ b hb).1,(WitnessSelection.select_valid _ _ _ n hn).1⟩
 
 theorem viewAuthentication_eq (residual : Tagged → Residual) (H : Tagged → Digest × E.Answer)
     (decoded : RuntimeVerifier.Decoded E.binary E.prime E.P E.R (E.wire)) :

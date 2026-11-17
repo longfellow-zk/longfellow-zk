@@ -640,8 +640,9 @@ malformed archive or one whose metadata does not match the spec, as
 bounds the probability that the verifier accepts and the extractor fails to
 return a witness satisfying the ordinary hash constraints and the signature
 circuit at the requested public inputs. The extractor (`Mdoc.Soundness.extract`)
-is straight-line: it reads only the submitted request and proof bytes and the
-adversary's own query log, with no oracle and no challenge. For an adversary with at most
+decodes uniquely from the transcript, as Polygero's `scanRecoverAt` does: the
+backend challenge and response identify the good columns, and each committed
+row is uniquely decoded on them. It forms no candidate list. For an adversary with at most
 `Q < 2^127` distinct SHA queries, with `q = 2^128`, the bound is the exact
 `LfzkV2.Current.Soundness.Rate7.failureBound`:
 

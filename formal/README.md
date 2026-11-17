@@ -8,10 +8,10 @@ consider any finite classical adaptive adversary making at most `Q` distinct
 original SHA queries.
 
 Let $P_{\mathrm{fail}}$ denote the probability that the verifier accepts
-and the straight-line extractor fails to recover a witness satisfying the
-ordinary hash constraints and signature circuit at the actual requested
-public inputs. The extractor reads only the submitted proof and the
-adversary's own query log, and both circuits use the same extracted pair. Then
+and the extractor fails to recover a witness satisfying the ordinary hash
+constraints and signature circuit at the actual requested public inputs. The
+extractor decodes uniquely from the transcript, with no candidate list, and
+both circuits use the same extracted pair. Then
 
 $$
 \begin{aligned}
@@ -108,23 +108,25 @@ frontend plans and rate certificate. `submitted_output`, `original_trace`,
 connect its event to the original submitted proof, original query log and
 complete runtime verifier.
 
-The extractor `Mdoc.Soundness.extract` is straight-line: a function of the
-public statement setup, the request and proof bytes the adversary submits and
-the adversary's own query log, with no oracle argument. It reads the
-commitment cut of the submitted context from the log's protocol-domain
-entries, in query order, taking each node at its first occurrence, up to the
-context's own node (`StrandCutObservation.logCut`). This is the cut the
-observation records (`Soundness.OracleTransport.viewMap_cuts`), so a repeated
-entry changes nothing. Both fields use the tuple extracted from that cut. The
-extractor returns a pair valid at the submitted request among the selected
-cells the tuple list-decodes to (`Soundness.Runtime.candidates`). It reads no
-challenge: an adversary may query a round's node without its PRF words, so
-Round 0's fingerprint coins need not be in the log. The list contains the
-pair that fingerprint selection with the verifier's coins picks
-(`Soundness.Runtime.selected_mem_candidates`), so the extractor succeeds
-whenever that pair is valid (`Mdoc.Soundness.extract_of_selected`).
-`Tests.EndpointStatements` checks that the extractor reaches no oracle,
-verifier replay or challenge reader.
+The extractor `Mdoc.Soundness.extract` decodes uniquely from the transcript,
+as Polygero's `scanRecoverAt` does. It replays the verifier with the oracle,
+which recovers the authenticated statement, the tuple committed at the
+original commitment cut, and the backend coin and response. In each field the
+coin and response identify the good columns, each committed row is uniquely
+decoded on them, and the recovered tableau is projected to the selected cells
+(`Soundness.Runtime.viewRecover`, `Application.StatementData.recover`). It
+forms no candidate list and reads no list-decoding cutoff or list cap. Every
+recovered pair satisfies the frontend rows
+(`Application.Authentication.recover_rows`, from `scanRecoverAt_valid`), so it
+is application-valid or the frontend's algebraic event holds for it. Outside
+the backend events already in the bound (`Application.Authentication.BackendBad`:
+recovery failure, a recovered tuple outside the committed list, a
+fingerprint collision), it is the pair that early fingerprint selection picks
+(`Application.Authentication.recover_eq_extract`). The analysis uses that
+identification only to charge the frontend's algebraic event to a witness
+fixed before the frontend challenges; the extractor itself never sees the
+list. `Tests.EndpointStatements` checks that the extractor reaches Polygero's
+unique decoder and no list-decoding definition.
 Runtime acceptance, ordered query recovery, column agreement and algebraic
 failure coverage are proved internally.
 
@@ -159,7 +161,7 @@ row 5; every other row is shared.
 
 | # | Declaration | Module | Step |
 |---|---|---|---|
-| 1 | `Mdoc.Soundness.averaged_ratio_le` | [`Mdoc.Soundness`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean) | `event_implies_extraction_failure`: an accepted proof on which the extractor fails has a fingerprint-selected pair that is not valid for the hash and signature circuits at the request (`extract_of_selected`, `MdocWitness.valid_at_request`), a row-2 event. |
+| 1 | `Mdoc.Soundness.averaged_ratio_le` | [`Mdoc.Soundness`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean) | `event_implies_extraction_failure`: an accepted proof whose recovered pair is not valid for the hash and signature circuits at the request (`MdocWitness.valid_at_request`) is a row-2 event. |
 | 2 | `Mdoc.OracleSoundness.averaged_ratio_le` | [`Mdoc.OracleSoundness`](lfzk-v2/LfzkV2/Current/Mdoc/OracleSoundness.lean) | Fixes the complementary setup slice (`setup_merge`, `residual_budget`, `event_eq`) and averages it and the adversary coin with no extra error. Domains: [`StrandDomains`](lfzk-v2/LfzkV2/Current/StrandDomains.lean), [`SHAOracle`](lfzk-v2/LfzkV2/Current/SHAOracle.lean), [`StrandRoutedObserver`](lfzk-v2/LfzkV2/Current/StrandRoutedObserver.lean). |
 | 3 | `Mdoc.RuntimeSoundness.ratio_le` | [`Mdoc.RuntimeSoundness`](lfzk-v2/LfzkV2/Current/Mdoc/RuntimeSoundness.lean) | Builds the concrete `Soundness.Setup` and discharges the numerical premises with [`Soundness.RuntimeRate7`](lfzk-v2/LfzkV2/Current/Soundness/RuntimeRate7.lean) and [`Soundness.Rate7`](lfzk-v2/LfzkV2/Current/Soundness/Rate7.lean). |
 | 4 | `Soundness.Composition.soundness` | [`Soundness.Composition`](lfzk-v2/LfzkV2/Current/Soundness/Composition.lean) | Transports raw SHA to named queries (`OracleTransport.observation_law`) and adds the hash exception (`Recovery.hashException_ratio_le`, [`Soundness.OracleBounds`](lfzk-v2/LfzkV2/Current/Soundness/OracleBounds.lean)). |
@@ -167,7 +169,7 @@ row 5; every other row is shared.
 | 6 | `Soundness.Runtime.stopped_failure_cover` | [`Soundness.StoppedCosts`](lfzk-v2/LfzkV2/Current/Soundness/StoppedCosts.lean) | Pointwise cover outside the hash exception: first transparent escape or retained cost at least one (`stopped_failure_indicator` states it as $\mathbf 1_F\le\mathbf 1_X+\mathbf 1_E+C$). |
 | 7 | `Soundness.Runtime.conditioned_cost_mean_le` | [`Soundness.StoppedCosts`](lfzk-v2/LfzkV2/Current/Soundness/StoppedCosts.lean) | The retained Polygero and auxiliary hash cost has mean at most the opaque allowance per opaque query. |
 | 8 | `Soundness.Recovery.accepted_recovery_or_hash` | [`Soundness.Recovery`](lfzk-v2/LfzkV2/Current/Soundness/Recovery.lean) | An accepted run recovers the ordered path and opened columns, or pays a hash charge, or lies in the hash exception. |
-| 9 | `Soundness.Runtime.accepted_cover` | [`Soundness.Transport`](lfzk-v2/LfzkV2/Current/Soundness/Transport.lean) | On the recovered path, extraction failure triggers one local charge (`Soundness.LocalCharges.decoded_cover`). |
+| 9 | `Soundness.Runtime.accepted_cover` | [`Soundness.Transport`](lfzk-v2/LfzkV2/Current/Soundness/Transport.lean) | On the recovered path, extraction failure triggers one local charge (`Soundness.LocalCharges.decoded_cover`). A recovered pair that is not application-valid gives a backend event or the frontend event of the early-selected pair (`Application.Authentication.extraction_failure_cover`, [`ApplicationCover`](lfzk-v2/LfzkV2/Current/ApplicationCover.lean)). |
 | 10 | `Soundness.LocalCharges.prefixCharge_eq_runtime` | [`Soundness.LocalCharges`](lfzk-v2/LfzkV2/Current/Soundness/LocalCharges.lean) | Local charges at the original commitment cut read only the strict query prefix ([`Protocol.PrefixState`](lfzk-v2/LfzkV2/Current/Protocol/PrefixState.lean)); `single_mean` and `pair_mean` fit the role budgets. |
 | 11 | `Survival.QueryStep.step_le` | [`Survival`](survival/README.md) | Generic chronological survival and stopped-search accounting, with no V1 or V2 dependencies. |
 
@@ -454,9 +456,14 @@ establish that a cryptographic implementation satisfies their premises.
   composition's identity message comes only from an application inside the
   crate (mdoc's `Identity`): an application's identity encoding is trusted
   crate code.
-- **Efficiency and implementation.** Extraction uses mathematical finite
-  search: list decoding of the committed tuple and a validity check of each
-  listed pair. No polynomial-time extractor bound is proved. The explicit public
+- **Efficiency and implementation.** Extraction searches no list. Apart from
+  replaying the verifier, it computes each field's good columns and uniquely
+  decodes each committed row on them within the unique-decoding radius
+  (`r+w+2s` at most the number of good columns). The unique decoder is treated
+  as computable: unique decoding of Reed–Solomon codes within half the minimum
+  distance is classical (Berlekamp–Welch). The Lean decoder is a noncomputable
+  specification (`recoverOnAt` chooses the unique row decodings), so the
+  extractor's polynomial running time is argued on paper, not formally. The explicit public
   simulator has no witness argument, but its running time is not formally
   bounded. Rust correspondence is reviewed and tested, rather than a
   mechanized refinement. A complete Rust-to-Lean verifier replay vector remains

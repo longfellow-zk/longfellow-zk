@@ -676,8 +676,8 @@ variable (layoutCorrect : StatementCompiler.addresses P R binary.cells prime.rem
 
 include primeGeometry binaryGeometry layoutCorrect in
 /-- Successful decoding and the explained joint opening force one of the
-actual local charges whenever the common selected witness does not satisfy
-the decoded application. Query order and the final seal are separate strand
+actual local charges whenever the pair recovered by transcript-assisted
+decoding does not satisfy the decoded application. Query order and the final seal are separate strand
 properties; no execution or algebraic-cover certificate is assumed here. -/
 theorem decoded_cover (fallback : Answer) (output : Output) (H : Tagged → Digest × Answer)
     (decoded : Decoded)
@@ -685,7 +685,7 @@ theorem decoded_cover (fallback : Answer) (output : Output) (H : Tagged → Dige
       output (typed fallback H) = some decoded)
     (verified : let a := auth output H decoded
       JointResponse.Verify First Second a.statement a.oracle a.coin a.response decoded.query)
-    (failed : ¬ ∃ witness, (auth output H decoded).context.extract = some witness ∧
+    (failed : ¬ ∃ witness, (auth output H decoded).recover = some witness ∧
       decoded.application.True witness) :
     (proofOf fallback).Covers (rounds := g.roles.length)
       (fun index => .inl ((M).point output (typed fallback H) index)) H := by

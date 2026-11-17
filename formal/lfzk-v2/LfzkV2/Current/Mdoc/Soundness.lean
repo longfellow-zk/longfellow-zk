@@ -8,19 +8,20 @@ original commitment cut yields the ordinary hash witness and signature-circuit
 witness at the actual request. Sampling, scalar representations and trusted
 circuit semantics retain their explicit interfaces.
 
-The extractor `extract` is straight-line. It is a function of the public
-statement setup, the request and proof bytes the adversary submits, and the
-adversary's own query log; it takes no oracle. From the protocol-domain
-entries of the log, in query order, it reads the commitment cut of the
-submitted context: each node at its first occurrence, up to the context's own
-node (`StrandCutObservation.logCut`), exactly the cut the observation
-records (`Soundness.OracleTransport.viewMap_cuts`). It returns a pair valid at
-the submitted request among the selected cells the committed tuple
-list-decodes to. It reads no challenge: the adversary may query a round's
-node without its PRF words, so Round 0's fingerprint coins need not be in the
-log. The list contains the pair that fingerprint selection with the
-verifier's coins picks (`selected_listed`), so whenever that pair is valid the
-extractor succeeds (`extract_of_selected`).
+The extractor `extract` decodes uniquely from the transcript, as Polygero's
+`scanRecoverAt` does. It replays the verifier with the protocol oracle,
+which recovers the authenticated statement, the tuple committed at the
+original commitment cut, and the backend coin and response. In each field
+the coin and response identify the good columns, every committed row is
+uniquely decoded on them, and the recovered tableau is projected to the
+selected cells (`Soundness.Runtime.viewRecover`, `Application.StatementData.recover`).
+It forms no candidate list and reads no list-decoding cutoff. Every recovered
+pair satisfies the frontend rows (`Application.Authentication.recover_rows`).
+Outside the backend events it is also the pair that early fingerprint
+selection picks from the commitment-only lists
+(`Application.Authentication.recover_eq_extract`); the analysis uses this only
+to charge the frontend's algebraic event to a witness fixed before the
+frontend challenges.
 
 The original query budget `Q` counts distinct byte queries in the worst case,
 for every adversarial coin and total oracle. Averaging uses a finite coin that
@@ -125,102 +126,22 @@ local notation "view" G => Mdoc.OracleSoundness.observation binary prime cantor 
 local notation "SHA" G => Mdoc.OracleSoundness.sha binary prime cantor scalars ids bounds body outside fits sample G
 local notation "decodedView" => Protocol.Observation.decoded bp pp P R W earlier (Format.wire (Protocol.Setup.fmt (E))) (Protocol.Setup.bodyCodec (E))
   physical (Format.hashPublic (Fmt)) decodePublic draw
-local notation "authentication" => Soundness.Runtime.viewAuthentication E
+local notation "recovered" => Soundness.Runtime.viewRecover E
 
-/-- The public protocol whose statement node absorbs `formatSetup`; every
-other field is the fixed mdoc setup. At the actual statement setup it is
-`Mdoc.Setup.protocol` (`publicProtocol_setup`). -/
-abbrev publicProtocol (formatSetup : MdocRuntime.FormatSetup) :=
-  (Mdoc.Runtime.mk binary prime.description prime.plan (ConcreteSetup.binaryNodes cantor) scalars
-    bounds.inputFits bounds.privateFits formatSetup).protocol
-
-theorem publicProtocol_setup :
-    publicProtocol binary prime cantor scalars bounds setup = E := rfl
-
-/-- The adversary's submitted proof output: its request and proof bytes,
-parsed by the complete-proof reader. -/
-def submitted (submission : Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) : Output :=
-  ProofOutput.decode (TaggedFormat.complete repr g) (MdocDefaults.proof g B) submission
-
-/-- The selected-cell pairs that the tuple committed at the submitted
-context list-decodes to. The commitment cut is read from the protocol-domain
-entries of the adversary's own query log, in query order
-(`StrandCutObservation.logCut`). -/
-def listed (formatSetup : MdocRuntime.FormatSetup)
-    (submission : (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) × List (Bytes × Digest)) :
-    Finset Witness :=
-  let protocol := publicProtocol binary prime cantor scalars bounds formatSetup
-  let output := submitted binary prime scalars bounds submission.1
-  let key := Replay.Encoding.context (RuntimeAdaptiveVerifier.encodings protocol.binary protocol.prime protocol.P
-    protocol.R protocol.wire protocol.earlier output.request) output.proof
-  Soundness.Runtime.candidates protocol key (StrandCutObservation.logCut protocol.fmt.schema protocol.fmt.key key
-    (submission.2.filter fun qa => decide (StrandDomains.protocol qa.1)))
-
-/-- The straight-line extractor: it reads only the adversary's submitted
-request and proof bytes and its own query log. It returns a listed pair valid
-for the submitted request. It takes no oracle, reads no challenge, and
-depends on neither the adversary's program nor the challenge reader. -/
-def extract (formatSetup : MdocRuntime.FormatSetup)
-    (submission : (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) × List (Bytes × Digest)) :
-    Option Witness :=
-  if found : ∃ w ∈ listed binary prime cantor scalars bounds formatSetup submission,
-      Valid binary prime bounds (submitted binary prime scalars bounds submission.1).request w then
-    some found.choose
-  else none
-
-/-- Whenever a listed pair is valid for the submitted request, the
-extractor returns a valid pair. -/
-theorem extract_valid (formatSetup : MdocRuntime.FormatSetup)
-    (submission : (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) × List (Bytes × Digest))
-    (w : Witness) (member : w ∈ listed binary prime cantor scalars bounds formatSetup submission)
-    (valid : Valid binary prime bounds (submitted binary prime scalars bounds submission.1).request w) :
-    ∃ v, extract binary prime cantor scalars bounds formatSetup submission = some v ∧
-      Valid binary prime bounds (submitted binary prime scalars bounds submission.1).request v := by
-  have found : ∃ w ∈ listed binary prime cantor scalars bounds formatSetup submission,
-      Valid binary prime bounds (submitted binary prime scalars bounds submission.1).request w := ⟨w,member,valid⟩
-  exact ⟨found.choose,dif_pos found,found.choose_spec.2⟩
-
-/-- The pair that fingerprint selection picks at the original cut, with the
-coins and responses the verifier decodes, is listed. The listed pairs are
-read from the adversary's own submission and query log: they equal the
-candidates of the observation's cut at its submitted output. -/
-theorem selected_listed (G : Raw → Digest) (decoded : RuntimeVerifier.Decoded bp pp P R W)
-    (found : decodedView (view G) = some decoded) (w : Witness)
-    (selected : (authentication (view G) decoded).context.extract = some w) :
-    w ∈ listed binary prime cantor scalars bounds setup (body.run (SHA G)) := by
-  have output := Mdoc.OracleSoundness.submitted_output binary prime cantor scalars ids bounds body outside fits sample G
-  have trace := Mdoc.OracleSoundness.original_trace binary prime cantor scalars ids bounds body outside fits sample G
-  have cuts : ∀ key, (view G).cuts key =
-      StrandCutObservation.logCut (E).fmt.schema (E).fmt.key key (view G).original.2 := fun key =>
-    Soundness.OracleTransport.viewMap_cuts _ _ _ _ _ _ _ _ _ _ _ _ _ _ key
-  have member := Soundness.Runtime.selected_mem_candidates (E) (Protocol.SamplerData.mk (S := E) sample)
-    (view G) decoded found w selected
-  rw [cuts,trace,output] at member
-  exact member
-
-/-- Whenever the selection the verifier's decoding would make is a valid
-witness, the straight-line extractor returns a valid witness too. -/
-theorem extract_of_selected (G : Raw → Digest) (decoded : RuntimeVerifier.Decoded bp pp P R W)
-    (found : decodedView (view G) = some decoded) (w : Witness)
-    (selected : (authentication (view G) decoded).context.extract = some w)
-    (truth : decoded.application.True w) :
-    ∃ v, extract binary prime cantor scalars bounds setup (body.run (SHA G)) = some v ∧
-      Valid binary prime bounds (view G).original.1.request v := by
-  have output := Mdoc.OracleSoundness.submitted_output binary prime cantor scalars ids bounds body outside fits sample G
-  have valid := decoded_valid binary prime cantor scalars ids bounds outside (view G).original.1 _ decoded found w truth
-  rw [output] at valid
-  obtain ⟨v,extracted,checked⟩ := extract_valid binary prime cantor scalars bounds setup (body.run (SHA G)) w
-    (selected_listed binary prime cantor scalars ids bounds outside body fits sample G decoded found w selected) valid
-  exact ⟨v,extracted,output ▸ checked⟩
+/-- The transcript-assisted extractor: replay the verifier with the oracle,
+then uniquely decode the committed tuple on the good columns that the backend
+coin and response identify, and project to the selected cells. -/
+def extract (G : Raw → Digest) : Option Witness :=
+  (decodedView (view G)).bind fun decoded => recovered (view G) decoded
 
 /-- Actual verifier acceptance, including parsing, tuple openings, and the
-final seal, with the straight-line extractor, run on the adversary's
-submission and query log, failing to produce an application-valid witness. -/
+final seal, with the transcript-assisted extractor failing to produce an
+application-valid witness. -/
 def event (G : Raw → Digest) : Prop :=
   (ProofOutput.read (TaggedFormat.complete repr g) (body.run (SHA G)).1.2).isSome ∧
   Mdoc.RuntimeSoundness.verify binary prime cantor scalars currentIds bounds sample
     (SHA G) (view G).original.1 = true ∧
-  ¬ ∃ w, extract binary prime cantor scalars bounds setup (body.run (SHA G)) = some w ∧
+  ¬ ∃ w, extract binary prime cantor scalars ids bounds outside body fits sample G = some w ∧
     Valid binary prime bounds (view G).original.1.request w
 
 -- The decoded split-claim system makes this unfolding slightly larger.
@@ -241,8 +162,11 @@ theorem event_implies_extraction_failure (G : Raw → Digest) (bad : event binar
     (view G) (SHA G) (congrArg Prod.snd replayed)
   refine ⟨bad.1,decision.trans bad.2.1,decoded,foundView,?_⟩
   rintro ⟨w,extracted,truth⟩
-  exact bad.2.2 (extract_of_selected binary prime cantor scalars ids bounds outside body fits sample G
-    decoded foundView w extracted truth)
+  apply bad.2.2
+  refine ⟨w,?_,decoded_valid binary prime cantor scalars ids bounds outside
+    (view G).original.1 _ decoded found w truth⟩
+  simp only [extract,foundView,Option.bind_some]
+  exact extracted
 
 variable (bodyFits : ProofBodyBounds.bodyBound (MdocRuntime.representations scalars)
   (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan) ≤ CanonicalPrefix.maxLength)
