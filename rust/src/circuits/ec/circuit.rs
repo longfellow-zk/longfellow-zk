@@ -60,7 +60,12 @@ where
         (l.zero(), l.one(), l.zero())
     }
 
-    pub fn add(&self, p1: &Pt3<Eltw<L>>, p2: &Pt3<Eltw<L>>) -> Pt3<Eltw<L>> {
+    /// Original complete projective addition (Renes-Costello-Batina 2015) using Karatsuba
+    /// cross-terms `(x1 + y1)(x2 + y2) - (x1*x2 + y1*y2)`.
+    ///
+    /// Retained verbatim alongside [`Self::add_bilinear`] and checked for formal multivariate
+    /// polynomial equivalence in `ec/tests.rs`.
+    pub(super) fn add_karatsuba(&self, p1: &Pt3<Eltw<L>>, p2: &Pt3<Eltw<L>>) -> Pt3<Eltw<L>> {
         let (x1, y1, z1) = p1;
         let (x2, y2, z2) = p2;
         let l = &self.logic;
@@ -107,6 +112,54 @@ where
         let z3_d = l.mul(&t5_e, &z3_c);
         let z3_res = l.add(&z3_d, &t0_c);
         (x3_res, y3_b, z3_res)
+    }
+
+    /// Complete projective addition (Renes-Costello-Batina 2015) expressing the three symmetric
+    /// bilinear cross-terms directly as 2-term quadratic sums (`x1*y2 + y1*x2`, `x1*z2 + z1*x2`,
+    /// `y1*z2 + z1*y2`), avoiding pre-addition wires and multiplicative depth penalties in `Quad`.
+    pub(super) fn add_bilinear(&self, p1: &Pt3<Eltw<L>>, p2: &Pt3<Eltw<L>>) -> Pt3<Eltw<L>> {
+        let (x1, y1, z1) = p1;
+        let (x2, y2, z2) = p2;
+        let l = &self.logic;
+        let t0 = l.mul(x1, x2);
+        let t1 = l.mul(y1, y2);
+        let t2 = l.mul(z1, z2);
+        let t3_c = l.add(&l.mul(x1, y2), &l.mul(y1, x2));
+        let t4_e = l.add(&l.mul(x1, z2), &l.mul(z1, x2));
+        let t5_e = l.add(&l.mul(y1, z2), &l.mul(z1, y2));
+        let a = l.konst(self.curve.a());
+        let z3_a = l.mul(&a, &t4_e);
+        let k3b = l.konst(&self.k3b_val);
+        let x3_c = l.mul(&k3b, &t2);
+        let z3_b = l.add(&x3_c, &z3_a);
+        let x3_d = l.sub(&t1, &z3_b);
+        let z3_c = l.add(&t1, &z3_b);
+        let y3_a = l.mul(&x3_d, &z3_c);
+        let t1_a = l.add(&t0, &t0);
+        let t1_b = l.add(&t1_a, &t0);
+        let t2_a = l.mul(&a, &t2);
+        let t4_f = l.mul(&k3b, &t4_e);
+        let t1_c = l.add(&t1_b, &t2_a);
+        let t2_b = l.sub(&t0, &t2_a);
+        let t2_c = l.mul(&a, &t2_b);
+        let t4_g = l.add(&t4_f, &t2_c);
+        let t0_a = l.mul(&t1_c, &t4_g);
+        let y3_b = l.add(&y3_a, &t0_a);
+        let t0_b = l.mul(&t5_e, &t4_g);
+        let x3_e = l.mul(&t3_c, &x3_d);
+        let x3_res = l.sub(&x3_e, &t0_b);
+        let t0_c = l.mul(&t3_c, &t1_c);
+        let z3_d = l.mul(&t5_e, &z3_c);
+        let z3_res = l.add(&z3_d, &t0_c);
+        (x3_res, y3_b, z3_res)
+    }
+
+    pub fn add(&self, p1: &Pt3<Eltw<L>>, p2: &Pt3<Eltw<L>>) -> Pt3<Eltw<L>> {
+        if self.logic.retain_bit_assertions_v1() {
+            self.add_karatsuba(p1, p2)
+        } else {
+            self.add_bilinear(p1, p2)
+        }
     }
 
     pub fn double(&self, pt: &Pt3<Eltw<L>>) -> Pt3<Eltw<L>> {

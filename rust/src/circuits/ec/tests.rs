@@ -24,7 +24,7 @@ use crate::{
     core::{
         algebra::{
             ec::{add, affine, double, projective, scalar_mul, Curve},
-            Nat, SerializableField, SupportsNatConversions,
+            AlgebraicField, ElementOf, Nat, SerializableField, SupportsNatConversions,
         },
         proto::v2::evaluate::initial_inputs,
     },
@@ -319,4 +319,301 @@ fn test_ec_runtime_arithmetic() {
     let fr = P256Field::new();
     let curve = Secp256r1::new(&fr);
     run_test_ec_runtime_arithmetic::<4, _, _>(&curve, &fr);
+}
+
+struct GenericWeierstrassCurve<F: AlgebraicField, N> {
+    a: ElementOf<F>,
+    b: ElementOf<F>,
+    g: (ElementOf<F>, ElementOf<F>),
+    order: N,
+}
+
+impl<const W: usize, F: AlgebraicField, N: Nat<W>> Curve<W> for GenericWeierstrassCurve<F, N> {
+    type F = F;
+    type N = N;
+
+    fn order(&self) -> Self::N {
+        self.order.clone()
+    }
+
+    fn a(&self) -> &ElementOf<Self::F> {
+        &self.a
+    }
+
+    fn b(&self) -> &ElementOf<Self::F> {
+        &self.b
+    }
+
+    fn g(&self) -> &(ElementOf<Self::F>, ElementOf<Self::F>) {
+        &self.g
+    }
+}
+
+fn assert_karatsuba_equals_bilinear_grid<const W: usize, F: CompileField, C: Curve<W, F = F>>(
+    curve: &C,
+    f: &F,
+    grid: &[ElementOf<F>; 3],
+) {
+    let tracker = AssertionScope::new();
+    let l = EvalLogic::new(f, &tracker);
+    let ec = EcCircuit::new(&l, curve);
+
+    // Every coordinate of `add_karatsuba` and `add_bilinear` is a 6-variable polynomial in
+    // `F[X1, Y1, Z1, X2, Y2, Z2]` of individual degree <= 2 in each variable. By multivariate
+    // Lagrange interpolation uniqueness (Combinatorial Nullstellensatz), agreement on all
+    // `3^6 = 729` points of `S^6` (`|S| = 3`) is a deductive proof of formal polynomial identity.
+    assert!(grid[0] != grid[1] && grid[0] != grid[2] && grid[1] != grid[2]);
+
+    let mut count = 0usize;
+    for x1 in grid {
+        for y1 in grid {
+            for z1 in grid {
+                for x2 in grid {
+                    for y2 in grid {
+                        for z2 in grid {
+                            let p1 = (l.konst(x1), l.konst(y1), l.konst(z1));
+                            let p2 = (l.konst(x2), l.konst(y2), l.konst(z2));
+                            let orig = ec.add_karatsuba(&p1, &p2);
+                            let bilin = ec.add_bilinear(&p1, &p2);
+                            let dflt = ec.add(&p1, &p2);
+                            let native = add(
+                                curve,
+                                f,
+                                &(x1.clone(), y1.clone(), z1.clone()),
+                                &(x2.clone(), y2.clone(), z2.clone()),
+                            );
+                            assert_eq!(orig.0.value, bilin.0.value, "X3 mismatch at grid #{count}");
+                            assert_eq!(orig.1.value, bilin.1.value, "Y3 mismatch at grid #{count}");
+                            assert_eq!(orig.2.value, bilin.2.value, "Z3 mismatch at grid #{count}");
+                            assert_eq!(orig.0.value, dflt.0.value);
+                            assert_eq!(orig.1.value, dflt.1.value);
+                            assert_eq!(orig.2.value, dflt.2.value);
+                            assert_eq!(orig.0.value, native.0);
+                            assert_eq!(orig.1.value, native.1);
+                            assert_eq!(orig.2.value, native.2);
+                            count += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(count, 729);
+}
+
+#[test]
+fn test_ec_add_formal_polynomial_identity_eval() {
+    use crate::core::algebra::SupportsU64Conversions;
+
+    let f = P256Field::new();
+    let secp = Secp256r1::new(&f);
+
+    let grid_small = [f.zero(), f.one(), f.u64_to_element(2)];
+    assert_karatsuba_equals_bilinear_grid(&secp, &f, &grid_small);
+
+    let grid_mixed = [f.zero(), f.mone(), secp.g().0.clone()];
+    assert_karatsuba_equals_bilinear_grid(&secp, &f, &grid_mixed);
+
+    // Also prove formal polynomial identity on a generic curve with `a != 0` and `a != -3`
+    // (`a = 7, b = 11`), ensuring no `a`- or `3b`-weighted terms could vacuously cancel.
+    let generic_curve = GenericWeierstrassCurve {
+        a: f.u64_to_element(7),
+        b: f.u64_to_element(11),
+        g: secp.g().clone(),
+        order: secp.order(),
+    };
+    assert_karatsuba_equals_bilinear_grid(&generic_curve, &f, &grid_small);
+    assert_karatsuba_equals_bilinear_grid(&generic_curve, &f, &grid_mixed);
+}
+
+#[test]
+fn test_ec_add_formal_polynomial_identity_compiled_v2() {
+    use crate::core::algebra::SupportsU64Conversions;
+
+    let fc = P256Field::new();
+    let fr = crate::runtime::algebra::p256::P256Field::new();
+    let generic_curve = GenericWeierstrassCurve {
+        a: fc.u64_to_element(7),
+        b: fc.u64_to_element(11),
+        g: Secp256r1::new(&fc).g().clone(),
+        order: Secp256r1::new(&fc).order(),
+    };
+
+    let generic_curve_r = GenericWeierstrassCurve {
+        a: fr.u64_to_element(7),
+        b: fr.u64_to_element(11),
+        g: (
+            fr.bytes_to_element(&fc.to_bytes(&generic_curve.g.0))
+                .unwrap(),
+            fr.bytes_to_element(&fc.to_bytes(&generic_curve.g.1))
+                .unwrap(),
+        ),
+        order: generic_curve.order.clone(),
+    };
+
+    let (circuit, _stats, symbols) = compile(&fc, |iologic| {
+        let ec = EcCircuit::new(&iologic, &generic_curve);
+        let mut pos = K_FIRST_WIRE_POSITION;
+        let p1 = (
+            iologic.next(&mut pos),
+            iologic.next(&mut pos),
+            iologic.next(&mut pos),
+        );
+        let p2 = (
+            iologic.next(&mut pos),
+            iologic.next(&mut pos),
+            iologic.next(&mut pos),
+        );
+        let expected_out = (
+            iologic.next(&mut pos),
+            iologic.next(&mut pos),
+            iologic.next(&mut pos),
+        );
+        let orig = ec.add_karatsuba(&p1, &p2);
+        let bilin = ec.add_bilinear(&p1, &p2);
+        // Keep the independently computed native outputs as inputs so later
+        // algebraic simplification cannot erase every equality and input.
+        let assertions = iologic.assert_all(
+            "ec_add_output",
+            &[
+                iologic.assert_eq("original_x3_eq", &orig.0, &expected_out.0),
+                iologic.assert_eq("original_y3_eq", &orig.1, &expected_out.1),
+                iologic.assert_eq("original_z3_eq", &orig.2, &expected_out.2),
+                iologic.assert_eq("x3_eq", &bilin.0, &expected_out.0),
+                iologic.assert_eq("y3_eq", &bilin.1, &expected_out.1),
+                iologic.assert_eq("z3_eq", &bilin.2, &expected_out.2),
+            ],
+        );
+        (assertions, 1, 0)
+    });
+
+    let grid_r = [fr.zero(), fr.mone(), fr.u64_to_element(5)];
+    let mut count = 0usize;
+    for x1 in &grid_r {
+        for y1 in &grid_r {
+            for z1 in &grid_r {
+                for x2 in &grid_r {
+                    for y2 in &grid_r {
+                        for z2 in &grid_r {
+                            let out =
+                                add(&generic_curve_r, &fr, &(*x1, *y1, *z1), &(*x2, *y2, *z2));
+                            let mut inputs = initial_inputs(&fr);
+                            for coord in [x1, y1, z1, x2, y2, z2, &out.0, &out.1, &out.2] {
+                                push_eltw(*coord, &mut inputs);
+                            }
+                            eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs)
+                                .unwrap()
+                                .assert_all_passed();
+                            count += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(count, 729);
+}
+
+#[test]
+fn test_ec_add_special_and_boundary_points() {
+    use crate::core::algebra::SupportsU64Conversions;
+
+    let f = P256Field::new();
+    let curve = Secp256r1::new(&f);
+    let tracker = AssertionScope::new();
+    let l = EvalLogic::new(&f, &tracker);
+    let ec = EcCircuit::new(&l, &curve);
+
+    let g = projective(&curve, &f, curve.g());
+    let neg_g = (g.0.clone(), f.subf(&f.zero(), &g.1), g.2.clone());
+    let inf = (f.zero(), f.one(), f.zero());
+    let inf_scaled = (f.zero(), f.u64_to_element(19), f.zero());
+    let two_g = double(&curve, &f, &g);
+    let three_g = add(&curve, &f, &g, &two_g);
+    let twist_pt = (f.u64_to_element(2), f.u64_to_element(3), f.one());
+
+    let two64 = f.mulf(&f.u64_to_element(1u64 << 32), &f.u64_to_element(1u64 << 32));
+    let two128 = f.mulf(&two64, &two64);
+    let two192 = f.mulf(&two128, &two64);
+    let limb_pt_1 = (f.subf(&two64, &f.one()), two128.clone(), f.mone());
+    let limb_pt_2 = (
+        f.addf(&two192, &f.one()),
+        f.u64_to_element(u64::MAX),
+        two64.clone(),
+    );
+
+    let scale = |pt: &(
+        ElementOf<P256Field>,
+        ElementOf<P256Field>,
+        ElementOf<P256Field>,
+    ),
+                 lam: &ElementOf<P256Field>| {
+        (f.mulf(&pt.0, lam), f.mulf(&pt.1, lam), f.mulf(&pt.2, lam))
+    };
+
+    let lam1 = f.u64_to_element(0xdead_beef_cafe_babe);
+    let lam2 = f.subf(&two128, &f.u64_to_element(17));
+    let g_scaled = scale(&g, &lam1);
+    let two_g_scaled = scale(&two_g, &lam2);
+
+    let points = [
+        inf.clone(),
+        inf_scaled,
+        g.clone(),
+        neg_g.clone(),
+        two_g.clone(),
+        three_g,
+        g_scaled.clone(),
+        two_g_scaled.clone(),
+        twist_pt,
+        limb_pt_1,
+        limb_pt_2,
+    ];
+
+    let to_wires = |pt: &(
+        ElementOf<P256Field>,
+        ElementOf<P256Field>,
+        ElementOf<P256Field>,
+    )| (l.konst(&pt.0), l.konst(&pt.1), l.konst(&pt.2));
+
+    for p1 in &points {
+        for p2 in &points {
+            let w1 = to_wires(p1);
+            let w2 = to_wires(p2);
+            let orig = ec.add_karatsuba(&w1, &w2);
+            let bilin = ec.add_bilinear(&w1, &w2);
+            assert_eq!(orig.0.value, bilin.0.value);
+            assert_eq!(orig.1.value, bilin.1.value);
+            assert_eq!(orig.2.value, bilin.2.value);
+        }
+    }
+
+    // Group-law checks on complete addition:
+    // 1. P + (-P) = O = (0, Y3 != 0, 0)
+    let sum_inv = ec.add_bilinear(&to_wires(&g), &to_wires(&neg_g));
+    assert!(f.is_zero(&sum_inv.0.value));
+    assert!(!f.is_zero(&sum_inv.1.value));
+    assert!(f.is_zero(&sum_inv.2.value));
+
+    // 2. P + P agrees with `double(P)` in affine coordinates
+    let sum_same = ec.add_bilinear(&to_wires(&g), &to_wires(&g));
+    let sum_same_aff = affine(
+        &f,
+        &(
+            sum_same.0.value.clone(),
+            sum_same.1.value.clone(),
+            sum_same.2.value.clone(),
+        ),
+    );
+    let dbl_aff = affine(&f, &two_g);
+    assert_eq!(sum_same_aff, dbl_aff);
+
+    // 3. Homogeneous degree-2 scaling in each point: add(lam1 * P1, lam2 * P2) == (lam1^2 * lam2^2)
+    //    * add(P1, P2)
+    let unscaled = ec.add_bilinear(&to_wires(&g), &to_wires(&two_g));
+    let scaled = ec.add_bilinear(&to_wires(&g_scaled), &to_wires(&two_g_scaled));
+    let factor = f.mulf(&f.mulf(&lam1, &lam1), &f.mulf(&lam2, &lam2));
+    assert_eq!(scaled.0.value, f.mulf(&factor, &unscaled.0.value));
+    assert_eq!(scaled.1.value, f.mulf(&factor, &unscaled.1.value));
+    assert_eq!(scaled.2.value, f.mulf(&factor, &unscaled.2.value));
 }

@@ -1247,10 +1247,10 @@ fn next_error_table() {
 /// The combined circuit IDs of NEXT for one to four attributes. Any change
 /// to a NEXT circuit changes them; update them in the same, reviewed commit.
 const NEXT_COMBINED_IDS: [&str; 4] = [
-    "a1089c0983f5677a791e1caaebf95ec1d0e3e35009e06252075351e38c631524",
-    "bf7566217de331d29041e53e9fe5791c176b8dc6bcc536c2addc6a292613f2e1",
-    "dc36044fc724656a826fcd9b834664188d0cb1a1c5cf88d645197cf7ac7a8ef9",
-    "b25d818a80895127d7e147851666106ba79e86b7f4b8eab32499f648b793815c",
+    "a588c999ca2b69074e236c524002ae7e91bc327d9bbbecbb2ca3ef2331b85a0c",
+    "ea8a3eb74a698be3067d416a68b5c22442bfbcea354e3c27daf71bd94a5910ba",
+    "8d0079c34fe9e93d7678cb80dcba17bdfe6727840aa3601aabca127af65b693a",
+    "9d4bfd426c8dcffa5dd5cd0bfe115e52b88a5f6b67af7ba4e478bc5efe6c3950",
 ];
 
 #[test]
@@ -1303,7 +1303,7 @@ fn next_measured_round_counts() {
     };
     let pkx = coordinate(&issuer_pk.0);
     let pky = coordinate(&issuer_pk.1);
-    for (count, expected) in [(1, 457), (2, 461), (3, 466), (4, 469)] {
+    for (count, expected) in [(1, 450), (2, 454), (3, 459), (4, 462)] {
         let attrs: Vec<_> = parsed
             .attrs
             .iter()
@@ -1447,7 +1447,7 @@ fn check_mdoc_trace(
         ));
         assert_eq!(
             hex::encode(<sha2::Sha256 as sha2::Digest>::digest(node)),
-            "983eb582c6466a62337c90e0d178e2c0fd0a5e04f026b5912ea9812851f1edd1"
+            "a5884a657eb242e8480a605e3d342a17394d39dfb52bf069754a13e4b0ab8676"
         );
     }
 }
