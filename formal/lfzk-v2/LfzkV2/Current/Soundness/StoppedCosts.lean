@@ -300,11 +300,11 @@ theorem conditioned_cost_mean_le (residual : Tagged → Residual) (opaqueRate : 
     cases point with
     | inl point => cases auxiliary
     | inr _ => rfl
-local notation "acceptedFailure" => fun (view : View) => decision view = true ∧ failsView view
+local notation "acceptedFailure" => fun (view : View) => decision view = true ∧ (failsView view ∨ hashBad view)
 
 include inputs in
 theorem stopped_failure_cover (residual : Tagged → Residual) (H : Tagged → Digest × E.Answer)
-    (failed : decision (viewOf residual H) = true ∧ failsView (viewOf residual H))
+    (failed : decision (viewOf residual H) = true ∧ (failsView (viewOf residual H) ∨ hashBad (viewOf residual H)))
     (noHash : ¬hashBad (viewOf residual H)) :
     ((auditTree residual).run H).1.1 = true ∨
       1 ≤ (Survival.StoppedCharges.restrict (charges residual) marked).charge (auditTree residual) H +
@@ -316,7 +316,7 @@ theorem stopped_failure_cover (residual : Tagged → Residual) (H : Tagged → D
     rcases Soundness.Recovery.accepted_recovery_or_hash E.binary E.prime E.P E.R E.fmt (E.ideal) E.binaryCount E.metadata
       fits E.columnsFit D.execution.sample E.primeCount E.draw prog.tree inputs.bodyFits (namedH residual H) failed.1 with ready | charged | exception
     · have paid := recovered_stopped_charge E fits D L prog inputs
-        residual H failed.1 ready failed.2 survived
+        residual H failed.1 ready (failed.2.resolve_right noHash) survived
       exact paid.trans (le_add_of_nonneg_right (stopped_hash_nonneg E fits D L prog inputs residual H))
     · have same := stopped_hashCost_eq E fits D L prog inputs residual H survived
       have paid : 1 ≤ hashOf (auditTree residual) H := by rw [same]; exact charged

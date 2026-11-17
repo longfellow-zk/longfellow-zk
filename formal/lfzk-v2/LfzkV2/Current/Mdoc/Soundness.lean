@@ -160,7 +160,7 @@ theorem event_implies_extraction_failure (G : Raw → Digest) (bad : event binar
   have decision := Protocol.Observation.decision_of_trace bp pp P R W earlier (Format.wire (Protocol.Setup.fmt (E))) (Protocol.Setup.bodyCodec (E))
     physical codec id (Format.hashPublic (Fmt)) decodePublic draw
     (view G) (SHA G) (congrArg Prod.snd replayed)
-  refine ⟨bad.1,decision.trans bad.2.1,decoded,foundView,?_⟩
+  refine ⟨bad.1,decision.trans bad.2.1,Or.inl ⟨decoded,foundView,?_⟩⟩
   rintro ⟨w,extracted,truth⟩
   apply bad.2.2
   refine ⟨w,?_,decoded_valid binary prime cantor scalars ids bounds outside

@@ -63,7 +63,7 @@ local notation "valueFinite" => Fintype.ofInjective
   (E.fmt.toPoint_injective_bounded fits)
 local notation "ordinaryRate" => (2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ))
 variable {Q : ℕ} (queries : ∀ SHA : Bytes → Digest, (seen prog.tree SHA).card ≤ Q)
-local notation "acceptedFailure" => fun (view : View) => decision view = true ∧ failsView view
+local notation "acceptedFailure" => fun (view : View) => decision view = true ∧ (failsView view ∨ hashBad view)
 
 /-- Uniform sampler coordinates preserve the law of events on the original
 grouped oracle, including its query-counting events. -/

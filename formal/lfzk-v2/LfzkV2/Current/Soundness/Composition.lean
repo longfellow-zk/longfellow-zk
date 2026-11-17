@@ -34,12 +34,12 @@ local notation "valueFinite" => Fintype.ofInjective
   (S.protocol.fmt.toPoint)
   (S.protocol.fmt.toPoint_injective_bounded S.fits)
 local notation "ordinaryRate" => (2/((Adapter.Mdoc.binaryOrder-1:ℕ):ℚ))
-local notation "acceptedFailure" => fun (view : View) => decision view = true ∧ failsView view
+local notation "hashBad" => Soundness.Recovery.hashException S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.fmt (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata
+  S.protocol.columnsFit M.data.execution.sample S.protocol.primeCount S.protocol.draw
 local notation "observe" => Soundness.OracleTransport.observe S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.fmt (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata S.fits
   M.data.execution.sample S.protocol.merkleCodec id A.toProgram.tree
 local notation "sourceView" => fun K => observe (Prod.fst (Tree.run (searchTree S.protocol S.fits M.data A.toProgram) K)) K
-local notation "hashBad" => Soundness.Recovery.hashException S.protocol.binary S.protocol.prime S.protocol.P S.protocol.R S.protocol.fmt (S.protocol.ideal) S.protocol.binaryCount S.protocol.metadata
-  S.protocol.columnsFit M.data.execution.sample S.protocol.primeCount S.protocol.draw
+local notation "acceptedFailure" => fun (view : View) => decision view = true ∧ (failsView view ∨ hashBad view)
 
 /-- The final step shared by both estimates: transport a named-oracle bound
 `cap` back to the raw SHA failure event, then bound the averaged hash
