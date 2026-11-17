@@ -164,12 +164,14 @@ profiles an application chose (for example in `mdoc::proto`).
 
 ## Formal development
 
-- No list decoding, anywhere: not in the prover, the verifier, an
-  extractor, or a proof. Extraction decodes uniquely from the transcript, as
-  Polygero's `scanRecoverAt` does: the verifier's challenge and the response
-  identify the good columns, and each row is uniquely decoded on them. If a
-  design or proof seems to need list decoding, the design is wrong: stop and
-  raise it with the maintainer.
+- No list decoding in the prover, the verifier or an extractor. Extractors
+  decode uniquely from the transcript (Berlekamp–Welch), as Polygero's
+  `scanRecoverAt` does: the verifier's challenge and the response identify
+  the good columns, and each row is uniquely decoded on them. The list of
+  codewords close to the committed rows exists only in the analysis, where
+  its size bounds error terms; no extractor computes, searches or selects
+  from it. If an extractor seems to need the list, the design is wrong: stop
+  and raise it with the maintainer.
 - Lean proofs use only the standard axioms (`propext`, `Classical.choice`,
   `Quot.sound`): no `sorry`, no `native_decide` or other `ofReduceBool`
   routes. Kernel evaluation (`decide +kernel`) is fine. The one exception is
