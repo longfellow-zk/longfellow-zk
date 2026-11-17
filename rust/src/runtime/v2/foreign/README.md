@@ -93,8 +93,10 @@ public bit `m_j`.
 The leaves are virtual inputs of the binary participant: per-proof
 definitions `c0 + c1*x[source]` over committed bits, which constraint
 compilation substitutes like public inputs. Each tree's target is folded into
-its first leaf. The archived fragment is therefore a challenge-free product
-tree whose outputs assert `product + 1 = 0`.
+its first leaf. The fragment, which the runtime generates from the tree
+shape and the host's input layout rather than reading it from an archive,
+is therefore a fixed, challenge-free product tree whose outputs assert
+`product + 1 = 0`.
 
 ## Binary input layout
 

@@ -175,7 +175,7 @@ its bits are taken from the least significant.
 | Value | Definition | Checked by |
 |---|---|---|
 | Circuit ID | SHA-256 of the circuit's canonical encoding (`core::proto::v2::compute_id`) | `CircuitReader` recomputes it for every payload |
-| Combined hash | SHA-256(signature circuit ID \|\| hash circuit ID), the archive's entry order | `core::proto::v2::archive::from_stream` recomputes it |
+| Combined hash | SHA-256 of the circuit IDs in the archive's entry order: SHA-256(signature circuit ID \|\| hash circuit ID) for the archives the compiler writes (Circuit archive) | `core::proto::v2::archive::from_stream` recomputes it |
 | `ZkSpecStruct` | `combined_hash`, `num_attributes`, `version`, `polygero`: one profile for both fields, which the joint commitment shares | `Instance::load`: archive combined ID and version equal the spec's, and both public-input counts match it |
 | Adapter fragment ID | the ID of the product-tree fragment that `foreign::adapter` rebuilds from the hash circuit's shape | absorbed in its `Circuit` message |
 
@@ -361,10 +361,10 @@ layers.
 |---|---|---|---|---|
 | 1 | statement | `MdocStatement` (16), `Circuit` (18) x 3, `CommitmentLayout` (19) x 2, `AdapterLayout` (22), `JointGeometry` (20), `PublicInputs` (21) x 2 | see Statement | none: the node continues |
 | 2 | joint Polygero | `Commitment` (32) | Bytes(32) root | 2 coefficient vectors per field |
-| 3 | witness selection | `FingerprintResponse` (33) x 2 | Elements(GF2_128, 2), Elements(P256, 2) | prime top weights (input) |
-| 4 | prime sumcheck, per layer | `SumcheckRound` (48) x `logw_l`, `SumcheckCross` (49), `SumcheckClaims` (50) | Elements(P256, 2), (P256, 1), (P256, 2) | z per round; r != 0; alpha, then the next stage's weights or, at the last stage, the input assertions; after the last stage eta != 0 (input) |
-| 5 | split | `SplitOpening` (64) | Elements(P256, 1): mu | conversion pair, each != 0 (input) |
-| 6 | P-256 adapter | `P256AdapterQuotients` (65) | Bits(10), Bits(10) | host top weights (input) |
+| 3 | witness selection | `FingerprintResponse` (33) x 2 | Elements(GF2_128, 2), Elements(P256, 2) | prime top weights (*leading*) |
+| 4 | prime sumcheck, per layer | `SumcheckRound` (48) x `logw_l`, `SumcheckCross` (49), `SumcheckClaims` (50) | Elements(P256, 2), (P256, 1), (P256, 2) | z per round; r != 0; alpha, then the next stage's weights or, at the last stage, the input assertions; after the last stage eta != 0 (*leading*) |
+| 5 | split | `SplitOpening` (64) | Elements(P256, 1): mu | conversion pair, each != 0 (*leading*) |
+| 6 | P-256 adapter | `P256AdapterQuotients` (65) | Bits(10), Bits(10) | host top weights (*leading*) |
 | 7 | binary sumcheck, per layer | as in row 4 | over GF2_128 | as in row 4, without eta |
 | 8 | binary dual packing | `PackingU` (80) | Elements(GF2_128, 128) | 128 independent GF2_128 elements |
 | 9 | binary dual packing | `PackingA` (81) | Elements(GF2_128, 1) | Polygero batching weights (drawn and used by the joint opening): per field, one weight per equation, then s+1 = 13 samples per batched row |
@@ -372,14 +372,17 @@ layers.
 | 11 | encoder | `Seal` (112) | Bytes: every proof byte before the seal | the seal block |
 
 The prime participant has packing degree one, so it sends no packing
-messages and has no packing boundaries (transcript I7). Every sub-protocol
-here that draws begins by sending; the challenges it needs first (both top
-weights, eta, the conversion pair) are `Challenge` inputs (transcript I8),
-and the joint opening draws the batching weights itself, right where it
-takes both fields' statements. Boundaries: the sumcheck rounds of both frontends,
-plus 2 per layer, plus 7 others; the seal is not counted. For A = 1 to 4
-the hash circuit has 263, 267, 272 and 275 rounds and the signature circuit
-125, so the counts are 457, 461, 466 and 469.
+messages and has no packing boundaries (transcript I7). Each sub-protocol
+here draws its own challenges (transcript I8). One that needs a challenge
+before its first message draws it on entry, from the node the preceding
+message closed: each frontend its top weights, the split eta, the adapter
+its conversion pair; the table marks these draws *leading*, in the row of
+the message that closes their node. The joint opening draws the batching
+weights itself, right where it takes both fields' statements. Boundaries:
+the sumcheck rounds of both frontends, plus 2 per layer, plus 7 others; the
+seal is not counted. For A = 1 to 4 the hash circuit has 263, 267, 272 and
+275 rounds and the signature circuit 125, so the counts are 457, 461, 466
+and 469.
 
 ### Verifier checks
 
@@ -443,10 +446,14 @@ A v2 circuit archive is a single zstd frame (compression level
 `K_ZSTD_LEVEL` = 16, at most `MAX_ARCHIVE_BYTES` compressed, window at most
 `MAX_METADATA_BYTES`) holding one LFA2 archive (`core::proto::v2::archive`)
 and nothing after it. For mdoc it has `circuit_version` 12 and exactly two
-entries, `sig` then `hash`; the combined ID is SHA-256 of their IDs in that
-order. A stored archive is named `<combined hash hex>.lfa2`, in
-`src/mdoc/artifacts/circuits` for the repository's own artifacts
-(`provider::materialize`, `artifacts::load_circuit_lfa2`), or in a caller's
+entries, named `sig` and `hash`. The compiler writes `sig` then `hash`; that
+order is its convention, not a requirement. The runtime finds each entry by
+name, and the combined ID is SHA-256 of their IDs in the archive's entry
+order, so an archive with the entries reversed has another combined ID and
+loads only under a spec that names that ID. A stored archive is named
+`<combined hash hex>.lfa2`, in `src/mdoc/artifacts/circuits` for the
+repository's own artifacts (`provider::materialize`,
+`artifacts::load_circuit_lfa2`), or in a caller's
 directory (`provider::materialize_from`).
 
 ### NEXT cache
@@ -555,7 +562,10 @@ pub(super) struct Identity<'a> { session: &'a [u8], spec: &'a ZkSpecStruct }  //
 pub(super) type MdocStatement<'s, DH, DS> = ComposedStatement<'s, .., Identity<'s>>;
 ```
 
-Both roles share the setup and differ only after the statement exists:
+Both roles share the setup below. The prover also parses the document and
+runs both witness encoders right after `Instance::load`, before the
+composition (I10); apart from that, the roles differ only after the
+statement exists:
 
 ```rust
 let request = Request::check(spec, pkx, pky, transcript, attrs, now, doc_type, &p256)?;
@@ -682,7 +692,8 @@ check that the absorbed geometry equals the parsing geometry, that the
 statement precedes every prover message, every message's schema, and the
 golden pins of the standalone transcript and the mdoc first node. The Lean
 model takes the statement messages after the combined hash as fixed setup
-bytes, so Lean does not prove I3.
+bytes, except the adapter fragment's identifier, which it computes as Rust
+does, so Lean does not prove I3.
 
 ### Zero knowledge
 

@@ -28,8 +28,11 @@ no separate arithmetic instance can be attached. The joint handles take the tran
 commit or receive and own it through the frontend reductions and the
 authentication; they have no public transcript accessor. A frontend reaches the
 session only through a handle's crate-private `bound()`, after the fingerprint
-responses (DESIGN.md I6). Successful completion returns the transcript for the
-complete-proof seal.
+responses (DESIGN.md I6). The prover's `finish` returns the opening with the
+transcript, which writes the complete-proof seal. The verifier's `finish`
+takes the `Unverified` complete proof and returns an `Authenticated` that
+owns that proof and the session; only its `check_seal`, which consumes both,
+yields a `VerifiedProof`.
 `CircuitParticipant::new` derives immutable proof geometry, witness layout and
 Polygero parameters. `prepare` validates and packs typed private inputs, samples
 sumcheck pads and returns the witness and owned reduction state. Binary source
@@ -76,8 +79,11 @@ sums them. T controls both openings and row masks.
 `CircuitParticipant::new(circuits, virtual_inputs, ..)` combines the supplied
 circuits in one layered sumcheck; `circuits[0]` is the primary circuit. They
 share the public prefix and read prefixes of one input array as wide as the
-widest circuit. `prove` and `reduce` take the same ordered circuit list, which
-must match the participant's circuit IDs, and the same public inputs. The
+widest circuit. `prove` and `reduce` take no circuits or public inputs of
+their own: they read both from the frontend's statement part
+(`FrontendPart`), through its `Bound` session. `FrontendPart::new` checks
+once that the ordered circuit list matches the participant's circuit IDs
+and the public-input count. The
 prover supplies one private source vector, packed and committed once. All
 circuit IDs and the common public values bind before sumcheck.
 
