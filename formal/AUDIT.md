@@ -7,8 +7,12 @@ The checked current endpoint is
 It bounds the probability that a finite classical adaptive adversary making at
 most `Q` distinct original SHA queries obtains an accepted proof from which the
 extractor recovers no application-valid witness. The extractor
-(`Mdoc.Soundness.extract`) decodes uniquely from the transcript, as Polygero's
-`scanRecoverAt` does, and forms no candidate list. The exact bound
+(`Mdoc.Soundness.extract`) takes no oracle: it reads the public setup, the
+submitted request and proof, and the adversary's own row trace in the
+wide-oracle model, where a node query returns its digest and its row of PRF
+words; over raw SHA the experiment computes the rows. It decodes uniquely
+from the transcript, as Polygero's `scanRecoverAt` does, and forms no
+candidate list. The exact bound
 `LfzkV2.Current.Soundness.Rate7.failureBound`, its coefficient
 `c = q * LfzkV2.Current.Soundness.Rate7.parentBudget`, the strict `0.97` cap
 (`Mdoc.Soundness.averaged_nonvacuous`) and the all-`Q` corollaries are stated
@@ -54,16 +58,23 @@ The proof path has the following checked boundaries, listed bottom-up; the
 8. `Mdoc.Soundness` composes `CanonicalRuntime.decoded_true_at_request`
    with `MdocWitness.hashValid_of_satisfies`. The same extracted pair satisfies
    ordinary hash constraints and the signature circuit at the actual request.
-   The extractor replays the verifier, then in each field uniquely decodes
-   the committed rows on the good columns that the backend coin and response
-   identify (`Soundness.Runtime.viewRecover`,
-   `Application.StatementData.recover`). Every recovered pair satisfies the
+   The extractor rebuilds the statement and challenges from the row trace
+   and the cut from its log, then in each field uniquely decodes the
+   committed rows on the good columns that the backend coin and response
+   identify (`Soundness.Runtime.traceRecover`,
+   `Application.StatementData.recover`). On an accepted proof outside the
+   hash exception this equals decoding the verifier's replay with the oracle
+   (`Soundness.Runtime.traceRecover_eq`); an accepted proof with a path node
+   missing from the trace is the hash exception, already in the bound
+   (the internal failure predicate is `decision ∧ (extractionFails ∨
+   hashException)`). Every recovered pair satisfies the
    frontend rows (`Application.Authentication.recover_rows`); outside the
    existing backend events (`Application.Authentication.BackendBad`) it is
    the fingerprint-selected pair (`Application.Authentication.recover_eq_extract`),
    whose frontend event the bound already charges, so the bound has no new
    event. `Tests.EndpointStatements` checks that the extractor reaches
-   Polygero's unique decoder and no list-decoding definition.
+   Polygero's unique decoder, no list-decoding definition, and no oracle,
+   raw SHA table or verifier replay.
    Hash read separation is structural: the hash circuit reads only its own
    input prefix, ahead of R, the quotient pads and the virtual leaves.
    `HashSeparation` proves it for typed hash topologies

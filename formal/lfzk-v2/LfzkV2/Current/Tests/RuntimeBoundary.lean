@@ -89,6 +89,7 @@ run_cmd ProofAudit.standardAxioms #[``Mdoc.Soundness.averaged_ratio_le,
   ``Mdoc.Completeness.accepts, ``Mdoc.Completeness.accepts_rust, ``Mdoc.Completeness.rawReal_output,
   ``Mdoc.Soundness.averaged_ratio_le_rust, ``Application.Authentication.recover_rows,
   ``Application.Authentication.recover_eq_extract, ``Application.Authentication.extraction_failure_cover,
+  ``Soundness.Runtime.traceRecover_eq, ``StrandRowTrace.strand_oracle,
   ``Mdoc.ZeroKnowledge.statClose_rust, ``Mdoc.VerifierPrivacy.acceptance_probability_rust]
 
 end LfzkV2.Current.Tests.RuntimeBoundary

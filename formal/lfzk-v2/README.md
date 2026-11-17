@@ -4,8 +4,9 @@ The current numbered-strand soundness endpoint is
 [`Mdoc.Soundness.averaged_ratio_le`](LfzkV2/Current/Mdoc/Soundness.lean).
 It connects one SHA oracle, the original raw adversarial query log, the
 complete serialized proof, the runtime verifier and the first-context
-paired extractor. The extractor decodes uniquely from the transcript, with no
-candidate list. Its conclusion is ordinary hash-witness validity and
+paired extractor. The extractor takes no oracle: it reads the adversary's own
+row trace in the wide-oracle model (over raw SHA the experiment computes the
+rows), and decodes uniquely from the transcript, with no candidate list. Its conclusion is ordinary hash-witness validity and
 signature-circuit satisfaction at the submitted request's public inputs,
 using the same extracted pair. The complete numbered-strand privacy endpoint is
 [`Mdoc.ZeroKnowledge.statClose`](LfzkV2/Current/Mdoc/ZeroKnowledge.lean).
@@ -296,12 +297,15 @@ predicate. Its Rust counterpart is that each sumcheck component reads only its
 own input prefix; there is no runtime scan. `Mdoc.Soundness.event` states
 actual acceptance with failure of the extractor to produce an
 application-valid witness; its probability bounds use this bridge. The
-extractor replays the verifier and, in each field, uniquely decodes the
-committed rows on the good columns that the backend coin and response
-identify (`Soundness.Runtime.viewRecover`), as Polygero's `scanRecoverAt`
-does. Application-circuit correctness remains trusted.
+extractor rebuilds the statement and challenges from the adversary's row
+trace and, in each field, uniquely decodes the committed rows on the good
+columns that the backend coin and response identify
+(`Soundness.Runtime.traceRecover`), as Polygero's `scanRecoverAt` does.
+Outside the hash exception this equals decoding the verifier's replay
+(`Soundness.Runtime.traceRecover_eq`). Application-circuit correctness remains trusted.
 
-The extractor forms no candidate list. Apart from verifier replay it runs one
+The extractor forms no candidate list. Apart from replaying the verifier's
+decoding from the row trace it runs one
 unique row decoding per committed row, treated as computable (Berlekamp–Welch
 within half the minimum distance); its running time is argued on paper, not
 formally. The analysis still bounds the commitment-only candidate lists, with

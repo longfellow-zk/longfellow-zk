@@ -2,26 +2,32 @@ import LfzkV2.Current.Mdoc.Setup
 import LfzkV2.Current.Mdoc.OracleSoundness
 import LfzkV2.Current.MdocWitnessRequest
 import LfzkV2.Current.Protocol.Sampling
+import LfzkV2.Current.Soundness.TraceExtraction
 
 /-! Application soundness for the numbered-strand verifier: extraction at the
 original commitment cut yields the ordinary hash witness and signature-circuit
 witness at the actual request. Sampling, scalar representations and trusted
 circuit semantics retain their explicit interfaces.
 
-The extractor `extract` decodes uniquely from the transcript, as Polygero's
-`scanRecoverAt` does. It replays the verifier with the protocol oracle,
-which recovers the authenticated statement, the tuple committed at the
-original commitment cut, and the backend coin and response. In each field
-the coin and response identify the good columns, every committed row is
+The extractor `extract` takes no oracle. It reads the public setup, the
+request and proof bytes the adversary submits, and the adversary's own row
+trace: in the wide-oracle model a node query returns the node's digest and
+its whole row of PRF words, so the trace is the adversary's own; over raw SHA
+the experiment computes the rows (`rowTrace`). From the trace it reads the
+commitment cut of the submitted context and every challenge, rebuilds the
+statement, and decodes uniquely, as Polygero's `scanRecoverAt` does: in each
+field the coin and response identify the good columns, every committed row is
 uniquely decoded on them, and the recovered tableau is projected to the
-selected cells (`Soundness.Runtime.viewRecover`, `Application.StatementData.recover`).
-It forms no candidate list and reads no list-decoding cutoff. Every recovered
-pair satisfies the frontend rows (`Application.Authentication.recover_rows`).
-Outside the backend events it is also the pair that early fingerprint
-selection picks from the commitment-only lists
-(`Application.Authentication.recover_eq_extract`); the analysis uses this only
-to charge the frontend's algebraic event to a witness fixed before the
-frontend challenges.
+selected cells (`Soundness.Runtime.traceRecover`,
+`Application.StatementData.recover`). It forms no candidate list and reads no
+list-decoding cutoff. Outside the hash exception it returns what decoding the
+verifier's replay returns (`Soundness.Runtime.traceRecover_eq`). Every
+recovered pair satisfies the frontend rows
+(`Application.Authentication.recover_rows`). Outside the backend events it is
+also the pair that early fingerprint selection picks from the commitment-only
+lists (`Application.Authentication.recover_eq_extract`); the analysis uses
+this only to charge the frontend's algebraic event to a witness fixed before
+the frontend challenges.
 
 The original query budget `Q` counts distinct byte queries in the worst case,
 for every adversarial coin and total oracle. Averaging uses a finite coin that
@@ -112,6 +118,28 @@ theorem decoded_valid (output : Output) (H : Point → Digest × Answer)
   exact MdocWitness.valid_at_request binary prime P R (MdocRuntime.format bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide) setup) I rfl rfl metadata draw
     output H decoded found w truth
 
+/-- The adversary's submitted proof output: its request and proof bytes,
+parsed by the complete-proof reader. -/
+def submitted (submission : Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) : Output :=
+  ProofOutput.decode (TaggedFormat.complete repr g) (MdocDefaults.proof g B) submission
+
+/-- The extractor. It takes no oracle: its arguments are the public setup
+(the circuits, the setup identifiers and the challenge reader), the request
+and proof bytes the adversary submits, and the adversary's own row trace,
+the wide-oracle trace in which each node query returns the node's digest and
+its row of PRF words (`StrandRowTrace.Entry`). From the trace it reads the
+commitment cut of the submitted context and every challenge, rebuilds the
+statement, and uniquely decodes the committed rows on the good columns
+(`Soundness.Runtime.traceRecover`). -/
+def extract {blocks : ℕ} (identifiers : MdocIdentifiers.Identifiers)
+    (sample : (point : Mdoc.RuntimeSoundness.RoundPoint binary prime cantor scalars identifiers bounds) →
+      Tree Strand.Word Digest (Option (Mdoc.RuntimeSoundness.RoundValue binary prime cantor scalars
+        identifiers bounds point)) blocks)
+    (submission : Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes)
+    (trace : List StrandRowTrace.Entry) : Option Witness :=
+  Soundness.Runtime.traceRecover (Mdoc.Setup.protocol binary prime cantor scalars identifiers bounds)
+    (Protocol.SamplerData.mk sample) (submitted binary prime scalars bounds submission) trace
+
 variable {fuel blocks Q : ℕ}
 variable (body : Tree Bytes Digest (Mdoc.RuntimeSoundness.Request binary prime bounds × Bytes) fuel)
 variable (fits : (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length < 2^64)
@@ -126,46 +154,62 @@ local notation "view" G => Mdoc.OracleSoundness.observation binary prime cantor 
 local notation "SHA" G => Mdoc.OracleSoundness.sha binary prime cantor scalars ids bounds body outside fits sample G
 local notation "decodedView" => Protocol.Observation.decoded bp pp P R W earlier (Format.wire (Protocol.Setup.fmt (E))) (Protocol.Setup.bodyCodec (E))
   physical (Format.hashPublic (Fmt)) decodePublic draw
-local notation "recovered" => Soundness.Runtime.viewRecover E
 
-/-- The transcript-assisted extractor: replay the verifier with the oracle,
-then uniquely decode the committed tuple on the good columns that the backend
-coin and response identify, and project to the selected cells. -/
-def extract (G : Raw → Digest) : Option Witness :=
-  (decodedView (view G)).bind fun decoded => recovered (view G) decoded
+/-- The adversary's row trace over raw SHA: its protocol-domain queries, in
+order, each with its digest and the row of PRF words that the wide oracle
+returns with it. Over raw SHA the experiment computes the rows; in the
+wide-oracle model the trace is the adversary's own. -/
+def rowTrace (G : Raw → Digest) : List StrandRowTrace.Entry :=
+  StrandRowTrace.ofLog (SHA G) ((body.run (SHA G)).2.filter fun qa => decide (StrandDomains.protocol qa.1))
 
 /-- Actual verifier acceptance, including parsing, tuple openings, and the
-final seal, with the transcript-assisted extractor failing to produce an
-application-valid witness. -/
+final seal, with the extractor, run on the adversary's submission and row
+trace, failing to produce an application-valid witness. -/
 def event (G : Raw → Digest) : Prop :=
   (ProofOutput.read (TaggedFormat.complete repr g) (body.run (SHA G)).1.2).isSome ∧
   Mdoc.RuntimeSoundness.verify binary prime cantor scalars currentIds bounds sample
     (SHA G) (view G).original.1 = true ∧
-  ¬ ∃ w, extract binary prime cantor scalars ids bounds outside body fits sample G = some w ∧
+  ¬ ∃ w, extract binary prime cantor scalars bounds currentIds sample (body.run (SHA G)).1
+      (rowTrace binary prime cantor scalars ids bounds outside body fits sample G) = some w ∧
     Valid binary prime bounds (view G).original.1.request w
 
 -- The decoded split-claim system makes this unfolding slightly larger.
 set_option backward.isDefEq.respectTransparency false in
 set_option maxHeartbeats 400000 in
+/-- Outside the hash exception, the extractor run on the row trace returns
+what transcript-assisted decoding of the verifier's replay returns
+(`Soundness.Runtime.traceRecover_eq`), so its failure is the replay's
+extraction failure; with the hash exception the failure is already counted. -/
 theorem event_implies_extraction_failure (G : Raw → Digest) (bad : event binary prime cantor scalars ids bounds outside body fits sample G) :
     Mdoc.OracleSoundness.event binary prime cantor scalars ids bounds body outside fits sample G := by
   have replayed := Mdoc.OracleSoundness.verifier_actual binary prime cantor scalars ids bounds body outside fits sample G
   have decoding := Protocol.Observation.decoded_of_trace bp pp P R W earlier (Format.wire (Protocol.Setup.fmt (E))) (Protocol.Setup.bodyCodec (E))
     physical codec id (Format.hashPublic (Fmt)) decodePublic draw
     (view G) (SHA G) (congrArg Prod.snd replayed)
-  obtain ⟨decoded,found,_⟩ := (StrandVerifier.verify_true_iff bp pp P R W earlier (Format.wire (Protocol.Setup.fmt (E))) (Protocol.Setup.bodyCodec (E))
-    physical (Format.hashPublic (Fmt)) decodePublic draw codec
-    (SHA G) id (view G).original.1).mp bad.2.1
-  have foundView : decodedView (view G) = some decoded := decoding.trans found
   have decision := Protocol.Observation.decision_of_trace bp pp P R W earlier (Format.wire (Protocol.Setup.fmt (E))) (Protocol.Setup.bodyCodec (E))
     physical codec id (Format.hashPublic (Fmt)) decodePublic draw
     (view G) (SHA G) (congrArg Prod.snd replayed)
-  refine ⟨bad.1,decision.trans bad.2.1,Or.inl ⟨decoded,foundView,?_⟩⟩
+  refine ⟨bad.1,decision.trans bad.2.1,or_iff_not_imp_right.mpr fun noHash => ?_⟩
+  have output := Mdoc.OracleSoundness.submitted_output binary prime cantor scalars ids bounds body outside fits sample G
+  have trace := Mdoc.OracleSoundness.original_trace binary prime cantor scalars ids bounds body outside fits sample G
+  have sound : ∀ qa ∈ (view G).original.2, qa.2 = (SHA G) qa.1 := by
+    rw [trace]
+    intro qa member
+    exact Tree.trace_sound body (SHA G) qa (List.mem_filter.mp member).1
+  have cuts : ∀ key, (view G).cuts key =
+      StrandCutObservation.logCut (E).fmt.schema (E).fmt.key key (view G).original.2 := fun key =>
+    Soundness.OracleTransport.viewMap_cuts _ _ _ _ _ _ _ _ _ _ _ _ _ _ key
+  obtain ⟨decoded,found,same⟩ := Soundness.Runtime.traceRecover_eq (E) (Protocol.SamplerData.mk (S := E) sample)
+    (view G) (SHA G) replayed sound cuts (decision.trans bad.2.1) noHash
+  refine ⟨decoded,found,?_⟩
   rintro ⟨w,extracted,truth⟩
   apply bad.2.2
   refine ⟨w,?_,decoded_valid binary prime cantor scalars ids bounds outside
-    (view G).original.1 _ decoded found w truth⟩
-  simp only [extract,foundView,Option.bind_some]
+    (view G).original.1 _ decoded (decoding.symm.trans found) w truth⟩
+  change Soundness.Runtime.traceRecover (E) (Protocol.SamplerData.mk (S := E) sample)
+    (ProofOutput.decode (TaggedFormat.complete repr g) (MdocDefaults.proof g B) (body.run (SHA G)).1)
+    (StrandRowTrace.ofLog (SHA G) ((body.run (SHA G)).2.filter fun qa => decide (StrandDomains.protocol qa.1))) = some w
+  rw [← output,← trace,same]
   exact extracted
 
 variable (bodyFits : ProofBodyBounds.bodyBound (MdocRuntime.representations scalars)

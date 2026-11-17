@@ -640,7 +640,10 @@ malformed archive or one whose metadata does not match the spec, as
 bounds the probability that the verifier accepts and the extractor fails to
 return a witness satisfying the ordinary hash constraints and the signature
 circuit at the requested public inputs. The extractor (`Mdoc.Soundness.extract`)
-decodes uniquely from the transcript, as Polygero's `scanRecoverAt` does: the
+takes no oracle: it reads the submitted proof and the adversary's own row
+trace, in which each node query carries its digest and its row of PRF words
+(over raw SHA the experiment computes the rows). It decodes uniquely from the
+transcript, as Polygero's `scanRecoverAt` does: the
 backend challenge and response identify the good columns, and each committed
 row is uniquely decoded on them. It forms no candidate list. For an adversary with at most
 `Q < 2^127` distinct SHA queries, with `q = 2^128`, the bound is the exact

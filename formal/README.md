@@ -10,8 +10,8 @@ original SHA queries.
 Let $P_{\mathrm{fail}}$ denote the probability that the verifier accepts
 and the extractor fails to recover a witness satisfying the ordinary hash
 constraints and signature circuit at the actual requested public inputs. The
-extractor decodes uniquely from the transcript, with no candidate list, and
-both circuits use the same extracted pair. Then
+extractor takes no oracle and decodes uniquely from the transcript, with no
+candidate list, and both circuits use the same extracted pair. Then
 
 $$
 \begin{aligned}
@@ -108,14 +108,29 @@ frontend plans and rate certificate. `submitted_output`, `original_trace`,
 connect its event to the original submitted proof, original query log and
 complete runtime verifier.
 
-The extractor `Mdoc.Soundness.extract` decodes uniquely from the transcript,
-as Polygero's `scanRecoverAt` does. It replays the verifier with the oracle,
-which recovers the authenticated statement, the tuple committed at the
-original commitment cut, and the backend coin and response. In each field the
-coin and response identify the good columns, each committed row is uniquely
-decoded on them, and the recovered tableau is projected to the selected cells
-(`Soundness.Runtime.viewRecover`, `Application.StatementData.recover`). It
-forms no candidate list and reads no list-decoding cutoff or list cap. Every
+The extractor `Mdoc.Soundness.extract` takes no oracle. Its arguments are the
+public setup (circuits, setup identifiers, challenge reader), the request and
+proof bytes the adversary submits, and the adversary's own row trace. The row
+trace is the wide-oracle trace: in that model a node query returns the node's
+digest together with its whole row of PRF words, so the trace is the
+adversary's own. Over raw SHA the experiment computes the rows from the
+oracle at the PRF inputs of the adversary's queried nodes
+(`Mdoc.Soundness.rowTrace`, `StrandRowTrace.ofLog`), including PRF words the
+adversary never queried; the proof needs no argument about them. From the
+trace the extractor reads the commitment cut of the submitted context
+(`StrandCutObservation.logCut`) and every challenge, both the sumcheck
+challenges that rebuild the statement and the backend challenge
+(`StrandRowTrace.oracle`). It then decodes uniquely, as Polygero's
+`scanRecoverAt` does: in each field the coin and response identify the good
+columns, each committed row is uniquely decoded on them, and the recovered
+tableau is projected to the selected cells (`Soundness.Runtime.traceRecover`,
+`Application.StatementData.recover`). On an accepted proof outside the hash
+exception every node on the accepted path is in the trace, so this equals
+decoding the verifier's replay with the oracle
+(`Soundness.Runtime.traceRecover_eq`, `StrandRowTrace.strand_oracle`); an
+accepted proof with a missing path node is the hash exception, which the
+bound already counts. The extractor forms no candidate list and reads no
+list-decoding cutoff or list cap. Every
 recovered pair satisfies the frontend rows
 (`Application.Authentication.recover_rows`, from `scanRecoverAt_valid`), so it
 is application-valid or the frontend's algebraic event holds for it. Outside
@@ -126,7 +141,8 @@ fingerprint collision), it is the pair that early fingerprint selection picks
 identification only to charge the frontend's algebraic event to a witness
 fixed before the frontend challenges; the extractor itself never sees the
 list. `Tests.EndpointStatements` checks that the extractor reaches Polygero's
-unique decoder and no list-decoding definition.
+unique decoder, no list-decoding definition, and no oracle, raw SHA table or
+verifier replay.
 Runtime acceptance, ordered query recovery, column agreement and algebraic
 failure coverage are proved internally.
 
@@ -456,8 +472,9 @@ establish that a cryptographic implementation satisfies their premises.
   composition's identity message comes only from an application inside the
   crate (mdoc's `Identity`): an application's identity encoding is trusted
   crate code.
-- **Efficiency and implementation.** Extraction searches no list. Apart from
-  replaying the verifier, it computes each field's good columns and uniquely
+- **Efficiency and implementation.** Extraction searches no list and makes no
+  oracle query. Apart from replaying the verifier's decoding from the row
+  trace, it computes each field's good columns and uniquely
   decodes each committed row on them within the unique-decoding radius
   (`r+w+2s` at most the number of good columns). The unique decoder is treated
   as computable: unique decoding of Reed–Solomon codes within half the minimum

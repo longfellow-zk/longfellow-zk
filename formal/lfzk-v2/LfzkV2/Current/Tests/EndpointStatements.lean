@@ -14,7 +14,9 @@ simulator acceptance and completeness) and their corollaries at the Rust
 challenge reader (`Mdoc.Rust`), and each of them must reach the definitions
 that carry its meaning (`required`). The soundness extractor must decode
 uniquely from the transcript: it reaches Polygero's unique decoder and no
-list-decoding definition (`uniqueDecoder`, `listDecoding`). Axiom and
+list-decoding definition (`uniqueDecoder`, `listDecoding`). It must also take
+no oracle: it reaches no oracle of the soundness experiment, no raw SHA table
+and no verifier replay (`straightLine`). Axiom and
 connectivity checks live in `Tests.MdocSoundness`. -/
 namespace LfzkV2.Current.Tests.EndpointStatements
 open Lean Elab Command
@@ -51,20 +53,20 @@ def fingerprint (env : Environment) (root : Name) : UInt64 × NameSet := Id.run 
 /-- Reviewed statement fingerprints. Update a value only after reviewing the
 statement change it reflects. -/
 def pinned : List (Name × UInt64) := [
-  (``Current.Mdoc.Soundness.ratio_le, 9719878431112164056),
-  (``Current.Mdoc.Soundness.linear_ratio_le, 8122497443860393306),
-  (``Current.Mdoc.Soundness.averaged_ratio_le, 14093421579819618682),
-  (``Current.Mdoc.Soundness.averaged_linear_ratio_le, 6078267020806742310),
-  (``Current.Mdoc.Soundness.averaged_nonvacuous, 7969011094196129458),
-  (``Current.Mdoc.Soundness.averaged_polynomial_ratio_le, 8536361359869511729),
-  (``Current.Mdoc.Soundness.averaged_mdoc_approximation, 2736746807493353471),
+  (``Current.Mdoc.Soundness.ratio_le, 8582023105427532507),
+  (``Current.Mdoc.Soundness.linear_ratio_le, 2256592093110131377),
+  (``Current.Mdoc.Soundness.averaged_ratio_le, 16532026915781597033),
+  (``Current.Mdoc.Soundness.averaged_linear_ratio_le, 4865304750125696021),
+  (``Current.Mdoc.Soundness.averaged_nonvacuous, 82060277669800425),
+  (``Current.Mdoc.Soundness.averaged_polynomial_ratio_le, 12966774689929099418),
+  (``Current.Mdoc.Soundness.averaged_mdoc_approximation, 17601960112599364012),
   (``Current.Mdoc.ZeroKnowledge.statClose, 11089277535653201106),
   (``Current.Mdoc.ZeroKnowledge.statClose_at_query_budget, 3608117319759410495),
   (``Current.Mdoc.VerifierPrivacy.acceptance_probability, 17334613443263901531),
   (``Current.Mdoc.Completeness.some_accepts, 4494509276498619142),
   (``Current.Mdoc.Completeness.accepts, 14703360873936376765),
   (``Current.Mdoc.Completeness.accepts_rust, 7576761460556919049),
-  (``Current.Mdoc.Soundness.averaged_ratio_le_rust, 8879611964235469480),
+  (``Current.Mdoc.Soundness.averaged_ratio_le_rust, 2288941145299443603),
   (``Current.Mdoc.ZeroKnowledge.statClose_rust, 9355581669937741965),
   (``Current.Mdoc.VerifierPrivacy.acceptance_probability_rust, 11679471597644133134)]
 
@@ -75,8 +77,10 @@ def required : List (Name × List Name) := [
   (``Current.Mdoc.Soundness.averaged_ratio_le,
     [``Soundness.Rate7.failureBound, ``Soundness.Rate7.polygeroConstant,
       ``Current.Mdoc.Soundness.event, ``Current.Mdoc.Soundness.Valid,
-      ``Current.Mdoc.Soundness.extract, ``Soundness.Runtime.viewRecover,
-      ``Application.StatementData.recover, ``RecursivePolygero.scanRecoverAt,
+      ``Current.Mdoc.Soundness.extract, ``Current.Mdoc.Soundness.rowTrace,
+      ``Soundness.Runtime.traceRecover, ``StrandRowTrace.oracle, ``StrandRowTrace.ofLog,
+      ``StrandCutObservation.logCut, ``Application.StatementData.recover,
+      ``RecursivePolygero.scanRecoverAt,
       ``MdocWitness.HashValid, ``MdocWitness.HashChecks,
       ``ConcreteAdapterTopology.Others, ``MdocIdentifiers.setup, ``MdocIdentifiers.fragmentId,
       ``Protocol.Sampler, ``Protocol.SamplerLaws]),
@@ -145,6 +149,20 @@ def listDecoding : List Name := [
   -- Removed list-search extractor; kept so that it cannot return.
   `LfzkV2.Current.Soundness.Runtime.candidates]
 
+/-- What the extractor must not reach, since it takes no oracle: the oracle
+and observation of the soundness experiment, the setup slice it hashes, the
+raw SHA table, the verifier's replay, decoding and decision on an observation,
+and the experiment's row trace. -/
+def straightLine : List Name := [
+  ``Current.Mdoc.OracleSoundness.sha, ``Current.Mdoc.OracleSoundness.observation,
+  ``Current.Mdoc.OracleSoundness.inside, ``Current.Mdoc.OracleSoundness.identifiers,
+  ``Current.Mdoc.RuntimeSoundness.Raw, ``Current.Mdoc.RuntimeSoundness.observation,
+  ``Soundness.OracleTransport.rawSHA, ``Soundness.OracleTransport.rawView,
+  ``Soundness.OracleTransport.other, ``StrandAuthentication.replay,
+  ``Protocol.Observation.decoded, ``Protocol.Observation.decision,
+  ``Soundness.Runtime.viewAuthentication, ``Soundness.Runtime.viewRecover,
+  ``Current.Mdoc.Soundness.rowTrace]
+
 run_cmd do
   let env ← getEnv
   let mut changed : Array MessageData := #[]
@@ -175,5 +193,9 @@ run_cmd do
   for name in listDecoding do
     if reached.contains name then
       throwError "The soundness extractor reaches the list-decoding definition {name}"
+  -- The soundness extractor takes no oracle.
+  for name in straightLine do
+    if reached.contains name then
+      throwError "The soundness extractor reaches {name}"
 
 end LfzkV2.Current.Tests.EndpointStatements

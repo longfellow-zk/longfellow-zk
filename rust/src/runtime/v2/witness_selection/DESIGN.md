@@ -414,7 +414,8 @@ and the responses bound in the next boundary, and
 `LfzkV2.Current.FingerprintRows.decoded_view` derives both the frontend rows
 and the fingerprint match from the backend decoder, so authentication is a
 theorem, not a premise. Selection is an analysis object: the mdoc extractor
-(`LfzkV2.Current.Mdoc.Soundness.extract`) never selects. It uniquely decodes
+(`LfzkV2.Current.Mdoc.Soundness.extract`) never selects and takes no oracle.
+It reads the challenges from the adversary's row trace and uniquely decodes
 the committed rows on the good columns that the backend challenge and
 response identify, and outside the backend and collision events the decoded
 pair is the selected pair

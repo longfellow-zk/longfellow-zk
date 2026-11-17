@@ -101,6 +101,28 @@ def rawView (G : Raw → Digest) :=
   viewMap binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program
     ((compiled).run G,(compiledReplay ((compiled).run G).1).run G)
 
+/-- Every extraction cut is a function of the original byte table alone.
+The finite address window erased by `viewMap` is not needed to recover it. -/
+theorem viewMap_cuts {Result : Type} (view : (Output × List (Raw × Digest)) × (Result × List (Raw × Digest)))
+    (key : fmt.Key) :
+    (viewMap binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program view).cuts key =
+      StrandCutObservation.logCut (schema) context key
+        (viewMap binary prime P R fmt cfg binaryCount metadata fits sample codec merkleInput program view).original.2 := by
+  unfold viewMap StrandCutObservation.logCut
+  dsimp only
+  rw [List.map_map]
+  have point : ∀ raw : Raw, Strand.rawPoint (StrandWindow.encode raw) = Sum.map Subtype.val id raw := by
+    intro raw
+    rcases raw with node | ⟨parent,counter⟩
+    · exact Strand.rawPoint_bytes (.inl node.val)
+    · exact Strand.rawPoint_bytes (.inr (parent,counter))
+  have same : ((fun qa => (Strand.rawPoint qa.1,qa.2)) ∘ fun qa : Raw × Digest => (StrandWindow.encode qa.1,qa.2)) =
+      fun qa => (Sum.map Subtype.val id qa.1,qa.2) := by
+    funext qa
+    simp only [Function.comp_apply,point]
+  rw [same,StrandCutObservation.byteCut_map _ _ _ _ _ Subtype.val_injective]
+  rfl
+
 /-- Completion of the final cache supplies the one raw oracle used by
 both the original search and the complete verifier replay. -/
 def completion (H : Name → Answer) : Raw → Digest :=
