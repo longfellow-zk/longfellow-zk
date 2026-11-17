@@ -14,6 +14,7 @@
 
 //! Longfellow v2 circuit compilation backend.
 
+pub(super) mod copy;
 mod ir_to_terms;
 mod scheduler;
 mod top;

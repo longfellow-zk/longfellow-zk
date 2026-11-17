@@ -27,6 +27,9 @@ pub(crate) fn ceil_log2(n: usize) -> usize {
 
 cfg_compiler! {
     pub(crate) mod array;
+}
+
+cfg_testonly! {
     pub(crate) mod memoize;
 }
 

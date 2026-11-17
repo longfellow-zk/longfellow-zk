@@ -17,15 +17,16 @@ use crate::{
         algebra::{p256::P256Field, CompileField},
         compiler::{
             arena::CompilerArena,
-            copy::CopyRewriter,
             cse::Cse,
             ir::{Expr, RewriteT},
+            v1::copy::CopyRewriter as V1CopyRewriter,
+            v2::copy::CopyRewriter as V2CopyRewriter,
         },
     },
     core::algebra::{Nat, SupportsNatConversions, SupportsU64Conversions},
 };
 
-fn run_test<
+fn run_v1_test<
     const W: usize,
     F: CompileField + SupportsNatConversions<W> + SupportsU64Conversions,
 >(
@@ -34,9 +35,9 @@ fn run_test<
     let arena = CompilerArena::new();
     let cse = Cse::new(&arena);
 
-    let copy_rewriter = CopyRewriter::new(f, cse);
+    let copy_rewriter = V1CopyRewriter::new(f, cse);
 
-    // Constant folding to quadratic
+    // v1 folds constants to Quadratic(k, One, One).
     let c1 = copy_rewriter.constant(&f.u64_to_element(10));
     match &c1.v {
         Expr::Quadratic(val, x, y) => {
@@ -48,8 +49,53 @@ fn run_test<
     }
 }
 
+fn run_v2_test<
+    const W: usize,
+    F: CompileField + SupportsNatConversions<W> + SupportsU64Conversions,
+>(
+    f: &F,
+) {
+    let arena = CompilerArena::new();
+    let cse = Cse::new(&arena);
+
+    let copy_rewriter = V2CopyRewriter::new(f, cse);
+
+    // v2 keeps constants native (no One node) and aligns depths via Linear(1, x).
+    let c1 = copy_rewriter.constant(&f.u64_to_element(10));
+    match &c1.v {
+        Expr::Constant(val) => assert_eq!(f.to_nat(val), F::N::from_u64(10)),
+        _ => panic!("Expected Constant(10), got {c1:?}"),
+    }
+
+    let x1 = copy_rewriter.input(1);
+    let x2 = copy_rewriter.input(2);
+    let x3 = copy_rewriter.input(3);
+    let p23 = copy_rewriter.quadratic(&f.u64_to_element(1), &x2, &x3);
+    let p123 = copy_rewriter.quadratic(&f.u64_to_element(1), &x1, &p23);
+    match &p123.v {
+        Expr::Quadratic(_, left, right) => {
+            assert_eq!(left.depth, 1);
+            assert_eq!(right.depth, 1);
+            let copied = if matches!(left.v, Expr::Linear(..)) {
+                left
+            } else {
+                right
+            };
+            match &copied.v {
+                Expr::Linear(k, inner) => {
+                    assert_eq!(*k, &f.one());
+                    assert_eq!(*inner, x1);
+                }
+                _ => panic!("Expected Linear(1, x1) copy wire, got {copied:?}"),
+            }
+        }
+        _ => panic!("Expected Quadratic, got {p123:?}"),
+    }
+}
+
 #[test]
 fn test_rewrite_copy() {
     let f = P256Field::new();
-    run_test::<4, P256Field>(&f);
+    run_v1_test::<4, P256Field>(&f);
+    run_v2_test::<4, P256Field>(&f);
 }

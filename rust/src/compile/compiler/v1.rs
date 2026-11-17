@@ -14,6 +14,7 @@
 
 //! Longfellow v1 circuit compilation backend.
 
+pub(super) mod copy;
 mod scheduler;
 mod top;
 pub use top::compile_v1;

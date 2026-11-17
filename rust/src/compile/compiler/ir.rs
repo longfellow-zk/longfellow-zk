@@ -164,8 +164,8 @@ impl<F: CompileField> fmt::Display for Expr<'_, F> {
 /// during compiler passes, allowing non-termified nodes (like
 /// `Constant`, `Linear`, and `Delay`) by falling back to
 /// `node.depth`. For post-termification passes (like copy
-/// propagation), a stricter version is used in `copy.rs` to assert
-/// compiler invariants.
+/// propagation), stricter versions are used in `v1/copy.rs` and `v2/copy.rs`
+/// to assert compiler invariants.
 fn depth_term<F: CompileField>(node: &ExprNode<'_, F>) -> usize {
     match &node.v {
         Expr::Input(_) | Expr::One | Expr::Constant(_) => 1,

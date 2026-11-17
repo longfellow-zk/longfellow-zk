@@ -9,6 +9,7 @@ use crate::{
             compile_v1, compile_v2, segment_circuit_v1, segment_circuit_v2, CompilerAssertions,
             CompilerLogic,
         },
+        debug::evaluate::eval_circuit_fc,
         logic::{Logic, LogicIO},
     },
     core::{
@@ -182,4 +183,137 @@ fn binary_input_bit_assertions_are_v1_only() {
         .layers
         .iter()
         .any(|layer| layer.quadratic.num_terms() != 0));
+}
+
+#[test]
+fn v2_direct_lowering_emits_deep_constants_without_copy_chains() {
+    let fc = crate::compile::algebra::p256::P256Field::new();
+    let fr = crate::runtime::algebra::p256::P256Field::new();
+    let c7 = fc.u64_to_element(7);
+    let c3 = fc.u64_to_element(3);
+
+    // ((x1 * x2) * x3) + 7 - 3 * x4 == 0
+    // Layers in v2 RawCircuit are ordered output-first (layer 0 is deepest).
+    // Only the deepest sum layer should carry a constant term; input->mid layers
+    // must have zero constant stream terms.
+    let (raw, geom, _) = compile_v2(&fc, |logic| {
+        let x1 = logic.input(1);
+        let x2 = logic.input(2);
+        let x3 = logic.input(3);
+        let x4 = logic.input(4);
+        let p12 = logic.mul(&x1, &x2);
+        let p123 = logic.mul(&p12, &x3);
+        let plus_c = logic.add(&p123, &logic.konst(&c7));
+        let rhs = logic.mulk(&c3, &x4);
+        (logic.assert_eq("deep_const", &plus_c, &rhs), 2)
+    });
+
+    assert_eq!(geom.nlayers, 2);
+    // Output-most layer (index 0) holds the final sum with Constant(7);
+    // input-most layer (index 1) holds zero constant terms.
+    assert_eq!(raw.layers[0].constant.num_terms(), 1);
+    assert_eq!(raw.layers[1].constant.num_terms(), 0);
+
+    let segmented = segment_circuit_v2(&fc, raw);
+    let encoded = crate::core::proto::v2::CircuitWriter::new(&fc).to_bytes(&segmented);
+    let (decoded, tail) = crate::core::proto::v2::CircuitReader::new(&fr)
+        .from_bytes(&encoded)
+        .unwrap();
+    assert!(tail.is_empty());
+    // (2 * 5) * 5 + 7 = 57 = 3 * 19.
+    let inputs: Vec<_> = [2u64, 5, 5, 19]
+        .into_iter()
+        .map(|v| {
+            fr.bytes_to_element(&fc.to_bytes(&fc.u64_to_element(v)))
+                .unwrap()
+        })
+        .collect();
+    crate::runtime::v2::sumcheck::eval_circuit(inputs.clone(), &decoded, &fr).unwrap();
+    let mut bad = inputs;
+    bad[3] = fr
+        .bytes_to_element(&fc.to_bytes(&fc.u64_to_element(20)))
+        .unwrap();
+    assert!(crate::runtime::v2::sumcheck::eval_circuit(bad, &decoded, &fr).is_err());
+}
+
+#[test]
+fn v2_product_assertions_keep_both_factors_and_debug_paths() {
+    let fc = crate::compile::algebra::p256::P256Field::new();
+    let fr = crate::runtime::algebra::p256::P256Field::new();
+    let (raw, geometry, symbols) = compile_v2(&fc, |logic| {
+        let x = logic.input(1);
+        let y = logic.input(2);
+        let z = logic.input(3);
+        let expected = logic.input(4);
+        let xy = logic.mul(&x, &y);
+        let yx = logic.mul(&y, &x);
+        let product = logic.assert0("product", &logic.mulk(&fc.u64_to_element(3), &xy));
+        let alias = logic.assert0("alias", &logic.mulk(&fc.u64_to_element(5), &yx));
+        let square = logic.mul(&z, &z);
+        let fourth = logic.mul(&square, &square);
+        let deep = logic.assert_eq("deep", &fourth, &expected);
+        (logic.assert_all("root", &[product, alias, deep]), 1)
+    });
+    // The duplicate product is one assertion. Its zero-coefficient encoding
+    // must still retain both factors and enforce their product, at an earlier
+    // layer than the independent fourth-power constraint.
+    assert_eq!(geometry.nassertions, 2);
+    assert_eq!(symbols.assertion_count(), 2);
+    let circuit = segment_circuit_v2(&fc, raw);
+    let inputs = |values: [u64; 4]| {
+        values.map(|v| {
+            fr.bytes_to_element(&fc.to_bytes(&fc.u64_to_element(v)))
+                .unwrap()
+        })
+    };
+    for values in [[0, 7, 2, 16], [9, 0, 2, 16]] {
+        eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs(values))
+            .unwrap()
+            .assert_all_passed();
+    }
+    eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs([1, 1, 2, 16]))
+        .unwrap()
+        .assert_any_failed_at("root/product");
+    eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs([0, 7, 2, 17]))
+        .unwrap()
+        .assert_any_failed_at("root/deep");
+}
+
+#[test]
+fn v2_unequal_depth_terms_preserve_nonunit_coefficients() {
+    let fc = crate::compile::algebra::p256::P256Field::new();
+    let fr = crate::runtime::algebra::p256::P256Field::new();
+    let (raw, _, symbols) = compile_v2(&fc, |logic| {
+        let x = logic.input(1);
+        let y = logic.input(2);
+        let z = logic.input(3);
+        let expected = logic.input(4);
+        let yz = logic.mul(&y, &z);
+        let scaled_yz = logic.mulk(&fc.u64_to_element(7), &yz);
+        let square = logic.mul(&yz, &yz);
+        let fourth = logic.mul(&square, &square);
+        let scaled_x = logic.mulk(&fc.u64_to_element(3), &x);
+        let lower = logic.add(&scaled_x, &scaled_yz);
+        let value = logic.add(&fourth, &lower);
+        (logic.assert_eq("value", &value, &expected), 1)
+    });
+    let circuit = segment_circuit_v2(&fc, raw);
+    for [x, y, z] in [[2u64, 3, 4], [5, 0, 7], [0, 2, 3]] {
+        let yz = y * z;
+        let value = yz.pow(4) + 7 * yz + 3 * x;
+        let inputs = [x, y, z, value].map(|v| {
+            fr.bytes_to_element(&fc.to_bytes(&fc.u64_to_element(v)))
+                .unwrap()
+        });
+        eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs)
+            .unwrap()
+            .assert_all_passed();
+        let bad = [x, y, z, value + 1].map(|v| {
+            fr.bytes_to_element(&fc.to_bytes(&fc.u64_to_element(v)))
+                .unwrap()
+        });
+        eval_circuit_fc(&fc, &fr, &circuit, &symbols, &bad)
+            .unwrap()
+            .assert_any_failed_at("value");
+    }
 }

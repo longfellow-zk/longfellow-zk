@@ -59,7 +59,7 @@ where
 
     // Pass 2: copy rewrite into arena2 (inserts term copies and depth alignment)
     let arena2 = CompilerArena::new();
-    let copy_propagated = crate::compile::compiler::copy::rewrite(&arena2, f, simplified);
+    let copy_propagated = super::copy::rewrite(&arena2, f, simplified);
 
     // The copy rewrite owns its arena; release the simplified expressions.
     drop(arena1);

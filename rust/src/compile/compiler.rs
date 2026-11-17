@@ -15,7 +15,6 @@
 pub mod algsimp;
 mod arena;
 pub mod assertion;
-pub mod copy;
 pub mod cse;
 pub(crate) mod graph;
 pub mod ir;

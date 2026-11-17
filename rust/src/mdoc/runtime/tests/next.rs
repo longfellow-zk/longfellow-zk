@@ -1247,10 +1247,10 @@ fn next_error_table() {
 /// The combined circuit IDs of NEXT for one to four attributes. Any change
 /// to a NEXT circuit changes them; update them in the same, reviewed commit.
 const NEXT_COMBINED_IDS: [&str; 4] = [
-    "a43090ada04910572ce1c83ecfc97b9e74428e06c19ec97cd07a9b32212069e0",
-    "2315ea64143f3fe76226264c5e68c4f0e57607d0c3d773d07cb4a0d8bdd45c36",
-    "55f0e19c0d21eaaf4337b8b876eacbfcea6472dcac77336be9dab806c68f4dc2",
-    "c1d7210adbd51d93ce94cb4c5386170cd885d0622e83f47badd490f1a4addd99",
+    "8bd999919c08773b56717e494319683fcf87189c98ec7fb53dbe9ae739b7a47c",
+    "5c67a8b60b40a2d1eaee7d6ca15f87b6bcf94735e657652f16b815f3e677b902",
+    "1e9fb27dd7bbe2dd1f2d9b810a568c71394de7c47bf702050d18c7064d26e83e",
+    "e954242acb4235a28d4b250824f6fd2433c40900cb44902a83a3b67bea64c2ef",
 ];
 
 #[test]
@@ -1447,7 +1447,7 @@ fn check_mdoc_trace(
         ));
         assert_eq!(
             hex::encode(<sha2::Sha256 as sha2::Digest>::digest(node)),
-            "e189d2b505807a0bce86898473b02da9e0dd5e27b8ccde0fc69464dbd979a22a"
+            "37ae3984bde5089f76651688c17a8bb269acfa204a81e149aeaf9e5748ea4b09"
         );
     }
 }

@@ -26,7 +26,7 @@ use crate::{
 
 /// Introduce copy wires. Note that algsimp will remove
 /// the copy wires, so this pass must be run after algsimp.
-pub struct CopyRewriter<'a, F: CompileField, NEXT> {
+pub(in crate::compile::compiler) struct CopyRewriter<'a, F: CompileField, NEXT> {
     f: &'a F,
     next: NEXT,
     // Memoizer for the one_at_depth function
@@ -49,7 +49,7 @@ fn depth_term<F: CompileField>(node: &ExprNode<'_, F>) -> usize {
 impl<'a, F: CompileField, NEXT> CopyRewriter<'a, F, NEXT>
 where NEXT: RewriteT<'a, F>
 {
-    pub fn new(f: &'a F, next: NEXT) -> Self {
+    pub(in crate::compile::compiler) fn new(f: &'a F, next: NEXT) -> Self {
         CopyRewriter {
             next,
             memo_one_at_depth: Memoizer::new(),
@@ -197,7 +197,7 @@ where NEXT: RewriteT<'a, F>
 
 /// Rewrite function performing copy rewriter and termification to
 /// eliminate Constants and Linears, rewriting from arena ('a) to target arena ('b).
-pub fn rewrite<'a, 'b, F: CompileField>(
+pub(super) fn rewrite<'a, 'b, F: CompileField>(
     arena: &'b CompilerArena<'b, F>,
     f: &'b F,
     x: Assertions<'a, F>,

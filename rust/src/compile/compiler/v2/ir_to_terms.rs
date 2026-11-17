@@ -1,103 +1,95 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! Lower source expressions into explicit native term arities.
+//! Lower depth-aligned v2 expressions into native term arities.
+
+use rustc_hash::FxHashMap;
+
 use super::terms::{CircuitGraph, Node, Term};
 use crate::compile::{
     algebra::CompileField,
     compiler::{
-        arena::CompilerArena,
         graph::{push_node, Wire, WireMemoizer},
         ir::{Assertions, Expr, ExprNode},
     },
     logic::{AssertionId, AssertionScope},
 };
 
-// None denotes the source multiplicative identity, which has no native wire.
-fn walk_factor<F: CompileField>(
+fn walk_wire<F: CompileField>(
     f: &F,
-    memo: &WireMemoizer<Option<Wire>>,
+    memo: &WireMemoizer,
     nodes: &mut Vec<Node<F>>,
     node: ExprNode<'_, F>,
-) -> Option<Wire> {
+) -> Wire {
     memo.call(node, |n| match &n.v {
-        Expr::Input(position) => Some(push_node(
+        Expr::Input(position) => push_node(
             nodes,
             Node::Input {
                 position_in_input_array: position
                     .checked_sub(1)
                     .expect("input zero was reserved by the source API"),
             },
-        )),
+        ),
         Expr::Sum(list, _) => {
             assert!(!list.is_empty(), "ir_to_terms: empty sum");
             let terms = list
                 .iter()
                 .map(|item| compile_term(f, memo, nodes, item))
                 .collect();
-            Some(push_node(nodes, Node::Sum(terms)))
+            push_node(nodes, Node::Sum(terms))
         }
-        Expr::One => None,
-        Expr::Quadratic(..) => {
+        Expr::Linear(..) | Expr::Quadratic(..) => {
             let term = compile_term(f, memo, nodes, n);
-            if matches!(&term, Term::Constant(k) if *k == f.one()) {
-                None
-            } else {
-                Some(push_node(nodes, Node::Sum(vec![term])))
-            }
+            push_node(nodes, Node::Sum(vec![term]))
         }
-        Expr::Constant(_) | Expr::Linear(..) | Expr::WithAssertions(..) => {
-            panic!("ir_to_terms: unexpected expression variant: {n:?}")
+        Expr::One | Expr::Constant(_) | Expr::WithAssertions(..) => {
+            panic!("ir_to_terms: unexpected wire expression variant: {n:?}")
         }
     })
 }
+
 fn compile_term<F: CompileField>(
     f: &F,
-    memo: &WireMemoizer<Option<Wire>>,
+    memo: &WireMemoizer,
     nodes: &mut Vec<Node<F>>,
     node: &ExprNode<'_, F>,
 ) -> Term<F> {
     match &node.v {
         Expr::Quadratic(k, x, y) => {
             assert!(!f.is_zero(k));
-            match (
-                walk_factor(f, memo, nodes, *x),
-                walk_factor(f, memo, nodes, *y),
-            ) {
-                (Some(left), Some(right)) => Term::Quadratic((*k).clone(), [left, right]),
-                (Some(w), None) | (None, Some(w)) => Term::Linear((*k).clone(), w),
-                (None, None) => Term::Constant((*k).clone()),
-            }
+            let left = walk_wire(f, memo, nodes, *x);
+            let right = walk_wire(f, memo, nodes, *y);
+            Term::Quadratic((*k).clone(), [left, right])
         }
-        Expr::Input(_) => Term::Linear(f.one(), walk_factor(f, memo, nodes, *node).unwrap()),
-        Expr::One => Term::Constant(f.one()),
+        Expr::Linear(k, x) => {
+            assert!(!f.is_zero(k));
+            let w = walk_wire(f, memo, nodes, *x);
+            Term::Linear((*k).clone(), w)
+        }
+        Expr::Constant(k) => {
+            assert!(!f.is_zero(k));
+            Term::Constant((*k).clone())
+        }
         _ => panic!("ir_to_terms: expected term node, got {node:?}"),
     }
 }
 
-pub(super) fn rewrite<'src, 'dst, F: CompileField>(
-    _arena: &'dst CompilerArena<'dst, F>,
-    f: &'dst F,
-    assertions: Assertions<'src, F>,
+pub(super) fn rewrite<F: CompileField>(
+    f: &F,
+    assertions: Assertions<'_, F>,
     tracker: &AssertionScope,
 ) -> (CircuitGraph<F>, Vec<(usize, AssertionId)>) {
     let mut nodes = Vec::new();
     let mut records = Vec::new();
     let memo = WireMemoizer::new();
-    let mut assertion_inputs = rustc_hash::FxHashMap::default();
+    let mut assertion_inputs = FxHashMap::default();
     for item in assertions {
-        let factors = match &item.expr.v {
+        let key = match &item.expr.v {
             Expr::Quadratic(k, x, y) => {
                 assert!(!f.is_zero(k));
-                (
-                    walk_factor(f, &memo, &mut nodes, *x),
-                    walk_factor(f, &memo, &mut nodes, *y),
-                )
+                let a = walk_wire(f, &memo, &mut nodes, *x);
+                let b = walk_wire(f, &memo, &mut nodes, *y);
+                (a.min(b), Some(a.max(b)))
             }
-            _ => (walk_factor(f, &memo, &mut nodes, item.expr), None),
-        };
-        let key = match factors {
-            (Some(a), Some(b)) => (a.min(b), Some(a.max(b))),
-            (Some(w), None) | (None, Some(w)) => (w, None),
-            (None, None) => panic!("cannot satisfy a nonzero constant assertion"),
+            _ => (walk_wire(f, &memo, &mut nodes, item.expr), None),
         };
         if let Some(&id) = assertion_inputs.get(&key) {
             tracker.union(id, item.id);
@@ -111,5 +103,8 @@ pub(super) fn rewrite<'src, 'dst, F: CompileField>(
             records.push((index, item.id));
         }
     }
+    // Traversal starts at assertion roots and creates only their dependencies.
+    // A repeated assertion key can only reuse memoized wires, so it creates
+    // no orphan nodes. The scheduler checks this invariant independently.
     (CircuitGraph { nodes }, records)
 }

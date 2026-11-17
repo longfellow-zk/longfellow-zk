@@ -90,11 +90,10 @@ where
                     .expect("circuit has no inputs");
                 (simplified, npublic_input, declared_inputs)
             };
-            let copied = crate::compile::compiler::copy::rewrite(&copy_arena, f, simplified);
+            let copied = super::copy::rewrite(&copy_arena, f, simplified);
             (copied, npublic_input, declared_inputs)
         };
-        let (quad_circuit, quad_asserts) =
-            super::ir_to_terms::rewrite(&copy_arena, f, copied, &source_tracker);
+        let (quad_circuit, quad_asserts) = super::ir_to_terms::rewrite(f, copied, &source_tracker);
         (quad_circuit, quad_asserts, npublic_input, declared_inputs)
     };
 
