@@ -197,6 +197,36 @@ fn canonical_field_reader_rejects_without_consuming_input() {
     assert_eq!(remaining, alias);
 }
 
+/// A codec wider than the reader's stack scratch keeps the canonical check.
+#[test]
+fn canonical_field_reader_checks_wide_codecs() {
+    use std::io::ErrorKind;
+
+    use super::{read_field, tests::fixtures::WidePadded};
+    use crate::{
+        core::algebra::SerializableField,
+        runtime::algebra::gf2_128::{Gf2_128, Gf2_128Field},
+    };
+
+    let f = WidePadded(Gf2_128Field::new());
+    let value = Gf2_128::from(42u128);
+    let mut encoded = f.to_bytes(&value);
+    assert!(encoded.len() > 32);
+    encoded.push(7);
+    let mut remaining = encoded.as_slice();
+    assert_eq!(read_field(&mut remaining, &f).unwrap(), value);
+    assert_eq!(remaining, &[7]);
+
+    let mut alias = f.to_bytes(&value);
+    *alias.last_mut().unwrap() = 1;
+    let mut rest = alias.as_slice();
+    assert_eq!(
+        read_field(&mut rest, &f).unwrap_err().kind(),
+        ErrorKind::InvalidData
+    );
+    assert_eq!(rest, alias);
+}
+
 mod polygero;
 mod readers;
 

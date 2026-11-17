@@ -33,3 +33,35 @@ impl SerializableField for Aliased {
         self.0.serialized_mone()
     }
 }
+
+/// A codec wider than `read_field`'s stack scratch: a GF(2^128) element
+/// followed by zero padding that the decoder ignores, so any nonzero
+/// padding is an alias.
+pub(in super::super) struct WidePadded(pub Gf2_128Field);
+const WIDE_PADDED_BYTES: usize = 40;
+impl BareField for WidePadded {
+    type E = Gf2_128;
+}
+impl SerializableField for WidePadded {
+    fn field_id(&self) -> FieldID {
+        FieldID::None
+    }
+    fn is_binary(&self) -> bool {
+        true
+    }
+    fn serialized_size_bytes(&self) -> usize {
+        WIDE_PADDED_BYTES
+    }
+    fn to_bytes_into(&self, x: &Gf2_128, dst: &mut [u8]) {
+        dst.fill(0);
+        self.0.to_bytes_into(x, &mut dst[..16]);
+    }
+    fn bytes_to_element(&self, b: &[u8]) -> Result<Gf2_128, String> {
+        self.0.bytes_to_element(&b[..16])
+    }
+    fn serialized_mone(&self) -> Vec<u8> {
+        let mut mone = self.0.serialized_mone();
+        mone.resize(WIDE_PADDED_BYTES, 0);
+        mone
+    }
+}

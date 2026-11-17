@@ -4,7 +4,7 @@ use sha2::{Digest as _, Sha256};
 
 use super::{
     constraints, ensure,
-    joint::{FieldChallenges, LinearStatement, Participant},
+    joint::{FieldChallenges, LinearStatement, Participant, MAX_FIELD_BYTES},
     transcript, PolygeroError,
 };
 use crate::{
@@ -31,10 +31,12 @@ fn append_values<F: SerializableField>(
     values: impl IntoIterator<Item = F::E>,
     h: &mut Sha256,
 ) {
-    let mut buf = vec![0; f.serialized_size_bytes()];
+    // `Participant::new` bounds every participant field's width.
+    let mut scratch = [0; MAX_FIELD_BYTES];
+    let buf = &mut scratch[..f.serialized_size_bytes()];
     for x in values {
-        f.to_bytes_into(&x, &mut buf);
-        h.update(&buf);
+        f.to_bytes_into(&x, buf);
+        h.update(&*buf);
     }
 }
 impl<

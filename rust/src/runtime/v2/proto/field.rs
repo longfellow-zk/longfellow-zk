@@ -21,7 +21,17 @@ pub(crate) fn read_field<F: SerializableField>(bytes: &mut &[u8], f: &F) -> Resu
     let value = f
         .bytes_to_element(raw)
         .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
-    if f.to_bytes(&value) != raw {
+    // Re-encode on the stack for the usual 16- and 32-byte fields; a wider
+    // generic codec takes the allocating path.
+    let mut scratch = [0; 32];
+    let canonical = match scratch.get_mut(..width) {
+        Some(buf) => {
+            f.to_bytes_into(&value, buf);
+            buf == raw
+        }
+        None => f.to_bytes(&value) == raw,
+    };
+    if !canonical {
         return Err(Error::new(
             ErrorKind::InvalidData,
             "noncanonical field element",
