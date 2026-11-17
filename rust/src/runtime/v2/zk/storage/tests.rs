@@ -128,6 +128,14 @@ fn mixed_storage_keeps_every_pad_native() {
             "mixed storage keeps every pad native"
         );
     }
+    // More private inputs than values is an error, not a slice panic.
+    assert_eq!(
+        MixedStorage::new(StorageMap::new(2, &[(1, g)]).unwrap(), r, 3, 2)
+            .err()
+            .unwrap(),
+        "mixed storage has more private inputs than values"
+    );
+    assert!(MixedStorage::new(StorageMap::new(2, &[(1, g)]).unwrap(), r, 2, 2).is_ok());
 }
 
 /// Each split mode takes only maps of its kind: mixed storage needs a native

@@ -228,6 +228,9 @@ impl MixedStorage {
         private: usize,
         values: usize,
     ) -> Result<Self, String> {
+        if private > values {
+            return Err("mixed storage has more private inputs than values".into());
+        }
         map.check_split(values)?;
         if map.is_pure_foreign() {
             return Err("mixed storage needs a native value".into());
