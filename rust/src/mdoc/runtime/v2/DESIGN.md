@@ -197,8 +197,10 @@ The prover does not take `e2` from the parsed document, and no other code
 computes a public input. `suppress_doc_type_check` is a constant inside the
 derivation, not a parameter.
 *Enforced by:* `PublicInputs` has private fields and one constructor, whose
-only inputs are a `Request` and the field (type); the role-trace test
-(transcript I9), which compares the statement messages byte for byte.
+only inputs are a `Request` and the field (type); it keeps that request, and
+`transcript::statement` takes the session and spec of the mdoc identity from
+it, so a statement cannot pair one request's identity with another's
+inputs; the role-trace test (transcript I9), which compares the statement messages byte for byte.
 
 **I2. A request is checked once, before anything is loaded.** `Request::check`
 validates every row of the request table and is the only way to obtain a
@@ -333,7 +335,7 @@ is unchanged (tests).
 | 2. Circuits | `Instance::load` (I3: archive, IDs, public-input counts) | `CircuitParsingFailure` |
 | 3. Composition | `link::composition` (I6) | `GeneralFailure` |
 | 4. Public inputs | `PublicInputs::derive` (I1) | none |
-| 5. Statement | `transcript::statement(&composition, &request, &public)`, then `Opened::new(&statement)` | `GeneralFailure` |
+| 5. Statement | `transcript::statement(&composition, &public)`, then `Opened::new(&statement)` | `GeneralFailure` |
 | 6. Parse | `MdocProof::read(proof, &session.geometry(), &gf2, &p256)` (I6, I7, I8) | `HashParsingFailure` |
 | 7. Reduce and open | `ComposedStatement::reduce_and_authenticate(session, proof)` | `GeneralFailure` |
 | 8. Seal | `Authenticated::check_seal` | `GeneralFailure` |
@@ -544,9 +546,10 @@ impl Instance {
     pub(super) fn signature(&self) -> &Circuit<P256Field>;
     pub(super) fn hash(&self) -> &Circuit<Gf2_128Field>;
 }
-pub(in crate::mdoc::runtime::v2) struct PublicInputs { hash: Vec<bool>, signature: Vec<P256Element> }
-impl PublicInputs {
-    pub(in crate::mdoc::runtime::v2) fn derive(request: &Request<'_>, p256: &P256Field)
+pub(in crate::mdoc::runtime::v2) struct PublicInputs<'r> {
+    request: &'r Request<'r>, hash: Vec<bool>, signature: Vec<P256Element> }
+impl<'r> PublicInputs<'r> {
+    pub(in crate::mdoc::runtime::v2) fn derive(request: &'r Request<'r>, p256: &P256Field)
         -> Self;                                              // I1: the only constructor
 }
 // domains.rs: the one place that builds both evaluation domains, for both
@@ -560,6 +563,8 @@ pub(super) fn composition(spec: &ZkSpecStruct, signature: &'a Circuit<P256Field>
     -> Result<Composition<'a, DH, DS>, String>;               // I6
 pub(super) struct Identity<'a> { session: &'a [u8], spec: &'a ZkSpecStruct }  // MdocStatement (16)
 pub(super) type MdocStatement<'s, DH, DS> = ComposedStatement<'s, .., Identity<'s>>;
+pub(super) fn statement(composition: &'s Composition<'_, DH, DS>, public: &'s PublicInputs<'_>)
+    -> Result<MdocStatement<'s, DH, DS>, String>;          // identity and inputs of one request
 ```
 
 Both roles share the setup below. The prover also parses the document and
@@ -573,7 +578,7 @@ let instance = Instance::load(&request, circuits, &p256, &gf2)?;
 // inside with_domains(&gf2, &p256, |domains| ..)
 let composition = link::composition(request.spec(), instance.signature(), instance.hash(), domains)?;
 let public = PublicInputs::derive(&request, &p256);
-let statement = transcript::statement(&composition, &request, &public)?;
+let statement = transcript::statement(&composition, &public)?;
 
 // prover (document::parse and the encoders run right after Instance::load, I10)
 let parsed = document::parse(mdoc, &request, &p256)?;

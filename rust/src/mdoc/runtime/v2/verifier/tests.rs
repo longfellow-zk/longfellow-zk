@@ -29,7 +29,7 @@ use crate::{
             req_attr,
             request::Request,
             run_mdoc_verifier,
-            transcript::{Identity, MdocStatement, PROTOCOL_ID},
+            transcript::{self, Identity, MdocStatement, PROTOCOL_ID},
             MdocProof, MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
         },
     },
@@ -246,6 +246,50 @@ fn mdoc_statement_bytes(
             .unwrap();
         Opened::new(&statement).statement_bytes_for_test().to_vec()
     })
+}
+
+/// The statement takes its identity from the request its public inputs were
+/// derived from: `PublicInputs` keeps that request, and `transcript::statement`
+/// takes no other. For a request whose session transcript differs from the
+/// fixture's, the statement on its inputs is its own identity on them, and
+/// not the mixture of the fixture's identity with its inputs.
+#[test]
+fn statement_takes_identity_and_inputs_from_one_request() {
+    let fixture = Fixture::new(1);
+    let (p256, gf2) = (P256Field::new(), Gf2_128Field::new());
+    let circuits = decompress_circuits(fixture.provided.compressed(), &p256, &gf2).unwrap();
+    let spec = *fixture.provided.spec();
+    let session: &[u8] = b"\x66inputs";
+    assert_ne!(session, TEST_DATA.transcript);
+    let request = Request::check(
+        &spec,
+        &fixture.pkx,
+        &fixture.pky,
+        session,
+        &fixture.attrs,
+        fixture.now,
+        DOC_TYPE,
+        &p256,
+    )
+    .unwrap();
+    let public = PublicInputs::derive(&request, &p256);
+    with_domains(&gf2, &p256, |domains| {
+        let composition = link::composition(&spec, &circuits.0, &circuits.1, domains).unwrap();
+        let statement = transcript::statement(&composition, &public).unwrap();
+        let built = Opened::new(&statement).statement_bytes_for_test().to_vec();
+        let with_identity = |identity_session| {
+            let explicit = composition
+                .statement(
+                    Identity::for_test(identity_session, &spec),
+                    public.hash(),
+                    public.signature(),
+                )
+                .unwrap();
+            Opened::new(&explicit).statement_bytes_for_test().to_vec()
+        };
+        assert_eq!(built, with_identity(session));
+        assert_ne!(built, with_identity(TEST_DATA.transcript));
+    });
 }
 
 /// One-field sensitivity of the mdoc identity and spec (transcript I1): a

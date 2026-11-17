@@ -35,23 +35,27 @@ use crate::{
 };
 
 /// The public inputs of both circuits (DESIGN.md I1), derived from a checked
-/// request and nothing else. [`PublicInputs::derive`] is the only constructor.
-pub(in crate::mdoc::runtime::v2) struct PublicInputs {
+/// request and nothing else, with that request. [`PublicInputs::derive`] is
+/// the only constructor, so the statement (`transcript::statement`) takes its
+/// identity and its public inputs from one request.
+pub(in crate::mdoc::runtime::v2) struct PublicInputs<'r> {
+    request: &'r Request<'r>,
     hash: Vec<bool>,
     signature: Vec<P256Element>,
 }
 
-impl PublicInputs {
+impl<'r> PublicInputs<'r> {
     /// Both roles' public inputs: the hash circuit's from the time, the
     /// attributes, the document type and the namespace, and the signature
     /// circuit's from the issuer key and `e2`, the digest of the
     /// `DeviceAuthentication` bytes for the session transcript and document type.
-    pub(in crate::mdoc::runtime::v2) fn derive(request: &Request<'_>, p256: &P256Field) -> Self {
+    pub(in crate::mdoc::runtime::v2) fn derive(request: &'r Request<'r>, p256: &P256Field) -> Self {
         let e2 = RuntimeNat::<4>::from_bytes_be(&compute_transcript_hash(
             request.transcript(),
             request.doc_type(),
         ));
         Self {
+            request,
             hash: push_input_hash(
                 request.attributes(),
                 request.now().as_bytes(),
@@ -59,6 +63,10 @@ impl PublicInputs {
             ),
             signature: push_input_sig(p256, request.issuer_pk(), &e2),
         }
+    }
+    /// The checked request the inputs were derived from.
+    pub(in crate::mdoc::runtime::v2) fn request(&self) -> &'r Request<'r> {
+        self.request
     }
     /// The hash circuit's public inputs.
     pub(in crate::mdoc::runtime::v2) fn hash(&self) -> &[bool] {

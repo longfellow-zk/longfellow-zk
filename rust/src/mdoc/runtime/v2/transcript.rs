@@ -58,18 +58,24 @@ impl SetupMessage for Identity<'_> {}
 pub(super) type MdocStatement<'s, DH, DS> = Composed<'s, DH, DS, Identity<'s>>;
 
 /// The statement of a checked request on the public inputs derived from it
-/// (`PublicInputs::derive`). It is the only way the mdoc roles build one, so
-/// neither role opens a transcript on unchecked values (mdoc I2).
+/// (`PublicInputs::derive`), which carry that request: the identity and the
+/// public inputs come from one request. It is the only way the mdoc roles
+/// build one, so neither role opens a transcript on unchecked values (mdoc
+/// I2). The composition is the caller's: both roles build it from the same
+/// request's spec and the circuits loaded for it (`link::composition`).
 pub(super) fn statement<'s, DH, DS>(
     composition: &'s Composition<'_, DH, DS>,
-    request: &'s Request<'_>,
-    public: &'s PublicInputs,
+    public: &'s PublicInputs<'_>,
 ) -> Result<MdocStatement<'s, DH, DS>, String>
 where
     DH: EvaluationDomain<Gf2_128Field>,
     DS: EvaluationDomain<P256Field>,
 {
-    composition.statement(Identity::of(request), public.hash(), public.signature())
+    composition.statement(
+        Identity::of(public.request()),
+        public.hash(),
+        public.signature(),
+    )
 }
 
 #[cfg(test)]

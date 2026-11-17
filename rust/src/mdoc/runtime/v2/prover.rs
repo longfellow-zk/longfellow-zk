@@ -158,8 +158,7 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
 
         // The statement fixes the spec, the circuits, the geometry and every
         // public input before the shared commitment (transcript I1).
-        let statement =
-            super::transcript::statement(&composition, &request, &public).map_err(gen_err)?;
+        let statement = super::transcript::statement(&composition, &public).map_err(gen_err)?;
         let (body, tp) =
             super::link::Statement::prove(Opened::new(&statement), witness_hash, witness_sig, rng)
                 .map_err(gen_err)?;

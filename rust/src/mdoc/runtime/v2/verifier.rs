@@ -63,8 +63,7 @@ pub fn run_mdoc_verifier(
         )
         .map_err(gen_err)?;
         let public = PublicInputs::derive(&request, &p256);
-        let statement =
-            super::transcript::statement(&composition, &request, &public).map_err(gen_err)?;
+        let statement = super::transcript::statement(&composition, &public).map_err(gen_err)?;
         let mut session = Opened::new(&statement);
         #[cfg(test)]
         tests::observe(&mut session);

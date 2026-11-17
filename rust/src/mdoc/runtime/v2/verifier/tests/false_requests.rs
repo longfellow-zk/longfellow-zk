@@ -90,7 +90,7 @@ fn prove_claimed(
             domains,
         )?;
         let public = PublicInputs::derive(&request1, &p256);
-        let statement = transcript::statement(&composition, &request1, &public)?;
+        let statement = transcript::statement(&composition, &public)?;
         let mut rng = DeterministicRng::new(seed);
         let (body, tp) = cheating(|| {
             link::Statement::prove(Opened::new(&statement), witness_hash, witness_sig, &mut rng)
