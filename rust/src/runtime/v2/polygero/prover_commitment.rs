@@ -144,8 +144,10 @@ impl ColumnOracle {
         mut append: impl FnMut(usize, &mut Sha256),
     ) -> Self {
         let salts: Vec<_> = (0..n)
-            .map(|_| MerkleNonce {
-                bytes: rng.bytes(NONCE_LEN).try_into().unwrap(),
+            .map(|_| {
+                let mut bytes = [0; NONCE_LEN];
+                rng.fill(&mut bytes);
+                MerkleNonce { bytes }
             })
             .collect();
         let leaves: Vec<_> = (0..n)

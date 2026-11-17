@@ -73,9 +73,8 @@ the reverse.
 **I5. One fresh nonce per leaf.** Each of the `n` leaves gets its own 32-byte
 nonce from the prover's private randomness. Nonces are not derived from the
 transcript, the domain or each other.
-*Enforced by:* `ColumnOracle::new` draws `n` nonces with
-`PrivateRandom::bytes(NONCE_LEN)` (type); `MerkleNonce` holds exactly
-`[u8; NONCE_LEN]`.
+*Enforced by:* `ColumnOracle::new` fills each of the `n` nonces from its
+`PrivateRandom` (type); `MerkleNonce` holds exactly `[u8; NONCE_LEN]`.
 
 **I6. The heap shape is a function of `n` alone.** Leaves sit at heap
 positions `n..2n`, internal nodes at `1..n`, node `i` has children `2i` and
