@@ -23,7 +23,7 @@ use crate::{
     },
     core::algebra::{
         ec::{Curve, Pt2},
-        Nat, SupportsNatConversions,
+        AlgebraicField, Nat, SupportsNatConversions,
     },
     mdoc::{
         cbor::mdoc::{ParsedAttr, ParsedMdoc},
@@ -36,7 +36,6 @@ use crate::{
                 K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_MAX_ATTR_CBOR_LEN, K_MAX_ATTR_SHA_BLOCKS,
             },
         },
-        runtime::fields::MdocSigRuntimeField,
         v2::{
             attribute::RequestedAttribute,
             error::MdocProverErrorCode,
@@ -44,7 +43,12 @@ use crate::{
             request::Request,
         },
     },
-    runtime::algebra::{p256::P256Element, RuntimeField},
+    runtime::algebra::{
+        p256::{P256Element, P256Field},
+        q256::Q256Field,
+        secp256r1::Secp256r1,
+        RuntimeNat,
+    },
 };
 
 pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
@@ -215,26 +219,22 @@ fn push_witness_attrs(
     Ok(())
 }
 
-pub(in crate::mdoc::runtime::v2) fn push_witness_sig<F, Fn, C>(
-    runtime_field: &F,
-    q256: &Fn,
-    secp256r1: &C,
+pub(in crate::mdoc::runtime::v2) fn push_witness_sig(
+    runtime_field: &P256Field,
+    q256: &Q256Field,
+    secp256r1: &Secp256r1<P256Field>,
     request: &Request<'_>,
-    parsed: &ParsedMdoc<F::N>,
-) -> Result<Vec<F::E>, MdocProverErrorCode>
-where
-    F: MdocSigRuntimeField<E = P256Element>,
-    Fn: RuntimeField + SupportsNatConversions<4, N = F::N>,
-    C: Curve<4, F = F, N = F::N>,
-    F::N: Nat<4>,
-{
+    parsed: &ParsedMdoc<RuntimeNat<4>>,
+) -> Result<Vec<P256Element>, MdocProverErrorCode> {
     // A signature without a witness (an exceptional point of the affine
     // layout) is a witness failure; one the circuit would reject is the
     // circuit's own `GeneralFailure`, found here before any randomness.
-    let witness = |pk: &(F::E, F::E), e: &F::N, r: &F::N, s: &F::N| {
-        let (given, derived) =
-            try_witness::<4, F, Fn, C>(secp256r1, pk, e, r, s, runtime_field, q256)
-                .map_err(|_| MdocProverErrorCode::WitnessCreationFailure)?;
+    let witness = |pk: &(P256Element, P256Element),
+                   e: &RuntimeNat<4>,
+                   r: &RuntimeNat<4>,
+                   s: &RuntimeNat<4>| {
+        let (given, derived) = try_witness(secp256r1, pk, e, r, s, runtime_field, q256)
+            .map_err(|_| MdocProverErrorCode::WitnessCreationFailure)?;
         if signature_accepted(runtime_field, secp256r1, &given, &derived, r) {
             Ok((given, derived))
         } else {
@@ -300,18 +300,14 @@ where
 /// zero exactly when `R` is the recovered point `(e/s) G + (r/s) PK`. The
 /// circuit's other assertions hold by construction of the witness or were
 /// checked by [`try_witness`] (the nonzero inverses).
-fn signature_accepted<F, C>(
-    f: &F,
-    curve: &C,
-    given: &Given<F::E>,
-    derived: &Derived<F::E>,
-    r: &F::N,
-) -> bool
-where
-    F: MdocSigRuntimeField,
-    C: Curve<4, F = F, N = F::N>,
-{
-    let on_curve = |(x, y): &Pt2<F>| {
+fn signature_accepted(
+    f: &P256Field,
+    curve: &Secp256r1<P256Field>,
+    given: &Given<P256Element>,
+    derived: &Derived<P256Element>,
+    r: &RuntimeNat<4>,
+) -> bool {
+    let on_curve = |(x, y): &Pt2<P256Field>| {
         f.mulf(y, y) == f.addf(&f.mulf(&f.addf(&f.mulf(x, x), curve.a()), x), curve.b())
     };
     let (ax, _, az) = &derived.slicing.round[0];

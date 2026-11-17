@@ -14,7 +14,8 @@
 
 //! System selection only; proof execution and encoding live under v1 or v2.
 
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
+// The v1 witness builders' field bounds; v2 encodes its fields concretely.
+#[cfg(all(feature = "v1", any(test, feature = "prover", feature = "verifier")))]
 mod fields;
 #[cfg(feature = "v1")]
 pub mod v1;

@@ -5,7 +5,7 @@
 //! layout.
 use crate::runtime::{
     algebra::{
-        packing::{PackingExtension, PackingField, PackingParameters},
+        packing::{AmbientElement, PackingExtension, PackingParameters},
         ZkField,
     },
     v2::{
@@ -69,15 +69,14 @@ pub(crate) struct CommitmentStatement<E> {
     pub(super) a: Vec<PolygeroLinearTerm<E>>,
     pub(super) b: Vec<E>,
 }
-pub(crate) struct PackingCommitment<
-    F: PackingField,
-    X: PackingExtension<Ambient = F> = <F as PackingField>::Packing,
-> {
+/// The packing commitment of the extension `X`, whose ambient field
+/// (`X::Ambient`) is the commitment's field.
+pub(crate) struct PackingCommitment<X: PackingExtension> {
     pub(crate) parameters: PackingParameters<X>,
     pub(crate) layout: PackingLayout,
 }
-impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
-    pub(crate) fn new(f: F, layout: PackingLayout, extension: X) -> Result<Self, String> {
+impl<X: PackingExtension> PackingCommitment<X> {
+    pub(crate) fn new(f: X::Ambient, layout: PackingLayout, extension: X) -> Result<Self, String> {
         // The layout counts packed words and masks for its own degree; the
         // parameters pack and sample masks for the extension's.
         if layout.degree != extension.degree() {
@@ -89,16 +88,22 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
         })
     }
 }
-impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
+impl<X: PackingExtension> PackingCommitment<X> {
     /// Append the packing equations to the existing affine statement. The
     /// returned rows still require authentication by the joint backend.
     pub(super) fn append_equations(
         &self,
-        statement: CommitmentStatement<F::E>,
-        rows: &[FieldEquation<F::E>],
-    ) -> Result<(Vec<PolygeroLinearTerm<F::E>>, Vec<F::E>), String>
+        statement: CommitmentStatement<AmbientElement<X>>,
+        rows: &[FieldEquation<AmbientElement<X>>],
+    ) -> Result<
+        (
+            Vec<PolygeroLinearTerm<AmbientElement<X>>>,
+            Vec<AmbientElement<X>>,
+        ),
+        String,
+    >
     where
-        F: ZkField,
+        X::Ambient: ZkField,
     {
         // Neither packing equation is sufficient by itself. Both enter the
         // same Polygero statement that authenticates the layer constraints.

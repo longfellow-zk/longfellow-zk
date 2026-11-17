@@ -2,20 +2,20 @@
 use super::{CommitmentStatement, PackingCommitment};
 use crate::runtime::{
     algebra::{
-        packing::{PackingExtension, PackingField},
+        packing::{AmbientElement, PackingExtension},
         ZkField,
     },
     v2::{polygero::LinearStatement, proto::dual_packing::PackingProof, transcript::Bound},
 };
-impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
+impl<X: PackingExtension> PackingCommitment<X> {
     /// Replay the packing reduction on the parameters bound to `t`.
     pub(crate) fn reduce(
         t: &mut Bound<'_, Self>,
-        statement: CommitmentStatement<F::E>,
-        packing: &PackingProof<F::E>,
-    ) -> Result<LinearStatement<F::E>, String>
+        statement: CommitmentStatement<AmbientElement<X>>,
+        packing: &PackingProof<AmbientElement<X>>,
+    ) -> Result<LinearStatement<AmbientElement<X>>, String>
     where
-        F: ZkField,
+        X::Ambient: ZkField,
     {
         let rows = crate::runtime::v2::dual_packing::verifier::reduce(
             &mut t.project(|c| &c.parameters),

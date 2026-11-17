@@ -14,20 +14,19 @@
 
 //! Longfellow v2 assignment builder; preserves its own field encodings.
 
-use crate::{core::algebra::Nat, mdoc::runtime::fields::MdocSigRuntimeField};
+use crate::{
+    core::algebra::{AlgebraicField, Nat},
+    runtime::algebra::p256::{P256Element, P256Field},
+};
 
-pub(super) struct AssignmentBuilder<
-    'a,
-    F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicField,
-> {
-    field: &'a F,
-    pub(super) buffer: Vec<F::E>,
+/// The signature circuit's assignment, in P-256 elements.
+pub(super) struct AssignmentBuilder<'a> {
+    field: &'a P256Field,
+    pub(super) buffer: Vec<P256Element>,
 }
 
-impl<'a, F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicField>
-    AssignmentBuilder<'a, F>
-{
-    pub(super) fn new(field: &'a F) -> Self {
+impl<'a> AssignmentBuilder<'a> {
+    pub(super) fn new(field: &'a P256Field) -> Self {
         Self {
             field,
             buffer: Vec::new(),
@@ -50,11 +49,9 @@ impl<'a, F: crate::core::algebra::BareField + crate::core::algebra::AlgebraicFie
             cur_val >>= 1;
         }
     }
-}
 
-impl<F: MdocSigRuntimeField> AssignmentBuilder<'_, F> {
-    pub(super) fn push_elt(&mut self, elt: &F::E) {
-        self.buffer.push(elt.clone());
+    pub(super) fn push_elt(&mut self, elt: &P256Element) {
+        self.buffer.push(*elt);
     }
 
     /// The 256 bits of `nat`, least significant first.
@@ -66,11 +63,11 @@ impl<F: MdocSigRuntimeField> AssignmentBuilder<'_, F> {
 }
 
 cfg_prover! {
-    impl<F: MdocSigRuntimeField> AssignmentBuilder<'_, F>
+    impl AssignmentBuilder<'_>
     {
         pub(super) fn push_ecdsa_signature(
             &mut self,
-            given: &crate::circuits::ecdsa2::Given<F::E>,
+            given: &crate::circuits::ecdsa2::Given<P256Element>,
         ) {
             // Key coordinates and digest bits already occupy the shared prefix.
             given.for_each_signature(|elt| self.push_elt(elt));
@@ -78,7 +75,7 @@ cfg_prover! {
 
         pub(super) fn push_ecdsa_derived(
             &mut self,
-            derived: &crate::circuits::ecdsa2::Derived<F::E>,
+            derived: &crate::circuits::ecdsa2::Derived<P256Element>,
         ) {
             derived.for_each(|elt| self.push_elt(elt));
         }

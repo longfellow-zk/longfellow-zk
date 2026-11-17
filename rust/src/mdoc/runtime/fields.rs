@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Field requirements of the mdoc runtime's native witness derivation.
+//! Field requirements of the v1 mdoc runtime's native witness derivation.
 
 use crate::{
     core::algebra::{
@@ -22,7 +22,6 @@ use crate::{
 };
 
 /// Bundles all runtime derived value derivation and evaluation requirements for `MdocHash`.
-#[cfg(feature = "v1")]
 pub(crate) trait MdocHashRuntimeField:
     Sized
     + RuntimeField
@@ -32,7 +31,6 @@ pub(crate) trait MdocHashRuntimeField:
 {
 }
 
-#[cfg(feature = "v1")]
 impl<F> MdocHashRuntimeField for F where F: Sized
         + RuntimeField
         + crate::core::algebra::SerializableField

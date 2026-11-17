@@ -596,7 +596,7 @@ impl<F: ZkField + PackingField> Frontend<F> {
     ) -> (
         &CircuitProofGeometry,
         &PolygeroConfig,
-        &PackingCommitment<F>,
+        &PackingCommitment<F::Packing>,
         &[u8; 32],
         &[[u8; 32]],
         &InputLayout,

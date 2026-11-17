@@ -354,21 +354,23 @@ pub(in crate::runtime::v2) fn reduce<X: PackingExtension>(
 
 // runtime::v2::zk::packing_commitment (crate)
 pub(crate) struct PackingLayout { .. }                       // private fields (I10)
-pub(crate) struct PackingCommitment<F: PackingField, X = <F as PackingField>::Packing> {
+pub(crate) struct PackingCommitment<X: PackingExtension> {    // its field is X::Ambient
     parameters: PackingParameters<X>,                        // source of CommitmentLayout's
     layout: PackingLayout,                                   // packing values (transcript I3)
 }
 #[must_use]
 pub(crate) struct CommitmentStatement<E> { claim: SourceClaim<E>, a: Vec<PolygeroLinearTerm<E>>, b: Vec<E> }
 pub(crate) struct PackingState<E> { words: Vec<E>, suffix: Vec<E>, masks: PackingMasks<E> }
-impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
-    pub(crate) fn prepare_inputs(&self, logical: &[BaseElement<X>]) -> Result<PreparedInputs<F::E>, String>;
-    pub(crate) fn prepare(&self, inputs: PreparedInputs<F::E>, suffix: Vec<F::E>,
-        rng: &mut impl PrivateRandom) -> (PackingState<F::E>, Vec<F::E>);   // state + committed witness (I8)
-    pub(crate) fn prove(t: &mut Bound<'_, Self>, state: PackingState<F::E>,
-        statement: CommitmentStatement<F::E>) -> Result<(PackingProof<F::E>, LinearStatement<F::E>), String>;
-    pub(crate) fn reduce(t: &mut Bound<'_, Self>, statement: CommitmentStatement<F::E>,
-        proof: &PackingProof<F::E>) -> Result<LinearStatement<F::E>, String>;
+// E = AmbientElement<X>, the element of X::Ambient
+impl<X: PackingExtension> PackingCommitment<X> {
+    pub(crate) fn new(f: X::Ambient, layout: PackingLayout, extension: X) -> Result<Self, String>; // equal degrees
+    pub(crate) fn prepare_inputs(&self, logical: &[BaseElement<X>]) -> Result<PreparedInputs<E>, String>;
+    pub(crate) fn prepare(&self, inputs: PreparedInputs<E>, suffix: Vec<E>,
+        rng: &mut impl PrivateRandom) -> (PackingState<E>, Vec<E>);   // state + committed witness (I8)
+    pub(crate) fn prove(t: &mut Bound<'_, Self>, state: PackingState<E>,
+        statement: CommitmentStatement<E>) -> Result<(PackingProof<E>, LinearStatement<E>), String>;
+    pub(crate) fn reduce(t: &mut Bound<'_, Self>, statement: CommitmentStatement<E>,
+        proof: &PackingProof<E>) -> Result<LinearStatement<E>, String>;
 }
 ```
 

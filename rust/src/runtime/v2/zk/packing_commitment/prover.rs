@@ -2,7 +2,7 @@
 use super::{CommitmentStatement, PackingCommitment};
 use crate::runtime::{
     algebra::{
-        packing::{BaseElement, PackingExtension, PackingField},
+        packing::{AmbientElement, BaseElement, PackingExtension},
         ZkField,
     },
     random::PrivateRandom,
@@ -21,11 +21,11 @@ pub(crate) struct PackingState<E> {
     suffix: Vec<E>,
     masks: PackingMasks<E>,
 }
-impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> {
+impl<X: PackingExtension> PackingCommitment<X> {
     pub(crate) fn prepare_inputs(
         &self,
         logical: &[BaseElement<X>],
-    ) -> Result<PreparedInputs<F::E>, String> {
+    ) -> Result<PreparedInputs<AmbientElement<X>>, String> {
         if logical.len() != self.layout.private_inputs {
             return Err("witness length mismatch".into());
         }
@@ -35,10 +35,10 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
     }
     pub(crate) fn prepare(
         &self,
-        inputs: PreparedInputs<F::E>,
-        suffix: Vec<F::E>,
+        inputs: PreparedInputs<AmbientElement<X>>,
+        suffix: Vec<AmbientElement<X>>,
         rng: &mut impl PrivateRandom,
-    ) -> (PackingState<F::E>, Vec<F::E>) {
+    ) -> (PackingState<AmbientElement<X>>, Vec<AmbientElement<X>>) {
         let f = self.parameters.field();
         let masks = PackingMasks::sample(&self.parameters, || rng.elt_field(f));
         // Only nontrivial packing needs the words again after commitment.
@@ -64,11 +64,17 @@ impl<F: PackingField, X: PackingExtension<Ambient = F>> PackingCommitment<F, X> 
     /// Reduce the input claim on the packing parameters bound to `t`.
     pub(crate) fn prove(
         t: &mut Bound<'_, Self>,
-        state: PackingState<F::E>,
-        statement: CommitmentStatement<F::E>,
-    ) -> Result<(PackingProof<F::E>, LinearStatement<F::E>), String>
+        state: PackingState<AmbientElement<X>>,
+        statement: CommitmentStatement<AmbientElement<X>>,
+    ) -> Result<
+        (
+            PackingProof<AmbientElement<X>>,
+            LinearStatement<AmbientElement<X>>,
+        ),
+        String,
+    >
     where
-        F: ZkField,
+        X::Ambient: ZkField,
     {
         let (packing, rows) = prove_packed(
             &mut t.project(|c| &c.parameters),

@@ -77,7 +77,7 @@ pub(crate) fn prepare_circuit_layout<
     (
         CircuitProofGeometry,
         PolygeroParam,
-        PackingCommitment<F, X>,
+        PackingCommitment<X>,
         InputLayout,
     ),
     String,

@@ -73,7 +73,7 @@ pub(crate) struct Frontend<F: ZkField + PackingField> {
     pub(super) geometry: CircuitProofGeometry,
     #[cfg(any(test, feature = "prover"))]
     pub(super) config: PolygeroConfig,
-    pub(super) backend: PackingCommitment<F>,
+    pub(super) backend: PackingCommitment<F::Packing>,
     pub(super) id: [u8; 32],
     pub(super) additional_ids: Vec<[u8; 32]>,
     pub(super) inputs: InputLayout,

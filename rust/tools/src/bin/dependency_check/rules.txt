@@ -30,7 +30,7 @@ bin/prover_only: mdoc/runtime/v1
 mdoc/runtime: mdoc/runtime/zk_spec
 mdoc/runtime/fields: core/algebra runtime/algebra
 mdoc/runtime/v1: mdoc/cbor mdoc/proto mdoc/runtime/fields circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v1/ligero runtime/v1/proto runtime/v1/subfield runtime/v1/transcript runtime/v1/zk
-mdoc/runtime/v2: mdoc/cbor mdoc/proto mdoc/runtime/fields circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v2/foreign runtime/v2/transcript runtime/v2/zk runtime/v2/proto/composed runtime/v2/proto/polygero runtime/v2/proto/tags
+mdoc/runtime/v2: mdoc/cbor mdoc/proto circuits/ecdsa2 circuits/sha256 circuits/sha256msg core/algebra core/proto runtime/algebra runtime/random runtime/v2/foreign runtime/v2/transcript runtime/v2/zk runtime/v2/proto/composed runtime/v2/proto/polygero runtime/v2/proto/tags
 mdoc/runtime/zk_spec: mdoc/runtime/v1 mdoc/runtime/v2
 mdoc/testcases:
 bin/verifier_only: mdoc/runtime/v1
