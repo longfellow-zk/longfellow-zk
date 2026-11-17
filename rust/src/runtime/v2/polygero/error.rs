@@ -2,6 +2,7 @@
 //! The Polygero error type and its precondition helper.
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
 pub struct PolygeroError(pub(super) String);
 impl std::fmt::Display for PolygeroError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

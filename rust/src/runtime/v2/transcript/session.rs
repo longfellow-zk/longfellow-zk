@@ -159,6 +159,7 @@ impl Transcript {
     /// A bare session for tests and tools: its whole statement is a
     /// `ZkStatement` with `context`.
     #[cfg(any(test, feature = "testonly"))]
+    #[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
     pub fn for_test(context: &[u8]) -> Self {
         Self::new(&ZkStatement { context })
     }

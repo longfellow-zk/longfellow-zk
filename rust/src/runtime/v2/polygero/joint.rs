@@ -31,6 +31,7 @@ cfg_verifier! {
 pub(crate) const MAX_FIELD_BYTES: usize = 128;
 
 /// Field and domain references remain typed; parameters own their initialization state.
+#[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
 pub struct Participant<'a, F: RuntimeField, D> {
     pub(super) param: PolygeroParam,
     pub(super) f: &'a F,
@@ -48,6 +49,7 @@ impl<F: RuntimeField, D> Clone for Participant<'_, F, D> {
 impl<'a, F: RuntimeField + SerializableField + SupportsSampling, D: EvaluationDomain<F>>
     Participant<'a, F, D>
 {
+    #[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
     pub fn new(param: PolygeroParam, domain: &'a D) -> Result<Self, PolygeroError> {
         let f = domain.field();
         ensure(
@@ -94,6 +96,7 @@ impl<'a, F: RuntimeField + SerializableField + SupportsSampling, D: EvaluationDo
 /// transcript does not bind.
 #[derive(Clone)]
 #[must_use = "The derived statement must be authenticated by the commitment backend."]
+#[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
 pub struct LinearStatement<E> {
     pub(crate) a: Vec<PolygeroLinearTerm<E>>,
     pub(crate) b: Vec<E>,
@@ -109,6 +112,7 @@ impl<E> LinearStatement<E> {
     /// joint prover and verifier accept it. Frontend-derived systems are
     /// constructed internally.
     #[cfg(any(test, feature = "testonly"))]
+    #[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
     pub fn new(a: Vec<PolygeroLinearTerm<E>>, b: Vec<E>) -> Self {
         Self {
             a,
@@ -119,6 +123,7 @@ impl<E> LinearStatement<E> {
 }
 /// Independent constraint-batching scalars and evaluation-basis polynomial samples.
 #[doc(hidden)]
+#[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
 pub struct FieldChallenges<E> {
     /// One independent weight per affine equation.
     pub(super) alpha: Vec<E>,
@@ -127,6 +132,7 @@ pub struct FieldChallenges<E> {
     pub(super) batching_samples: Vec<Vec<E>>,
 }
 mod sealed {
+    #[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
     pub trait Sealed {}
     impl Sealed for () {}
     impl<H, T: Sealed> Sealed for (H, T) {}
@@ -139,6 +145,7 @@ mod sealed {
 /// the fields need not have the same element type or number of witness rows.
 /// The operations of one role extend it: `ProverParticipants` encodes, opens
 /// and responds, `VerifierParticipants` checks.
+#[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
 pub trait Participants: sealed::Sealed {
     type Witnesses;
     type Statements;
@@ -152,7 +159,6 @@ pub trait Participants: sealed::Sealed {
     /// per equation, then s+1 samples per batched row.
     fn challenges(&self, s: &Self::Statements, t: &mut Reading<'_>) -> Self::Challenges;
     fn send_responses(&self, b: &Self::Bodies, t: &mut TranscriptRef<'_>);
-    fn validate_bodies(&self, b: &Self::Bodies) -> Result<(), PolygeroError>;
     // The bare body codec of `JointPolygeroParam::{write, read}`, for tests
     // and tools only. Complete proofs encode the field bodies themselves.
     /// Bytes of every field's response and rows; None if they overflow.
@@ -180,9 +186,6 @@ impl Participants for () {
     }
     fn challenges(&self, _: &(), _: &mut Reading<'_>) {}
     fn send_responses(&self, _: &(), _: &mut TranscriptRef<'_>) {}
-    fn validate_bodies(&self, _: &()) -> Result<(), PolygeroError> {
-        Ok(())
-    }
     #[cfg(any(test, feature = "testonly"))]
     fn wire_len(&self) -> Option<usize> {
         Some(0)
@@ -208,11 +211,13 @@ impl Participants for () {
 /// cell counts are bound by the transcript statement; the column tree hashes
 /// under the fixed Merkle hash domain.
 #[derive(Clone)]
+#[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
 pub struct JointPolygeroParam<L: Participants> {
     pub(super) participants: L,
     pub(super) config: PolygeroConfig,
 }
 impl<L: Participants> JointPolygeroParam<L> {
+    #[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
     pub fn new(participants: L) -> Result<Self, PolygeroError> {
         let mut config = None;
         let count = participants.describe(&mut config)?;
@@ -222,6 +227,7 @@ impl<L: Participants> JointPolygeroParam<L> {
             config: config.unwrap(),
         })
     }
+    #[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
     pub fn config(&self) -> PolygeroConfig {
         self.config
     }
@@ -230,6 +236,7 @@ impl<L: Participants> JointPolygeroParam<L> {
     /// It has no magic. Complete proofs embed the joint body in their own
     /// envelope (`runtime::v2::proto::zk`, `mdoc`).
     #[cfg(any(test, feature = "testonly"))]
+    #[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
     pub fn write(
         &self,
         p: &JointPolygeroProof<L::Bodies>,
@@ -248,6 +255,7 @@ impl<L: Participants> JointPolygeroParam<L> {
     /// Read a sealed bare body, for tests and tools only; its length is
     /// checked first (proto I3).
     #[cfg(any(test, feature = "testonly"))]
+    #[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
     pub fn read<'a>(
         &self,
         bytes: &mut &'a [u8],

@@ -110,7 +110,7 @@ impl<F: ZkField + PackingField> Frontend<F> {
 
 /// A participant with all its values native: a circuit list whose private
 /// inputs, sumcheck pads and packing masks it commits itself.
-pub struct CircuitParticipant<F: ZkField + PackingField> {
+pub(crate) struct CircuitParticipant<F: ZkField + PackingField> {
     pub(super) frontend: Frontend<F>,
     /// The Polygero parameter of the committed cells.
     param: PolygeroParam,
@@ -125,7 +125,7 @@ impl<F: ZkField + PackingField> CircuitParticipant<F> {
     /// each proof defines them as affine functions of committed inputs (see
     /// `VirtualInputs`). The primary circuit cannot read them; the other
     /// components may.
-    pub fn new<D: EvaluationDomain<F>>(
+    pub(crate) fn new<D: EvaluationDomain<F>>(
         circuits: &[&Circuit<F>],
         virtual_inputs: usize,
         config: PolygeroConfig,
@@ -156,7 +156,7 @@ impl<F: ZkField + PackingField> CircuitParticipant<F> {
             param,
         })
     }
-    pub fn geometry(&self) -> CircuitProofGeometry {
+    pub(crate) fn geometry(&self) -> CircuitProofGeometry {
         self.frontend.geometry.clone()
     }
     /// The field of this participant's circuits and commitment, the field of

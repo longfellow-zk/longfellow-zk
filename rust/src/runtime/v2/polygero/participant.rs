@@ -71,10 +71,6 @@ impl<
         transcript::send_response(t, &b.0, self.0.f);
         self.1.send_responses(&b.1, t);
     }
-    fn validate_bodies(&self, b: &Self::Bodies) -> Result<(), PolygeroError> {
-        b.0.validate(&self.0.param.geom)?;
-        self.1.validate_bodies(&b.1)
-    }
     #[cfg(any(test, feature = "testonly"))]
     fn wire_len(&self) -> Option<usize> {
         let [response, rows] =

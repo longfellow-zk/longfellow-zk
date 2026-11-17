@@ -20,6 +20,7 @@ use crate::runtime::{
 /// compares the geometry with the parameter's, so rows committed for another
 /// parameter of the same row count and width are rejected.
 #[doc(hidden)]
+#[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
 pub struct FieldState<E> {
     pub(super) geom: PolygeroGeometry,
     pub(super) rows: Vec<Vec<E>>,

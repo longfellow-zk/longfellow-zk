@@ -8,6 +8,7 @@ use crate::runtime::random::PrivateRandom;
 /// The prover's passes over a participant list: it checks and encodes the
 /// witnesses, hashes the encoded columns, then forms every field's response
 /// and gathers the opened columns.
+#[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
 pub trait ProverParticipants: Participants {
     /// The prover's encoded rows between commitment and opening.
     type States;

@@ -390,11 +390,12 @@ pub type CircuitInput<F> = BaseElement<<F as PackingField>::Packing>;
 // zk::joint
 // what every storage mode shares: circuit IDs, geometry, profile, input layout, packing
 pub(crate) struct Frontend<F> { .. }
-pub struct CircuitParticipant<F> { .. }   // native: a Frontend and its Polygero parameter
+// crate-private: only the standalone roles and the composition prove with one
+pub(crate) struct CircuitParticipant<F> { .. }   // native: a Frontend and its Polygero parameter
 impl CircuitParticipant<F> {
-    pub fn new(circuits: &[&Circuit<F>], virtual_inputs: usize,
+    pub(crate) fn new(circuits: &[&Circuit<F>], virtual_inputs: usize,
                config: PolygeroConfig, domain: &D) -> Result<Self, String>; // the proof's one profile (I12)
-    pub fn geometry(&self) -> CircuitProofGeometry;           // written as Circuit/CommitmentLayout (I1)
+    pub(crate) fn geometry(&self) -> CircuitProofGeometry;    // written as Circuit/CommitmentLayout (I1)
     pub(crate) fn field(&self) -> &F;                    // the domain's field at construction
     pub(crate) fn participant(&'a self, domain: &'a D) -> Result<witness_selection::Field<'a, F, D>, String>;
 }

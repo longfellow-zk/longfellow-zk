@@ -51,7 +51,7 @@
 pub(crate) mod batching;
 pub(crate) mod context;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
-pub mod joint;
+pub(crate) mod joint;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub(crate) mod packing_commitment;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]

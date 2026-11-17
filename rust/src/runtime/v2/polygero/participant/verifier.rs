@@ -17,6 +17,10 @@ impl<
         T: VerifierParticipants,
     > VerifierParticipants for (Participant<'_, F, D>, T)
 {
+    fn validate_bodies(&self, b: &Self::Bodies) -> Result<(), PolygeroError> {
+        b.0.validate(&self.0.param.geom)?;
+        self.1.validate_bodies(&b.1)
+    }
     fn append_opened(&self, w: &Self::Bodies, q: usize, t: usize, h: &mut Sha256) {
         // Proof rows store t values in query order. Here q is the position in
         // that order, whereas append_encoded receives the actual column index.

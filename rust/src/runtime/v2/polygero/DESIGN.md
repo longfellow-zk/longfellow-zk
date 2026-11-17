@@ -313,7 +313,10 @@ impl<B> JointPolygeroProof<B> {
 // write_response, write_rows} and JointPolygeroProof::{read, write_to_buf}
 // at their send positions (I2, proto I2).
 
-// runtime::v2::polygero
+// runtime::v2::polygero. Every item below but PolygeroLinearTerm is public
+// only in testonly builds (tests, tools and benchmarks); elsewhere only the
+// crate's drivers (zk, mdoc) reach them, so the raw passes over a
+// participant list are not part of the public API.
 pub struct PolygeroParam { /* geometry, domain id */ }
 impl PolygeroParam {
     pub fn try_new<F, D: EvaluationDomain<F>>(
@@ -334,7 +337,7 @@ pub trait ProverParticipants: Participants {        // prover builds (joint/prov
     ..                                              // encode, append_encoded, respond, gather
 }
 pub trait VerifierParticipants: Participants {      // verifier builds (joint/verifier.rs)
-    ..                                              // append_opened, check
+    ..                                              // validate_bodies, append_opened, check
 }
 pub struct JointPolygeroParam<L: Participants> { /* participants, config */ }
 impl<L: Participants> JointPolygeroParam<L> {
@@ -350,8 +353,6 @@ pub struct PolygeroLinearTerm<E> { pub c: usize, pub w: usize, pub k: E }
 
 // One field's encoded rows and the geometry they were encoded for (prover).
 pub struct FieldState<E> { /* geom: PolygeroGeometry, rows: Vec<Vec<E>> */ }
-// Both role states are public only in testonly builds; elsewhere only the
-// crate's drivers hold them.
 pub struct JointPolygeroProver<S> { /* session stamp, states, column oracle; not Clone */ }
 impl<S> JointPolygeroProver<S> {
     pub(crate) fn commit<L: ProverParticipants<States = S>>(

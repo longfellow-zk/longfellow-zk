@@ -50,25 +50,41 @@ cfg_role! {
     mod transcript;
     use crate::runtime::v2::merkle::hash;
     use error::ensure;
+    // Outside the crate the bare joint commitment (its parameters, the raw
+    // passes over a participant list and the bare prover and verifier) runs
+    // only in tests, tools and benchmarks, through the `_for_test` entry
+    // points. Complete proofs reach it through `zk` and `mdoc`.
+    #[cfg(feature = "testonly")]
     pub use error::PolygeroError;
+    #[cfg(not(feature = "testonly"))]
+    pub(crate) use error::PolygeroError;
+    #[cfg(feature = "testonly")]
     pub use joint::{FieldChallenges, JointPolygeroParam, LinearStatement, Participant, Participants};
+    #[cfg(not(feature = "testonly"))]
+    pub(crate) use joint::{JointPolygeroParam, LinearStatement, Participant, Participants};
+    #[cfg(feature = "testonly")]
     pub use param::PolygeroParam;
+    #[cfg(not(feature = "testonly"))]
+    pub(crate) use param::PolygeroParam;
 }
 cfg_prover! {
     mod prover;
     mod prover_commitment;
-    pub use joint::prover::ProverParticipants;
-    pub use prover::FieldState;
-    // Outside the crate a bare joint opening runs only in tests and
-    // benchmarks, through the `_for_test` entry points.
     #[cfg(feature = "testonly")]
-    pub use prover::JointPolygeroProver;
+    pub use joint::prover::ProverParticipants;
     #[cfg(not(feature = "testonly"))]
-    pub(crate) use prover::JointPolygeroProver;
+    pub(crate) use joint::prover::ProverParticipants;
+    #[cfg(feature = "testonly")]
+    pub use prover::{FieldState, JointPolygeroProver};
+    #[cfg(not(feature = "testonly"))]
+    pub(crate) use prover::{FieldState, JointPolygeroProver};
 }
 cfg_verifier! {
     mod verifier;
+    #[cfg(feature = "testonly")]
     pub use joint::verifier::VerifierParticipants;
+    #[cfg(not(feature = "testonly"))]
+    pub(crate) use joint::verifier::VerifierParticipants;
     #[cfg(feature = "testonly")]
     pub use verifier::JointPolygeroVerifier;
     #[cfg(not(feature = "testonly"))]

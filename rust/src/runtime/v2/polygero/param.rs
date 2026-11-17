@@ -34,6 +34,7 @@ use crate::{
 /// Validated public dimensions for one invocation, and the ID of the
 /// evaluation domain they were validated against.
 #[derive(Clone, Debug)]
+#[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
 pub struct PolygeroParam {
     pub(super) geom: PolygeroGeometry,
     pub(super) domain_id: Vec<u8>,
@@ -45,6 +46,7 @@ impl PolygeroParam {
     /// select certified parameters separately; small test configurations are valid here.
     /// Participants obtain their arithmetic field from the same domain, so a
     /// runtime-configured modulus cannot differ from the interpolation field.
+    #[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
     pub fn try_new<F: RuntimeField + SerializableField, D: EvaluationDomain<F>>(
         nw: usize,
         config: PolygeroConfig,
@@ -70,6 +72,7 @@ impl PolygeroParam {
         self.geom.k..self.geom.k + length
     }
     /// Dimensions and row layout needed to encode or decode a proof.
+    #[cfg_attr(not(feature = "testonly"), allow(unreachable_pub))]
     pub fn geometry(&self) -> PolygeroGeometry {
         self.geom
     }
