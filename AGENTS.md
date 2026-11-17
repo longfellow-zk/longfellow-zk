@@ -147,11 +147,10 @@ profiles an application chose (for example in `mdoc::proto`).
 - Memory consumption counts too: do not accept regressions in the prover's or
   the verifier's peak heap. Measure it with the benches' `bench-memory`
   feature, which reports each role's additional peak heap.
-- Speedups must not depend on AVX2 or AVX-512. Measure AVX-free builds:
-  `RUSTFLAGS="-C target-cpu=x86-64-v2 -C target-feature=+pclmulqdq"` with a
-  separate `CARGO_TARGET_DIR`, run under
-  `GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX,-AVX2,-AVX512F,-AVX512BW,-AVX512VL,-AVX512DQ,-AVX512CD,-AVX_Fast_Unaligned_Load`,
-  and check that `objdump -d` shows no `%ymm` or `%zmm` registers.
+- Do not add AVX2- or AVX-512-specific implementations, intrinsics or assembly.
+  Benchmark native builds (`RUSTFLAGS="-C target-cpu=native"` with a separate
+  `CARGO_TARGET_DIR`), using normal CPU feature detection and library dispatch.
+  Compiler auto-vectorization and existing dependency implementations are allowed.
 
 ## Code
 
