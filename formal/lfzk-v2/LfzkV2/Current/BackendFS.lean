@@ -215,12 +215,6 @@ theorem opening_sum (hε : 0 ≤ ε)
 
 omit [DecidableEq (Point (roles := roles) (Context := Context) (Block := Block)
     (Link := Link) (Body := Body))] in
-
-omit [DecidableEq (Point (roles := roles) (Context := Context) (Block := Block)
-    (Link := Link) (Body := Body))] in
-
-omit [DecidableEq (Point (roles := roles) (Context := Context) (Block := Block)
-    (Link := Link) (Body := Body))] in
 include kCoin kQuery hcoin hquery hkCoin hkQuery in
 theorem high_sum_active (p : HahnSystemCertificate P.backend) (r : ProfileParameters R.backend)
     (hθ : p.threshold ≤ ε)
