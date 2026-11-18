@@ -70,6 +70,7 @@ hex = "0.4.3"
 sha3 = "0.10.8"
 num-bigint = "0.4"
 num-traits = "0.2"
+zstd = { version = "0.13", default-features = false }
 
 [[bin]]
 name = "prover_only"
@@ -170,7 +171,7 @@ required-features = ["mldsa", "testonly"]
 name = "hidden_mldsa"
 path = "benches/hidden_mldsa.rs"
 harness = false
-required-features = ["mldsa", "testonly", "mdoc"]
+required-features = ["mldsa", "testonly"]
 
 [[bench]]
 name = "sha256_simd"

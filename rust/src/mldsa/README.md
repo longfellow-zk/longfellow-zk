@@ -42,22 +42,23 @@ quotient pads and the fragment's leaves lie beyond it in the shared input
 array. The fragment is rebuilt deterministically from its shape, and only
 setup constants (circuit IDs, layer widths, layouts) are bound before the root.
 
-Run the benchmark from `rust/`:
+Run the benchmark from `rust/` to cover both parameter sets and all three Keccak backends.
 
 ```sh
-cargo bench --offline --bench mldsa --features mldsa,testonly -- 44
-# Replace 44 with 65 for ML-DSA-65.
+cargo bench --offline --bench mldsa --features mldsa,testonly
 ```
 
+Append `-- --list` to list the cases or `-- 44` or `-- 65` to select a parameter set.
 `MLDSA_BENCH_REPEATS` controls the sample count, including one warmup.
 `MLDSA_ROUNDS_PER_SLICE` optionally selects the scalar SHAKE checkpoint period
 (for example 1, 2, 3 or 6); the default remains 6. Cached archives include the
 complete Keccak layout in their identity. Additional benchmark options are
 `MLDSA_THETA_MODE` (0–3), `MLDSA_MATERIALIZE_CHI`, `MLDSA_EXPANDED_CHI` and
 `MLDSA_PACKED_CHECKPOINTS` (0 or 1). Each defaults to the production layout.
-`MLDSA_SHAKE_BACKEND` optionally selects `scalar` (the default), `permutations`
-or `rounds`. The latter two authenticate the same sponge endpoints in one
-shared packed source; `rounds` batches independent round predicates across
+`MLDSA_SHAKE_BACKEND` accepts `scalar`, `permutations`, `rounds` or `all`.
+A single selected parameter set defaults to `scalar`. The packed backends
+authenticate the same sponge endpoints in one shared packed source. `rounds`
+batches independent round predicates across
 permutations. Source construction remains inside timed archive loading.
 `MLDSA_ARCHIVES` selects an out-of-tree circuit cache; the default is
 `/tmp/longfellow-mldsa`. Compilation and disk access are outside online timing.
@@ -125,14 +126,15 @@ ML-DSA-44 uses 105 permutations in one batch; ML-DSA-65 uses 189 in two. Unused
 lanes carry valid zero-input permutations. This reduces computation but stores
 more private state than scalar SHAKE's checkpoints, making proofs larger.
 
-Run from `rust/` (compilation is outside online timings):
+Run from `rust/` to cover all six hidden-key cases. Online timings exclude compilation.
 
 ```sh
-MLDSA_BENCH_REPEATS=9 cargo bench --bench hidden_mldsa --features mldsa,testonly -- 44 scalar
-MLDSA_BENCH_REPEATS=9 cargo bench --bench hidden_mldsa --features mldsa,testonly -- 44 simd
-# Replace 44 with 65 for ML-DSA-65.
+MLDSA_BENCH_REPEATS=9 cargo bench --bench hidden_mldsa --features mldsa,testonly
 ```
 
+Append `-- --list` to list the cases. For one case, append a parameter set and
+backend, for example `-- 44 rounds`. The backend can be `scalar`, `permutations`
+(`simd`), `rounds` or `all`.
 `MLDSA_BENCH_STATS_ONLY=1` reports fixed circuit sizes without proving. Layout
 and affine-view sizes are diagnostic encodings, not a supported archive loader.
 The adapter fragment is rebuilt from its fixed shape during proving and

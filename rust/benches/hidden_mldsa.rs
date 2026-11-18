@@ -148,30 +148,56 @@ fn run<P: MlDsaParams>(text: &str, marker: &str, backend: KeccakBackend) {
     );
 }
 fn main() {
-    let args: Vec<_> = std::env::args().skip(1).collect();
-    let backend = match args.get(1).map(String::as_str).unwrap_or("scalar") {
-        "scalar" => KeccakBackend::Scalar,
-        "simd" | "permutations" => KeccakBackend::Permutations,
-        "rounds" => KeccakBackend::Rounds,
-        _ => panic!("hidden Keccak backend must be scalar, simd or rounds"),
+    use KeccakBackend::{Permutations, Rounds, Scalar};
+
+    let all_backends = [Scalar, Permutations, Rounds];
+    let mut args = std::env::args().skip(1).filter(|arg| arg != "--bench");
+    let levels: &[_] = match args.next().as_deref() {
+        Some("--list") => {
+            for level in [44, 65] {
+                for backend in all_backends {
+                    println!("hidden_mldsa/{level}/{}: benchmark", backend.label());
+                }
+            }
+            return;
+        }
+        None | Some("all") => &[44, 65],
+        Some("44") => &[44],
+        Some("65") => &[65],
+        _ => panic!("usage: hidden_mldsa [44|65|all|--list] [scalar|permutations|rounds|all]"),
     };
-    match args.first().map(String::as_str).unwrap_or("44") {
-        "44" => run::<MlDsa44>(
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../lib/circuits/tests/pq/ml_dsa/ml_dsa_44_examples.cc"
-            )),
-            "GetMlDsa44Examples()",
-            backend,
-        ),
-        "65" => run::<MlDsa65>(
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../lib/circuits/tests/pq/ml_dsa/ml_dsa_65_examples.cc"
-            )),
-            "GetMlDsa65Examples()",
-            backend,
-        ),
-        _ => panic!("usage: hidden_mldsa 44|65 scalar|permutations|rounds"),
+    let backends: &[_] = match args.next().as_deref() {
+        Some("all") => &all_backends,
+        Some("scalar") => &[Scalar],
+        Some("simd" | "permutations") => &[Permutations],
+        Some("rounds") => &[Rounds],
+        None if levels.len() == 1 => &[Scalar],
+        None => &all_backends,
+        _ => panic!("hidden Keccak backend must be scalar, permutations, rounds or all"),
+    };
+
+    for &level in levels {
+        for &backend in backends {
+            eprintln!("Hidden-key ML-DSA-{level} {}", backend.label());
+            match level {
+                44 => run::<MlDsa44>(
+                    include_str!(concat!(
+                        env!("CARGO_MANIFEST_DIR"),
+                        "/../lib/circuits/tests/pq/ml_dsa/ml_dsa_44_examples.cc"
+                    )),
+                    "GetMlDsa44Examples()",
+                    backend,
+                ),
+                65 => run::<MlDsa65>(
+                    include_str!(concat!(
+                        env!("CARGO_MANIFEST_DIR"),
+                        "/../lib/circuits/tests/pq/ml_dsa/ml_dsa_65_examples.cc"
+                    )),
+                    "GetMlDsa65Examples()",
+                    backend,
+                ),
+                _ => unreachable!(),
+            }
+        }
     }
 }

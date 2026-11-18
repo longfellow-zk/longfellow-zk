@@ -31,18 +31,9 @@ fn bool_option(name: &str, default: bool) -> bool {
         },
     }
 }
-fn run<P: MlDsaParams>(source: &str, marker: &str) {
+fn run<P: MlDsaParams>(source: &str, marker: &str, backend: KeccakBackend) {
     let example = vectors::first_cpp_example(source, marker);
     let compilation_started = std::time::Instant::now();
-    let backend = match std::env::var("MLDSA_SHAKE_BACKEND")
-        .as_deref()
-        .unwrap_or("scalar")
-    {
-        "scalar" => KeccakBackend::Scalar,
-        "permutations" => KeccakBackend::Permutations,
-        "rounds" => KeccakBackend::Rounds,
-        _ => panic!("MLDSA_SHAKE_BACKEND must be scalar, permutations or rounds"),
-    };
     let defaults = BinaryKeccak::default();
     let keccak = BinaryKeccak {
         external_permutations: backend != KeccakBackend::Scalar,
@@ -144,21 +135,57 @@ fn report<F: longfellow_zk::core::algebra::SerializableField>(
     ]
 }
 fn main() {
-    match std::env::args().nth(1).as_deref().unwrap_or("44") {
-        "44" => run::<MlDsa44>(
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../lib/circuits/tests/pq/ml_dsa/ml_dsa_44_examples.cc"
-            )),
-            "GetMlDsa44Examples()",
-        ),
-        "65" => run::<MlDsa65>(
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../lib/circuits/tests/pq/ml_dsa/ml_dsa_65_examples.cc"
-            )),
-            "GetMlDsa65Examples()",
-        ),
-        _ => panic!("choose 44 or 65"),
+    use KeccakBackend::{Permutations, Rounds, Scalar};
+
+    let all_backends = [Scalar, Permutations, Rounds];
+    let level_arg = std::env::args().skip(1).find(|arg| arg != "--bench");
+    let levels: &[_] = match level_arg.as_deref() {
+        Some("--list") => {
+            for level in [44, 65] {
+                for backend in all_backends {
+                    println!("mldsa/{level}/{}: benchmark", backend.label());
+                }
+            }
+            return;
+        }
+        None | Some("all") => &[44, 65],
+        Some("44") => &[44],
+        Some("65") => &[65],
+        _ => panic!("usage: mldsa [44|65|all|--list]"),
+    };
+    let backend_env = std::env::var("MLDSA_SHAKE_BACKEND");
+    let backends: &[_] = match backend_env.as_deref() {
+        Ok("all") => &all_backends,
+        Ok("scalar") => &[Scalar],
+        Ok("permutations") => &[Permutations],
+        Ok("rounds") => &[Rounds],
+        Err(std::env::VarError::NotPresent) if levels.len() == 1 => &[Scalar],
+        Err(std::env::VarError::NotPresent) => &all_backends,
+        _ => panic!("MLDSA_SHAKE_BACKEND must be scalar, permutations, rounds or all"),
+    };
+
+    for &level in levels {
+        for &backend in backends {
+            eprintln!("Public-key ML-DSA-{level} {}", backend.label());
+            match level {
+                44 => run::<MlDsa44>(
+                    include_str!(concat!(
+                        env!("CARGO_MANIFEST_DIR"),
+                        "/../lib/circuits/tests/pq/ml_dsa/ml_dsa_44_examples.cc"
+                    )),
+                    "GetMlDsa44Examples()",
+                    backend,
+                ),
+                65 => run::<MlDsa65>(
+                    include_str!(concat!(
+                        env!("CARGO_MANIFEST_DIR"),
+                        "/../lib/circuits/tests/pq/ml_dsa/ml_dsa_65_examples.cc"
+                    )),
+                    "GetMlDsa65Examples()",
+                    backend,
+                ),
+                _ => unreachable!(),
+            }
+        }
     }
 }
