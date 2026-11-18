@@ -21,7 +21,7 @@ use crate::{
         algebra::{fp::FpField, gf2_128::Gf2_128Field, CompileBinaryField, CompileField},
         logic::Logic,
     },
-    core::algebra::SupportsU64Conversions,
+    core::algebra::{AlgebraicField, SupportsU64Conversions},
 };
 
 pub struct AnalogAdder<'a, L: Logic> {
@@ -51,6 +51,19 @@ impl<'a, L: Logic<F = F>, F: CompileField> AnalogAdder<'a, L> {
             .field()
             .assert_wrapping_sum(self, expected, terms)
     }
+
+    pub(crate) fn assert_wrapping_sums_equal<const N: usize>(
+        &self,
+        left: &[Bitvec<L, N>],
+        right: &[&[Bitvec<L, N>]],
+    ) -> L::Assertions
+    where
+        F: FieldWrappingSum,
+    {
+        self.logic
+            .field()
+            .assert_wrapping_sums_equal(self, left, right)
+    }
 }
 
 pub trait FieldWrappingSum: CompileField {
@@ -59,21 +72,33 @@ pub trait FieldWrappingSum: CompileField {
         adder: &AnalogAdder<'_, L>,
         expected: &Bitvec<L, N>,
         terms: &[&[Bitvec<L, N>]],
+    ) -> L::Assertions {
+        self.assert_wrapping_sums_equal(adder, std::slice::from_ref(expected), terms)
+    }
+
+    /// Assert that the two nonempty sums are equal modulo `2^N`.
+    ///
+    /// The right-hand groups control how the circuit combines the addends.
+    fn assert_wrapping_sums_equal<L: Logic<F = Self>, const N: usize>(
+        &self,
+        adder: &AnalogAdder<'_, L>,
+        left: &[Bitvec<L, N>],
+        right: &[&[Bitvec<L, N>]],
     ) -> L::Assertions;
 }
 
 impl<T> FieldWrappingSum for FpField<T>
 where FpField<T>: CompileField
 {
-    fn assert_wrapping_sum<L: Logic<F = Self>, const N: usize>(
+    fn assert_wrapping_sums_equal<L: Logic<F = Self>, const N: usize>(
         &self,
         adder: &AnalogAdder<'_, L>,
-        expected: &Bitvec<L, N>,
-        terms: &[&[Bitvec<L, N>]],
+        left: &[Bitvec<L, N>],
+        right: &[&[Bitvec<L, N>]],
     ) -> L::Assertions {
-        let flat_terms: Vec<Bitvec<L, N>> = terms.iter().flat_map(|g| g.iter().cloned()).collect();
-        let n = flat_terms.len();
-        assert!(n > 0, "assert_wrapping_sum requires at least 1 term");
+        let right_len = right.iter().map(|group| group.len()).sum::<usize>();
+        assert!(!left.is_empty() && right_len > 0);
+        let n = left.len() + right_len - 1;
 
         let dim = self.pseudo_dimension_of_multiplicative_group();
         assert!(
@@ -90,21 +115,36 @@ where FpField<T>: CompileField
             max_terms - 1
         );
 
-        let p = adder.bv.as_eltw_field(expected);
+        let left_sum = if let [word] = left {
+            adder.bv.as_eltw_field(word)
+        } else {
+            let words: Vec<_> = left.iter().map(|t| adder.bv.as_eltw_field(t)).collect();
+            adder.logic.sum(&words)
+        };
 
-        let group_sums: Vec<_> = terms
+        let group_sums: Vec<_> = right
             .iter()
             .map(|g| {
                 let eltw_g: Vec<_> = g.iter().map(|t| adder.bv.as_eltw_field(t)).collect();
                 adder.logic.sum(&eltw_g)
             })
             .collect();
-        let c = adder.logic.sum(&group_sums);
+        let right_sum = adder.logic.sum(&group_sums);
 
-        let diff_c_p = adder.logic.sub(&c, &p);
-        let z = adder.logic.precious(&diff_c_p);
-
+        // Shift the smallest possible wrap, 1 - left.len(), to zero.
         let two_to_n = self.pseudo_basis_unsafe(N);
+        let difference = adder.logic.sub(&right_sum, &left_sum);
+        let shifted_difference = if left.len() == 1 {
+            difference
+        } else {
+            let wraps = adder
+                .logic
+                .konst(&self.u64_to_element((left.len() - 1) as u64));
+            adder
+                .logic
+                .add(&difference, &adder.logic.mulk(&two_to_n, &wraps))
+        };
+        let z = adder.logic.precious(&shifted_difference);
 
         let mut factors = Vec::with_capacity(n);
         let field = adder.logic.field();
@@ -121,14 +161,15 @@ where FpField<T>: CompileField
 }
 
 impl FieldWrappingSum for Gf2_128Field {
-    fn assert_wrapping_sum<L: Logic<F = Self>, const N: usize>(
+    fn assert_wrapping_sums_equal<L: Logic<F = Self>, const N: usize>(
         &self,
         adder: &AnalogAdder<'_, L>,
-        expected: &Bitvec<L, N>,
-        terms: &[&[Bitvec<L, N>]],
+        left: &[Bitvec<L, N>],
+        right: &[&[Bitvec<L, N>]],
     ) -> L::Assertions {
-        let n = terms.iter().map(|g| g.len()).sum::<usize>();
-        assert!(n > 0, "assert_wrapping_sum requires at least 1 term");
+        let right_len = right.iter().map(|group| group.len()).sum::<usize>();
+        assert!(!left.is_empty() && right_len > 0);
+        let n = left.len() + right_len - 1;
         let dim = self.pseudo_dimension_of_multiplicative_group();
         assert!(
             dim > N,
@@ -164,29 +205,50 @@ impl FieldWrappingSum for Gf2_128Field {
             adder.logic.prod(&factors)
         };
 
-        let want = inject(expected);
+        let encoded_left = if let [word] = left {
+            inject(word)
+        } else {
+            let encoded_words: Vec<_> = left.iter().map(&inject).collect();
+            adder.logic.prod(&encoded_words)
+        };
 
         // Group-wise injection products
-        let mut group_prods = Vec::with_capacity(terms.len());
-        for g in terms {
+        let mut group_prods = Vec::with_capacity(right.len());
+        for g in right {
             let g_inject: Vec<_> = g.iter().map(&inject).collect();
             group_prods.push(adder.logic.prod(&g_inject));
         }
 
-        let got = adder.logic.prod(&group_prods);
+        let encoded_right = adder.logic.prod(&group_prods);
 
-        let mut p = vec![adder.logic.one(); n];
+        // R - L can wrap from 1 - left.len() through right_len - 1.
+        // Use powers of alpha^(2^N), starting at the lowest wrap.
+        let mut roots = vec![adder.logic.one(); n];
+        if left.len() > 1 {
+            let mut wrap = alpha;
+            for _ in 0..N {
+                wrap = self.mulf(&wrap, &wrap);
+            }
+            let inverse_wrap = self.invert(&wrap);
+            let mut start = inverse_wrap;
+            for _ in 2..left.len() {
+                start = self.mulf(&start, &inverse_wrap);
+            }
+            roots[0] = adder.logic.konst(&start);
+        }
         for i in 1..n {
-            p[i] = adder.logic.mul(&p[i - 1], &alpha_k);
+            roots[i] = adder.logic.mul(&roots[i - 1], &alpha_k);
         }
 
-        let mut ff = Vec::with_capacity(n);
-        for p_elt in &p {
-            let term = adder.logic.sub(&got, &adder.logic.mul(p_elt, &want));
-            ff.push(term);
+        let mut factors = Vec::with_capacity(n);
+        for root in &roots {
+            let factor = adder
+                .logic
+                .sub(&encoded_right, &adder.logic.mul(root, &encoded_left));
+            factors.push(factor);
         }
 
-        let prod = adder.logic.prod(&ff);
+        let prod = adder.logic.prod(&factors);
         adder.logic.assert0("assert_wrapping_sum_gf2", &prod)
     }
 }

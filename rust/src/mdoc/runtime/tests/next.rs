@@ -1247,19 +1247,19 @@ fn next_error_table() {
 /// The combined circuit IDs of structural NEXT for one to four attributes.
 /// Any change to a NEXT circuit changes them; update them in the same, reviewed commit.
 const NEXT_COMBINED_IDS: [&str; 4] = [
-    "a0b5037f4d26bd0bdd308717be1439c0e4f12464f292d07e6df76e7072384ec3",
-    "d17c4374e58c916e7b1e2c306777cd20dab00d51a17c45abd2b95bf044f03266",
-    "e4bc8fa265d0b3960fb41993b219049562b9c4bba20b8add9a22050215173de5",
-    "49adeea53c3389975e91004f4ad2bc00de1e4d71350f77b8d65d1cee063526c2",
+    "0ca5ec679c803347d76b17258ca494a65d7fa2ba4cb6bca1e5e13dfab2bd5044",
+    "78db26193dab7ca24624ad8b2511b0b586599e222fbb93d70378c2b1b15c1d0d",
+    "bbb9930f851b29f824f894d6d9f7cc8c298e68e833588ff416ca71240b407ee0",
+    "2332e04601cc4086064aa65b3c5229fc841f2aef9198cf328b550ad699fbf1fe",
 ];
 
 /// Upstream's byte-offset predicate remains the single-commitment experiment's
 /// parser-free archive, with its own compiler identity for each attribute count.
 const PARSER_FREE_NEXT_COMBINED_IDS: [&str; 4] = [
-    "47d48dd6103afefab90cf17a8baa9db903343bcbcd9b2320ff085e6091c1d72f",
-    "53d317f8f69877d63a38474a07cc5ed5782599876a7ee4dcdd6c4f12790b3e78",
-    "ba43ba60f812f2daa71e7e560f763240a81ff9e21b8e34b0d301cdb40c802e48",
-    "7ec6849d3d9e146935161e982f069951698c85d28231c077375bd82940753c93",
+    "73330d8479141705bfffeead55d26b923b9fc439b4516fb27648c81db1718aad",
+    "b09dd5907aa327729a4a9fa3054f888290ec6a9164afaae6651e60aca6acd96f",
+    "d6eef5c5c9465963d55c82919ddd1c43d5c5060d28c6a474fb95a07d7490ac66",
+    "630290d5266925fdd8540b60953fbb34dc5c0408a5464d4b0569f4e196188b78",
 ];
 
 #[test]
@@ -1329,7 +1329,7 @@ fn next_measured_round_counts() {
     };
     let pkx = coordinate(&issuer_pk.0);
     let pky = coordinate(&issuer_pk.1);
-    for (count, expected) in [(1, 463), (2, 469), (3, 473), (4, 476)] {
+    for (count, expected) in [(1, 463), (2, 468), (3, 472), (4, 475)] {
         let attrs: Vec<_> = parsed
             .attrs
             .iter()
@@ -1503,7 +1503,7 @@ fn check_mdoc_trace(
         ));
         assert_eq!(
             hex::encode(<sha2::Sha256 as sha2::Digest>::digest(node)),
-            "e3643b27919564f53e0983663d7c3f8b9bfd632aa0f20b5c786434ab31ef6ea5"
+            "e0847e143bede6d4795976e6fde0c2ecd468f4f7a55b1a7caf84646c0d8339f6"
         );
     }
 }
@@ -1615,18 +1615,18 @@ fn assert_v2_parameters(spec: &ZkSpecStruct, compressed: &[u8]) {
     let variant = spec.num_attributes.checked_sub(1).unwrap();
     let binary_rounds = binary.layers().iter().sum::<usize>();
     let native_rounds = native.layers().iter().sum::<usize>();
-    assert_eq!(binary_rounds, [278, 284, 288, 291][variant]);
+    assert_eq!(binary_rounds, [278, 283, 287, 290][variant]);
     assert_eq!(binary.layers().len(), 19);
     assert_eq!(native_rounds, 118);
     assert_eq!(native.layers().len(), 11);
     let binary_charge = 2 * binary_rounds + 2 * binary.layers().len() + 2;
     let native_charge = 2 * native_rounds + 2 * native.layers().len();
-    assert_eq!(binary_charge, [596, 608, 616, 622][variant]);
+    assert_eq!(binary_charge, [596, 606, 614, 620][variant]);
     assert_eq!(native_charge, 258);
     let rounds =
         binary_rounds + native_rounds + 2 * (binary.layers().len() + native.layers().len()) + 7;
-    assert_eq!(rounds, [463, 469, 473, 476][variant]);
-    assert!(rounds <= 476);
+    assert_eq!(rounds, [463, 468, 472, 475][variant]);
+    assert!(rounds <= 475);
     assert!(
         binary.layers().iter().sum::<usize>()
             + native.layers().iter().sum::<usize>()

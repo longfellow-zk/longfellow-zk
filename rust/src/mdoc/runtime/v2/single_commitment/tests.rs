@@ -29,8 +29,8 @@ fn canonical_single_commitment_roundtrip_and_statement_binding() {
     assert_eq!(
         hash.id,
         [
-            51, 204, 152, 190, 65, 178, 159, 41, 193, 12, 189, 224, 177, 128, 180, 214, 192, 34,
-            219, 11, 122, 239, 15, 45, 216, 126, 202, 120, 10, 192, 37, 84
+            90, 36, 130, 4, 76, 3, 91, 231, 70, 91, 19, 216, 117, 15, 63, 213, 188, 148, 229, 60,
+            158, 74, 213, 132, 42, 148, 220, 31, 52, 201, 143, 199
         ]
     );
     let data = &TEST_DATA;
@@ -126,14 +126,14 @@ fn affine_ers_roundtrip_preserves_circuits_and_binds_encoding() {
         SignatureEncoding::AffineErs,
     )
     .unwrap();
-    // Pin both composed schedules after upper less-than flattening.
+    // Pin both composed binary schedules.
     assert_eq!(
         canonical.binary().sumcheck().layers(),
-        &[2, 6, 7, 7, 9, 9, 9, 13, 14, 15, 16, 15, 16, 16, 17, 18, 19, 20, 21, 21]
+        &[2, 6, 7, 7, 9, 9, 9, 12, 13, 15, 16, 16, 16, 16, 17, 18, 19, 20, 21, 21]
     );
     assert_eq!(
         affine.binary().sumcheck().layers(),
-        &[6, 7, 7, 8, 9, 9, 13, 14, 15, 16, 15, 16, 16, 17, 18, 19, 20, 21, 21]
+        &[6, 7, 7, 8, 9, 9, 12, 13, 15, 16, 16, 16, 16, 17, 18, 19, 20, 21, 21]
     );
     assert_eq!(canonical.signature(), affine.signature());
     assert_eq!(
@@ -210,8 +210,8 @@ fn affine_ers_roundtrip_preserves_circuits_and_binds_encoding() {
     assert_eq!(
         hash.id,
         [
-            51, 204, 152, 190, 65, 178, 159, 41, 193, 12, 189, 224, 177, 128, 180, 214, 192, 34,
-            219, 11, 122, 239, 15, 45, 216, 126, 202, 120, 10, 192, 37, 84
+            90, 36, 130, 4, 76, 3, 91, 231, 70, 91, 19, 216, 117, 15, 63, 213, 188, 148, 229, 60,
+            158, 74, 213, 132, 42, 148, 220, 31, 52, 201, 143, 199
         ]
     );
 }

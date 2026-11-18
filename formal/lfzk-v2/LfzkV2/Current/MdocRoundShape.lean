@@ -8,17 +8,17 @@ namespace LfzkV2.Current.MdocRoundShape
 
 def binaryRounds (attributes : Fin 4) : List ℕ :=
   match attributes.val with
-  | 0 => [5, 6, 6, 8, 8, 9, 13, 14, 15, 16, 15, 15, 16, 16, 18, 19, 19, 20, 19]
-  | 1 => [6, 7, 7, 8, 8, 9, 13, 14, 15, 16, 15, 15, 16, 17, 18, 19, 19, 20, 19]
-  | 2 => [6, 7, 8, 9, 9, 9, 13, 14, 15, 16, 15, 16, 16, 17, 18, 19, 19, 20, 19]
-  | _ => [7, 8, 8, 9, 9, 9, 13, 14, 15, 16, 15, 16, 16, 17, 18, 19, 19, 20, 19]
+  | 0 => [5, 6, 6, 8, 8, 9, 12, 13, 15, 15, 15, 15, 16, 16, 18, 19, 19, 20, 19]
+  | 1 => [6, 7, 7, 8, 8, 9, 12, 13, 15, 15, 16, 16, 16, 17, 18, 19, 19, 20, 19]
+  | 2 => [6, 7, 8, 9, 9, 9, 12, 13, 15, 16, 16, 16, 16, 17, 18, 19, 19, 20, 19]
+  | _ => [7, 8, 8, 9, 9, 9, 12, 13, 15, 16, 16, 16, 16, 17, 18, 19, 19, 20, 19]
 
 def primeRounds : List ℕ := [4, 5, 6, 11, 11, 13, 14, 14, 14, 14, 12]
 
 def roundCount (attributes : Fin 4) : ℕ :=
   (binaryRounds attributes).sum + primeRounds.sum + 2*(19+11) + 7
 
-theorem counts : List.ofFn roundCount = [442,446,450,452] := by decide
+theorem counts : List.ofFn roundCount = [439,445,449,451] := by decide
 
 structure Matches (g : Geometry) (attributes : Fin 4) : Prop where
   binary : g.binary.stages.map Stage.rounds = binaryRounds attributes

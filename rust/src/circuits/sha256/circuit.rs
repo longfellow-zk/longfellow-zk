@@ -123,9 +123,11 @@ where L::F: FieldWrappingSum
                 &[std::slice::from_ref(&d) as &[V32<L>], &t1 as &[V32<L>]],
             );
 
-            // Assert outa[t] is sum of t2 and t1 using grouping
-            let outa_assertion =
-                adder.assert_wrapping_sum(&derived.outa[t], &[&t2 as &[V32<L>], &t1 as &[V32<L>]]);
+            // With oute = d + T1, this checks outa + d = oute + T2.
+            let outa_assertion = adder.assert_wrapping_sums_equal(
+                &[derived.outa[t].clone(), d],
+                &[std::slice::from_ref(&derived.oute[t]), &t2],
+            );
 
             state = [
                 derived.outa[t].clone(),

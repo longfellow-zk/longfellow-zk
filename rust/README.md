@@ -185,10 +185,9 @@ P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
 $$
 
 The upstream parser-free one-/two-/three-/four-attribute circuits have
-442/446/450/452 ordinary rounds. Glorious's structural extensions have
-463/469/473/476 ordinary rounds. The `formal/` tree is kept at upstream v2;
-its concrete supported-shape metadata describes the upstream circuits
-rather than these structural extensions.
+439/445/449/451 ordinary rounds. Glorious's structural extensions have
+463/468/472/475 ordinary rounds. The `formal/` tree follows upstream v2 and
+its supported-shape metadata describes the parser-free circuits.
 
 Here `r` counts ordinary transcript boundaries, one per draw that follows a
 message; a draw with no message since the last boundary reads further from
