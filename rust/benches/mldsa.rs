@@ -31,7 +31,7 @@ fn bool_option(name: &str, default: bool) -> bool {
         },
     }
 }
-fn run<P: MlDsaParams>(source: &str, marker: &str, backend: KeccakBackend) {
+fn run<P: MlDsaParams>(source: &str, marker: &str, backend: KeccakBackend, backend_name: &str) {
     let example = vectors::first_cpp_example(source, marker);
     let compilation_started = std::time::Instant::now();
     let defaults = BinaryKeccak::default();
@@ -45,9 +45,8 @@ fn run<P: MlDsaParams>(source: &str, marker: &str, backend: KeccakBackend) {
     };
     let archive = prepare_public_with_backend::<P>(keccak, backend);
     eprintln!(
-        "Keccak layout: {} backend={}",
-        archive.keccak.label(),
-        backend.label()
+        "Keccak layout: {} backend={backend_name}",
+        archive.keccak.label()
     );
     eprintln!(
         "Offline compilation/preparation: {:.3} ms",
@@ -137,13 +136,17 @@ fn report<F: longfellow_zk::core::algebra::SerializableField>(
 fn main() {
     use KeccakBackend::{Permutations, Rounds, Scalar};
 
-    let all_backends = [Scalar, Permutations, Rounds];
+    let all_backends = [
+        (Scalar, "scalar"),
+        (Permutations, "permutations"),
+        (Rounds, "simd"),
+    ];
     let level_arg = std::env::args().skip(1).find(|arg| arg != "--bench");
     let levels: &[_] = match level_arg.as_deref() {
         Some("--list") => {
             for level in [44, 65] {
-                for backend in all_backends {
-                    println!("mldsa/{level}/{}: benchmark", backend.label());
+                for (_, backend_name) in all_backends {
+                    println!("mldsa/{level}/{backend_name}: benchmark");
                 }
             }
             return;
@@ -154,19 +157,21 @@ fn main() {
         _ => panic!("usage: mldsa [44|65|all|--list]"),
     };
     let backend_env = std::env::var("MLDSA_SHAKE_BACKEND");
-    let backends: &[_] = match backend_env.as_deref() {
-        Ok("all") => &all_backends,
-        Ok("scalar") => &[Scalar],
-        Ok("permutations") => &[Permutations],
-        Ok("rounds") => &[Rounds],
-        Err(std::env::VarError::NotPresent) if levels.len() == 1 => &[Scalar],
-        Err(std::env::VarError::NotPresent) => &all_backends,
-        _ => panic!("MLDSA_SHAKE_BACKEND must be scalar, permutations, rounds or all"),
+    let selected_backend = match backend_env.as_deref() {
+        Ok("scalar") => Some(Scalar),
+        Ok("permutations") => Some(Permutations),
+        Ok("simd" | "rounds") => Some(Rounds),
+        Err(std::env::VarError::NotPresent) if levels.len() == 1 => Some(Scalar),
+        Ok("all") | Err(std::env::VarError::NotPresent) => None,
+        _ => panic!("MLDSA_SHAKE_BACKEND must be scalar, permutations, simd or all"),
     };
 
     for &level in levels {
-        for &backend in backends {
-            eprintln!("Public-key ML-DSA-{level} {}", backend.label());
+        for (backend, backend_name) in all_backends {
+            if selected_backend.is_some_and(|selected| backend != selected) {
+                continue;
+            }
+            eprintln!("Public-key ML-DSA-{level} {backend_name}");
             match level {
                 44 => run::<MlDsa44>(
                     include_str!(concat!(
@@ -175,6 +180,7 @@ fn main() {
                     )),
                     "GetMlDsa44Examples()",
                     backend,
+                    backend_name,
                 ),
                 65 => run::<MlDsa65>(
                     include_str!(concat!(
@@ -183,6 +189,7 @@ fn main() {
                     )),
                     "GetMlDsa65Examples()",
                     backend,
+                    backend_name,
                 ),
                 _ => unreachable!(),
             }

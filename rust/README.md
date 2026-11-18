@@ -800,7 +800,7 @@ Current measurements, circuit sizes, proof sizes and reproduction commands are
 in the [2026-11-14 optimization report](benches/results/2026-11-14/README.md).
 
 The public-key and hidden-key ML-DSA relations support scalar Keccak and two
-packed circuit backends. Select `rounds` to pack
+packed circuit backends. Select `simd` to pack
 individual Keccak rounds into 128 Boolean lanes, or `permutations` to pack
 complete permutations. The round backend uses fewer inactive lanes when a
 relation contains fewer than 128 permutations. Its public bit permutations
@@ -819,11 +819,11 @@ cargo bench --features mldsa,testonly --bench mldsa --bench hidden_mldsa
 
 Append `-- --list` to list the cases without compiling circuits or proving.
 Pass `44` or `65` to select a parameter set. With a single parameter set
-selected, the backend defaults to `scalar`. These commands select `rounds`.
+selected, the backend defaults to `scalar`. These commands select `simd`.
 
 ```sh
-MLDSA_SHAKE_BACKEND=rounds cargo bench --bench mldsa --features mldsa,testonly -- 44
-cargo bench --bench hidden_mldsa --features mldsa,testonly -- 65 rounds
+MLDSA_SHAKE_BACKEND=simd cargo bench --bench mldsa --features mldsa,testonly -- 44
+cargo bench --bench hidden_mldsa --features mldsa,testonly -- 65 simd
 ```
 
 Use `all` as the backend to run all three backends for one parameter set, or

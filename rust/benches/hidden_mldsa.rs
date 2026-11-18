@@ -10,7 +10,7 @@ use longfellow_zk::{
 };
 mod support;
 use support::memory;
-fn run<P: MlDsaParams>(text: &str, marker: &str, backend: KeccakBackend) {
+fn run<P: MlDsaParams>(text: &str, marker: &str, backend: KeccakBackend, backend_name: &str) {
     let e = vectors::first_cpp_example(text, marker);
     let instance = ConcreteInstance::<P>::new(&e[1], &e[4], &e[0], &e[2]).unwrap();
     let compilation_started = std::time::Instant::now();
@@ -23,10 +23,9 @@ fn run<P: MlDsaParams>(text: &str, marker: &str, backend: KeccakBackend) {
     )
     .unwrap();
     eprintln!(
-        "hidden ML-DSA {}x{} {} compile_ms={:.3}",
+        "hidden ML-DSA {}x{} {backend_name} compile_ms={:.3}",
         P::K,
         P::L,
-        backend.label(),
         compilation_started.elapsed().as_secs_f64() * 1000.
     );
     for (name, wires, terms, layers) in [
@@ -150,13 +149,17 @@ fn run<P: MlDsaParams>(text: &str, marker: &str, backend: KeccakBackend) {
 fn main() {
     use KeccakBackend::{Permutations, Rounds, Scalar};
 
-    let all_backends = [Scalar, Permutations, Rounds];
+    let all_backends = [
+        (Scalar, "scalar"),
+        (Permutations, "permutations"),
+        (Rounds, "simd"),
+    ];
     let mut args = std::env::args().skip(1).filter(|arg| arg != "--bench");
     let levels: &[_] = match args.next().as_deref() {
         Some("--list") => {
             for level in [44, 65] {
-                for backend in all_backends {
-                    println!("hidden_mldsa/{level}/{}: benchmark", backend.label());
+                for (_, backend_name) in all_backends {
+                    println!("hidden_mldsa/{level}/{backend_name}: benchmark");
                 }
             }
             return;
@@ -164,21 +167,23 @@ fn main() {
         None | Some("all") => &[44, 65],
         Some("44") => &[44],
         Some("65") => &[65],
-        _ => panic!("usage: hidden_mldsa [44|65|all|--list] [scalar|permutations|rounds|all]"),
+        _ => panic!("usage: hidden_mldsa [44|65|all|--list] [scalar|permutations|simd|all]"),
     };
-    let backends: &[_] = match args.next().as_deref() {
-        Some("all") => &all_backends,
-        Some("scalar") => &[Scalar],
-        Some("simd" | "permutations") => &[Permutations],
-        Some("rounds") => &[Rounds],
-        None if levels.len() == 1 => &[Scalar],
-        None => &all_backends,
-        _ => panic!("hidden Keccak backend must be scalar, permutations, rounds or all"),
+    let selected_backend = match args.next().as_deref() {
+        Some("scalar") => Some(Scalar),
+        Some("permutations") => Some(Permutations),
+        Some("simd" | "rounds") => Some(Rounds),
+        None if levels.len() == 1 => Some(Scalar),
+        None | Some("all") => None,
+        _ => panic!("hidden Keccak backend must be scalar, permutations, simd or all"),
     };
 
     for &level in levels {
-        for &backend in backends {
-            eprintln!("Hidden-key ML-DSA-{level} {}", backend.label());
+        for (backend, backend_name) in all_backends {
+            if selected_backend.is_some_and(|selected| backend != selected) {
+                continue;
+            }
+            eprintln!("Hidden-key ML-DSA-{level} {backend_name}");
             match level {
                 44 => run::<MlDsa44>(
                     include_str!(concat!(
@@ -187,6 +192,7 @@ fn main() {
                     )),
                     "GetMlDsa44Examples()",
                     backend,
+                    backend_name,
                 ),
                 65 => run::<MlDsa65>(
                     include_str!(concat!(
@@ -195,6 +201,7 @@ fn main() {
                     )),
                     "GetMlDsa65Examples()",
                     backend,
+                    backend_name,
                 ),
                 _ => unreachable!(),
             }

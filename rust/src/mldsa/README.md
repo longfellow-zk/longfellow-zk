@@ -55,9 +55,9 @@ Append `-- --list` to list the cases or `-- 44` or `-- 65` to select a parameter
 complete Keccak layout in their identity. Additional benchmark options are
 `MLDSA_THETA_MODE` (0–3), `MLDSA_MATERIALIZE_CHI`, `MLDSA_EXPANDED_CHI` and
 `MLDSA_PACKED_CHECKPOINTS` (0 or 1). Each defaults to the production layout.
-`MLDSA_SHAKE_BACKEND` accepts `scalar`, `permutations`, `rounds` or `all`.
+`MLDSA_SHAKE_BACKEND` accepts `scalar`, `permutations`, `simd` or `all`.
 A single selected parameter set defaults to `scalar`. The packed backends
-authenticate the same sponge endpoints in one shared packed source. `rounds`
+authenticate the same sponge endpoints in one shared packed source. `simd`
 batches independent round predicates across
 permutations. Source construction remains inside timed archive loading.
 `MLDSA_ARCHIVES` selects an out-of-tree circuit cache; the default is
@@ -133,8 +133,8 @@ MLDSA_BENCH_REPEATS=9 cargo bench --bench hidden_mldsa --features mldsa,testonly
 ```
 
 Append `-- --list` to list the cases. For one case, append a parameter set and
-backend, for example `-- 44 rounds`. The backend can be `scalar`, `permutations`
-(`simd`), `rounds` or `all`.
+backend, for example `-- 44 simd`. The backend can be `scalar`, `permutations`,
+`simd` or `all`.
 `MLDSA_BENCH_STATS_ONLY=1` reports fixed circuit sizes without proving. Layout
 and affine-view sizes are diagnostic encodings, not a supported archive loader.
 The adapter fragment is rebuilt from its fixed shape during proving and
