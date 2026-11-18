@@ -355,7 +355,7 @@ witness encoders right after step 2 (I10), then proves and writes.
 The schedule is the transcript design's challenge schedule, specialized to
 mdoc. Hash-side elements are GF(2^128), prime-side elements P-256.
 `logw_l` is the log width of layer l. The binary frontend runs the hash
-circuit and the adapter fragment in one sumcheck of 20 layers (the fragment
+circuit and the adapter fragment in one sumcheck of 19 layers (the fragment
 joins at the input end); the prime frontend runs the signature circuit, 11
 layers.
 
@@ -382,9 +382,9 @@ its conversion pair; the table marks these draws *leading*, in the row of
 the message that closes their node. The joint opening draws the batching
 weights itself, right where it takes both fields' statements. Boundaries:
 the sumcheck rounds of both frontends, plus 2 per layer, plus 7 others; the
-seal is not counted. For A = 1 to 4 the hash circuit has 263, 267, 272 and
-275 rounds and the signature circuit 125, so the counts are 457, 461, 466
-and 469.
+seal is not counted. For one to four attributes, the binary frontend has
+254, 260, 264 and 266 sumcheck rounds and the prime frontend has 118, so
+the counts are 439, 445, 449 and 451.
 
 ### Verifier checks
 
@@ -413,7 +413,7 @@ fp_prime   := p{2}
 sc_prime   := layer_prime{11}         ; per layer: p{2}{logw} p p{2}
 mu         := p
 quotients  := word word               ; MaskedWord<10>: 2 bytes, LSB first, bits 10..15 zero
-sc_host    := layer_host{20}          ; per layer: gf{2}{logw} gf gf{2}
+sc_host    := layer_host{19}          ; per layer: gf{2}{logw} gf gf{2}
 packing    := gf{128} gf              ; U, then A
 resp_F     := F{k+s} F{2k}            ; H, then Z
 rows_F     := F{t} per physical row   ; u, m, witness rows, f*, in query order
@@ -427,7 +427,7 @@ seal       := byte{32}                ; first PRF block of the seal node
 | magic, root, fingerprints | 4 + 32 + 32 + 64 |
 | prime sumcheck | 32 x sum over 11 layers of (2 logw + 3) |
 | mu, quotients | 32 + 4 |
-| binary sumcheck | 16 x sum over 20 layers of (2 logw + 3) |
+| binary sumcheck | 16 x sum over 19 layers of (2 logw + 3) |
 | packing | 16 x 129 = 2064 |
 | Polygero responses | 48 x (3k + s) = 50,832 |
 | Polygero rows | t x (16 x binary rows + 32 x prime rows) |
@@ -682,7 +682,7 @@ c*Q/q + (1 - c*(q-1)/(2q)) * (1 - (1 - 2/(q-1))^Q) + (C(Q,2) + r + 15)/q^2
 ```
 
 `c = 1.00000123121...` is the Polygero coefficient for `(349, 12, 2443, 84)`
-and `r` the boundary count, at most 452, so `r + 15 = 467 < 2^10`.
+and `r` the boundary count, at most 451, so `r + 15 ≤ 466 < 2^10`.
 `averaged_nonvacuous` gives a strict cap of 0.97, and
 `averaged_mdoc_approximation` the all-`Q` form
 `Q*2^-127 + Q^2*2^-257 + 2^-246`. `MdocRoundShape.rounds_eq` derives `r`

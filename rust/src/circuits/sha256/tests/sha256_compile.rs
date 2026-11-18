@@ -111,10 +111,10 @@ fn test_compile_sha256() {
         CircuitGeometry {
             ninput: 6656,
             npublic_input: 0,
-            noutput: 128,
+            noutput: 64,
             nlayers: 6,
-            nwires: 30295,
-            nterms: 118055,
+            nwires: 29847,
+            nterms: 105127,
             nassertions: 6840,
         },
     );
@@ -127,10 +127,10 @@ fn test_compile_sha256() {
         CircuitGeometry {
             ninput: 6656,
             npublic_input: 0,
-            noutput: 128,
+            noutput: 64,
             nlayers: 12,
-            nwires: 31640,
-            nterms: 75832,
+            nwires: 31244,
+            nterms: 75244,
             nassertions: 184,
         },
     );

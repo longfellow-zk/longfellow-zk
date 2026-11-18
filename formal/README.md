@@ -58,13 +58,13 @@ $$
 P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
 $$
 
-The largest supported mdoc circuit (four attributes) has 452 rounds:
-`267 + 118 + 2*(19 + 11) + 7 = 452`. Thus `r+15 = 467 < 2^10`.
+The largest supported mdoc circuit (four attributes) has
+`266 + 118 + 2*(19 + 11) + 7 = 451` rounds, so `r+15 ≤ 466 < 2^10`.
 The proof rounds the constant correction up to $2^{-246}$.
 `Mdoc.Soundness.averaged_mdoc_approximation` proves this all-budget consequence.
 
 The supported one-/two-/three-/four-attribute compiler shapes have respectively
-442/446/450/452 rounds. `MdocRoundShape.rounds_eq` derives the total from each
+439/445/449/451 rounds. `MdocRoundShape.rounds_eq` derives the total from each
 per-layer schedule; [`check_mdoc_round_shapes.rs`](scripts/check_mdoc_round_shapes.rs)
 checks those schedules and totals against the current Rust compiler. Each layer
 has its sumcheck rounds, a terminal and a combine round; a later layer's

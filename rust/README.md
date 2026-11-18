@@ -184,7 +184,7 @@ $$
 P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
 $$
 
-The supported one-/two-/three-/four-attribute circuits have 442/446/450/452 rounds.
+The supported one-/two-/three-/four-attribute circuits have 439/445/449/451 rounds.
 
 Here `r` counts ordinary transcript boundaries, one per draw that follows a
 message; a draw with no message since the last boundary reads further from

@@ -157,3 +157,29 @@ fn test_analog_adder_evaluation() {
     test_assert_sum_7_addends_for_logic(&l_binary);
     test_assert_sum_7_addends_fail_for_logic(&l_binary);
 }
+
+fn check_wrapping_sums_equal<F: FieldWrappingSum>(field: &F) {
+    let tracker = AssertionScope::new();
+    let logic = EvalLogic::new(field, &tracker);
+    let bv = BitvecLogic::new(&logic);
+    let adder = AnalogAdder::new(&logic);
+
+    // Two words on the left and three on the right exercise wraps -1 to 2.
+    for packed in 0..4_u64.pow(5) {
+        let [a, b, c, d, e] = std::array::from_fn(|i| (packed >> (2 * i)) & 3);
+        let left = [bv.of_u64::<2>(a), bv.of_u64(b)];
+        let right = [bv.of_u64::<2>(c), bv.of_u64(d), bv.of_u64(e)];
+        let groups = [&right[..1], &right[1..]];
+        assert_eq!(
+            adder.assert_wrapping_sums_equal(&left, &groups).is_ok(),
+            (a + b) % 4 == (c + d + e) % 4,
+            "{a} + {b} versus {c} + {d} + {e}",
+        );
+    }
+}
+
+#[test]
+fn test_wrapping_sums_equal() {
+    check_wrapping_sums_equal(&P256Field::new());
+    check_wrapping_sums_equal(&Gf2_128Field::new());
+}
