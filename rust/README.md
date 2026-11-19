@@ -134,10 +134,10 @@ by Matteo Frigo and abhi shelat.
 | Commitment protocol | Ligero | Nonrecursive Polygero |
 | Combined proof implementation | `runtime::v1::zk` | `runtime::v2::zk` |
 | mdoc application API | `mdoc::v1` | `mdoc::v2` |
-| mdoc circuits | Frozen versions 5–7 | NEXT, currently version 12 |
+| mdoc circuits | Frozen versions 5–7 | NEXT, currently version 13 |
 
 Circuit versions have their own numbering: circuit v7 uses Longfellow v1,
-while NEXT circuit v12 uses Longfellow v2.
+while NEXT circuit v13 uses Longfellow v2.
 
 Tests reproduce all twelve saved v1 proofs bit for bit using the same
 inputs and prover randomness. V2 circuits, parameters, and proof encoding
@@ -184,7 +184,7 @@ $$
 P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
 $$
 
-The supported one-/two-/three-/four-attribute circuits have 439/445/449/451 rounds.
+The NEXT mdoc circuit has 463 transcript boundaries.
 
 Here `r` counts ordinary transcript boundaries, one per draw that follows a
 message; a draw with no message since the last boundary reads further from
@@ -262,24 +262,20 @@ retains Polygero's extraction/outside-list errors and nonzero-sampling terms.
 
 ## Performance
 
-Complete NEXT v12 mdoc presentations, measured on 2026-11-16 with Rust 1.99.1
-on a Ryzen 9 9950X, single-threaded with boost disabled and the native CPU target.
-Times are medians of 21 samples: three interleaved runs of seven, each
-after one warmup. Heap measurements use separate allocation-tracking runs.
-The four-slot case repeats the fixture's two disclosures. These measurements
-use the earlier compiler with a 20-layer hash circuit.
+Complete NEXT v13 mdoc presentations with all four slots enabled, measured
+on 2026-11-19 with Rust 1.99.1 on one pinned core of a Ryzen 9 9950X with the
+native CPU target. Times are medians of 40 samples in four runs, each after
+one warmup. Heap measurements use separate allocation-tracking runs.
 
-| Attributes | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
-|---|---:|---:|---:|---:|---:|
-| 2 | 126.7 ms | 71.3 ms | 137,936 | 43.07 MiB | 34.67 MiB |
-| 4 | 137.1 ms | 75.5 ms | 138,160 | 47.65 MiB | 37.73 MiB |
+| Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
+|---:|---:|---:|---:|---:|
+| 146.0 ms | 78.5 ms | 140,368 | 48.33 MiB | 35.92 MiB |
 
-| Attributes | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
-|---|---:|---:|---:|
-| 2 | 657,195 | 163,684 | 1.75 MiB |
-| 4 | 682,420 | 166,447 | 1.83 MiB |
+| Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
+|---:|---:|---:|
+| 745,344 | 183,415 | 2.00 MiB |
 
-Both cases use `(k,s,n,t)=(349,12,2443,84)` for the hash and signature
+NEXT uses `(k,s,n,t)=(349,12,2443,84)` for the hash and signature
 circuits, with ordinary code rate `k/n=1/7`. The hash circuit has 20 layers,
 and the adapter fragment joins its input end; the signature has 11.
 Circuit outputs join the assertion block at their own layer. Components are
@@ -288,9 +284,8 @@ carried claim weights extend in place. Quad fragments introduce no extra rounds.
 
 | Circuit | Inputs | Wires excluding inputs | Terms | Sumcheck rounds |
 |---|---:|---:|---:|---:|
-| Hash circuit, 2 attributes | 285,193 | 2,076,643 | 4,251,242 | 267 |
-| Hash circuit, 4 attributes | 312,597 | 2,336,187 | 4,768,406 | 275 |
-| Signature, either case | 3,102 | 56,892 | 114,115 | 125 |
+| Hash | 353,739 | 2,287,521 | 5,198,325 | 276 |
+| Signature | 3,102 | 46,667 | 97,497 | 118 |
 
 The binary circuit packs 128 private input bits per committed GF128 word.
 Its trace-zero packing response occupies 2,064 bytes. The split adds the
@@ -526,9 +521,13 @@ requests to the runtime providers and compiles only an explicit NEXT
 request. The result contains the circuit archive and its matching v2
 specification.
 
-NEXT currently denotes circuit version 12. It is under development and is
+NEXT currently denotes circuit version 13. It is under development and is
 not in the frozen registry. Saving a NEXT bundle preserves both its circuit
 and its selected parameters.
+The circuit has three exact-equality attribute slots with a 247-byte
+signed-item limit, and one date slot with a 119-byte signed-item limit.
+Every slot has a public enable bit, and a disabled slot's public fields are
+all zero.
 
 Frozen artifacts and parameters are immutable. NEXT bundles store their
 matching circuit archive and complete parameter specification.
@@ -542,10 +541,9 @@ order changes the ID. Every integer in the ID input has a fixed 64-bit encoding,
 independent of the circuit's storage widths. LFC3 revision `DIR3` uses this
 convention; older NEXT bundles must be regenerated.
 
-To measure circuit-ID computation and checked decoding on the largest mdoc
-circuit, run `cargo bench --bench circuit_id`. Set
-`CIRCUIT_ID_BENCH_ATTRIBUTES=1,2,3,4` to measure all attribute counts. Compilation
-is outside timing; the benchmark reports median and 95th-percentile times.
+To measure circuit-ID computation and checked decoding for NEXT, run
+`cargo bench --bench circuit_id`. The benchmark compiles before timing
+and reports median and 95th-percentile times.
 
 ## Cargo features
 
@@ -628,17 +626,17 @@ warning for the `+neon` compiler flag; the backend uses stable inline assembly.
 MDOC_BENCH_ATTRIBUTES=2 \
   cargo bench --bench mdoc_zk_bench_v1 --features testonly -- lfa2
 
-# V2 with NEXT v12 and two attributes.
+# V2 with NEXT v13 and four attributes.
 cargo bench --bench mdoc_zk_bench_next --features testonly
 ```
 
 The NEXT benchmark can save a specification/archive bundle using
 `MDOC_BENCH_SAVE_ARCHIVE`, or load one using `MDOC_BENCH_ARCHIVE`.
 Loading a bundle preserves its saved parameters.
-Set `MDOC_BENCH_ATTRIBUTES` to 2 or 4 and `MDOC_BENCH_SAMPLES` to the desired
-sample count (default 8, including one discarded warmup). The test fixture has
-two attributes; the four-slot workload repeats those disclosures. Subsequent
-runs can load the bundle saved by the first run.
+Set `MDOC_BENCH_SAMPLES` to the desired sample count (default 8, including
+one discarded warmup). The fixture enables all four slots, using three
+ordinary disclosures and one date disclosure. Subsequent runs can load the
+bundle saved by the first run.
 
 Timing and allocation tracking run separately. Add `bench-memory` for
 memory measurements. It reports peak additional Rust heap, excluding

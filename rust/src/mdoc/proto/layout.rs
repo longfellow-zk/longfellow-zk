@@ -16,7 +16,10 @@ use super::{
         K_DOC_TYPE_BYTES, K_HASH_INDEX_BITS, K_MSO_PREIMAGE_LEN, K_NAMESPACE_BYTES,
         K_TIMESTAMP_DIGITS,
     },
-    mso_attribute::constants::{K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_VALUE_BYTES},
+    mso_attribute::constants::{
+        K_ATTR_COMPARISON_BITS, K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_VALUE_BYTES,
+        K_DATE_SLOT, K_DATE_VALUE_BYTES,
+    },
 };
 
 const fn after(previous: Range<usize>, width: usize) -> Range<usize> {
@@ -28,28 +31,39 @@ const fn after(previous: Range<usize>, width: usize) -> Range<usize> {
 /// `K_ATTR_INDEX_BITS` inputs.
 pub mod public {
     use super::{
-        K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_VALUE_BYTES, K_DOC_TYPE_BYTES,
-        K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS,
+        K_ATTR_COMPARISON_BITS, K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_VALUE_BYTES,
+        K_DATE_SLOT, K_DATE_VALUE_BYTES, K_DOC_TYPE_BYTES, K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS,
     };
     /// The hash circuit's leading time: its 14 digits.
     const HASH_TIME: usize = 8 * K_TIMESTAMP_DIGITS.len();
-    /// Each attribute of the hash circuit: its CBOR identifier and its CBOR
-    /// value, each with its length.
-    pub const HASH_PER_ATTRIBUTE: usize =
-        8 * K_ATTR_ID_BYTES + K_ATTR_INDEX_BITS + 8 * K_ATTR_VALUE_BYTES + K_ATTR_INDEX_BITS;
+    // Identifier, identifier length, value length and enable bit.
+    const ATTRIBUTE_FIXED: usize = 8 * K_ATTR_ID_BYTES + 2 * K_ATTR_INDEX_BITS + 1;
+    /// A regular slot has a full-width equality operand.
+    pub const HASH_PER_ATTRIBUTE: usize = ATTRIBUTE_FIXED + 8 * K_ATTR_VALUE_BYTES;
+    /// The fourth slot has a date operand and two comparison flags.
+    pub const HASH_DATE_ATTRIBUTE: usize =
+        ATTRIBUTE_FIXED + 8 * K_DATE_VALUE_BYTES + K_ATTR_COMPARISON_BITS;
     /// The hash circuit's inputs after the attributes: the document-type
     /// flag, then the document type and the namespace, each with its length.
     const HASH_TRAILER: usize =
         1 + 8 * K_DOC_TYPE_BYTES + K_ATTR_INDEX_BITS + 8 * K_NAMESPACE_BYTES + K_ATTR_INDEX_BITS;
-    /// The hash circuit's inputs other than the attributes: it has
-    /// `HASH_FIXED + HASH_PER_ATTRIBUTE * A` for A attributes.
+    /// The hash circuit's inputs other than the attributes.
     pub const HASH_FIXED: usize = HASH_TIME + HASH_TRAILER;
     /// The signature circuit's: the issuer key's two coordinates and the 256
     /// bits of `e2`.
     pub const SIGNATURE: usize = 2 + 256;
 
-    // The counts DESIGN.md I3 states; changing one changes the circuits.
-    const _: () = assert!(HASH_FIXED == 901 && HASH_PER_ATTRIBUTE == 788 && SIGNATURE == 258);
+    /// Total public inputs for the NEXT hash circuit.
+    pub const HASH_INPUTS: usize =
+        HASH_FIXED + K_DATE_SLOT * HASH_PER_ATTRIBUTE + HASH_DATE_ATTRIBUTE;
+
+    const _: () = assert!(
+        HASH_FIXED == 901
+            && HASH_PER_ATTRIBUTE == 1813
+            && HASH_DATE_ATTRIBUTE == 455
+            && HASH_INPUTS == 6795
+            && SIGNATURE == 258
+    );
 }
 
 /// The hash circuit's leading private inputs, in allocation order.

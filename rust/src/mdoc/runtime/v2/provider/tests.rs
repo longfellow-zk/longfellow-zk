@@ -15,18 +15,20 @@
 //! Frozen v2 lookup and loading, including a synthetic unpublished fixture.
 use crate::{
     core::proto::archive::CircuitArchiveBuilder,
-    mdoc::{proto::NEXT_VERSION, runtime::tests::specs::v2_spec, v2::provider::*},
+    mdoc::{
+        proto::{NEXT_ATTRIBUTES, NEXT_VERSION},
+        runtime::tests::specs::v2_spec,
+        v2::provider::*,
+    },
 };
 
 #[test]
 fn next_is_not_a_frozen_v2_circuit() {
     assert!(registered_versions_and_attrs().is_empty());
-    for count in 1..=4 {
-        assert!(matches!(
-            materialize(NEXT_VERSION, count),
-            Err(MdocProverErrorCode::InvalidZkSpecVersion)
-        ));
-    }
+    assert!(matches!(
+        materialize(NEXT_VERSION, NEXT_ATTRIBUTES),
+        Err(MdocProverErrorCode::InvalidZkSpecVersion)
+    ));
 }
 
 #[test]

@@ -17,10 +17,11 @@ use crate::compile::{
     compiler::{
         algsimp::AlgebraicRewriter,
         arena::CompilerArena,
+        assertion::strip_attached,
         cse::Cse,
-        ir::{promote_sum_to_precious, AssertionItem, ExprNode, RewriteT},
+        ir::{promote_sum_to_precious, AssertionItem, Expr, ExprNode, RewriteT},
     },
-    logic::{AssertionScope, Logic, LogicIO},
+    logic::{AssertionScope, Logic, LogicIO, NIL_ASSERTION_ID},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -166,6 +167,52 @@ where NEXT: RewriteT<'a, F>
         }
         CompilerAssertions {
             items: self.arena.alloc_slice(&items),
+        }
+    }
+
+    fn assert_when(&self, enable: &Self::Wire, assertions: Self::Assertions) -> Self::Assertions {
+        match &enable.v {
+            Expr::One => return assertions,
+            Expr::Constant(value) if self.f.is_zero(value) => return self.ok(),
+            Expr::Constant(_) => return assertions,
+            _ => {}
+        }
+        // Strip attachments before multiplying the residues. Otherwise the
+        // normal compiler pass would lift them back out as unconditional.
+        let enable_root = self.arena.alloc_slice(&[AssertionItem {
+            expr: enable,
+            id: NIL_ASSERTION_ID,
+        }]);
+        let (enable_roots, mut attached) = strip_attached(self.arena, enable_root);
+        let (roots, dependencies) = strip_attached(self.arena, assertions.items);
+        let gated = |item: &AssertionItem<'a, F>| {
+            let residual = self.mul(&enable_roots[0].expr, &item.expr);
+            let id = item.id;
+            self.next
+                .assert0(&residual)
+                .iter()
+                .map(move |&expr| AssertionItem {
+                    expr,
+                    id: self.tracker.duplicate_leaf(id),
+                })
+        };
+
+        attached.extend(dependencies.iter().flat_map(gated));
+        let mut guarded_roots: Vec<_> = roots.iter().flat_map(gated).collect();
+        if !attached.is_empty() {
+            // Keep attachment paths outside the surrounding assertion group.
+            if guarded_roots.is_empty() {
+                guarded_roots.push(AssertionItem {
+                    expr: self.zero(),
+                    id: NIL_ASSERTION_ID,
+                });
+            }
+            guarded_roots[0].expr = self
+                .next
+                .with_assertions(&self.arena.alloc_slice(&attached), &guarded_roots[0].expr);
+        }
+        CompilerAssertions {
+            items: self.arena.alloc_slice(&guarded_roots),
         }
     }
 

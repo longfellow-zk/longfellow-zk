@@ -1,8 +1,8 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
-//! NEXT circuits for tests, compiled once per test binary.
+//! The NEXT circuit for tests, compiled once per test binary.
 //!
 //! Compiling a NEXT circuit takes about 8 s and 1.5 GB at its peak, and many
-//! tests need one. [`next_circuit`] saves each compiled circuit with
+//! tests need it. [`next_circuit`] saves the compiled circuit with
 //! [`write_next`] in a directory beside the test binary, named by a digest of
 //! the running binary, and later calls read it back with [`read_next`]. A
 //! rebuilt binary has another digest, so it never reads a bundle that an
@@ -34,11 +34,11 @@ pub(crate) fn one_compilation() -> MutexGuard<'static, ()> {
     COMPILING.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// The NEXT circuit of `num_attributes` attributes: the saved bundle of this
+/// The NEXT circuit: the saved bundle of this
 /// test binary if there is one, otherwise a fresh compilation, which it
 /// saves. A cache that cannot be read or written only costs compilations.
-pub(crate) fn next_circuit(num_attributes: usize) -> ProvidedCircuit {
-    let path = cache_directory().map(|d| d.join(format!("next-{num_attributes}.bundle")));
+pub(crate) fn next_circuit() -> ProvidedCircuit {
+    let path = cache_directory().map(|d| d.join("next.bundle"));
     let saved = || path.as_deref().and_then(read);
     if let Some(provided) = saved() {
         return provided;
@@ -48,7 +48,7 @@ pub(crate) fn next_circuit(num_attributes: usize) -> ProvidedCircuit {
     if let Some(provided) = saved() {
         return provided;
     }
-    let provided = compile_next(num_attributes).unwrap();
+    let provided = compile_next().unwrap();
     if let Some(destination) = &path {
         // The cache is an optimization: a failed save leaves the next call
         // to compile again.

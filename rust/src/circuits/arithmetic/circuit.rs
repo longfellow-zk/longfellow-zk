@@ -340,17 +340,22 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
     }
 
     pub fn lt(&self, a: &[Bitw<L>], b: &[Bitw<L>]) -> Bitw<L> {
+        self.lt_eq(a, b).0
+    }
+
+    /// Strict less-than and equality from one comparison of little-endian bits.
+    pub fn lt_eq(&self, a: &[Bitw<L>], b: &[Bitw<L>]) -> (Bitw<L>, Bitw<L>) {
         assert_eq!(a.len(), b.len(), "lt: slice lengths must match");
         let fold = |x: (Bitw<L>, Bitw<L>), y: (Bitw<L>, Bitw<L>)| self.lt_reduce(&x, &y);
         let base = |x: &Bitw<L>, y: &Bitw<L>| self.lt_base(x, y);
-        let res = self.fold2(
+        let (eq, lt) = self.fold2(
             a,
             b,
             &fold,
             &base,
             (self.boolean.trueb(), self.boolean.falseb()),
         );
-        res.1
+        (lt, eq)
     }
 
     pub fn leq(&self, a: &[Bitw<L>], b: &[Bitw<L>]) -> Bitw<L> {

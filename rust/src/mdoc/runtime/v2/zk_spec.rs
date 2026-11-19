@@ -39,6 +39,7 @@ pub const MDOC_JOINT_PROFILE: PolygeroConfig = PolygeroConfig {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ZkSpecStruct {
     pub combined_hash: [u8; 32],
+    /// Slot count carried by archives and the transcript. NEXT requires four.
     pub num_attributes: usize,
     pub version: usize,
     /// The one Polygero profile of both fields, which the joint commitment shares.

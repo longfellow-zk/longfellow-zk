@@ -183,6 +183,45 @@ fn test_compiler_assertion_path_and_simplification() {
 }
 
 #[test]
+fn test_compiled_guarded_assertions() {
+    use crate::{
+        compile::{
+            algebra::gf2_128::Gf2_128Field,
+            compiler::{compile_v2, segment_circuit_v2},
+            debug::evaluate::eval_circuit_fc,
+        },
+        core::algebra::AlgebraicField,
+        runtime::algebra::gf2_128::Gf2_128Field as RuntimeField,
+    };
+
+    let field = Gf2_128Field::new();
+    let (raw_circuit, _, symbols) = compile_v2(&field, |logic| {
+        let guard_dependency = logic.assert0("guard_dependency", &logic.input(2));
+        let enable = logic.with_assertions(guard_dependency, &logic.input(1));
+        let value_dependency = logic.assert0("value_dependency", &logic.input(3));
+        let value = logic.with_assertions(value_dependency, &logic.input(4));
+        let value_check = logic.assert0("value", &value);
+        (logic.assert_when(&enable, value_check), 2)
+    });
+    let circuit = segment_circuit_v2(&field, raw_circuit);
+    let runtime = RuntimeField::new();
+    let failures = |input: [bool; 4]| {
+        let inputs = input.map(|bit| if bit { runtime.one() } else { runtime.zero() });
+        let mut paths = eval_circuit_fc(&field, &runtime, &circuit, &symbols, &inputs)
+            .unwrap()
+            .failed_paths();
+        paths.sort_unstable();
+        paths
+    };
+    assert!(failures([false, false, true, true]).is_empty());
+    assert_eq!(failures([false, true, true, true]), ["guard_dependency"]);
+    assert_eq!(
+        failures([true, false, true, true]),
+        ["value", "value_dependency"]
+    );
+}
+
+#[test]
 fn test_assertion_paths_do_not_expand_through_shared_groups() {
     let f = P256Field::new();
     let arena = CompilerArena::new();

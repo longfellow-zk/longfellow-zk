@@ -513,6 +513,8 @@ where L::F: MdocHashCompileField
             |i| {
                 let attr_given = &given.attribute_given[i];
                 let attr_der = &derived.attribute_derived[i];
+                let disclosed = &given.disclosed_attributes[i];
+                let enabled = self.boolean.as_eltw(&disclosed.enabled);
 
                 let (mso_digest_shifted, shift_assertions) = self.shift_preimage(
                     &attr_given.mso_digest_offset_in_preimage,
@@ -538,7 +540,7 @@ where L::F: MdocHashCompileField
                 let verifier_given = crate::mdoc::circuits::mso_attribute::Given {
                     attribute_preimage: attr_given.preimage.clone(),
                     field_locator: attr_given.field_locator.clone(),
-                    disclosed_attribute: given.disclosed_attributes[i].clone(),
+                    disclosed_attribute: disclosed.clone(),
                     expected_digest,
                 };
                 let attribute_verifier_assertions = self
@@ -548,11 +550,14 @@ where L::F: MdocHashCompileField
                 self.logic.assert_all(
                     "attribute_item",
                     &[
-                        shift_assertions,
-                        tag32_header_assertion,
-                        self.assert_namespace_before_digest(
-                            given,
-                            &attr_given.mso_digest_offset_in_preimage,
+                        self.logic.assert_when(&enabled, shift_assertions),
+                        self.logic.assert_when(&enabled, tag32_header_assertion),
+                        self.logic.assert_when(
+                            &enabled,
+                            self.assert_namespace_before_digest(
+                                given,
+                                &attr_given.mso_digest_offset_in_preimage,
+                            ),
                         ),
                         attribute_verifier_assertions,
                     ],

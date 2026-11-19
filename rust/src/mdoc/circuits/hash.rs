@@ -20,7 +20,7 @@ pub use shape::{AttrDerived, Derived};
 
 cfg_compiler! {
     mod allocate;
-    pub use allocate::allocate;
+    pub(in crate::mdoc) use allocate::allocate;
 }
 
 cfg_testonly! {

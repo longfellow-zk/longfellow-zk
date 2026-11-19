@@ -331,6 +331,7 @@ fn doc_type_header_type_is_checked_after_rehashing() {
 
 #[test]
 fn public_attribute_lengths_must_fit_the_allocated_arrays() {
+    use crate::mdoc::proto::mso_attribute::constants::{K_ATTR_ID_BYTES, K_ATTR_VALUE_BYTES};
     let original = fixture();
     let derived = concrete::derived::<4, _>(&original);
     let f = Gf2_128Field::new();
@@ -341,9 +342,9 @@ fn public_attribute_lengths_must_fit_the_allocated_arrays() {
         let mut wires = evaluate_given(&logic, &bits, &original);
         let attribute = &mut wires.disclosed_attributes[0];
         if name {
-            attribute.expected_name.len = bits.of_u64::<10>(33);
+            attribute.expected_name.len = bits.of_u64::<10>((K_ATTR_ID_BYTES + 1) as u64);
         } else {
-            attribute.expected_cbor_value.len = bits.of_u64::<10>(65);
+            attribute.expected_cbor_value.len = bits.of_u64::<10>((K_ATTR_VALUE_BYTES + 1) as u64);
         }
         let result = MdocHash::new(&logic)
             .assert_valid_presentation(&wires, &evaluate_derived(&logic, &bits, &derived));

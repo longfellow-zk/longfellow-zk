@@ -20,10 +20,12 @@ use crate::{
         cbor::{encode_cbor_string, mdoc::compute_transcript_hash},
         proto::{
             hash::constants::{K_DOC_TYPE_BYTES, K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS},
-            mso_attribute::constants::{K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_VALUE_BYTES},
+            mso_attribute::constants::{
+                attr_value_bytes, K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_DATE_SLOT,
+            },
         },
         v2::{
-            attribute::RequestedAttribute,
+            attribute::{AttributeOp, RequestedAttribute},
             inputs::builder::{AssignmentBuilder, BinaryAssignmentBuilder},
             request::Request,
         },
@@ -79,17 +81,31 @@ impl<'r> PublicInputs<'r> {
 }
 
 fn push_input_attrs(builder: &mut BinaryAssignmentBuilder, attrs: &[RequestedAttribute]) {
-    for la in attrs {
-        let cbor_id = encode_cbor_string(&la.id);
+    for (slot, attribute) in attrs.iter().enumerate() {
+        let cbor_id = if attribute.enabled {
+            encode_cbor_string(&attribute.id)
+        } else {
+            Vec::new()
+        };
+        let operand = if attribute.enabled {
+            attribute.cbor_value.as_slice()
+        } else {
+            &[]
+        };
         for i in 0..K_ATTR_ID_BYTES {
             builder.push_v8(*cbor_id.get(i).unwrap_or(&0));
         }
         builder.push_bits_len(cbor_id.len() as u64, K_ATTR_INDEX_BITS);
 
-        for i in 0..K_ATTR_VALUE_BYTES {
-            builder.push_v8(*la.cbor_value.get(i).unwrap_or(&0));
+        for i in 0..attr_value_bytes(slot) {
+            builder.push_v8(*operand.get(i).unwrap_or(&0));
         }
-        builder.push_bits_len(la.cbor_value.len() as u64, K_ATTR_INDEX_BITS);
+        builder.push_bits_len(operand.len() as u64, K_ATTR_INDEX_BITS);
+        builder.push_bit(attribute.enabled);
+        if slot == K_DATE_SLOT {
+            builder.push_bit(attribute.enabled && attribute.op == AttributeOp::Le);
+            builder.push_bit(attribute.enabled && attribute.op == AttributeOp::Ge);
+        }
     }
 }
 

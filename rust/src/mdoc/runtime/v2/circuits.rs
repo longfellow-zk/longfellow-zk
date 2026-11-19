@@ -52,9 +52,7 @@ impl Instance {
         gf2: &Gf2_128Field,
     ) -> Result<Self, String> {
         let (signature, hash) = load(compressed, p256, gf2, Some(request.spec()))?;
-        // A is `spec.num_attributes`, which `Request::check` made equal to
-        // the number of requested attributes.
-        if Some(hash.raw.npublic_input) != hash_public_inputs(request.spec().num_attributes)
+        if hash.raw.npublic_input != public::HASH_INPUTS
             || signature.raw.npublic_input != public::SIGNATURE
         {
             return Err("Circuit public-input counts do not match the request".into());
@@ -67,15 +65,6 @@ impl Instance {
     pub(super) fn hash(&self) -> &Circuit<Gf2_128Field> {
         &self.hash
     }
-}
-
-/// The hash circuit's public-input count for A attributes (DESIGN.md I3).
-/// None if it overflows.
-#[cfg(any(test, feature = "prover", feature = "verifier"))]
-fn hash_public_inputs(attributes: usize) -> Option<usize> {
-    attributes
-        .checked_mul(public::HASH_PER_ATTRIBUTE)?
-        .checked_add(public::HASH_FIXED)
 }
 
 fn load(

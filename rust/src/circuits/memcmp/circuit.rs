@@ -42,4 +42,9 @@ impl<'a, L: Logic> Memcmp<'a, L> {
         let b_bits = self.arrange(b);
         self.arithmetic.leq(&a_bits, &b_bits)
     }
+
+    /// Lexicographic strict less-than and equality from one comparison.
+    pub fn lt_eq(&self, a: &[V8<L>], b: &[V8<L>]) -> (Bitw<L>, Bitw<L>) {
+        self.arithmetic.lt_eq(&self.arrange(a), &self.arrange(b))
+    }
 }

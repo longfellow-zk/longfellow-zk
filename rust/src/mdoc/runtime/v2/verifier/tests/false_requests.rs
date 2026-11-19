@@ -21,7 +21,7 @@ use crate::{
             document,
             domains::with_domains,
             inputs::{push_witness_hash, push_witness_sig, PublicInputs},
-            link, req_attr,
+            link,
             request::Request,
             run_mdoc_verifier, transcript, MdocProof, RequestedAttribute, ZkSpecStruct,
         },
@@ -240,10 +240,10 @@ fn cheating_provers_of_false_mdoc_requests_are_rejected() {
             ("namespace is a proper prefix", "org.iso.18013.5"),
         ] {
             assert_ne!(other, ns);
-            let other_ns: Vec<_> = honest_attrs
-                .iter()
-                .map(|a| req_attr(other, &a.id, &a.cbor_value))
-                .collect();
+            let mut other_ns = honest_attrs.to_vec();
+            for attribute in &mut other_ns {
+                attribute.namespace_id = other.as_bytes().to_vec();
+            }
             run(what, req(key, &other_ns, now, doc_type), false);
         }
         // Session transcript: another well-formed CBOR item.

@@ -14,19 +14,23 @@
 
 //! Longfellow v2 application compatibility and failure cases.
 
+use super::specs::four_slots;
 use crate::{
     compile::algebra::CompileNat,
     core::{
         algebra::Nat,
         proto::{
             archive::{CircuitArchive, CircuitArchiveBuilder},
-            v2::CircuitReader,
+            v2::{Circuit, CircuitReader, CircuitWriter},
         },
     },
     mdoc::{
         cbor::{mdoc::ParsedMdoc, test_utils::parse_test_data},
         development_provider::tests::fixtures::next_circuit,
-        proto::{layout::public, NEXT_VERSION},
+        proto::{
+            layout::public, mso_attribute::constants::has_ordered_date_encoding, NEXT_ATTRIBUTES,
+            NEXT_VERSION,
+        },
         runtime::v2::run_mdoc_prover_encoded,
         testcases::{ALL_TEST_CASES, TEST_DATA},
         v2::{
@@ -38,32 +42,16 @@ use crate::{
     runtime::{random::DeterministicRng, v2::proto::polygero::PolygeroConfig},
 };
 
-/// The NEXT circuits of one to four attributes. Each test loads its own
-/// copy; they share one compilation per circuit through the test cache.
-struct TestCircuits {
-    circuits: std::collections::HashMap<usize, provider::ProvidedCircuit>,
-}
-
-impl TestCircuits {
-    fn load() -> Self {
-        let circuits = (1..=4).map(|count| (count, next_circuit(count))).collect();
-        Self { circuits }
-    }
-
-    fn get(&self, nattrs: usize) -> Option<&provider::ProvidedCircuit> {
-        self.circuits.get(&nattrs)
-    }
-}
-
 #[test]
 fn next_mdoc_flow() {
-    let test_circuits = &TestCircuits::load();
+    let provided = &next_circuit();
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
-    let req_attrs: Vec<RequestedAttribute> = parsed
-        .attrs
-        .iter()
-        .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
-        .collect();
+    let req_attrs = four_slots(
+        parsed
+            .attrs
+            .iter()
+            .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value)),
+    );
 
     let mdoc_bytes = TEST_DATA.mdoc;
     let transcript = TEST_DATA.transcript;
@@ -77,8 +65,6 @@ fn next_mdoc_flow() {
         "0x{}",
         num_bigint::BigUint::from_bytes_le(&issuer_pk.1.to_bytes_le()).to_str_radix(16)
     );
-
-    let provided = test_circuits.get(req_attrs.len()).unwrap();
 
     let mut rng = DeterministicRng::new(42);
     let zkproof = run_mdoc_prover_inner(
@@ -152,14 +138,15 @@ fn next_mdoc_flow() {
 
 #[test]
 fn next_mdoc_subset_flow() {
-    let test_circuits = &TestCircuits::load();
+    let provided = &next_circuit();
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
-    let req_attrs: Vec<RequestedAttribute> = parsed
-        .attrs
-        .iter()
-        .step_by(2)
-        .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
-        .collect();
+    let req_attrs = four_slots(
+        parsed
+            .attrs
+            .iter()
+            .step_by(2)
+            .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value)),
+    );
 
     let mdoc_bytes = TEST_DATA.mdoc;
     let transcript = TEST_DATA.transcript;
@@ -173,8 +160,6 @@ fn next_mdoc_subset_flow() {
         "0x{}",
         num_bigint::BigUint::from_bytes_le(&issuer_pk.1.to_bytes_le()).to_str_radix(16)
     );
-
-    let provided = test_circuits.get(req_attrs.len()).unwrap();
 
     let mut rng = DeterministicRng::new(42);
     let zkproof = run_mdoc_prover_inner(
@@ -239,7 +224,7 @@ fn requested_fixture_attributes(
 
 #[test]
 fn next_mdoc_all_positive_cases() {
-    let test_circuits = &TestCircuits::load();
+    let provided = &next_circuit();
     for case in ALL_TEST_CASES {
         if case.name.starts_with("fail-") {
             continue;
@@ -249,7 +234,7 @@ fn next_mdoc_all_positive_cases() {
         if nattrs == 0 || nattrs > 4 {
             continue;
         }
-        let req_attrs = requested_fixture_attributes(&parsed, case.name);
+        let mut req_attrs = requested_fixture_attributes(&parsed, case.name);
 
         if !crate::mdoc::v2::same_namespace(&req_attrs) {
             continue;
@@ -261,51 +246,60 @@ fn next_mdoc_all_positive_cases() {
             continue;
         }
 
-        let Some(provided) = test_circuits.get(nattrs) else {
-            continue;
+        // Four-item fixtures with a date can disclose all four in one proof.
+        // Exercise every other supported fixture attribute in equality slots.
+        let date_index = req_attrs
+            .iter()
+            .position(|a| has_ordered_date_encoding(&a.cbor_value));
+        let batch_size = match (nattrs, date_index) {
+            (4, Some(date)) => {
+                req_attrs.swap(date, 3);
+                4
+            }
+            _ => 3,
         };
+        for batch in req_attrs.chunks(batch_size) {
+            let request = four_slots(batch.iter().cloned());
+            let zkproof = run_mdoc_prover_inner(
+                provided.spec(),
+                provided.compressed(),
+                case.data.mdoc,
+                case.data.pkx,
+                case.data.pky,
+                case.data.transcript,
+                &request,
+                now,
+                case.data.doc_type,
+                &mut DeterministicRng::new(42),
+            )
+            .unwrap_or_else(|err| panic!("Prover failed for positive case {}: {err:?}", case.name));
 
-        let mut rng = DeterministicRng::new(42);
+            assert!(!zkproof.is_empty(), "Proof empty for {}", case.name);
 
-        let zkproof = run_mdoc_prover_inner(
-            provided.spec(),
-            provided.compressed(),
-            case.data.mdoc,
-            case.data.pkx,
-            case.data.pky,
-            case.data.transcript,
-            &req_attrs,
-            now,
-            case.data.doc_type,
-            &mut rng,
-        )
-        .unwrap_or_else(|_| panic!("Prover failed for positive case: {}", case.name));
-
-        assert!(!zkproof.is_empty(), "Proof empty for {}", case.name);
-
-        let verify_res = run_mdoc_verifier(
-            provided.spec(),
-            provided.compressed(),
-            case.data.pkx,
-            case.data.pky,
-            case.data.transcript,
-            &req_attrs,
-            now,
-            case.data.doc_type,
-            &zkproof,
-        );
-        assert!(
-            verify_res.is_ok(),
-            "Verifier failed for positive case {}: {:?}",
-            case.name,
-            verify_res.err()
-        );
+            let verify_res = run_mdoc_verifier(
+                provided.spec(),
+                provided.compressed(),
+                case.data.pkx,
+                case.data.pky,
+                case.data.transcript,
+                &request,
+                now,
+                case.data.doc_type,
+                &zkproof,
+            );
+            assert!(
+                verify_res.is_ok(),
+                "Verifier failed for positive case {}: {:?}",
+                case.name,
+                verify_res.err()
+            );
+        }
     }
 }
 
 #[test]
 fn next_mdoc_all_negative_cases() {
-    let test_circuits = &TestCircuits::load();
+    let provided = &next_circuit();
     let mut executed = 0;
     let mut skipped_for_attribute_count = Vec::new();
     for case in ALL_TEST_CASES {
@@ -360,11 +354,8 @@ fn next_mdoc_all_negative_cases() {
             }
         }
 
-        let provided = test_circuits
-            .get(nattrs)
-            .unwrap_or_else(|| panic!("missing {nattrs}-attribute circuit for {}", case.name));
-
         let mut rng = DeterministicRng::new(42);
+        let request = four_slots(req_attrs);
 
         let zkproof_res = run_mdoc_prover_inner(
             provided.spec(),
@@ -373,7 +364,7 @@ fn next_mdoc_all_negative_cases() {
             case.data.pkx,
             case.data.pky,
             case.data.transcript,
-            &req_attrs,
+            &request,
             now,
             case.data.doc_type,
             &mut rng,
@@ -402,13 +393,14 @@ fn next_mdoc_all_negative_cases() {
 
 #[test]
 fn next_verifier_negative_cases() {
-    let test_circuits = &TestCircuits::load();
+    let provided = &next_circuit();
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
-    let req_attrs: Vec<RequestedAttribute> = parsed
-        .attrs
-        .iter()
-        .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
-        .collect();
+    let req_attrs = four_slots(
+        parsed
+            .attrs
+            .iter()
+            .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value)),
+    );
 
     let mdoc_bytes = TEST_DATA.mdoc;
     let transcript = TEST_DATA.transcript;
@@ -423,7 +415,6 @@ fn next_verifier_negative_cases() {
         num_bigint::BigUint::from_bytes_le(&issuer_pk.1.to_bytes_le()).to_str_radix(16)
     );
 
-    let provided = test_circuits.get(req_attrs.len()).unwrap();
     let mut rng = DeterministicRng::new(42);
     let zkproof = run_mdoc_prover_inner(
         provided.spec(),
@@ -607,8 +598,8 @@ fn next_verifier_negative_cases() {
     );
 
     // 10. Attribute Number Mismatch - Too Many
-    let mut two_attrs = req_attrs.clone();
-    two_attrs.push(req_attrs[0].clone());
+    let mut too_many = req_attrs.clone();
+    too_many.push(req_attrs[0].clone());
     assert_eq!(
         run_mdoc_verifier(
             provided.spec(),
@@ -616,7 +607,7 @@ fn next_verifier_negative_cases() {
             &pubkey_x_string,
             &pubkey_y_formatted,
             transcript,
-            &two_attrs,
+            &too_many,
             now,
             doc_type,
             &zkproof
@@ -687,7 +678,7 @@ fn next_verifier_negative_cases() {
 
 #[test]
 fn next_verifier_attribute_reordering_and_duplicates() {
-    let test_circuits = &TestCircuits::load();
+    let provided = &next_circuit();
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
     let all_req_attrs: Vec<RequestedAttribute> = parsed
         .attrs
@@ -695,13 +686,13 @@ fn next_verifier_attribute_reordering_and_duplicates() {
         .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
         .collect();
 
-    let two_attrs = if all_req_attrs.len() >= 2 {
+    let two_attrs = four_slots(if all_req_attrs.len() >= 2 {
         vec![all_req_attrs[0].clone(), all_req_attrs[1].clone()]
     } else {
         let mut second = all_req_attrs[0].clone();
         second.id = b"fake_attr".to_vec();
         vec![all_req_attrs[0].clone(), second]
-    };
+    });
 
     let mdoc_bytes = TEST_DATA.mdoc;
     let transcript = TEST_DATA.transcript;
@@ -715,7 +706,6 @@ fn next_verifier_attribute_reordering_and_duplicates() {
         num_bigint::BigUint::from_bytes_le(&issuer_pk.1.to_bytes_le()).to_str_radix(16)
     );
 
-    let provided = test_circuits.get(2).unwrap();
     let mut rng = DeterministicRng::new(42);
     let zkproof_res = run_mdoc_prover_inner(
         provided.spec(),
@@ -732,7 +722,8 @@ fn next_verifier_attribute_reordering_and_duplicates() {
     let zkproof =
         zkproof_res.expect("prover must succeed before verifier attribute-order corruptions");
 
-    let reordered = vec![two_attrs[1].clone(), two_attrs[0].clone()];
+    let mut reordered = two_attrs.clone();
+    reordered.swap(0, 1);
     assert_eq!(
         run_mdoc_verifier(
             provided.spec(),
@@ -749,7 +740,8 @@ fn next_verifier_attribute_reordering_and_duplicates() {
         "Verifier should reject reordered attributes"
     );
 
-    let duplicates = vec![two_attrs[0].clone(), two_attrs[0].clone()];
+    let mut duplicates = two_attrs.clone();
+    duplicates[1] = duplicates[0].clone();
     assert_eq!(
         run_mdoc_verifier(
             provided.spec(),
@@ -769,13 +761,14 @@ fn next_verifier_attribute_reordering_and_duplicates() {
 
 #[test]
 fn next_verifier_bad_proofs() {
-    let test_circuits = &TestCircuits::load();
+    let provided = &next_circuit();
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
-    let req_attrs: Vec<RequestedAttribute> = parsed
-        .attrs
-        .iter()
-        .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
-        .collect();
+    let req_attrs = four_slots(
+        parsed
+            .attrs
+            .iter()
+            .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value)),
+    );
 
     let mdoc_bytes = TEST_DATA.mdoc;
     let transcript = TEST_DATA.transcript;
@@ -789,7 +782,6 @@ fn next_verifier_bad_proofs() {
         num_bigint::BigUint::from_bytes_le(&issuer_pk.1.to_bytes_le()).to_str_radix(16)
     );
 
-    let provided = test_circuits.get(req_attrs.len()).unwrap();
     let mut rng = DeterministicRng::new(42);
     let zkproof = run_mdoc_prover_inner(
         provided.spec(),
@@ -1045,7 +1037,7 @@ fn circuit_supports_cbor() {
 fn namespace_mixup() {
     use crate::mdoc::v2::{req_attr, same_namespace};
 
-    let test_circuits = &TestCircuits::load();
+    let provided = &next_circuit();
     let attr1 = req_attr("org.iso.18013.5.1", "family_name", [0x63, b'f', b'o', b'o']);
     let attr2 = req_attr("org.iso.18013.5.1", "birth_date", [0x63, b'b', b'a', b'r']);
     let attr3 = req_attr(
@@ -1073,8 +1065,7 @@ fn namespace_mixup() {
         num_bigint::BigUint::from_bytes_le(&issuer_pk.1.to_bytes_le()).to_str_radix(16)
     );
 
-    let provided = test_circuits.get(2).unwrap();
-    let mixed_attrs = vec![attr1, attr3];
+    let mixed_attrs = four_slots([attr1, attr3]);
 
     let res = run_mdoc_verifier(
         provided.spec(),
@@ -1099,9 +1090,9 @@ fn namespace_mixup() {
 /// request rows without circuits.
 #[test]
 fn next_error_table() {
-    let test_circuits = &TestCircuits::load();
+    let provided = &next_circuit();
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
-    let req_attrs = requested_fixture_attributes(&parsed, "TEST_DATA");
+    let req_attrs = four_slots(requested_fixture_attributes(&parsed, "TEST_DATA"));
     let doc_type = "org.iso.18013.5.1.mDL";
     let pkx = format!(
         "0x{}",
@@ -1111,7 +1102,6 @@ fn next_error_table() {
         "0x{}",
         num_bigint::BigUint::from_bytes_le(&issuer_pk.1.to_bytes_le()).to_str_radix(16)
     );
-    let provided = test_circuits.get(req_attrs.len()).unwrap();
     let prove = |spec: &ZkSpecStruct, compressed: &[u8]| {
         run_mdoc_prover_inner(
             spec,
@@ -1166,19 +1156,27 @@ fn next_error_table() {
         verify(&other_hash, provided.compressed(), &proof),
         Err(MdocVerifierErrorCode::CircuitParsingFailure)
     );
-    // A spec naming a well-formed archive whose hash circuit is compiled for
-    // another attribute count: its public-input count is not the request's
-    // `HASH_FIXED + HASH_PER_ATTRIBUTE * A` (DESIGN.md I3).
-    let entries = |p: &provider::ProvidedCircuit| {
-        CircuitArchive::from_bytes(&zstd::decode_all(p.compressed()).unwrap()).unwrap()
-    };
-    let own = entries(provided);
-    let other = entries(test_circuits.get(req_attrs.len() % 4 + 1).unwrap());
-    let (sig, hash) = (own.get("sig").unwrap(), other.get("hash").unwrap());
+    // An otherwise well-formed archive with a hash public-input count that
+    // differs from the count required for the request by DESIGN.md I3.
+    let original_archive =
+        CircuitArchive::from_bytes(&zstd::decode_all(provided.compressed()).unwrap()).unwrap();
+    let sig = original_archive.get("sig").unwrap();
+    let hash_entry = original_archive.get("hash").unwrap();
+    let gf2 = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    let (hash_circuit, _) = CircuitReader::new(&gf2)
+        .from_bytes(&hash_entry.payload)
+        .unwrap();
+    let mut wrong_width = hash_circuit.into_raw().into_builder();
+    wrong_width.npublic_input -= 1;
+    let modified_hash = Circuit::from_raw(&gf2, wrong_width.build());
     let mut builder = CircuitArchiveBuilder::new();
     builder.circuit_version = Some(NEXT_VERSION as u32);
     builder.add_entry("sig", sig.circuit_id, sig.payload.clone());
-    builder.add_entry("hash", hash.circuit_id, hash.payload.clone());
+    builder.add_entry(
+        "hash",
+        modified_hash.id,
+        CircuitWriter::new(&gf2).to_bytes(&modified_hash),
+    );
     let archive = builder.build();
     let mut mismatched_spec = *provided.spec();
     mismatched_spec.combined_hash = archive.combined_id;
@@ -1244,120 +1242,83 @@ fn next_error_table() {
     );
 }
 
-/// The combined circuit IDs of NEXT for one to four attributes. Any change
-/// to a NEXT circuit changes them; update them in the same, reviewed commit.
-const NEXT_COMBINED_IDS: [&str; 4] = [
-    "73330d8479141705bfffeead55d26b923b9fc439b4516fb27648c81db1718aad",
-    "b09dd5907aa327729a4a9fa3054f888290ec6a9164afaae6651e60aca6acd96f",
-    "d6eef5c5c9465963d55c82919ddd1c43d5c5060d28c6a474fb95a07d7490ac66",
-    "630290d5266925fdd8540b60953fbb34dc5c0408a5464d4b0569f4e196188b78",
-];
-
+/// Pin the single NEXT archive and validate its serialized circuit IDs.
 #[test]
 fn next_circuit_hashes() {
-    let test_circuits = &TestCircuits::load();
-    for nattrs in 1..=4 {
-        let p = test_circuits.get(nattrs).expect("circuit missing");
-        assert_eq!(p.spec().version, NEXT_VERSION);
-        assert_eq!(p.spec().num_attributes, nattrs);
-        assert_eq!(
-            hex::encode(p.spec().combined_hash),
-            NEXT_COMBINED_IDS[nattrs - 1],
-            "{nattrs}-attribute NEXT combined circuit ID"
-        );
-        let bytes = zstd::decode_all(p.compressed()).unwrap();
-        let archive = CircuitArchive::from_bytes(&bytes).unwrap();
-        assert_eq!(archive.combined_id, p.spec().combined_hash);
-        assert!(find_zk_spec(SYSTEM_ID, &p.spec().combined_hash).is_none());
-        // Validate IDs against the actual serialized term streams, not just
-        // the archive header or copied registry entry.
-        let p256 = crate::runtime::algebra::p256::P256Field::new();
-        let gf2 = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
-        let sig_entry = archive.get("sig").unwrap();
-        let hash_entry = archive.get("hash").unwrap();
-        let (sig, sig_tail) = CircuitReader::new(&p256)
-            .from_bytes(&sig_entry.payload)
-            .unwrap();
-        let (hash, hash_tail) = CircuitReader::new(&gf2)
-            .from_bytes(&hash_entry.payload)
-            .unwrap();
-        assert!(sig_tail.is_empty() && hash_tail.is_empty());
-        assert_eq!(sig.id, sig_entry.circuit_id);
-        assert_eq!(hash.id, hash_entry.circuit_id);
-    }
+    let provided = next_circuit();
+    assert_eq!(provided.spec().version, NEXT_VERSION);
+    assert_eq!(provided.spec().num_attributes, NEXT_ATTRIBUTES);
+    assert_eq!(
+        hex::encode(provided.spec().combined_hash),
+        "a85d9c6141bf765cff931d4b5613ba58cf9ddd3f1392fe1a2ee3445f8476eae0"
+    );
+    let bytes = zstd::decode_all(provided.compressed()).unwrap();
+    let archive = CircuitArchive::from_bytes(&bytes).unwrap();
+    assert_eq!(archive.combined_id, provided.spec().combined_hash);
+    assert!(find_zk_spec(SYSTEM_ID, &provided.spec().combined_hash).is_none());
+    // Validate IDs against the actual serialized term streams.
+    let p256 = crate::runtime::algebra::p256::P256Field::new();
+    let gf2 = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    let sig_entry = archive.get("sig").unwrap();
+    let hash_entry = archive.get("hash").unwrap();
+    let (sig, sig_tail) = CircuitReader::new(&p256)
+        .from_bytes(&sig_entry.payload)
+        .unwrap();
+    let (hash, hash_tail) = CircuitReader::new(&gf2)
+        .from_bytes(&hash_entry.payload)
+        .unwrap();
+    assert!(sig_tail.is_empty() && hash_tail.is_empty());
+    assert_eq!(sig.id, sig_entry.circuit_id);
+    assert_eq!(hash.id, hash_entry.circuit_id);
 }
 
-// These counts come from the nodes the draws actually end, independently of the
-// geometry summation used by the Lean metadata checker. Final sealing does
-// not end a node with a draw and is deliberately excluded.
+// Count boundaries where the transcript actually draws a challenge. The final
+// seal does not draw a challenge.
 #[test]
 fn next_measured_round_counts() {
-    let test_circuits = &TestCircuits::load();
+    let provided = next_circuit();
     let data = &TEST_DATA;
-    let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(data);
-    let coordinate = |value: &CompileNat<4>| {
-        format!(
-            "0x{}",
-            num_bigint::BigUint::from_bytes_le(&value.to_bytes_le()).to_str_radix(16)
-        )
-    };
-    let pkx = coordinate(&issuer_pk.0);
-    let pky = coordinate(&issuer_pk.1);
-    for (count, expected) in [(1, 439), (2, 445), (3, 449), (4, 451)] {
-        let attrs: Vec<_> = parsed
-            .attrs
-            .iter()
-            .cycle()
-            .take(count)
-            .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
-            .collect();
-        let provided = test_circuits.get(count).unwrap();
-        let proof = run_mdoc_prover_encoded(
-            provided.spec(),
-            provided.compressed(),
-            data.mdoc,
-            &pkx,
-            &pky,
-            data.transcript,
-            &attrs,
-            now,
-            "org.iso.18013.5.1.mDL",
-            &mut DeterministicRng::new(42),
-        )
-        .unwrap();
-        assert_eq!(
-            proof.round_count_for_test(),
-            expected,
-            "{count}-attribute prover rounds"
-        );
-        let verified = run_mdoc_verifier(
-            provided.spec(),
-            provided.compressed(),
-            &pkx,
-            &pky,
-            data.transcript,
-            &attrs,
-            now,
-            "org.iso.18013.5.1.mDL",
-            proof.as_bytes(),
-        )
-        .unwrap();
-        assert_eq!(
-            verified.round_count_for_test(),
-            expected,
-            "{count}-attribute verifier rounds"
-        );
-        check_mdoc_trace(count, provided, &proof);
-        // Prover and verifier run one schedule (transcript I9).
-        assert_eq!(proof.trace, verified.trace);
-    }
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(data);
+    let attrs = four_slots(
+        requested_fixture_attributes(&parsed, "TEST_DATA")
+            .into_iter()
+            .take(1),
+    );
+    let proof = run_mdoc_prover_encoded(
+        provided.spec(),
+        provided.compressed(),
+        data.mdoc,
+        data.pkx,
+        data.pky,
+        data.transcript,
+        &attrs,
+        now,
+        data.doc_type,
+        &mut DeterministicRng::new(42),
+    )
+    .unwrap();
+    assert_eq!(proof.round_count_for_test(), 463);
+    let verified = run_mdoc_verifier(
+        provided.spec(),
+        provided.compressed(),
+        data.pkx,
+        data.pky,
+        data.transcript,
+        &attrs,
+        now,
+        data.doc_type,
+        proof.as_bytes(),
+    )
+    .unwrap();
+    assert_eq!(verified.round_count_for_test(), 463);
+    check_mdoc_trace(&provided, &proof);
+    // Prover and verifier run one schedule (transcript I9).
+    assert_eq!(proof.trace, verified.trace);
 }
 
-/// Check one mdoc proof's trace against its wire bytes and the registry,
-/// and pin the 1-attribute proof's first node: the statement and the
-/// commitment.
+/// Check the proof's trace against its wire bytes and the registry, and pin
+/// its first node, which holds the statement and commitment.
 fn check_mdoc_trace(
-    count: usize,
     provided: &provider::ProvidedCircuit,
     proof: &crate::runtime::v2::transcript::EncodedProof,
 ) {
@@ -1420,10 +1381,7 @@ fn check_mdoc_trace(
         .take(2)
         .map(|m| m.schema[0].1)
         .collect();
-    let counts = [
-        public::HASH_FIXED + public::HASH_PER_ATTRIBUTE * count,
-        public::SIGNATURE,
-    ];
+    let counts = [public::HASH_INPUTS, public::SIGNATURE];
     assert_eq!(public, counts.map(|x| x as u64));
     // The absorbed geometry is the parsing geometry (transcript I2, I3):
     // the one profile is in `JointGeometry`, and it is the spec's.
@@ -1438,18 +1396,16 @@ fn check_mdoc_trace(
     let c = geometry.body.config();
     assert_eq!(nats, [c.k as u64, c.s as u64, c.n as u64, c.t as u64]);
     assert_eq!(provided.spec().polygero, c);
-    if count == 1 {
-        let node = &trace.nodes[0];
-        export_vectors(&format!(
-            "## 1-attribute mdoc proof (TEST_DATA, first attribute, DeterministicRng(42)): \
-             first node, the statement and the Commitment\n\n{}",
-            node_vector("mdoc 1 attribute", 0, node)
-        ));
-        assert_eq!(
-            hex::encode(<sha2::Sha256 as sha2::Digest>::digest(node)),
-            "deb8d2e677a5e847911a82f636a8329449c4c6d401060b662491987c4f3f4b31"
-        );
-    }
+    let node = &trace.nodes[0];
+    export_vectors(&format!(
+        "## NEXT mdoc proof (TEST_DATA, only the first slot enabled, DeterministicRng(42)): \
+         first node, the statement and the Commitment\n\n{}",
+        node_vector("mdoc NEXT", 0, node)
+    ));
+    assert_eq!(
+        hex::encode(<sha2::Sha256 as sha2::Digest>::digest(node)),
+        "78019c41e60d6c3ae22287d8f8cc926d17e2acfc74a3a437d44b903c9eb2ff82"
+    );
 }
 
 /// A false statement fails before the prover draws a coin, with the circuit's
@@ -1457,10 +1413,9 @@ fn check_mdoc_trace(
 /// device signature fails), and the negative vectors (mdoc DESIGN.md I10).
 #[test]
 fn false_statements_fail_before_sampling() {
-    let test_circuits = &TestCircuits::load();
+    let provided = &next_circuit();
     let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
-    let req_attrs = requested_fixture_attributes(&parsed, "TEST_DATA");
-    let provided = test_circuits.get(req_attrs.len()).unwrap();
+    let req_attrs = four_slots(requested_fixture_attributes(&parsed, "TEST_DATA"));
     let (gx, gy) = (
         "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296",
         "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5",
@@ -1494,10 +1449,9 @@ fn false_statements_fail_before_sampling() {
 /// DESIGN.md, "Size limits").
 #[test]
 fn oversized_document_is_a_decoding_failure() {
-    let test_circuits = &TestCircuits::load();
+    let provided = &next_circuit();
     let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
-    let req_attrs = requested_fixture_attributes(&parsed, "TEST_DATA");
-    let provided = test_circuits.get(req_attrs.len()).unwrap();
+    let req_attrs = four_slots(requested_fixture_attributes(&parsed, "TEST_DATA"));
     let mut mdoc = TEST_DATA.mdoc.to_vec();
     mdoc.resize(256 * 1024 + 1, 0);
     assert_eq!(
@@ -1520,9 +1474,8 @@ fn oversized_document_is_a_decoding_failure() {
 /// Check the shared development profile and its compiled circuit geometry.
 #[test]
 fn next_v2_parameters() {
-    for (_, provided) in TestCircuits::load().circuits {
-        assert_v2_parameters(provided.spec(), provided.compressed());
-    }
+    let provided = next_circuit();
+    assert_v2_parameters(provided.spec(), provided.compressed());
 }
 
 fn assert_v2_parameters(spec: &ZkSpecStruct, compressed: &[u8]) {
@@ -1550,19 +1503,12 @@ fn assert_v2_parameters(spec: &ZkSpecStruct, compressed: &[u8]) {
         assert!(expected.can_interpolate(domains.1));
     });
     let geometry = proof_geometry(spec, &sig, &hash).unwrap();
-    // Keep the numerical frontend and Merkle charges tied to the actual
-    // hash-plus-adapter geometry, including entries for both quad fragments.
+    // Check the hypothesis of Rate7.mdoc_approximation against the compiled
+    // frontend schedules plus the seven other challenge boundaries.
     let binary = geometry.body.host().sumcheck();
     let native = geometry.body.split().sumcheck();
-    assert!(2 * binary.layers().iter().sum::<usize>() + 2 * binary.layers().len() + 2 <= 593);
-    assert!(binary.layers().len() <= 20);
-    assert!(2 * native.layers().iter().sum::<usize>() + 2 * native.layers().len() < 593);
-    assert!(native.layers().len() <= 20);
-    assert!(
-        binary.layers().iter().sum::<usize>()
-            + native.layers().iter().sum::<usize>()
-            + 4 * (binary.layers().len() + native.layers().len())
-            + 16
-            <= 1204
-    );
+    let rounds = binary.layers().iter().chain(native.layers()).sum::<usize>()
+        + 2 * (binary.layers().len() + native.layers().len())
+        + 7;
+    assert!(rounds <= 499);
 }

@@ -34,7 +34,7 @@ use crate::{
         },
         proto::{
             hash::constants::{K_HASH_INDEX_BITS, K_TIMESTAMP_DIGITS},
-            mso_attribute::constants::K_ATTR_INDEX_BITS,
+            mso_attribute::constants::{K_ATTR_INDEX_BITS, K_DATE_SLOT},
         },
     },
 };
@@ -58,7 +58,8 @@ pub fn evaluate_given<L: LogicIO>(
         .hash_input
         .attrs
         .iter()
-        .map(|a| WireDisclosedAttribute {
+        .enumerate()
+        .map(|(slot, a)| WireDisclosedAttribute {
             expected_name: MsoSlice {
                 data: std::array::from_fn(|i| {
                     let bit_val = get_byte(&a.expected_name, i);
@@ -73,6 +74,8 @@ pub fn evaluate_given<L: LogicIO>(
                 }),
                 len: bv.of_u64::<K_ATTR_INDEX_BITS>(a.expected_cbor_value.len() as u64),
             },
+            enabled: boolean.trueb(),
+            comparison: (slot == K_DATE_SLOT).then(|| bv.zero()),
         })
         .collect();
 

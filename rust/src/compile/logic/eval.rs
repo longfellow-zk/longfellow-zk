@@ -257,6 +257,20 @@ impl<'a, F: CompileField> Logic for EvalLogic<'a, F> {
         self.result(scoped, unscoped)
     }
 
+    fn assert_when(&self, enable: &Self::Wire, assertions: Self::Assertions) -> Self::Assertions {
+        assert!(
+            std::ptr::eq(assertions.tracker, self.tracker),
+            "assertions from different evaluator scopes cannot be combined"
+        );
+        if self.f.is_zero(&enable.value) {
+            return self.result(AssertionMap::new(), enable.assertions.clone());
+        }
+        self.result(
+            assertions.scoped,
+            assertions.unscoped.merged(&enable.assertions),
+        )
+    }
+
     fn with_assertions(&self, assertions: Self::Assertions, x: &Self::Wire) -> Self::Wire {
         let attached = assertions.scoped.merged(&assertions.unscoped);
         let new_unscoped = x.assertions.merged(&attached);

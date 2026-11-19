@@ -66,12 +66,16 @@ fn push_bits<FR: RuntimeField>(inputs: &mut Vec<FR::E>, val: u64, nbits: usize, 
 }
 
 fn make_inputs<FR: RuntimeField>(mock: &MsoAttributeMockGiven, fr: &FR) -> Vec<FR::E> {
+    use crate::mdoc::proto::mso_attribute::constants::{
+        K_ATTR_PREIMAGE_LEN, K_ATTR_VALUE_BYTES, K_MAX_ATTR_SHA_BLOCKS,
+    };
     let mut inputs = initial_inputs(fr);
 
-    let (_, _, padded_preimage) = pad_sha256_message(&mock.raw_buf, 2).unwrap();
+    let (nblocks, length_bytes, padded_preimage) =
+        pad_sha256_message(&mock.raw_buf, K_MAX_ATTR_SHA_BLOCKS).unwrap();
 
-    // attribute_preimage.data (128 bytes)
-    for i in 0..128 {
+    // attribute_preimage.data
+    for i in 0..K_ATTR_PREIMAGE_LEN {
         let b = if i < padded_preimage.len() {
             padded_preimage[i]
         } else {
@@ -107,8 +111,8 @@ fn make_inputs<FR: RuntimeField>(mock: &MsoAttributeMockGiven, fr: &FR) -> Vec<F
     // disclosed_attribute.expected_name.len (10 bits)
     push_bits(&mut inputs, mock.disclosed_name_len, 10, fr);
 
-    // disclosed_attribute.expected_cbor_value.data (64 bytes)
-    for i in 0..64 {
+    // disclosed_attribute.expected_cbor_value.data
+    for i in 0..K_ATTR_VALUE_BYTES {
         let b = if i < mock.disclosed_value.len() {
             mock.disclosed_value[i]
         } else {
@@ -118,6 +122,7 @@ fn make_inputs<FR: RuntimeField>(mock: &MsoAttributeMockGiven, fr: &FR) -> Vec<F
     }
     // disclosed_attribute.expected_cbor_value.len (10 bits)
     push_bits(&mut inputs, mock.disclosed_value_len, 10, fr);
+    push_bits(&mut inputs, u64::from(mock.enabled), 1, fr);
 
     // expected_digest (256 bits)
     use sha2::{Digest, Sha256};
@@ -133,18 +138,15 @@ fn make_inputs<FR: RuntimeField>(mock: &MsoAttributeMockGiven, fr: &FR) -> Vec<F
         inputs.push(if bit == 1 { fr.one() } else { fr.zero() });
     }
 
-    // allocate_derived: SHA-256 derived for 2 blocks
-    let (nblocks, length_bytes, _) = pad_sha256_message(&mock.raw_buf, 2).unwrap();
     let concrete_given = ConcreteGiven {
         padded_preimage,
         nblocks,
         length_bytes,
         expected_hash: [0; 8],
     };
-    let concrete_derived = derived(&concrete_given, 2);
+    let concrete_derived = derived(&concrete_given, K_MAX_ATTR_SHA_BLOCKS);
 
-    for b in 0..2 {
-        let d = &concrete_derived.sha_derived[b];
+    for d in &concrete_derived.sha_derived {
         for i in 0..48 {
             push_bits(&mut inputs, d.outw[i] as u64, 32, fr);
         }
@@ -204,6 +206,8 @@ fn test_compile_mso_attribute_tampering() {
         disclosed_name_len: 12,
         disclosed_value: vec![0xf5],
         disclosed_value_len: 1,
+        enabled: true,
+        comparison: None,
         preimage_len: 100,
     };
 
@@ -212,6 +216,26 @@ fn test_compile_mso_attribute_tampering() {
     eval_circuit_fc(&gf2_c, &gf2_r, &circuit, &symbols, &inputs)
         .unwrap()
         .assert_all_passed();
+
+    // A structurally invalid witness is immaterial when disabled, and even
+    // an unused public padding byte must still be zero.
+    let mut disabled = base_mock.clone();
+    disabled.enabled = false;
+    disabled.disclosed_name.clear();
+    disabled.disclosed_name_len = 0;
+    disabled.disclosed_value.clear();
+    disabled.disclosed_value_len = 0;
+    disabled.slot_position.fill(0);
+    let disabled_inputs = make_inputs(&disabled, &gf2_r);
+    eval_circuit_fc(&gf2_c, &gf2_r, &circuit, &symbols, &disabled_inputs)
+        .unwrap()
+        .assert_all_passed();
+
+    disabled.disclosed_value.push(1);
+    let noncanonical_inputs = make_inputs(&disabled, &gf2_r);
+    let noncanonical =
+        eval_circuit_fc(&gf2_c, &gf2_r, &circuit, &symbols, &noncanonical_inputs).unwrap();
+    assert!(noncanonical.is_err());
 
     // Verify all shared corruptors fail compiled circuit evaluation
     let corruptors = mso_attribute_corruptors::all_mso_attribute_corruptors();

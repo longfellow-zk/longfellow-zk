@@ -27,13 +27,19 @@ six; the verifier also takes the proof, and the prover the document.
 | Session transcript | `transcript: &[u8]` | the transport's `SessionTranscript`: at most `MAX_SESSION_TRANSCRIPT_BYTES` = 64 KiB (see Size limits), exactly one CBOR item that `CborParser::parse_exact` accepts: definite lengths only, nesting depth at most 64, text strings valid UTF-8 (`session_transcript_is_one_item`) |
 | Document type | `doc_type: &str` | 1 to `K_DOC_TYPE_BYTES` = 32 bytes |
 | Time | `now: &str` | `YYYY-MM-DD[Tt]hh:mm:ss[Zz]`, ASCII digits (`timestamp_digits`) |
-| Attributes | `attrs: &[RequestedAttribute]` | exactly `spec.num_attributes`, which must be 1 to `NEXT_MAX_ATTRIBUTES` = 4; one namespace, nonempty UTF-8 of at most `K_NAMESPACE_BYTES` = 64 bytes; identifier valid UTF-8, CBOR-encoded in at most `K_ATTR_ID_BYTES` = 32 bytes; CBOR value at most `K_ATTR_VALUE_BYTES` = 64 bytes, of a kind `circuit_supports` accepts |
+| Attributes | `attrs: &[RequestedAttribute]` | exactly four slots. All slots share one namespace, nonempty UTF-8 of at most 64 bytes. Enabled slots have a CBOR-encoded identifier of at most 32 bytes and a supported operand. |
 | Issuer key | `pkx, pky: &str` | 1 to 64 hex digits each, optional `0x`, canonical P-256 base-field elements (`parse_pk_coordinate`) |
-| Spec | `zk_spec: &ZkSpecStruct` | `supports_version()` (version `NEXT_VERSION` = 12) |
+| Spec | `zk_spec: &ZkSpecStruct` | `supports_version()` (version `NEXT_VERSION` = 13) |
 
 `circuit_supports` accepts exactly one well-formed CBOR item: text, bytes,
 integer, `true`/`false`, a tag-1004 full-date of 14 bytes, or a tag-0
-date-time of 22 bytes. The time is reduced to its fourteen
+date-time of 22 bytes. The first three slots use equality and have
+192-byte operand buffers. Each complete signed item must fit in 247 bytes,
+including its identifier, nonce, and CBOR framing. The fourth slot supports
+equality and inclusive order on the two date encodings and has a 119-byte
+signed-item limit. A disabled slot sets every public input in that slot
+to zero and skips its private-witness checks. The namespace remains a shared
+request field. The time is reduced to its fourteen
 `YYYYMMDDhhmmss` digits (`K_TIMESTAMP_DIGITS`), so `T`/`t` and `Z`/`z` are
 the same request.
 
@@ -93,8 +99,14 @@ The verifier ends with this claim. There is an MSO whose signed
 MSO's `docType` equals the requested document type, and its `validFrom` and
 `validUntil` bracket the requested time. It names the requested namespace
 and a canonical device key `(x, y)`. Its value digests include, for each
-requested attribute, the SHA-256 of an `IssuerSignedItem` with the requested
-identifier and value. That device key signed `e2`, the device-authentication
+enabled slot, the SHA-256 of an `IssuerSignedItem` with the requested
+identifier and a value satisfying the public comparison. The ordinary slots
+check exact CBOR equality. The date slot supports `Eq`, `Le`, and `Ge` on matching
+fixed-width CBOR full-date or UTC date-time encodings. The circuit checks
+their tag, text header and encoded length, then compares them lexicographically.
+Chronological interpretation
+assumes the issuer and verifier use canonical date strings.
+That device key signed `e2`, the device-authentication
 digest of this session and document type. The hash circuit proves the MSO
 and attribute facts, the canonical device key (`x, y < p`) and the issuer
 digest. The signature circuit proves both signatures. The two circuits agree
@@ -121,10 +133,10 @@ of the first node:
 | `CommitmentLayout` x 2 | per field: (FieldID, committed private inputs before packing, pad cells, fingerprint mask cells); packing descriptor; native runs; bit-stored runs; (mask start, mask width) | binary participant (packing degree 128), then prime participant (degree one) |
 | `AdapterLayout` x 1 | adapter mode ID `longfellow/v2/foreign/p256/two-full-field-trees/v1`; (Q = `QUOTIENT_BITS` = 10, 2 trees, virtual leaf count: 768 + 256 + 10 = 1034 per tree); start and width of the two 10-bit quotient pads among the binary private inputs (R's 256 bits are in the split `CommitmentLayout`) | the `P256Mode<QUOTIENT_BITS>` of `link::composition` |
 | `JointGeometry` | (k, s, n, t): the spec's one profile (`ZkSpecStruct::polygero`); each field's cell count follows from its `CommitmentLayout` | `ComposedGeometry::config` |
-| `PublicInputs` | Elements(GF2_128, 901 + 788A) | `PublicInputs::derive` (`push_input_hash`) |
+| `PublicInputs` | Elements(GF2_128, 6795) | `PublicInputs::derive` (`push_input_hash`) |
 | `PublicInputs` | Elements(P256, 258) | `PublicInputs::derive` (`push_input_sig`) |
 
-A is the attribute count. Public inputs are absorbed as the circuit sees
+Public inputs are absorbed as the circuit sees
 them, including `e2` (transcript decision "Derivable public inputs"). The
 session transcript enters twice by construction, not by re-absorption: once
 in `MdocStatement`, and once inside `e2`, which the signature circuit reads.
@@ -145,15 +157,16 @@ element is 0 or 1 in GF(2^128); unused bytes are zero.
 | Bits | Field | Count |
 |---|---|---|
 | 0 | time: the 14 ASCII digits | 112 |
-| 112 + 788i | attribute i: CBOR text of its identifier (32 bytes), its length | 256 + 10 |
-| 112 + 788i + 266 | attribute i: CBOR value (64 bytes), its length | 512 + 10 |
-| 112 + 788A | `suppress_doc_type_check`, always 0 | 1 |
-| 113 + 788A | document type (32 bytes), its length | 256 + 10 |
-| 379 + 788A | namespace of every attribute (64 bytes), its length | 512 + 10 |
-| | total | 901 + 788A |
+| 112 + 1813i | ordinary slot i: identifier and length, operand and length, enable | 1813 |
+| 5551 | date slot: identifier and length, 22-byte operand and length, enable, `[le, ge]` | 455 |
+| 6006 | `suppress_doc_type_check`, always 0 | 1 |
+| 6007 | document type (32 bytes), its length | 256 + 10 |
+| 6273 | shared namespace (64 bytes), its length | 512 + 10 |
+| | total | 6795 |
 
-Attribute order is the request's order. For A = 1 to 4 the hash circuit has
-1689, 2477, 3265 and 4053 public inputs.
+Every slot has a 32-byte identifier and two 10-bit lengths. An ordinary
+slot has a 192-byte operand buffer. The date slot's flags encode equality as
+`[0, 0]`, at most as `[1, 0]`, and at least as `[0, 1]`.
 
 Signature circuit (`push_input_sig`, layout of
 `mdoc::compile::circuits::native_circuit`):
@@ -229,8 +242,8 @@ the (transcript, document type) pair.
 from the checked request's spec. It requires an archive whose combined ID
 and circuit version equal the spec's, exactly two entries named `sig` and
 `hash`, each payload decoding completely to a circuit whose recomputed ID
-equals its entry, and a hash circuit with `901 + 788 * spec.num_attributes`
-public inputs and a signature circuit with 258 (`mdoc::proto::layout::public`,
+equals its entry, a hash circuit with 6795 public inputs and a signature
+circuit with 258 (`mdoc::proto::layout::public`,
 whose const assertion pins these counts). There is no unchecked
 loading path for proving or verification.
 *Enforced by:* `Instance` has one constructor (type); `CircuitReader` and
@@ -331,7 +344,7 @@ is unchanged (tests).
 
 | Step | Function | Rejects with |
 |---|---|---|
-| 1. Request | `Request::check`: the spec version first (`ZkSpecStruct::supports_version`), then the spec's attribute count against `NEXT_MAX_ATTRIBUTES` and the count, namespace, session transcript (size, one CBOR item), `public_inputs_fit`, `circuit_supports`, `parse_pk_coordinate` (I2) | `InvalidZkSpecVersion` for the version, `AttributeNumberMismatch` for the count, `UnsupportedAttribute` for a value kind, else `InvalidInput` |
+| 1. Request | `Request::check`: the spec version first (`ZkSpecStruct::supports_version`), then the spec and request slot counts against `NEXT_ATTRIBUTES`, namespace, session transcript (size, one CBOR item), `public_inputs_fit`, `circuit_supports`, `parse_pk_coordinate` (I2) | `InvalidZkSpecVersion` for the version, `AttributeNumberMismatch` for a request with the wrong slot count, `UnsupportedAttribute` for a value kind, else `InvalidInput` |
 | 2. Circuits | `Instance::load` (I3: archive, IDs, public-input counts) | `CircuitParsingFailure` |
 | 3. Composition | `link::composition` (I6) | `GeneralFailure` |
 | 4. Public inputs | `PublicInputs::derive` (I1) | none |
@@ -382,9 +395,8 @@ its conversion pair; the table marks these draws *leading*, in the row of
 the message that closes their node. The joint opening draws the batching
 weights itself, right where it takes both fields' statements. Boundaries:
 the sumcheck rounds of both frontends, plus 2 per layer, plus 7 others; the
-seal is not counted. For one to four attributes, the binary frontend has
-254, 260, 264 and 266 sumcheck rounds and the prime frontend has 118, so
-the counts are 439, 445, 449 and 451.
+seal is not counted. The binary frontend has 276 sumcheck rounds in 20
+layers and the prime frontend has 118 in 11 layers, giving 463 boundaries.
 
 ### Verifier checks
 
@@ -447,7 +459,7 @@ the right set of nodes.
 A v2 circuit archive is a single zstd frame (compression level
 `K_ZSTD_LEVEL` = 16, at most `MAX_ARCHIVE_BYTES` compressed, window at most
 `MAX_METADATA_BYTES`) holding one LFA2 archive (`core::proto::v2::archive`)
-and nothing after it. For mdoc it has `circuit_version` 12 and exactly two
+and nothing after it. For mdoc it has `circuit_version` 13 and exactly two
 entries, named `sig` and `hash`. The compiler writes `sig` then `hash`; that
 order is its convention, not a requirement. The runtime finds each entry by
 name, and the combined ID is SHA-256 of their IDs in the archive's entry
@@ -470,7 +482,7 @@ u64{6} := version num_attributes k n s t
 
 A bundle with any other marker is rejected as not a NEXT bundle.
 
-`read_next` accepts only version 12, 1 to 4 attributes and a valid Polygero
+`read_next` accepts version 13, four slots and a valid Polygero
 geometry, then checks the archive against the spec as `from_compressed`
 does. `compile_next` sets the profile to `MDOC_JOINT_PROFILE`,
 `(k, s, n, t) = (349, 12, 2443, 84)`.
@@ -479,7 +491,14 @@ does. `compile_next` sets the profile to `MDOC_JOINT_PROFILE`,
 
 ```rust
 // Public: mdoc::v2
-pub struct RequestedAttribute { pub namespace_id: Vec<u8>, pub id: Vec<u8>, pub cbor_value: Vec<u8> }
+pub enum AttributeOp { Eq, Le, Ge }
+pub struct RequestedAttribute {
+    pub namespace_id: Vec<u8>,
+    pub id: Vec<u8>,
+    pub cbor_value: Vec<u8>,
+    pub op: AttributeOp,
+    pub enabled: bool,
+}
 pub fn req_attr(namespace: impl AsRef<[u8]>, id: impl AsRef<[u8]>, value: impl AsRef<[u8]>)
     -> RequestedAttribute;
 
@@ -612,7 +631,7 @@ the C library's codes. The v2 entry points return:
 |---|---|---|
 | Unsupported spec version | `InvalidZkSpecVersion` (8) | `InvalidZkSpecVersion` (10) |
 | Attribute count differs from the spec | `InvalidInput` (2) | `AttributeNumberMismatch` (9) |
-| Any other request-shape failure: a spec attribute count outside 1 to `NEXT_MAX_ATTRIBUTES`, namespaces differ, a field out of range or malformed (including an empty document type), a session transcript longer than 64 KiB or not one CBOR item, a bad issuer key | `InvalidInput` (2) | `InvalidInput` (7) |
+| Any other request-shape failure: a spec slot count other than four, namespaces differ, a field out of range or malformed (including an empty document type), a session transcript longer than 64 KiB or not one CBOR item, a bad issuer key | `InvalidInput` (2) | `InvalidInput` (7) |
 | Unsupported attribute value | `UnsupportedAttribute` (36) | `UnsupportedAttribute` (11) |
 | Archive or circuit rejected: `Instance::load` (I3: archive, IDs, public-input counts) | `CircuitParsingFailure` (3) | `CircuitParsingFailure` (1) |
 | Proof does not parse | | `HashParsingFailure` (3) |
@@ -657,7 +676,7 @@ malformed archive or one whose metadata does not match the spec, as
 | Check | Purpose | Model |
 |---|---|---|
 | Spec version, combined hash, recomputed IDs | the circuits are the trusted ones the spec names | premise: trusted application circuits and archives |
-| `Request::check` | the public inputs are canonical: no truncation, every length encoded; with the statement's spec and session they bind the request | outside the model (request encoding) |
+| `Request::check` | public inputs encode every length without truncation. Together with the spec and session they bind the normalized request, with disabled slots encoded as zeros and the time encoded as digits | outside the model (request encoding) |
 | Statement | Fiat–Shamir binds the instance and every public input before the commitment | Rust, not Lean (transcript I3): the geometry messages are written from the participants, and the parsing geometry is a copy derived from them; tests check that the absorbed geometry equals the parsing geometry, that the statement comes first, every message's schema, and the golden pins; the Lean model takes the statement messages after the combined hash as fixed setup bytes, except the adapter fragment's identifier, which it computes as Rust does |
 | Composition | extraction of one witness pair satisfying both circuits at the requested public inputs | `CanonicalRuntime.decoded_true_at_request`, `MdocWitness.valid_at_request` |
 | Exact envelope and seal | the accepted bytes are one complete canonical proof | `ProofBodyCodec`, `ProofOutput` |
@@ -682,7 +701,7 @@ c*Q/q + (1 - c*(q-1)/(2q)) * (1 - (1 - 2/(q-1))^Q) + (C(Q,2) + r + 15)/q^2
 ```
 
 `c = 1.00000123121...` is the Polygero coefficient for `(349, 12, 2443, 84)`
-and `r` the boundary count, at most 451, so `r + 15 ≤ 466 < 2^10`.
+and `r = 463` the NEXT boundary count, so `r + 15 = 478 < 2^10`.
 `averaged_nonvacuous` gives a strict cap of 0.97, and
 `averaged_mdoc_approximation` the all-`Q` form
 `Q*2^-127 + Q^2*2^-257 + 2^-246`. `MdocRoundShape.rounds_eq` derives `r`

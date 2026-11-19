@@ -21,7 +21,7 @@ use std::io::{Read, Write};
 
 use crate::{
     mdoc::{
-        proto::{NEXT_MAX_ATTRIBUTES, NEXT_VERSION},
+        proto::{NEXT_ATTRIBUTES, NEXT_VERSION},
         v2::{
             archive::read_compressed,
             provider::{self, ProvidedCircuit},
@@ -88,7 +88,7 @@ pub fn read_next(mut reader: impl Read) -> Result<ProvidedCircuit, String> {
 }
 
 fn validate(spec: &ZkSpecStruct) -> Result<(), String> {
-    if spec.version != NEXT_VERSION || !(1..=NEXT_MAX_ATTRIBUTES).contains(&spec.num_attributes) {
+    if spec.version != NEXT_VERSION || spec.num_attributes != NEXT_ATTRIBUTES {
         return Err("Cache does not describe a supported NEXT circuit".into());
     }
     PolygeroGeometry::new(0, spec.polygero).map_err(|e| e.to_string())?;

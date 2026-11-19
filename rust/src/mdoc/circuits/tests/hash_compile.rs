@@ -36,7 +36,11 @@ use crate::{
             },
             MdocHashCompileField,
         },
-        proto::{hash::constants::K_NAMESPACE_BYTES, K_ZSTD_LEVEL},
+        proto::{
+            hash::constants::K_NAMESPACE_BYTES,
+            mso_attribute::constants::{K_ATTR_VALUE_BYTES, K_DATE_SLOT, K_DATE_VALUE_BYTES},
+            K_ZSTD_LEVEL,
+        },
         testcases::{BIRTHDATE_1971_09_01_MDOC_3, TEST_DATA},
     },
     runtime::algebra::RuntimeField,
@@ -109,12 +113,8 @@ fn make_hash_inputs<FR>(
 where
     FR: RuntimeField + SupportsU128Conversions,
 {
-    use crate::mdoc::proto::{
-        hash::constants::{K_MSO_PREIMAGE_LEN, K_TIMESTAMP_DIGITS},
-        mso_attribute::constants::K_ATTR_PREIMAGE_LEN,
-    };
+    use crate::mdoc::proto::hash::constants::{K_MSO_PREIMAGE_LEN, K_TIMESTAMP_DIGITS};
     const EXPECTED_NAME_LEN: usize = 32;
-    const EXPECTED_VALUE_LEN: usize = 64;
 
     let mut inputs = initial_inputs(fr);
 
@@ -122,16 +122,24 @@ where
         push_bits(&mut inputs, u128::from(given.hash_input.now[i]), 8, fr);
     }
 
-    for attr in &given.hash_input.attrs {
+    for (slot, attr) in given.hash_input.attrs.iter().enumerate() {
         push_bytes(&mut inputs, &attr.expected_name, EXPECTED_NAME_LEN, fr);
         push_bits(&mut inputs, attr.expected_name.len() as u128, 10, fr);
         push_bytes(
             &mut inputs,
             &attr.expected_cbor_value,
-            EXPECTED_VALUE_LEN,
+            if slot == K_DATE_SLOT {
+                K_DATE_VALUE_BYTES
+            } else {
+                K_ATTR_VALUE_BYTES
+            },
             fr,
         );
         push_bits(&mut inputs, attr.expected_cbor_value.len() as u128, 10, fr);
+        push_bits(&mut inputs, 1, 1, fr); // enabled
+        if slot == K_DATE_SLOT {
+            push_bits(&mut inputs, 0, 2, fr); // exact date equality
+        }
     }
 
     inputs.push(if given.hash_input.suppress_doc_type_check {
@@ -184,7 +192,12 @@ where
     }
 
     for (attr, witness) in given.attribute_given.iter().zip(&derived.attribute_derived) {
-        push_bytes(&mut inputs, &attr.padded_preimage, K_ATTR_PREIMAGE_LEN, fr);
+        push_bytes(
+            &mut inputs,
+            &attr.padded_preimage,
+            attr.padded_preimage.len(),
+            fr,
+        );
         push_bits(&mut inputs, attr.unpadded_preimage_len as u128, 10, fr);
         push_bits(
             &mut inputs,
@@ -303,8 +316,8 @@ fn test_serialize_and_verify_mdoc_hash_circuit() {
     dump_stats("mdoc_hash_serialized", &circuit, &stats);
 
     let expected_id: [u8; 32] = [
-        189, 10, 181, 236, 116, 154, 173, 48, 87, 209, 106, 114, 61, 145, 41, 44, 93, 15, 166, 140,
-        65, 46, 62, 157, 33, 209, 80, 22, 235, 139, 61, 231,
+        189, 176, 153, 103, 141, 73, 13, 119, 207, 245, 179, 187, 102, 112, 253, 63, 32, 190, 244,
+        253, 61, 133, 203, 54, 242, 81, 49, 133, 27, 250, 122, 76,
     ];
     assert_eq!(
         circuit.id, expected_id,

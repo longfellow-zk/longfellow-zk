@@ -218,7 +218,7 @@ derive from other statement values, such as the device-authentication digest
 | Geometry | `CommitmentLayout` | Nats(FieldID, committed private inputs before packing, pad cells, fingerprint mask cells); Bytes packing descriptor (it carries the packing degree); Nats(native runs as consecutive (first, count, cell) triples); Nats(bit-stored runs as consecutive (first, count, start, width) quadruples); Nats(mask start, mask width) | one per field participant: binary, then prime |
 | Geometry | `AdapterLayout` | Bytes adapter mode ID (`longfellow/v2/foreign/p256/two-full-field-trees/v1` for the P-256 adapter); Nats(quotient bits Q, tree count, virtual leaves per tree); Nats(start and width of each quotient pad among the binary private inputs; R's bits are in the split participant's `CommitmentLayout`) | one per adapter; written by the mode from its geometry, whose type parameter Q must equal the absorbed Q |
 | Geometry | `JointGeometry` | Nats(k, s, n, t), the proof's one Polygero profile; each field's committed cell count nw follows from its `CommitmentLayout` | `ComposedGeometry::config` |
-| Public inputs | `PublicInputs` | Elements(GF2_128, 901 + 788A) for the hash circuit with A attributes; Elements(P256, 258) for the signature circuit (pkx, pky, then the 256 bits of e2 as 0/1, least significant first) | one per field: `PublicInputs::derive` |
+| Public inputs | `PublicInputs` | Elements(GF2_128, 6795) for the four-slot hash circuit; Elements(P256, 258) for the signature circuit (pkx, pky, then the 256 bits of e2 as 0/1, least significant first) | one per field: `PublicInputs::derive` |
 
 The protocol ID names the statement type: `longfellow/v2/mdoc/transcript/v2`
 for `MdocStatement` and `longfellow/v2/zk/transcript/v2` for `ZkStatement`.
@@ -292,9 +292,8 @@ nothing after its top weights, which are its input assertions, and the
 draws after it read further from the node that precedes it; a zero-layer
 frontend of packing degree above one still sends its packing messages.
 Pure-foreign storage (no native cells) adds its row weights, drawn by the
-pure split step at the frontend's last boundary, before the conversion pair. The four
-supported mdoc shapes (one to four attributes) have 439/445/449/451
-boundaries. At four attributes, the count is `384 + 2*30 + 7 = 451`.
+pure split step at the frontend's last boundary, before the conversion pair.
+The NEXT mdoc circuit has `394 + 2*31 + 7 = 463` boundaries.
 The boundary count enters the soundness bound only as r/2^256.
 
 ### Draw kinds

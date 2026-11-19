@@ -14,7 +14,10 @@
 
 //! Development selection and cache round trips are independent of frozen publication.
 use super::*;
-use crate::{core::proto::archive::CircuitArchiveBuilder, mdoc::proto::NEXT_VERSION};
+use crate::{
+    core::proto::archive::CircuitArchiveBuilder,
+    mdoc::proto::{NEXT_ATTRIBUTES, NEXT_VERSION},
+};
 
 pub(crate) mod fixtures;
 
@@ -34,22 +37,14 @@ fn frozen_requests_delegate_and_never_compile_next() {
         num_attributes: 1
     })
     .is_err());
-    for count in [0, 5, usize::MAX] {
-        assert!(materialize(CircuitRequest::Next {
-            num_attributes: count
-        })
-        .is_err());
-    }
 }
 
 #[test]
 fn next_compilation_is_reproducible_and_unregistered() {
     // Two real compilations, never the cached circuit.
     let one = fixtures::one_compilation();
-    let first = compile_next(1).unwrap();
-    let ProvidedCircuit::V2(second) =
-        materialize(CircuitRequest::Next { num_attributes: 1 }).unwrap()
-    else {
+    let first = compile_next().unwrap();
+    let ProvidedCircuit::V2(second) = materialize(CircuitRequest::Next).unwrap() else {
         panic!("NEXT must use v2")
     };
     drop(one);
@@ -64,7 +59,7 @@ fn next_compilation_is_reproducible_and_unregistered() {
     assert_eq!(restored.spec(), first.spec());
     assert_eq!(restored.compressed(), first.compressed());
     // The tests' cached circuit is the one the compiler produces.
-    let cached = fixtures::next_circuit(1);
+    let cached = fixtures::next_circuit();
     assert_eq!(cached.spec(), first.spec());
     assert_eq!(cached.compressed(), first.compressed());
 }
@@ -81,7 +76,7 @@ fn next_cache_preserves_the_complete_spec() {
     let spec = ZkSpecStruct {
         combined_hash: archive.combined_id,
         version: NEXT_VERSION,
-        num_attributes: 3,
+        num_attributes: NEXT_ATTRIBUTES,
         polygero: PolygeroConfig {
             k: 512,
             s: 19,
@@ -139,7 +134,7 @@ fn next_cache_rejects_invalid_parameter_dimensions_without_retuning() {
     let spec = v2::ZkSpecStruct {
         combined_hash: archive.combined_id,
         version: NEXT_VERSION,
-        num_attributes: 1,
+        num_attributes: NEXT_ATTRIBUTES,
         polygero: parameters,
     };
     let compressed = zstd::encode_all(archive.to_bytes().as_slice(), 1).unwrap();

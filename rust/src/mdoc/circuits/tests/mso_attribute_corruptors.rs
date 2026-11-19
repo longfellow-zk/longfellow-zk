@@ -24,6 +24,8 @@ pub(super) struct MsoAttributeMockGiven {
     pub disclosed_name_len: u64,
     pub disclosed_value: Vec<u8>,
     pub disclosed_value_len: u64,
+    pub enabled: bool,
+    pub comparison: Option<u64>,
     pub preimage_len: u64,
 }
 
@@ -89,7 +91,7 @@ pub(super) fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
         MsoAttributeCorruptor {
             name: "preimage_len_zero".into(),
             expected_path:
-                "assert_attribute/assert_message_hash/assert_length/len_eq/len_eq.0/chunk_eq"
+                "assert_attribute/attribute_digest/assert_message_hash/assert_length/len_eq/len_eq.0/chunk_eq"
                     .into(),
             corrupt: Box::new(|g| {
                 g.preimage_len = 0;
@@ -189,7 +191,7 @@ pub(super) fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
         MsoAttributeCorruptor {
             name: "bad_preimage_len".into(),
             expected_path:
-                "assert_attribute/assert_message_hash/assert_length/len_eq/len_eq.0/chunk_eq"
+                "assert_attribute/attribute_digest/assert_message_hash/assert_length/len_eq/len_eq.0/chunk_eq"
                     .into(),
             corrupt: Box::new(|g| {
                 g.preimage_len = 99;

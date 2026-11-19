@@ -5,7 +5,7 @@ namespace LfzkV2.Current.MdocIdentifiers.Tests
 open TranscriptV2.Framing (encodeLE)
 
 -- The statement message's tag and protocol value: the first 56 payload
--- bytes of node 0 of the 1-attribute mdoc vector.
+-- bytes of node 0 of the four-slot NEXT mdoc vector.
 example : statementHead =
     [16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 108, 111, 110, 103, 102, 101, 108,
       108, 111, 119, 47, 118, 50, 47, 109, 100, 111, 99, 47, 116, 114, 97, 110, 115, 99, 114, 105, 112, 116, 47,

@@ -27,11 +27,11 @@ pub use generate_sig::*;
 use crate::compile::algebra::{gf2_128::Gf2_128Field, p256::P256Field};
 
 /// Generate NEXT circuits independently of the runtime proof system.
-pub fn compile_circuits(num_attrs: usize) -> Result<Vec<u8>, String> {
+pub fn compile_circuits() -> Result<Vec<u8>, String> {
     let f = Gf2_128Field::new();
     let p = P256Field::new();
     let sig = generate_sig_circuit(&p)?;
-    let hash = generate_hash_circuit(&f, num_attrs)?;
+    let hash = generate_hash_circuit(&f)?;
     let sig_bytes = CircuitWriter::new(&p).to_bytes(&sig);
     let hash_bytes = CircuitWriter::new(&f).to_bytes(&hash);
     let mut builder = CircuitArchiveBuilder::new();

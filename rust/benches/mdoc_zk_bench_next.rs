@@ -26,34 +26,29 @@ use longfellow_zk::{
     core::algebra::Nat,
     mdoc::{
         cbor::test_utils::parse_test_data,
+        proto::{NEXT_ATTRIBUTES, NEXT_VERSION},
+        testcases::BIRTHDATE_1971_09_01_MDOC_3,
         v2::{self as runtime, req_attr, run_mdoc_prover_inner, run_mdoc_verifier},
     },
     runtime::{random::DeterministicRng, v2::proto::composed::BodySizes},
 };
 fn main() {
-    let attributes = std::env::var("MDOC_BENCH_ATTRIBUTES")
-        .unwrap_or_else(|_| "2".into())
-        .parse::<usize>()
-        .unwrap();
     let samples = std::env::var("MDOC_BENCH_SAMPLES")
         .unwrap_or_else(|_| "8".into())
         .parse::<usize>()
         .unwrap();
-    assert!((1..=4).contains(&attributes));
     assert!(
         samples >= 2,
         "one warmup and at least one measured sample required"
     );
-    let data = &longfellow_zk::mdoc::testcases::TEST_DATA;
+    let data = &BIRTHDATE_1971_09_01_MDOC_3;
     let (issuer_pk, parsed, now) = parse_test_data::<4, CompileNat<4>>(data);
-    let attrs: Vec<_> = parsed
-        .attrs
-        .iter()
-        .cycle()
-        .take(attributes)
-        .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
-        .collect();
-    assert_eq!(attrs.len(), attributes);
+    let names: [&[u8]; NEXT_ATTRIBUTES] =
+        [b"family_name", b"height", b"age_over_18", b"birth_date"];
+    let attrs = names.map(|name| {
+        let attr = parsed.get_attribute(name).unwrap();
+        req_attr("org.iso.18013.5.1", &attr.name, &attr.cbor_value)
+    });
     let pkx = format!(
         "0x{}",
         num_bigint::BigUint::from_bytes_le(&issuer_pk.0.to_bytes_le()).to_str_radix(16)
@@ -63,11 +58,8 @@ fn main() {
         num_bigint::BigUint::from_bytes_le(&issuer_pk.1.to_bytes_le()).to_str_radix(16)
     );
     let offline = Instant::now();
-    let (spec, circuits) = prepare_circuits(attrs.len());
-    eprintln!(
-        "Longfellow v2 / NEXT v{}; SHA-256 strand transcript.",
-        longfellow_zk::mdoc::proto::NEXT_VERSION
-    );
+    let (spec, circuits) = prepare_circuits();
+    eprintln!("Longfellow v2 / NEXT v{NEXT_VERSION}; SHA-256 strand transcript.");
     eprintln!(
         "Offline circuit preparation: {:.3} ms",
         offline.elapsed().as_secs_f64() * 1000.0
@@ -115,7 +107,7 @@ fn main() {
         let pm = prover.as_secs_f64() * 1000.0;
         let vm = verifier.as_secs_f64() * 1000.0;
         println!(
-            "{attributes},{sample},{pm:.6},{vm:.6},{},{prover_peak},{verifier_peak}",
+            "{NEXT_ATTRIBUTES},{sample},{pm:.6},{vm:.6},{},{prover_peak},{verifier_peak}",
             proof.len()
         );
         if sample > 0 {
@@ -164,14 +156,14 @@ fn main() {
 }
 
 /// Prepare the spec/archive pair before online timing; decoded archive storage stays here.
-fn prepare_circuits(num_attributes: usize) -> (runtime::ZkSpecStruct, Vec<u8>) {
+fn prepare_circuits() -> (runtime::ZkSpecStruct, Vec<u8>) {
     let provided = if let Some(path) = std::env::var_os("MDOC_BENCH_ARCHIVE") {
         longfellow_zk::mdoc::development_provider::read_next(std::fs::File::open(path).unwrap())
             .unwrap()
     } else {
-        longfellow_zk::mdoc::development_provider::compile_next(num_attributes).unwrap()
+        longfellow_zk::mdoc::development_provider::compile_next().unwrap()
     };
-    assert_eq!(provided.spec().num_attributes, num_attributes);
+    assert_eq!(provided.spec().num_attributes, NEXT_ATTRIBUTES);
     if let Some(path) = std::env::var_os("MDOC_BENCH_SAVE_ARCHIVE") {
         longfellow_zk::mdoc::development_provider::write_next(
             std::fs::File::create(path).unwrap(),

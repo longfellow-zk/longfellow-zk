@@ -25,18 +25,21 @@ use crate::{
         },
     },
     mdoc::{
-        proto::{layout::public, NEXT_VERSION},
+        cbor::encode_cbor_string,
+        proto::{
+            hash::constants::K_TIMESTAMP_DIGITS,
+            layout::public,
+            mso_attribute::constants::{K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_VALUE_BYTES},
+            NEXT_ATTRIBUTES, NEXT_VERSION,
+        },
+        runtime::tests::specs::four_slots,
         v2::{circuits::*, inputs::PublicInputs, req_attr, request::Request},
     },
     runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
 };
 
-/// The signature and hash public-input counts of DESIGN.md I3 for the
-/// one-attribute requests of these tests.
-const PUBLIC_INPUTS: [usize; 2] = [
-    public::SIGNATURE,
-    public::HASH_FIXED + public::HASH_PER_ATTRIBUTE,
-];
+/// The signature and hash public-input counts of DESIGN.md I3.
+const PUBLIC_INPUTS: [usize; 2] = [public::SIGNATURE, public::HASH_INPUTS];
 
 /// A one-layer circuit whose inputs are all `npublic` public inputs.
 fn tiny<F: SerializableField + AlgebraicField>(f: &F, npublic: usize) -> Circuit<F> {
@@ -85,7 +88,7 @@ fn load_for(
     p: &P256Field,
     f: &Gf2_128Field,
 ) -> Result<Instance, String> {
-    let attrs = [req_attr("namespace", "a", [0xf5])];
+    let attrs = four_slots([req_attr("namespace", "a", [0xf5])]);
     let request = Request::check(
         spec,
         "1",
@@ -126,7 +129,7 @@ fn circuit_identifier_enforcement_is_unconditional() {
     );
     let spec = super::ZkSpecStruct {
         combined_hash: archive.combined_id,
-        num_attributes: 1,
+        num_attributes: NEXT_ATTRIBUTES,
         version: NEXT_VERSION,
         polygero: super::super::MDOC_JOINT_PROFILE,
     };
@@ -140,7 +143,7 @@ fn instance_load_binds_archive_and_entry_identifiers() {
     let f = Gf2_128Field::new();
     let spec_for = |combined_hash| super::ZkSpecStruct {
         combined_hash,
-        num_attributes: 1,
+        num_attributes: NEXT_ATTRIBUTES,
         version: NEXT_VERSION,
         polygero: super::super::MDOC_JOINT_PROFILE,
     };
@@ -181,20 +184,35 @@ fn instance_load_binds_archive_and_entry_identifiers() {
     );
 }
 
-/// The loader requires DESIGN.md I3's public-input counts, `901 + 788 * A`
-/// for the hash circuit and 258 for the signature circuit, and those are the
-/// lengths both roles derive from the request.
+/// The loader and both roles use the public-input counts of DESIGN.md I3.
 #[test]
 fn instance_load_checks_public_input_counts() {
     let p = P256Field::new();
     let f = Gf2_128Field::new();
     let spec_for = |combined_hash| super::ZkSpecStruct {
         combined_hash,
-        num_attributes: 1,
+        num_attributes: NEXT_ATTRIBUTES,
         version: NEXT_VERSION,
         polygero: super::super::MDOC_JOINT_PROFILE,
     };
-    let attrs = [req_attr("namespace", "a", [0xf5])];
+    let attrs = [
+        req_attr(
+            "namespace",
+            "a",
+            encode_cbor_string(&[b'a'; K_ATTR_VALUE_BYTES - 2]),
+        ),
+        req_attr(
+            "namespace",
+            "b",
+            encode_cbor_string(&[b'b'; K_ATTR_VALUE_BYTES - 2]),
+        ),
+        req_attr(
+            "namespace",
+            "c",
+            encode_cbor_string(&[b'c'; K_ATTR_VALUE_BYTES - 2]),
+        ),
+        req_attr("namespace", "d", b"\xd9\x03\xec\x6a2000-01-01"),
+    ];
     let spec = spec_for([0; 32]);
     let request = Request::check(
         &spec,
@@ -212,20 +230,33 @@ fn instance_load_checks_public_input_counts() {
         [public.signature().len(), public.hash().len()],
         PUBLIC_INPUTS
     );
-    assert_eq!(super::hash_public_inputs(1), Some(PUBLIC_INPUTS[1]));
-    assert_eq!(super::hash_public_inputs(4), Some(4053));
-    assert_eq!(super::hash_public_inputs(usize::MAX), None);
+    assert_eq!(public.hash().len(), 6795);
+    for (slot, attribute) in attrs.iter().enumerate() {
+        let operand_start = 8 * K_TIMESTAMP_DIGITS.len()
+            + slot * public::HASH_PER_ATTRIBUTE
+            + 8 * K_ATTR_ID_BYTES
+            + K_ATTR_INDEX_BITS;
+        let operand_end = operand_start + 8 * attribute.cbor_value.len();
+        let expected = attribute
+            .cbor_value
+            .iter()
+            .flat_map(|&byte| (0..8).map(move |bit| byte >> bit & 1 != 0));
+        assert!(public.hash()[operand_start..operand_end]
+            .iter()
+            .copied()
+            .eq(expected));
+    }
 
     // The honest instance loads.
     let honest = fixture(&p, &f);
     assert!(load_for(&spec_for(honest.combined_id), &compressed(&honest), &p, &f).is_ok());
     // Each self-consistent archive the spec names, but with a wrong count, is
-    // rejected, the hash count for two attributes included.
+    // rejected, including a length where only the date slot is missing.
     let [s, h] = PUBLIC_INPUTS;
     for counts in [
         [s, h - 1],
         [s, h + 1],
-        [s, h + public::HASH_PER_ATTRIBUTE],
+        [s, h - public::HASH_DATE_ATTRIBUTE],
         [s - 1, h],
         [s + 1, h],
         [h, s],

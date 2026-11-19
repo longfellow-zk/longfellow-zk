@@ -14,20 +14,41 @@
 
 //! Longfellow v2 application attribute.
 
+/// The relation of the signed attribute value to the public CBOR operand.
+///
+/// The date slot compares encoded bytes. Chronological order assumes that
+/// both the issuer and verifier use canonical fixed-width date strings.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AttributeOp {
+    /// Exact CBOR equality.
+    Eq,
+    /// The signed date is at or below the public threshold.
+    Le,
+    /// The signed date is at or above the public threshold.
+    Ge,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RequestedAttribute {
     /// All disclosures share this namespace. NEXT checks its exact text in the
     /// signed MSO; structural membership of the selected digests is not proved.
     pub namespace_id: Vec<u8>,
     pub id: Vec<u8>,
-    /// The value's CBOR encoding, as it appears in the `IssuerSignedItem`.
+    /// The public equality operand or threshold, encoded as a CBOR item.
     pub cbor_value: Vec<u8>,
+    /// The first three slots use equality. The fourth accepts date comparisons.
+    pub op: AttributeOp,
+    /// Disabled slots ignore the identifier, operand and operator.
+    /// Every slot still names the request's shared namespace.
+    pub enabled: bool,
 }
 
 /// A requested attribute: `namespace` and `id` are plain text, but
 /// `encoded_cbor_value` is the value's raw CBOR encoding, copied as is, not
 /// the value itself. Passing `"1"` requests the CBOR item `0x31`, the
 /// integer -18, not the text `"1"` or the integer 1.
+///
+/// This constructor enables the slot and selects exact equality.
 ///
 /// A text value carries its CBOR text header:
 ///
@@ -65,6 +86,8 @@ pub fn req_attr(
         namespace_id: namespace.as_ref().to_vec(),
         id: id.as_ref().to_vec(),
         cbor_value: encoded_cbor_value.as_ref().to_vec(),
+        op: AttributeOp::Eq,
+        enabled: true,
     }
 }
 
