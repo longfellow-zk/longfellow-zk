@@ -4,10 +4,12 @@
 use crate::compile::{
     algebra::CompileField,
     compiler::{
-        arena::{walk, CompilerArena},
+        arena::{walk_roots, CompilerArena},
+        assertion::dedup_assertions,
         cse::Cse,
         ir::{Assertions, Expr, ExprNode, RawAssertions, RewriteT},
     },
+    logic::AssertionScope,
 };
 
 /// Introduce depth-alignment copy wires for v2 using `Linear(1, x)` terms and
@@ -252,8 +254,21 @@ pub(super) fn rewrite<'a, 'b, F: CompileField>(
     arena: &'b CompilerArena<'b, F>,
     f: &'b F,
     x: Assertions<'a, F>,
+    tracker: &AssertionScope,
 ) -> Assertions<'b, F> {
     let cse = Cse::new(arena);
     let copy_rewriter = CopyRewriter::new(f, cse);
-    walk(arena, x, &copy_rewriter)
+    let mut copied = Vec::new();
+    walk_roots(arena, x, &copy_rewriter, |item| copied.push(item));
+    let one = f.one();
+    // A nonzero scale does not affect a product's zero check. Use the
+    // interned unit product so deduplication keeps all assertion IDs.
+    let canonical = copied.into_iter().map(|mut item| {
+        if let Expr::Quadratic(k, left, right) = &item.expr.v {
+            assert!(!f.is_zero(k));
+            item.expr = copy_rewriter.ground_quadratic(&one, left, right);
+        }
+        item
+    });
+    dedup_assertions(arena, canonical, tracker)
 }

@@ -34,5 +34,10 @@ impl<F: CompileField> Term<F> {
         }
     }
 }
-pub(super) type Node<F> = graph::Node<Term<F>>;
-pub(super) type CircuitGraph<F> = graph::Graph<Term<F>>;
+/// Lowered v2 nodes before assertions are encoded as native terms or outputs.
+pub(super) enum Node<F: CompileField> {
+    Input { position_in_input_array: usize },
+    Sum(Vec<Term<F>>),
+    Assert0(Wire),
+    Assert0q([Wire; 2]),
+}

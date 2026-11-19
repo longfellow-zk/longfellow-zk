@@ -1,16 +1,14 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Lower depth-aligned v2 expressions into native term arities.
 
-use rustc_hash::FxHashMap;
-
-use super::terms::{CircuitGraph, Node, Term};
+use super::terms::{Node, Term};
 use crate::compile::{
     algebra::CompileField,
     compiler::{
         graph::{push_node, Wire, WireMemoizer},
         ir::{Assertions, Expr, ExprNode},
     },
-    logic::{AssertionId, AssertionScope},
+    logic::AssertionId,
 };
 
 fn walk_wire<F: CompileField>(
@@ -72,39 +70,26 @@ fn compile_term<F: CompileField>(
     }
 }
 
+/// Lower the depth-aligned, deduplicated assertion roots from the copy pass.
 pub(super) fn rewrite<F: CompileField>(
     f: &F,
     assertions: Assertions<'_, F>,
-    tracker: &AssertionScope,
-) -> (CircuitGraph<F>, Vec<(usize, AssertionId)>) {
+) -> (Vec<Node<F>>, Vec<(usize, AssertionId)>) {
     let mut nodes = Vec::new();
     let mut records = Vec::new();
     let memo = WireMemoizer::new();
-    let mut assertion_inputs = FxHashMap::default();
     for item in assertions {
-        let key = match &item.expr.v {
+        let node = match &item.expr.v {
             Expr::Quadratic(k, x, y) => {
-                assert!(!f.is_zero(k));
-                let a = walk_wire(f, &memo, &mut nodes, *x);
-                let b = walk_wire(f, &memo, &mut nodes, *y);
-                (a.min(b), Some(a.max(b)))
+                debug_assert!(**k == f.one());
+                Node::Assert0q([
+                    walk_wire(f, &memo, &mut nodes, *x),
+                    walk_wire(f, &memo, &mut nodes, *y),
+                ])
             }
-            _ => (walk_wire(f, &memo, &mut nodes, item.expr), None),
+            _ => Node::Assert0(walk_wire(f, &memo, &mut nodes, item.expr)),
         };
-        if let Some(&id) = assertion_inputs.get(&key) {
-            tracker.union(id, item.id);
-        } else {
-            let node = match key {
-                (a, Some(b)) => Node::Sum(vec![Term::Quadratic(f.zero(), [a, b])]),
-                (a, None) => Node::Assert0(a),
-            };
-            let index = push_node(&mut nodes, node);
-            assertion_inputs.insert(key, item.id);
-            records.push((index, item.id));
-        }
+        records.push((push_node(&mut nodes, node), item.id));
     }
-    // Traversal starts at assertion roots and creates only their dependencies.
-    // A repeated assertion key can only reuse memoized wires, so it creates
-    // no orphan nodes. The scheduler checks this invariant independently.
-    (CircuitGraph { nodes }, records)
+    (nodes, records)
 }

@@ -16,10 +16,7 @@
 
 use std::ops::Range;
 
-use super::{
-    scheduler,
-    terms::{CircuitGraph, Node},
-};
+use super::{scheduler, terms::Node};
 #[cfg(all(test, target_pointer_width = "32"))]
 use crate::compile::compiler::arena::one_compilation;
 use crate::{
@@ -85,7 +82,7 @@ where
         external[range.start - 1..range.end - 1].fill(true);
     }
     let mut present = vec![false; declared_inputs];
-    for node in &nodes.nodes {
+    for node in &nodes {
         if let Node::Input {
             position_in_input_array,
         } = node
@@ -99,7 +96,7 @@ where
                 external[position],
                 "some inputs are unused, cannot schedule"
             );
-            nodes.nodes.push(Node::Input {
+            nodes.push(Node::Input {
                 position_in_input_array: position,
             });
         }
@@ -119,7 +116,7 @@ fn lower<F, Build>(
     f: &F,
     build: Build,
 ) -> (
-    CircuitGraph<F>,
+    Vec<Node<F>>,
     Vec<(usize, AssertionId)>,
     usize,
     usize,
@@ -153,10 +150,10 @@ where
                     .expect("circuit has no inputs");
                 (simplified, npublic_input, declared_inputs)
             };
-            let copied = super::copy::rewrite(&copy_arena, f, simplified);
+            let copied = super::copy::rewrite(&copy_arena, f, simplified, &source_tracker);
             (copied, npublic_input, declared_inputs)
         };
-        let (quad_circuit, quad_asserts) = super::ir_to_terms::rewrite(f, copied, &source_tracker);
+        let (quad_circuit, quad_asserts) = super::ir_to_terms::rewrite(f, copied);
         (quad_circuit, quad_asserts, npublic_input, declared_inputs)
     };
 
