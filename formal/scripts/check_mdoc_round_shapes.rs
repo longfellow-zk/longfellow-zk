@@ -1,15 +1,15 @@
 //! Check the closed Lean mdoc round metadata against the current compiler.
 //!
-//! Extracts each supported shape's per-layer schedules from the compiler
-//! (`mdoc_round_shapes.rs`), then compares them with the definitions of
-//! `MdocRoundShape.binaryRounds`, `primeRounds` and `counts`. Build with the
+//! Extracts the NEXT circuit's per-layer schedules from the compiler
+//! (`mdoc_round_shapes.rs`), then compares them against
+//! `MdocRoundShape.binaryRounds`, `primeRounds` and `roundCount_eq`. Build with the
 //! adjacent Cargo manifest, which links the crate in `rust/` by path, and run
 //! inside the repository.
 mod mdoc_round_shapes;
 
 use std::{fs, path::Path, process::Command};
 
-use mdoc_round_shapes::{shapes, Shape};
+use mdoc_round_shapes::{Shape, shape};
 
 /// Boundaries outside the frontends' layers: witness selection, the two
 /// frontends' top weights, the adapter's conversion, packing, joint Polygero
@@ -137,118 +137,67 @@ fn list(text: &str) -> Result<Vec<usize>, String> {
         .collect()
 }
 
-/// `binaryRounds`: `match attributes.val with` and one arm per shape, the
-/// arms `| 0`, `| 1`, ... in order and a final `| _`.
-fn binary_rounds(commands: &[String]) -> Result<Vec<Vec<usize>>, String> {
-    let body = value(declaration(commands, "def", "binaryRounds")?)?;
-    let (head, arms) = body
-        .split_once("with")
-        .ok_or("binaryRounds is not a match")?;
-    if head.split_whitespace().collect::<Vec<_>>() != ["match", "attributes.val"] {
-        return Err(format!("binaryRounds matches on {:?}", head.trim()));
-    }
-    let arms: Vec<&str> = arms.split('|').collect();
-    if !arms[0].trim().is_empty() {
-        return Err(format!("text before the first arm: {:?}", arms[0].trim()));
-    }
-    let arms = &arms[1..];
-    arms.iter()
-        .enumerate()
-        .map(|(index, arm)| {
-            let (pattern, rounds) = arm
-                .split_once("=>")
-                .ok_or_else(|| format!("arm without =>: {:?}", arm.trim()))?;
-            let expected = if index + 1 == arms.len() {
-                "_".to_owned()
-            } else {
-                index.to_string()
-            };
-            if pattern.trim() != expected {
-                return Err(format!(
-                    "arm {index} matches {:?}, expected {expected}",
-                    pattern.trim()
-                ));
-            }
-            list(rounds)
-        })
-        .collect()
-}
-
-/// `counts : List.ofFn roundCount = [...]`.
-fn counts(commands: &[String]) -> Result<Vec<usize>, String> {
-    let statement = declaration(commands, "theorem", "counts")?
+/// The literal total from `roundCount_eq : roundCount = ...`.
+fn round_count(commands: &[String]) -> Result<usize, String> {
+    let statement = declaration(commands, "theorem", "roundCount_eq")?
         .split_once(":=")
-        .ok_or("counts has no proof")?
+        .ok_or("roundCount_eq has no proof")?
         .0;
     let (left, right) = statement
         .trim()
         .strip_prefix(':')
         .and_then(|statement| statement.split_once('='))
-        .ok_or_else(|| format!("counts states {:?}", statement.trim()))?;
-    if left.split_whitespace().collect::<Vec<_>>() != ["List.ofFn", "roundCount"] {
-        return Err(format!("counts states {:?}", statement.trim()));
+        .ok_or_else(|| format!("roundCount_eq states {:?}", statement.trim()))?;
+    if left.trim() != "roundCount" {
+        return Err(format!("roundCount_eq states {:?}", statement.trim()));
     }
-    list(right)
+    right
+        .trim()
+        .parse()
+        .map_err(|_| format!("roundCount_eq has no literal total: {:?}", right.trim()))
 }
 
-/// The schedules and totals `MdocRoundShape.lean` states.
+/// The schedules and total `MdocRoundShape.lean` states.
 struct Lean {
-    binary: Vec<Vec<usize>>,
-    prime: Vec<usize>,
-    counts: Vec<usize>,
+    shape: Shape,
+    rounds: usize,
 }
 
 fn parse(source: &str) -> Result<Lean, String> {
     let commands = commands(&code(source));
     Ok(Lean {
-        binary: binary_rounds(&commands)?,
-        prime: list(value(declaration(&commands, "def", "primeRounds")?)?)?,
-        counts: counts(&commands)?,
+        shape: Shape {
+            binary: list(value(declaration(&commands, "def", "binaryRounds")?)?)?,
+            prime: list(value(declaration(&commands, "def", "primeRounds")?)?)?,
+        },
+        rounds: round_count(&commands)?,
     })
 }
 
-/// Compare the compiler's shapes with Lean's; returns the mismatches.
-fn compare(rows: &[Shape], lean: &Lean) -> Vec<String> {
+/// Compare the compiler's shape with Lean's, returning the mismatches.
+fn compare(shape: &Shape, lean: &Lean) -> Vec<String> {
     let mut failures = Vec::new();
-    if rows.len() != 4 || lean.binary.len() != 4 || lean.counts.len() != 4 {
+    if shape.binary != lean.shape.binary {
         failures.push(format!(
-            "expected four shapes: compiler {}, binaryRounds {}, counts {}",
-            rows.len(),
-            lean.binary.len(),
-            lean.counts.len()
+            "compiler binary schedule {:?}, Lean binaryRounds {:?}",
+            shape.binary, lean.shape.binary
         ));
-        return failures;
     }
-    for (index, row) in rows.iter().enumerate() {
-        let attributes = index + 1;
-        if row.attributes != attributes {
-            failures.push(format!(
-                "row {index} has {} attributes, expected {attributes}",
-                row.attributes
-            ));
-        }
-        if row.binary != lean.binary[index] {
-            failures.push(format!(
-                "{attributes} attributes: compiler binary schedule {:?}, Lean binaryRounds {:?}",
-                row.binary, lean.binary[index]
-            ));
-        }
-        if row.prime != lean.prime {
-            failures.push(format!(
-                "{attributes} attributes: compiler prime schedule {:?}, Lean primeRounds {:?}",
-                row.prime, lean.prime
-            ));
-        }
-        let rounds = row.binary.iter().sum::<usize>()
-            + row.prime.iter().sum::<usize>()
-            + 2 * (row.binary.len() + row.prime.len())
-            + OTHER_ROUNDS;
-        if rounds != lean.counts[index] {
-            failures.push(format!(
-                "{attributes} attributes: compiler schedule gives {rounds} rounds, Lean counts states {}",
-                lean.counts[index]
-            ));
-        }
+    if shape.prime != lean.shape.prime {
+        failures.push(format!(
+            "compiler prime schedule {:?}, Lean primeRounds {:?}",
+            shape.prime, lean.shape.prime
+        ));
+    }
+    let rounds = shape.binary.iter().sum::<usize>()
+        + shape.prime.iter().sum::<usize>()
+        + 2 * (shape.binary.len() + shape.prime.len())
+        + OTHER_ROUNDS;
+    if rounds != lean.rounds {
+        failures.push(format!(
+            "compiler schedule gives {rounds} rounds, Lean roundCount_eq states {}",
+            lean.rounds
+        ));
     }
     failures
 }
@@ -263,18 +212,15 @@ fn main() {
     let path = root.join("formal/lfzk-v2/LfzkV2/Current/MdocRoundShape.lean");
     let lean = parse(&fs::read_to_string(&path).unwrap())
         .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
-    let rows = shapes();
-    let failures = compare(&rows, &lean);
+    let failures = compare(&shape(), &lean);
     for failure in &failures {
         eprintln!("{failure}");
     }
     assert!(failures.is_empty(), "mdoc round-shape check failed");
-    for (row, rounds) in rows.iter().zip(&lean.counts) {
-        println!(
-            "{} attributes: {rounds} rounds; compiler metadata matches Lean",
-            row.attributes
-        );
-    }
+    println!(
+        "NEXT mdoc: {} rounds, compiler metadata matches Lean",
+        lean.rounds
+    );
 }
 
 #[cfg(test)]

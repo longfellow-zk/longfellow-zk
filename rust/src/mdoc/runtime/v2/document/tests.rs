@@ -4,7 +4,7 @@ use crate::{
     mdoc::{
         cbor::mdoc::parse_mdoc,
         proto::hash::constants::K_MSO_OFFSET,
-        runtime::tests::specs::v2_spec,
+        runtime::tests::specs::{four_slots, v2_spec},
         testcases::TEST_DATA,
         v2::{document::*, req_attr},
     },
@@ -44,7 +44,7 @@ fn key_mut(map: &mut CborElement, index: i128) -> &mut CborElement {
 fn v2_document_validates_original_device_key_before_integer_conversion() {
     let field = P256Field::new();
     let spec = v2_spec();
-    let attrs = [req_attr("org.iso.18013.5.1", "a", [0xf5])];
+    let attrs = four_slots([req_attr("org.iso.18013.5.1", "a", [0xf5])]);
     let request = Request::check(
         &spec,
         TEST_DATA.pkx,
@@ -218,7 +218,7 @@ fn v2_document_requires_the_circuit_device_key_layout() {
 fn documents_longer_than_the_cap_are_rejected_before_parsing() {
     let field = P256Field::new();
     let spec = v2_spec();
-    let attrs = [req_attr("org.iso.18013.5.1", "a", [0xf5])];
+    let attrs = four_slots([req_attr("org.iso.18013.5.1", "a", [0xf5])]);
     let request = Request::check(
         &spec,
         TEST_DATA.pkx,

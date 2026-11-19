@@ -227,6 +227,18 @@ impl AssertionScope {
         id
     }
 
+    pub(in crate::compile) fn duplicate_leaf(&self, original: AssertionId) -> AssertionId {
+        if original.is_nil() {
+            return original;
+        }
+        let mut state = self.state.borrow_mut();
+        let id = AssertionId(state.records.len() as u32);
+        let scope = state.records[original.0 as usize].scope;
+        state.records.push(AssertionRecord { scope, parent: id });
+        state.members.insert(id, vec![id]);
+        id
+    }
+
     pub fn get_path(&self, id: AssertionId) -> String {
         if id.is_nil() {
             return String::new();

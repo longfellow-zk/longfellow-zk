@@ -1,9 +1,8 @@
 // Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
 //! Experimental parser-free mdoc proof with one binary-field commitment.
 //!
-//! Use `development_provider::compile_parser_free_next` for its trusted bundle.
-//! The original v2 byte-offset hash predicate allocates no structural CBOR
-//! parser witnesses. Ordinary mdoc entry points retain their scalar parser.
+//! Use `development_provider::compile_next` for its trusted fixed-slot bundle.
+//! The hash predicate checks byte offsets without structural CBOR witnesses.
 //!
 //! The signature frontend's private inputs and sumcheck pads are bit groups
 //! in the binary witness. Both frontends retain their original arithmetic;

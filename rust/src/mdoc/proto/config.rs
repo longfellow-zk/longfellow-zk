@@ -17,7 +17,7 @@ pub const K_ZSTD_LEVEL: i32 = 16;
 
 /// The circuit version of the NEXT (v2) mdoc circuits: the compiler writes it
 /// into the archive and the v2 runtime accepts it.
-pub const NEXT_VERSION: usize = 12;
+pub const NEXT_VERSION: usize = 13;
 
-/// The largest attribute count of the NEXT circuits, which support 1 to it.
-pub const NEXT_MAX_ATTRIBUTES: usize = 4;
+/// The NEXT circuit's three equality slots and one date slot.
+pub const NEXT_ATTRIBUTES: usize = 4;

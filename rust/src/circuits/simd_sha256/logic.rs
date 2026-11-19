@@ -59,6 +59,9 @@ impl<'a> Logic for BinaryLogic<'a> {
     fn assert_all(&self, n: &str, x: &[Self::Assertions]) -> Self::Assertions {
         self.0.assert_all(n, x)
     }
+    fn assert_when(&self, enable: &Self::Wire, assertions: Self::Assertions) -> Self::Assertions {
+        self.0.assert_when(enable, assertions)
+    }
     fn with_assertions(&self, a: Self::Assertions, x: &Self::Wire) -> Self::Wire {
         self.0.with_assertions(a, x)
     }

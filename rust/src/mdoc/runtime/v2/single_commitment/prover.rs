@@ -22,7 +22,7 @@ use crate::{
         cbor::mdoc::{MdocParseError, ParsedMdoc},
         v2::{
             circuits::Instance,
-            inputs::{push_witness_hash_without_structure, push_witness_sig, PublicInputs},
+            inputs::{push_witness_hash, push_witness_sig, PublicInputs},
             request::{Request, RequestError},
             MdocProverErrorCode, RequestedAttribute, ZkSpecStruct,
         },
@@ -217,7 +217,7 @@ fn run_mdoc_prover_encoded_with_encoding<RNG: PrivateRandom>(
         encoding,
     )
     .map_err(gen_err)?;
-    let witness_hash = push_witness_hash_without_structure(&request, &parsed)?;
+    let witness_hash = push_witness_hash(&request, &parsed)?;
     let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &request, &parsed)?;
     let public = PublicInputs::derive(&request, &p256);
 

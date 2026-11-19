@@ -18,8 +18,13 @@ use crate::{
     mdoc::{
         cbor::test_utils::parse_test_data,
         development_provider::tests::fixtures::next_circuit,
-        proto::layout::public,
-        testcases::TEST_DATA,
+        proto::{
+            layout::public,
+            mso_attribute::constants::{K_ATTR_VALUE_BYTES, K_DATE_SLOT},
+            NEXT_ATTRIBUTES,
+        },
+        runtime::tests::specs::four_slots,
+        testcases::{BIRTHDATE_1971_09_01_MDOC_3, TEST_DATA},
         v2::{
             decompress_circuits,
             domains::with_domains,
@@ -30,7 +35,8 @@ use crate::{
             request::Request,
             run_mdoc_verifier,
             transcript::{self, Identity, MdocStatement, PROTOCOL_ID},
-            MdocProof, MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
+            AttributeOp, MdocProof, MdocProverErrorCode, MdocVerifierErrorCode, RequestedAttribute,
+            ZkSpecStruct,
         },
     },
     runtime::{
@@ -96,12 +102,9 @@ where
         [k, s, n, t].map(|x| x as u64),
         "the spec's profile"
     );
-    // The circuits' public input counts follow from the attribute count.
+    // The single NEXT shape has fixed public input counts.
     let counts = d.public.iter().map(|p| p.elements.len());
-    assert!(counts.eq([
-        public::HASH_FIXED + public::HASH_PER_ATTRIBUTE * num_attributes,
-        public::SIGNATURE,
-    ]));
+    assert!(counts.eq([public::HASH_INPUTS, public::SIGNATURE,]));
     used.check_absorbed_for_test(&d, |mode| mode.check_absorbed_for_test(&d));
     OBSERVED.with_borrow_mut(|o| o.as_mut().unwrap().push(bytes));
 }
@@ -114,8 +117,9 @@ fn observed<T>(f: impl FnOnce() -> T) -> (T, Vec<Vec<u8>>) {
     (out, OBSERVED.take().unwrap())
 }
 
-/// One NEXT circuit and the test request for its attribute count: the
-/// first attributes of `TEST_DATA`, repeated as needed.
+/// The NEXT circuit with the first `count` equality slots enabled. The
+/// requested attributes are the first attributes of `TEST_DATA`, repeated
+/// as needed. This fixture supplies no date.
 pub(super) struct Fixture {
     provided: ProvidedCircuit,
     attrs: Vec<RequestedAttribute>,
@@ -133,14 +137,15 @@ impl Fixture {
                 num_bigint::BigUint::from_bytes_le(&value.to_bytes_le()).to_str_radix(16)
             )
         };
-        let attrs = parsed
-            .attrs
-            .iter()
-            .cycle()
-            .take(count)
-            .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
-            .collect();
-        let provided = next_circuit(count);
+        let attrs = four_slots(
+            parsed
+                .attrs
+                .iter()
+                .cycle()
+                .take(count)
+                .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value)),
+        );
+        let provided = next_circuit();
         Self {
             provided,
             attrs,
@@ -179,14 +184,130 @@ impl Fixture {
     }
 }
 
-/// The statement of every mdoc shape (one to four attributes), decoded from
-/// the bytes the verifier hashed, holds every value the verifier uses; and
+#[test]
+fn mdoc_four_slots_bind_operator_and_enable() {
+    let data = &BIRTHDATE_1971_09_01_MDOC_3;
+    let (_, parsed, _) = parse_test_data::<4, CompileNat<4>>(data);
+    let namespace = "org.iso.18013.5.1";
+    let actual = b"\xd9\x03\xec\x6a1971-09-01";
+    let mut attrs: Vec<_> = ["family_name", "height", "age_over_18"]
+        .map(|id| {
+            let item = parsed
+                .attrs
+                .iter()
+                .find(|a| a.name == id.as_bytes())
+                .unwrap();
+            req_attr(namespace, id, &item.cbor_value)
+        })
+        .into();
+    attrs.push(RequestedAttribute {
+        op: AttributeOp::Ge,
+        ..req_attr(namespace, "birth_date", actual)
+    });
+
+    let provided = next_circuit();
+    let prove = |request: &[RequestedAttribute]| {
+        super::super::run_mdoc_prover_encoded(
+            provided.spec(),
+            provided.compressed(),
+            data.mdoc,
+            data.pkx,
+            data.pky,
+            data.transcript,
+            request,
+            data.now,
+            data.doc_type,
+            &mut DeterministicRng::new(42),
+        )
+    };
+    let verify = |request: &[RequestedAttribute], proof: &[u8]| {
+        run_mdoc_verifier(
+            provided.spec(),
+            provided.compressed(),
+            data.pkx,
+            data.pky,
+            data.transcript,
+            request,
+            data.now,
+            data.doc_type,
+            proof,
+        )
+    };
+    let proof = prove(&attrs).unwrap();
+    verify(&attrs, proof.as_bytes()).unwrap();
+    // This change remains true of the credential. It must still invalidate
+    // the proof because the verifier is asking a different question.
+    attrs[K_DATE_SLOT].op = AttributeOp::Le;
+    assert!(verify(&attrs, proof.as_bytes()).is_err());
+    attrs[K_DATE_SLOT].cbor_value = b"\xd9\x03\xec\x6a2000-01-01".to_vec();
+    let upper_bound_proof = prove(&attrs).unwrap();
+    verify(&attrs, upper_bound_proof.as_bytes()).unwrap();
+    attrs[K_DATE_SLOT].op = AttributeOp::Ge;
+    assert!(matches!(
+        prove(&attrs),
+        Err(MdocProverErrorCode::GeneralFailure)
+    ));
+
+    // The first three positions reject ordering, even for date operands.
+    let mut wrong_slot = attrs.clone();
+    wrong_slot[0] = attrs[K_DATE_SLOT].clone();
+    wrong_slot[0].cbor_value = actual.to_vec();
+    assert!(matches!(
+        prove(&wrong_slot),
+        Err(MdocProverErrorCode::UnsupportedAttribute)
+    ));
+    // The fourth position requires a date even for Eq.
+    attrs[K_DATE_SLOT] = attrs[0].clone();
+    assert!(matches!(
+        prove(&attrs),
+        Err(MdocProverErrorCode::UnsupportedAttribute)
+    ));
+
+    // Both kinds of slot can be disabled. A disabled slot ignores its supplied
+    // fields and encodes all-zero public fields, including the operator.
+    let enabled = attrs[0].clone();
+    let disabled = RequestedAttribute {
+        enabled: false,
+        op: AttributeOp::Le,
+        ..req_attr(
+            namespace,
+            "missing_attribute",
+            [0xff; K_ATTR_VALUE_BYTES + 1],
+        )
+    };
+    attrs[0] = disabled.clone();
+    attrs[K_DATE_SLOT] = disabled;
+    let disabled_proof = prove(&attrs).unwrap();
+    verify(&attrs, disabled_proof.as_bytes()).unwrap();
+    attrs[0] = RequestedAttribute {
+        enabled: false,
+        ..req_attr(namespace, "", [])
+    };
+    attrs[K_DATE_SLOT] = attrs[0].clone();
+    verify(&attrs, disabled_proof.as_bytes()).unwrap();
+    attrs[0] = enabled;
+    assert!(verify(&attrs, disabled_proof.as_bytes()).is_err());
+
+    let no_disclosures = vec![attrs[K_DATE_SLOT].clone(); NEXT_ATTRIBUTES];
+    let empty_proof = prove(&no_disclosures).unwrap();
+    verify(&no_disclosures, empty_proof.as_bytes()).unwrap();
+
+    // With every equality slot disabled, a date remains in its fixed slot
+    // and its operator and operand are still bound in the public statement.
+    let mut date_only = no_disclosures;
+    date_only[K_DATE_SLOT] = req_attr(namespace, "birth_date", actual);
+    let date_proof = prove(&date_only).unwrap();
+    verify(&date_only, date_proof.as_bytes()).unwrap();
+}
+
+/// The statement for each supported number of enabled equality slots, decoded
+/// from the bytes the verifier hashed, holds every value the verifier uses;
 /// it is exactly the start of the first node of the complete verification's
 /// trace, which holds it once.
 #[test]
 fn mdoc_statement_round_trip() {
     std::thread::scope(|scope| {
-        let tasks: Vec<_> = (1..=4)
+        let tasks: Vec<_> = (1..=3)
             .map(|count| {
                 scope.spawn(move || {
                     let fixture = Fixture::new(count);

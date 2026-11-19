@@ -294,7 +294,7 @@ and sampling assumptions remain explicit; Rust correspondence is source-audited.
 
 Both protocols are modules in the `longfellow-zk` crate. The compiler's existing
 `compile_v1` entry point preserves historical Morton ordering and circuit IDs.
-`compile_v2` lowers directly to LFC3 and removes the reserved One wire. NEXT v12
+`compile_v2` lowers directly to LFC3 and removes the reserved One wire. NEXT
 uses that representation; v5-v7 verification uses the stored legacy circuits.
 
 The circuit synthesis and tampering suites use the native v2 compiler. Dedicated

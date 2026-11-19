@@ -15,7 +15,7 @@
 //! Frozen registry discovery and explicit v2 execution specifications.
 use crate::{
     mdoc::{
-        proto::NEXT_VERSION,
+        proto::{NEXT_ATTRIBUTES, NEXT_VERSION},
         runtime::{v1, v2},
         *,
     },
@@ -126,7 +126,7 @@ fn each_entry_point_rejects_unsupported_circuit_versions() {
 pub(in super::super) fn v2_spec() -> v2::ZkSpecStruct {
     v2::ZkSpecStruct {
         combined_hash: [0; 32],
-        num_attributes: 1,
+        num_attributes: NEXT_ATTRIBUTES,
         version: NEXT_VERSION,
         polygero: PolygeroConfig {
             k: 512,
@@ -135,4 +135,19 @@ pub(in super::super) fn v2_spec() -> v2::ZkSpecStruct {
             t: 87,
         },
     }
+}
+
+/// Place a nonempty set of fixture disclosures in the four-slot NEXT request.
+/// Callers that fill the fourth slot supply a date in that position.
+pub(in super::super) fn four_slots(
+    attributes: impl IntoIterator<Item = v2::RequestedAttribute>,
+) -> Vec<v2::RequestedAttribute> {
+    let mut slots: Vec<_> = attributes.into_iter().collect();
+    assert!((1..=NEXT_ATTRIBUTES).contains(&slots.len()));
+    let disabled = v2::RequestedAttribute {
+        enabled: false,
+        ..v2::req_attr(&slots[0].namespace_id, "", [])
+    };
+    slots.resize(NEXT_ATTRIBUTES, disabled);
+    slots
 }

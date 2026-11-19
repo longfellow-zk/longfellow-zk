@@ -52,6 +52,19 @@ struct StripRewriter<'re, 'a, F: CompileField, NEXT> {
     collected: std::cell::RefCell<Vec<AssertionItem<'a, F>>>,
 }
 
+/// Separate the root expressions from assertions carried by their wires.
+pub(super) fn strip_attached<'a, F: CompileField>(
+    arena: &'a CompilerArena<'a, F>,
+    assertions: Assertions<'a, F>,
+) -> (Assertions<'a, F>, Vec<AssertionItem<'a, F>>) {
+    let rewriter = StripRewriter {
+        next: &Cse::new(arena),
+        collected: std::cell::RefCell::new(Vec::new()),
+    };
+    let roots = walk(arena, assertions, &rewriter);
+    (roots, rewriter.collected.into_inner())
+}
+
 impl<'re, 'a, F: CompileField, NEXT: RewriteT<'a, F>> RewriteT<'a, F>
     for StripRewriter<'re, 'a, F, NEXT>
 {

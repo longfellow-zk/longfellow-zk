@@ -129,47 +129,44 @@ fn report<F: SerializableField>(attrs: usize, name: &str, f: &F, payload: &[u8],
     }
 }
 fn main() {
-    let attrs = std::env::var("CIRCUIT_ID_BENCH_ATTRIBUTES").unwrap_or_else(|_| "4".into());
+    let attrs = longfellow_zk::mdoc::proto::NEXT_ATTRIBUTES;
     let samples = std::env::var("CIRCUIT_ID_BENCH_SAMPLES")
         .unwrap_or_else(|_| "51".into())
         .parse::<usize>()
         .unwrap();
     assert!(samples > 0);
     println!("attributes,circuit,operation,median_ms,p95_ms");
-    for attrs in attrs.split(',').map(|s| s.parse::<usize>().unwrap()) {
-        assert!((1..=4).contains(&attrs));
-        let bytes = longfellow_zk::mdoc::compile::compile_circuits(attrs).unwrap();
-        let archive = v2::archive::from_bytes(&bytes).unwrap();
-        if let Some(directory) = std::env::var_os("CIRCUIT_ID_BENCH_SAVE") {
-            std::fs::create_dir_all(&directory).unwrap();
-            std::fs::write(
-                std::path::Path::new(&directory).join(format!("mdoc-{attrs}.lfa2")),
-                &bytes,
-            )
-            .unwrap();
-        }
-        report(
-            attrs,
-            "signature",
-            &P256Field::new(),
-            &archive.get("sig").unwrap().payload,
-            samples,
-        );
-        report(
-            attrs,
-            "hash",
-            &Gf2_128Field::new(),
-            &archive.get("hash").unwrap().payload,
-            samples,
-        );
-        let compressed =
-            zstd::encode_all(bytes.as_slice(), longfellow_zk::mdoc::proto::K_ZSTD_LEVEL).unwrap();
-        let prime = P256Field::new();
-        let binary = Gf2_128Field::new();
-        let (median, p95) = measure(samples, || {
-            longfellow_zk::mdoc::v2::decompress_circuits(black_box(&compressed), &prime, &binary)
-                .unwrap()
-        });
-        println!("{attrs},both,load_compressed_archive,{median:.6},{p95:.6}");
+    let bytes = longfellow_zk::mdoc::compile::compile_circuits().unwrap();
+    let archive = v2::archive::from_bytes(&bytes).unwrap();
+    if let Some(directory) = std::env::var_os("CIRCUIT_ID_BENCH_SAVE") {
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            std::path::Path::new(&directory).join(format!("mdoc-{attrs}.lfa2")),
+            &bytes,
+        )
+        .unwrap();
     }
+    report(
+        attrs,
+        "signature",
+        &P256Field::new(),
+        &archive.get("sig").unwrap().payload,
+        samples,
+    );
+    report(
+        attrs,
+        "hash",
+        &Gf2_128Field::new(),
+        &archive.get("hash").unwrap().payload,
+        samples,
+    );
+    let compressed =
+        zstd::encode_all(bytes.as_slice(), longfellow_zk::mdoc::proto::K_ZSTD_LEVEL).unwrap();
+    let prime = P256Field::new();
+    let binary = Gf2_128Field::new();
+    let (median, p95) = measure(samples, || {
+        longfellow_zk::mdoc::v2::decompress_circuits(black_box(&compressed), &prime, &binary)
+            .unwrap()
+    });
+    println!("{attrs},both,load_compressed_archive,{median:.6},{p95:.6}");
 }

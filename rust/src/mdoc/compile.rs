@@ -27,23 +27,22 @@ pub use generate_sig::*;
 use crate::compile::algebra::{gf2_128::Gf2_128Field, p256::P256Field};
 
 /// Generate NEXT circuits independently of the runtime proof system.
-pub fn compile_circuits(num_attrs: usize) -> Result<Vec<u8>, String> {
-    compile_circuits_impl(num_attrs, true)
+pub fn compile_circuits() -> Result<Vec<u8>, String> {
+    compile_circuits_impl(false)
 }
 
-/// Generate the original v2 predicates without structural CBOR checking.
-pub fn compile_parser_free_circuits(num_attrs: usize) -> Result<Vec<u8>, String> {
-    compile_circuits_impl(num_attrs, false)
+pub(super) fn compile_structural_circuits() -> Result<Vec<u8>, String> {
+    compile_circuits_impl(true)
 }
 
-fn compile_circuits_impl(num_attrs: usize, structural: bool) -> Result<Vec<u8>, String> {
+fn compile_circuits_impl(structural: bool) -> Result<Vec<u8>, String> {
     let f = Gf2_128Field::new();
     let p = P256Field::new();
     let sig = generate_sig_circuit(&p)?;
     let hash = if structural {
-        generate_hash_circuit(&f, num_attrs)?
+        circuits::structural_binary_circuit(&f)?
     } else {
-        circuits::parser_free_binary_circuit(&f, num_attrs)?
+        generate_hash_circuit(&f)?
     };
     let sig_bytes = CircuitWriter::new(&p).to_bytes(&sig);
     let hash_bytes = CircuitWriter::new(&f).to_bytes(&hash);

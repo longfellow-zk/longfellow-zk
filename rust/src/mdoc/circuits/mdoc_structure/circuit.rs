@@ -3,7 +3,7 @@
 use crate::{
     circuits::{
         bitvec::{Bitvec, BitvecIO, BitvecLogic, V8},
-        boolean::Boolean,
+        boolean::{Bitw, Boolean},
         routing::Routing,
     },
     compile::logic::{Logic, LogicIO},
@@ -146,6 +146,7 @@ fn uint<L: Logic, const N: usize>(
 
 /// Attribute wire view needed to bind its map structure and digest identifier.
 pub struct AttributeInput<'a, L: Logic> {
+    pub enabled: &'a Bitw<L>,
     pub digest_offset: &'a Bitvec<L, K_HASH_INDEX_BITS>,
     pub preimage: &'a AttrSlice<L, K_ATTR_PREIMAGE_LEN>,
     pub locator: &'a FieldLocator<L>,
@@ -227,6 +228,7 @@ where L::F: MdocHashCompileField {
     let namespace_map = parser.item_map(&namespace.value, namespace_witness);
     checks.push(namespace_map.assertions());
     for (i, attr) in given.attributes.iter().enumerate() {
+        let mut attribute_checks = Vec::new();
         let (value, value_check) = relative(logic, attr.digest_offset);
         let (end, end_check) = bv.checked_add(&value, &bv.of_u64(34));
         let entry = parser.entry(
@@ -235,10 +237,10 @@ where L::F: MdocHashCompileField {
             &Span { start: value, end },
         );
         let (digest_id, digest_check) = uint(logic, raw, &w.digest_keys[i]);
-        checks.extend([value_check, end_check, entry.assertions(), digest_check]);
+        attribute_checks.extend([value_check, end_check, entry.assertions(), digest_check]);
 
         let attr_len: Bitvec<L, ATTR_BITS> = bv.from_fn(|j| attr.preimage.len[j].clone());
-        checks.push(b.assert_true(
+        attribute_checks.push(b.assert_true(
             "attribute_capacity",
             &bv.leq(&attr.preimage.len, &bv.of_u64(ATTR_CAPACITY as u64)),
         ));
@@ -264,19 +266,23 @@ where L::F: MdocHashCompileField {
             let (start, sc) = narrow(logic, "attribute_value_bits", &field_value);
             let (attribute_end, attribute_end_check) =
                 narrow(logic, "attribute_end_bits", &field_end);
-            checks.extend([vc, ec, kc, sc, attribute_end_check]);
+            attribute_checks.extend([vc, ec, kc, sc, attribute_end_check]);
             let span = Span {
                 start,
                 end: attribute_end,
             };
-            checks.push(parser.entry(&attr_map, &key8, &span).assertions());
+            attribute_checks.push(parser.entry(&attr_map, &key8, &span).assertions());
             if field == 0 {
                 let (id, check) = uint(logic, &attr.preimage.data, &span.start);
-                checks.push(check);
+                attribute_checks.push(check);
                 issuer_id = Some(id);
             }
         }
-        checks.push(bv.assert_eq("digest_id_binding", &digest_id, &issuer_id.unwrap()));
+        attribute_checks.push(bv.assert_eq("digest_id_binding", &digest_id, &issuer_id.unwrap()));
+        checks.push(logic.assert_when(
+            &b.as_eltw(attr.enabled),
+            logic.assert_all("attribute_structure", &attribute_checks),
+        ));
     }
     logic.assert_all("mdoc_structure", &checks)
 }

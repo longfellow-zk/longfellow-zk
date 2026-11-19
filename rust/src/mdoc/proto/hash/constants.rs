@@ -61,5 +61,6 @@ pub const K_TIMESTAMP_DIGITS: [usize; 14] = [0, 1, 2, 3, 5, 6, 8, 9, 11, 12, 14,
 /// Maximum raw MSO bytes after its fixed envelope and SHA-256 padding.
 pub const K_MSO_MAX_BYTES: usize = K_MSO_PREIMAGE_LEN - K_MSO_OFFSET - 9;
 pub const K_STRUCTURE_BITS: usize = 12;
-pub const K_STRUCTURE_ATTR_BITS: usize = 8;
-pub const K_STRUCTURE_ATTR_CAPACITY: usize = 128;
+pub const K_STRUCTURE_ATTR_BITS: usize = 9;
+pub const K_STRUCTURE_ATTR_CAPACITY: usize =
+    super::super::mso_attribute::constants::K_ATTR_PREIMAGE_LEN;

@@ -9,8 +9,9 @@ use longfellow_zk::{
             mdoc::parse_mdoc,
             test_utils::{parse_test_data, with_mso_size},
         },
-        development_provider::{compile_parser_free_next, read_next, write_next},
-        testcases::TEST_DATA,
+        development_provider::{compile_next, read_next, write_next},
+        proto::NEXT_ATTRIBUTES,
+        testcases::BIRTHDATE_1971_09_01_MDOC_3,
         v2::{decompress_circuits, req_attr, single_commitment},
     },
     runtime::{
@@ -36,8 +37,8 @@ fn main() {
         .unwrap_or_else(|_| "8".into())
         .parse::<usize>()
         .unwrap();
-    assert!((1..=4).contains(&count) && samples >= 2);
-    let data = &TEST_DATA;
+    assert!((1..=NEXT_ATTRIBUTES).contains(&count) && samples >= 2);
+    let data = &BIRTHDATE_1971_09_01_MDOC_3;
     let resized = std::env::var("MDOC_BENCH_MSO_BYTES")
         .ok()
         .map(|s| with_mso_size(data.mdoc, s.parse().unwrap()).unwrap());
@@ -53,19 +54,20 @@ fn main() {
     let (pkx, pky) = resized.as_ref().map_or((data.pkx, data.pky), |(_, key)| {
         (key.0.as_str(), key.1.as_str())
     });
-    let attrs = parsed
-        .attrs
-        .iter()
-        .cycle()
-        .take(count)
-        .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
-        .collect::<Vec<_>>();
+    let names: [&[u8]; NEXT_ATTRIBUTES] =
+        [b"family_name", b"height", b"age_over_18", b"birth_date"];
+    let attrs: [_; NEXT_ATTRIBUTES] = std::array::from_fn(|index| {
+        let attr = parsed.get_attribute(names[index]).unwrap();
+        let mut requested = req_attr("org.iso.18013.5.1", &attr.name, &attr.cbor_value);
+        requested.enabled = index < count;
+        requested
+    });
     let provided = if let Ok(path) = std::env::var("MDOC_BENCH_ARCHIVE") {
         read_next(File::open(path).unwrap()).unwrap()
     } else {
-        compile_parser_free_next(count).unwrap()
+        compile_next().unwrap()
     };
-    assert_eq!(provided.spec().num_attributes, count);
+    assert_eq!(provided.spec().num_attributes, NEXT_ATTRIBUTES);
     if let Ok(path) = std::env::var("MDOC_BENCH_SAVE_ARCHIVE") {
         write_next(File::create(path).unwrap(), &provided).unwrap();
     }

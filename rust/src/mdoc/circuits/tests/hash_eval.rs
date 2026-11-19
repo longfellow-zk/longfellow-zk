@@ -203,30 +203,36 @@ where FC: CompileField + FieldWrappingSum {
         let is_negative = filename.starts_with("fail-");
 
         let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(case.data);
-        let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
+        // Exercise arbitrary attributes in the exact-equality slots. Date
+        // comparisons are exercised separately by the date slot tests.
+        let ids = parsed.all_attr_ids();
+        let mut failed = false;
+        for start in (0..ids.len().max(1)).step_by(3) {
+            let group = &ids[start..(start + 3).min(ids.len())];
+            let hash_input = hash_input_of_parsed_mdoc(&parsed, group, now);
+            let given = given::<4, _>(hash_input);
+            let derived = derived::<4, _>(&given);
+            let bitvec_logic = BitvecLogic::new(l);
+            let mut wire_given = evaluate_given(l, &bitvec_logic, &given);
+            let wire_derived = evaluate_derived(l, &bitvec_logic, &derived);
 
-        let given = given::<4, _>(hash_input);
-        let derived = derived::<4, _>(&given);
-        let bitvec_logic = BitvecLogic::new(l);
-        let mut wire_given = evaluate_given(l, &bitvec_logic, &given);
-        let wire_derived = evaluate_derived(l, &bitvec_logic, &derived);
-
-        apply_negative_test_modifications(
-            filename,
-            &mut wire_given.disclosed_attributes,
-            l,
-            &bitvec_logic,
-        );
-
-        let mdoc = MdocHash::new(l);
-        let assertion = mdoc.assert_valid_presentation(&wire_given, &wire_derived);
-        if is_negative {
-            assert!(
-                assertion.is_err(),
-                "Expected negative test to fail: {filename}"
+            apply_negative_test_modifications(
+                filename,
+                &mut wire_given.disclosed_attributes,
+                l,
+                &bitvec_logic,
             );
-        } else {
-            assertion.unwrap();
+
+            let mdoc = MdocHash::new(l);
+            let assertion = mdoc.assert_valid_presentation(&wire_given, &wire_derived);
+            if is_negative {
+                failed |= assertion.is_err();
+            } else {
+                assertion.unwrap();
+            }
+        }
+        if is_negative {
+            assert!(failed, "Expected negative test to fail: {filename}");
         }
         count += 1;
     }

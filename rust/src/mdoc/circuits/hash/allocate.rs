@@ -34,27 +34,30 @@ use crate::{
         proto::{
             hash::constants::{K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS},
             layout,
-            mso_attribute::constants::K_ATTR_INDEX_BITS,
+            mso_attribute::constants::{
+                attr_sha_blocks, attr_value_bytes, K_ATTR_COMPARISON_BITS, K_ATTR_INDEX_BITS,
+                K_DATE_SLOT, K_SHA256_BLOCK_SIZE,
+            },
         },
     },
 };
 
 /// Allocate the complete presentation and return the end of its public prefix.
-pub fn allocate<L: LogicIO>(
-    logic: &L,
-    num_attrs: usize,
-    pos: &mut usize,
-) -> (Given<L>, Derived<V32<L>>, usize) {
-    allocate_impl(logic, num_attrs, pos, true)
-}
-
-/// Allocate the original byte-offset predicate without structural CBOR witnesses.
-pub fn allocate_without_structure<L: LogicIO>(
+pub(in crate::mdoc) fn allocate<L: LogicIO>(
     logic: &L,
     num_attrs: usize,
     pos: &mut usize,
 ) -> (Given<L>, Derived<V32<L>>, usize) {
     allocate_impl(logic, num_attrs, pos, false)
+}
+
+/// Allocate the presentation with the experimental structural CBOR witnesses.
+pub(in crate::mdoc) fn allocate_with_structure<L: LogicIO>(
+    logic: &L,
+    num_attrs: usize,
+    pos: &mut usize,
+) -> (Given<L>, Derived<V32<L>>, usize) {
+    allocate_impl(logic, num_attrs, pos, true)
 }
 
 fn allocate_impl<L: LogicIO>(
@@ -68,15 +71,23 @@ fn allocate_impl<L: LogicIO>(
     let boolean_io = BooleanIO::new(logic);
     let now = std::array::from_fn(|_| io.next::<8>(pos));
     let disclosed_attributes = (0..num_attrs)
-        .map(|_| DisclosedAttribute {
+        .map(|slot| DisclosedAttribute {
             expected_name: AttrSlice {
                 data: std::array::from_fn(|_| io.next::<8>(pos)),
                 len: io.next::<K_ATTR_INDEX_BITS>(pos),
             },
             expected_cbor_value: AttrSlice {
-                data: std::array::from_fn(|_| io.next::<8>(pos)),
+                data: std::array::from_fn(|i| {
+                    if i >= attr_value_bytes(slot) {
+                        bv.zero()
+                    } else {
+                        io.next::<8>(pos)
+                    }
+                }),
                 len: io.next::<K_ATTR_INDEX_BITS>(pos),
             },
+            enabled: boolean_io.next(pos),
+            comparison: (slot == K_DATE_SLOT).then(|| io.next::<K_ATTR_COMPARISON_BITS>(pos)),
         })
         .collect();
     let suppress_doc_type_check = boolean_io.next(pos);
@@ -126,8 +137,9 @@ fn allocate_impl<L: LogicIO>(
     let value_digests_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
     let namespace_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
 
-    let (attribute_given, attribute_derived) =
-        (0..num_attrs).map(|_| allocate_attribute(&io, pos)).unzip();
+    let (attribute_given, attribute_derived) = (0..num_attrs)
+        .map(|slot| allocate_attribute(&io, &bv, attr_sha_blocks(slot), pos))
+        .unzip();
     let sha_derived = sha256msg::Derived::from_fn(K_MAX_SHA_BLOCKS, || io.next(pos));
     let structure = structural.then(|| StructuralWitness::allocate(logic, num_attrs, pos));
     (
@@ -160,10 +172,18 @@ fn allocate_impl<L: LogicIO>(
 
 fn allocate_attribute<L: LogicIO>(
     io: &BitvecIO<L>,
+    bv: &BitvecLogic<L>,
+    blocks: usize,
     pos: &mut usize,
 ) -> (AttrGiven<L>, AttrDerived<V32<L>>) {
     let preimage = AttrPreimageBytes {
-        data: std::array::from_fn(|_| io.next::<8>(pos)),
+        data: std::array::from_fn(|i| {
+            if i < blocks * K_SHA256_BLOCK_SIZE {
+                io.next::<8>(pos)
+            } else {
+                bv.zero()
+            }
+        }),
         len: io.next::<K_ATTR_INDEX_BITS>(pos),
     };
     let mso_digest_offset_in_preimage = io.next::<K_HASH_INDEX_BITS>(pos);
@@ -172,7 +192,7 @@ fn allocate_attribute<L: LogicIO>(
         length: std::array::from_fn(|_| io.next::<K_ATTR_INDEX_BITS>(pos)),
         permutation: std::array::from_fn(|_| io.next::<2>(pos)),
     };
-    let sha_derived = sha256msg::Derived::from_fn(2, || io.next(pos));
+    let sha_derived = sha256msg::Derived::from_fn(blocks, || io.next(pos));
     (
         AttrGiven {
             preimage,

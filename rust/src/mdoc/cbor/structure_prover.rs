@@ -18,6 +18,20 @@ pub struct ConcreteAttributeWitness {
     pub map: Parser,
 }
 
+impl ConcreteAttributeWitness {
+    fn zero() -> Self {
+        Self {
+            lexer: Lexer::derive(&[0; ATTR_CAPACITY], 0).unwrap(),
+            rank: ConcreteRankWitness {
+                rank: vec![0; ATTR_CAPACITY],
+            },
+            map: Parser {
+                threshold: vec![0; ATTR_CAPACITY],
+            },
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ConcreteWitness {
     pub lexer: Lexer,
@@ -61,15 +75,7 @@ impl ConcreteWitness {
         let map = Parser {
             threshold: vec![0; K_MSO_MAX_BYTES],
         };
-        let attr = ConcreteAttributeWitness {
-            lexer: Lexer::derive(&[0; ATTR_CAPACITY], 0).unwrap(),
-            rank: ConcreteRankWitness {
-                rank: vec![0; ATTR_CAPACITY],
-            },
-            map: Parser {
-                threshold: vec![0; ATTR_CAPACITY],
-            },
-        };
+        let attr = ConcreteAttributeWitness::zero();
         Self {
             lexer,
             rank: ConcreteRankWitness {
@@ -88,6 +94,19 @@ impl ConcreteWitness {
         signed: &[u8],
         namespace_key: usize,
         attributes: &[(usize, &[u8])],
+    ) -> Result<Self, &'static str> {
+        Self::derive_slots(
+            signed,
+            namespace_key,
+            &attributes.iter().copied().map(Some).collect::<Vec<_>>(),
+        )
+    }
+
+    /// Preserve public slot positions, leaving disabled slots unconstrained.
+    pub fn derive_slots(
+        signed: &[u8],
+        namespace_key: usize,
+        attributes: &[Option<(usize, &[u8])>],
     ) -> Result<Self, &'static str> {
         let raw = signed.get(K_MSO_OFFSET..).ok_or("MSO envelope")?;
         if raw.len() > K_MSO_MAX_BYTES {
@@ -114,7 +133,12 @@ impl ConcreteWitness {
         }
         let mut digest_keys = Vec::new();
         let mut attr_witnesses = Vec::new();
-        for (digest_offset, preimage) in attributes {
+        for attribute in attributes {
+            let Some((digest_offset, preimage)) = attribute else {
+                digest_keys.push(0);
+                attr_witnesses.push(ConcreteAttributeWitness::zero());
+                continue;
+            };
             let digest = entries(&namespace.1)?
                 .iter()
                 .find(|(_, v)| v.start == *digest_offset)

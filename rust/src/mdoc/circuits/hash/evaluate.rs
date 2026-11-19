@@ -28,16 +28,13 @@ use crate::{
     compile::{algebra::CompileNat, logic::LogicIO},
     core::algebra::Nat,
     mdoc::{
-        circuits::{
-            mdoc_structure::Witness as StructuralWitness,
-            mso_attribute::{
-                AttrSlice as MsoSlice, DisclosedAttribute as WireDisclosedAttribute,
-                FieldLocator as WireFieldLocator,
-            },
+        circuits::mso_attribute::{
+            AttrSlice as MsoSlice, DisclosedAttribute as WireDisclosedAttribute,
+            FieldLocator as WireFieldLocator,
         },
         proto::{
             hash::constants::{K_HASH_INDEX_BITS, K_TIMESTAMP_DIGITS},
-            mso_attribute::constants::K_ATTR_INDEX_BITS,
+            mso_attribute::constants::{K_ATTR_INDEX_BITS, K_DATE_SLOT},
         },
     },
 };
@@ -61,7 +58,8 @@ pub fn evaluate_given<L: LogicIO>(
         .hash_input
         .attrs
         .iter()
-        .map(|a| WireDisclosedAttribute {
+        .enumerate()
+        .map(|(slot, a)| WireDisclosedAttribute {
             expected_name: MsoSlice {
                 data: std::array::from_fn(|i| {
                     let bit_val = get_byte(&a.expected_name, i);
@@ -76,6 +74,8 @@ pub fn evaluate_given<L: LogicIO>(
                 }),
                 len: bv.of_u64::<K_ATTR_INDEX_BITS>(a.expected_cbor_value.len() as u64),
             },
+            enabled: boolean.trueb(),
+            comparison: (slot == K_DATE_SLOT).then(|| bv.zero()),
         })
         .collect();
 
@@ -196,7 +196,7 @@ pub fn evaluate_given<L: LogicIO>(
         value_digests_offset_in_preimage,
         namespace_offset_in_preimage,
         attribute_given,
-        structure: Some(StructuralWitness::constant(logic, &given.structure)),
+        structure: None,
     }
 }
 

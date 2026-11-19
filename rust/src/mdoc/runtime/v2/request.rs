@@ -24,11 +24,13 @@ use crate::{
             hash::constants::{
                 K_DOC_TYPE_BYTES, K_NAMESPACE_BYTES, K_TIMESTAMP_DIGITS, K_TIMESTAMP_LEN,
             },
-            mso_attribute::constants::{K_ATTR_ID_BYTES, K_ATTR_VALUE_BYTES},
-            NEXT_MAX_ATTRIBUTES,
+            mso_attribute::constants::{
+                attr_value_bytes, has_ordered_date_encoding, K_ATTR_ID_BYTES, K_DATE_SLOT,
+            },
+            NEXT_ATTRIBUTES,
         },
         v2::{
-            attribute::{circuit_supports, same_namespace},
+            attribute::{circuit_supports, same_namespace, AttributeOp},
             key::parse_pk_coordinate,
             RequestedAttribute, ZkSpecStruct,
         },
@@ -65,7 +67,7 @@ pub(super) struct Request<'a> {
 
 impl<'a> Request<'a> {
     /// Check a request, in the order of the error table: the spec version, the
-    /// spec's attribute count against the supported range, the attribute
+    /// spec's attribute count against the fixed shape, the attribute
     /// count, a shared namespace, the session transcript (its size, then one
     /// CBOR item), the public-input bounds and syntax, the attribute values,
     /// and the issuer key. Both roles run this before loading circuits or
@@ -84,12 +86,10 @@ impl<'a> Request<'a> {
         if !spec.supports_version() {
             return Err(RequestError::Version);
         }
-        // The NEXT circuits exist for 1 to NEXT_MAX_ATTRIBUTES attributes; a
-        // spec outside that range is a request-shape failure.
-        if !(1..=NEXT_MAX_ATTRIBUTES).contains(&spec.num_attributes) {
+        if spec.num_attributes != NEXT_ATTRIBUTES {
             return Err(RequestError::Shape);
         }
-        if attributes.len() != spec.num_attributes {
+        if attributes.len() != NEXT_ATTRIBUTES {
             return Err(RequestError::AttributeCount);
         }
         if !same_namespace(attributes)
@@ -99,7 +99,15 @@ impl<'a> Request<'a> {
         {
             return Err(RequestError::Shape);
         }
-        if !attributes.iter().all(|a| circuit_supports(&a.cbor_value)) {
+        if !attributes.iter().enumerate().all(|(slot, a)| {
+            !a.enabled
+                || (circuit_supports(&a.cbor_value)
+                    && if slot == K_DATE_SLOT {
+                        has_ordered_date_encoding(&a.cbor_value)
+                    } else {
+                        a.op == AttributeOp::Eq
+                    })
+        }) {
             return Err(RequestError::UnsupportedAttribute);
         }
         let issuer_pk = (
@@ -185,11 +193,12 @@ fn public_inputs_fit(attrs: &[RequestedAttribute], now: &[u8], doc_type: &[u8]) 
                 && attribute.namespace_id.len() <= K_NAMESPACE_BYTES
                 && std::str::from_utf8(&attribute.namespace_id).is_ok()
         })
-        && attrs.iter().all(|attribute| {
-            attribute.id.len() <= K_ATTR_ID_BYTES
-                && std::str::from_utf8(&attribute.id).is_ok()
-                && encode_cbor_string(&attribute.id).len() <= K_ATTR_ID_BYTES
-                && attribute.cbor_value.len() <= K_ATTR_VALUE_BYTES
+        && attrs.iter().enumerate().all(|(slot, attribute)| {
+            !attribute.enabled
+                || (attribute.id.len() <= K_ATTR_ID_BYTES
+                    && std::str::from_utf8(&attribute.id).is_ok()
+                    && encode_cbor_string(&attribute.id).len() <= K_ATTR_ID_BYTES
+                    && attribute.cbor_value.len() <= attr_value_bytes(slot))
         })
 }
 

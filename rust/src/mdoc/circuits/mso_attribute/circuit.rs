@@ -16,17 +16,19 @@ use crate::{
     circuits::{
         analog_adder::FieldWrappingSum,
         bitvec::{Bitvec, BitvecLogic, V256, V32, V8},
-        boolean::Boolean,
+        boolean::{Bitw, Boolean},
+        memcmp::Memcmp,
         routing::Routing,
-        sha256msg::Sha256Msg,
+        sha256msg::{Given as ShaGiven, Sha256Msg},
     },
-    compile::logic::{Logic, LogicIO},
+    compile::logic::Logic,
     mdoc::{
         circuits::cbor_decoder::CborByteDecoder,
         proto::mso_attribute::constants::{
-            K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_ATTR_VALUE_BYTES,
-            K_DIGEST_ID, K_ELEMENT_IDENTIFIER_PREFIX, K_ELEMENT_VALUE_PREFIX, K_MAX_ATTR_CBOR_LEN,
-            K_RANDOM_ID,
+            K_ATTR_COMPARISON_BITS, K_ATTR_ID_BYTES, K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN,
+            K_ATTR_VALUE_BYTES, K_DATE_ATTR_PREIMAGE_LEN, K_DATE_ATTR_SHA_BLOCKS,
+            K_DATE_VALUE_BYTES, K_DIGEST_ID, K_ELEMENT_IDENTIFIER_PREFIX, K_ELEMENT_VALUE_PREFIX,
+            K_MAX_ATTR_SHA_BLOCKS, K_ORDERED_DATE_ENCODINGS, K_RANDOM_ID,
         },
     },
 };
@@ -39,12 +41,13 @@ mod tests;
 pub type AttrSlice<L, const N: usize> =
     crate::circuits::bitvec::Slice<L, V8<L>, N, K_ATTR_INDEX_BITS>;
 
-/// Represents a disclosed attribute name, its value, and
-/// their verified lengths.  These are concrete values, not indices in
-/// the credential.
+/// Public attribute name, operand and enable bit. Only the date slot has
+/// comparison flags. Its operand buffer is extended with constant zeros.
 pub struct DisclosedAttribute<L: Logic> {
     pub expected_name: AttrSlice<L, K_ATTR_ID_BYTES>,
     pub expected_cbor_value: AttrSlice<L, K_ATTR_VALUE_BYTES>,
+    pub enabled: Bitw<L>,
+    pub comparison: Option<Bitvec<L, K_ATTR_COMPARISON_BITS>>,
 }
 
 impl<L: Logic> Clone for DisclosedAttribute<L> {
@@ -52,6 +55,8 @@ impl<L: Logic> Clone for DisclosedAttribute<L> {
         Self {
             expected_name: self.expected_name.clone(),
             expected_cbor_value: self.expected_cbor_value.clone(),
+            enabled: self.enabled.clone(),
+            comparison: self.comparison.clone(),
         }
     }
 }
@@ -121,10 +126,7 @@ where L::F: FieldWrappingSum
     bv: BitvecLogic<'a, L>,
     cbor_decoder: CborByteDecoder<'a, L>,
     routing: Routing<'a, L>,
-    shamsg: Sha256Msg<'a, L, 2>,
 }
-
-impl<L: LogicIO> AttributeVerifier<'_, L> where L::F: FieldWrappingSum {}
 
 impl<'a, L: Logic> AttributeVerifier<'a, L>
 where L::F: FieldWrappingSum
@@ -136,64 +138,135 @@ where L::F: FieldWrappingSum
             bv: BitvecLogic::new(logic),
             cbor_decoder: CborByteDecoder::new(logic),
             routing: Routing::new(logic),
-            shamsg: Sha256Msg::new(logic),
         }
     }
 
     pub fn assert_attribute(&self, given: &Given<L>, derived: &Derived<L>) -> L::Assertions {
-        self.logic.assert_all(
-            "assert_attribute",
-            &[
-                self.assert_preimage_header(&given.attribute_preimage),
-                self.assert_segments(&given.field_locator, &given.attribute_preimage.len),
-                self.assert_permutation(&given.field_locator.permutation),
-                self.assert_item_slot_key_only(
-                    0,
-                    &given.field_locator,
-                    &given.attribute_preimage.data,
-                    &K_DIGEST_ID,
-                    true,
-                ),
-                self.assert_item_slot_key_only(
-                    1,
-                    &given.field_locator,
-                    &given.attribute_preimage.data,
-                    &K_RANDOM_ID,
-                    false,
-                ),
-                self.assert_item_slot_key_value(
-                    2,
-                    &given.field_locator,
-                    &given.attribute_preimage.data,
-                    K_ELEMENT_IDENTIFIER_PREFIX.len() + 1 + 32,
-                    &K_ELEMENT_IDENTIFIER_PREFIX,
-                    &given.disclosed_attribute.expected_name,
-                ),
-                self.assert_item_slot_key_value(
-                    3,
-                    &given.field_locator,
-                    &given.attribute_preimage.data,
-                    K_ELEMENT_VALUE_PREFIX.len() + 1 + 64,
-                    &K_ELEMENT_VALUE_PREFIX,
-                    &given.disclosed_attribute.expected_cbor_value,
-                ),
-                self.assert_sha_digest(given, derived),
-            ],
-        )
+        let attribute = &given.disclosed_attribute;
+        let preimage = &given.attribute_preimage;
+        let bytes = if attribute.comparison.is_some() {
+            &preimage.data[..K_DATE_ATTR_PREIMAGE_LEN]
+        } else {
+            &preimage.data
+        };
+        let value = match &attribute.comparison {
+            Some(comparison) => self.assert_date_value(
+                &given.field_locator,
+                bytes,
+                &attribute.expected_cbor_value,
+                comparison,
+            ),
+            None => self.assert_item_slot_key_value(
+                3,
+                &given.field_locator,
+                bytes,
+                K_ELEMENT_VALUE_PREFIX.len() + 1 + K_ATTR_VALUE_BYTES,
+                &K_ELEMENT_VALUE_PREFIX,
+                &attribute.expected_cbor_value,
+            ),
+        };
+        let enabled = self.boolean.as_eltw(&attribute.enabled);
+        let slot_checks = [
+            self.assert_preimage_header(&given.attribute_preimage),
+            self.assert_segments(&given.field_locator, &given.attribute_preimage.len),
+            self.assert_permutation(&given.field_locator.permutation),
+            self.assert_item_slot_key_only(0, &given.field_locator, bytes, &K_DIGEST_ID, true),
+            self.assert_item_slot_key_only(1, &given.field_locator, bytes, &K_RANDOM_ID, false),
+            self.assert_item_slot_key_value(
+                2,
+                &given.field_locator,
+                bytes,
+                K_ELEMENT_IDENTIFIER_PREFIX.len() + 1 + K_ATTR_ID_BYTES,
+                &K_ELEMENT_IDENTIFIER_PREFIX,
+                &given.disclosed_attribute.expected_name,
+            ),
+            value,
+            self.assert_sha_digest(bytes, given, derived),
+        ];
+        let mut checks: Vec<_> = slot_checks
+            .into_iter()
+            .map(|check| self.logic.assert_when(&enabled, check))
+            .collect();
+        checks.push(self.assert_disabled_inputs(attribute));
+        self.logic.assert_all("assert_attribute", &checks)
     }
 
-    fn assert_sha_digest(&self, given: &Given<L>, derived: &Derived<L>) -> L::Assertions {
-        let preimage_len_64 = self
-            .bv
-            .zext::<{ K_ATTR_INDEX_BITS }, 64>(&given.attribute_preimage.len);
-        let two_wire = self.bv.of_u64::<2>(2);
-        let shamsg_given = crate::circuits::sha256msg::Given {
-            padded_preimage: given.attribute_preimage.data.to_vec(),
-            nblocks: two_wire,
-            length_bytes: preimage_len_64,
+    fn assert_disabled_inputs(&self, attribute: &DisclosedAttribute<L>) -> L::Assertions {
+        let assert_zero_bytes = |name, data: &[V8<L>]| {
+            self.logic
+                .assert_mapi(name, 0..data.len().div_ceil(8), |i| {
+                    let chunk = &data[8 * i..(8 * (i + 1)).min(data.len())];
+                    let bits = self.bv.from_fn::<64, _>(|k| {
+                        chunk
+                            .get(k / 8)
+                            .map_or_else(|| self.boolean.falseb(), |byte| byte.bit(k % 8).clone())
+                    });
+                    self.bv.assert_eq("zero", &bits, &self.bv.zero())
+                })
+        };
+        let disabled = self.boolean.as_eltw(&self.boolean.notb(&attribute.enabled));
+        let size = if attribute.comparison.is_some() {
+            K_DATE_VALUE_BYTES
+        } else {
+            K_ATTR_VALUE_BYTES
+        };
+        let comparison = attribute.comparison.as_ref().map_or_else(
+            || self.logic.ok(),
+            |op| self.bv.assert_eq("comparison", op, &self.bv.zero()),
+        );
+        let zero = self.logic.assert_all(
+            "disabled_inputs",
+            &[
+                assert_zero_bytes("name", &attribute.expected_name.data),
+                self.bv
+                    .assert_eq("name_length", &attribute.expected_name.len, &self.bv.zero()),
+                assert_zero_bytes("value", &attribute.expected_cbor_value.data[..size]),
+                self.bv.assert_eq(
+                    "value_length",
+                    &attribute.expected_cbor_value.len,
+                    &self.bv.zero(),
+                ),
+                comparison,
+            ],
+        );
+        self.logic.assert_when(&disabled, zero)
+    }
+
+    fn assert_sha_digest(
+        &self,
+        preimage: &[V8<L>],
+        given: &Given<L>,
+        derived: &Derived<L>,
+    ) -> L::Assertions {
+        let len = &given.attribute_preimage.len;
+        let length_bytes = self.bv.zext(len);
+        if given.disclosed_attribute.comparison.is_some() {
+            let date = ShaGiven {
+                padded_preimage: preimage.to_vec(),
+                nblocks: self.bv.of_u64::<2>(K_DATE_ATTR_SHA_BLOCKS as u64),
+                length_bytes,
+                expected_hash: given.expected_digest.clone(),
+            };
+            return Sha256Msg::<_, K_DATE_ATTR_SHA_BLOCKS>::new(self.logic)
+                .assert_message_hash(&date, derived);
+        }
+        // ceil((len + 9) / 64) = (len + 72) >> 6. The SHA gadget checks
+        // the count against the full length and the four-block capacity.
+        let (padded_len, no_overflow) = self.bv.checked_add(len, &self.bv.of_u64(72));
+        let ordinary = ShaGiven {
+            padded_preimage: preimage.to_vec(),
+            nblocks: self.bv.from_fn::<3, _>(|i| padded_len.bit(6 + i).clone()),
+            length_bytes,
             expected_hash: given.expected_digest.clone(),
         };
-        self.shamsg.assert_message_hash(&shamsg_given, derived)
+        self.logic.assert_all(
+            "attribute_digest",
+            &[
+                no_overflow,
+                Sha256Msg::<_, K_MAX_ATTR_SHA_BLOCKS>::new(self.logic)
+                    .assert_message_hash(&ordinary, derived),
+            ],
+        )
     }
 
     fn assert_preimage_header(
@@ -237,7 +310,7 @@ where L::F: FieldWrappingSum
 
     /// Asserts that all layout segments within the `FieldLocator` map are
     /// contiguous and valid. Specifically:
-    /// - Checks that the first segment (digestID) starts exactly at byte index 5.
+    /// - Checks that the first physical segment starts at byte index 5.
     /// - Verifies that each subsequent segment starts immediately after the previous one.
     /// - Verifies that the final segment ends precisely at the expected payload length.
     fn assert_segments(
@@ -317,7 +390,7 @@ where L::F: FieldWrappingSum
         let got = self.routing.shift_bitvec(
             3,
             &slice.offset,
-            K_MAX_ATTR_CBOR_LEN,
+            max_len,
             attribute_preimage,
             &self.bv.zero::<8>(),
         );
@@ -341,6 +414,77 @@ where L::F: FieldWrappingSum
         )
     }
 
+    fn assert_date_value(
+        &self,
+        field_locator: &FieldLocator<L>,
+        attribute_preimage: &[V8<L>],
+        want: &AttrSlice<L, K_ATTR_VALUE_BYTES>,
+        comparison: &Bitvec<L, K_ATTR_COMPARISON_BITS>,
+    ) -> L::Assertions {
+        let slice = self.slot_offset_and_len(3, field_locator);
+        let key_bytes = K_ELEMENT_VALUE_PREFIX.len();
+        let aligned = self.routing.shift_bitvec(
+            3,
+            &slice.offset,
+            key_bytes + K_DATE_VALUE_BYTES,
+            attribute_preimage,
+            &self.bv.zero::<8>(),
+        );
+        let (key, got) = aligned.split_at(key_bytes);
+        let key_len = self.bv.of_u64::<K_ATTR_INDEX_BITS>(key.len() as u64);
+        let (expected_slice_len, overflow) = self.bv.checked_add(&key_len, &want.len);
+
+        let le = comparison.bit(0);
+        let ge = comparison.bit(1);
+        let ordered = self.boolean.orb(le, ge);
+        let valid_op = self
+            .boolean
+            .assert_false("valid_op", &self.boolean.andb(le, ge));
+        let date_format = K_ORDERED_DATE_ENCODINGS.iter().fold(
+            self.boolean.falseb(),
+            |matches_format, &(header, len)| {
+                let length = self.bv.of_u64::<K_ATTR_INDEX_BITS>(len as u64);
+                let same_len = self.bv.eqb(&want.len, &length);
+                let same_header = got.iter().zip(&want.data).zip(header).fold(
+                    same_len,
+                    |matches_header, ((actual, expected), &byte)| {
+                        let header_byte = self.bv.of_u8(byte);
+                        self.boolean.andb(
+                            &matches_header,
+                            &self.boolean.andb(
+                                &self.bv.eqb(actual, &header_byte),
+                                &self.bv.eqb(expected, &header_byte),
+                            ),
+                        )
+                    },
+                );
+                self.boolean.orb(&matches_format, &same_header)
+            },
+        );
+
+        let in_range = |i| self.bv.lt(&self.bv.of_u64(i as u64), &want.len);
+        let right = &want.data[..K_DATE_VALUE_BYTES];
+        let left: Vec<_> = (0..K_DATE_VALUE_BYTES)
+            .map(|i| self.bv.select(&in_range(i), &got[i], &right[i]))
+            .collect();
+        let (lt, eq) = Memcmp::new(self.logic).lt_eq(&left, right);
+        // Eq wants eq; Le accepts eq or lt; Ge accepts eq or gt.
+        let ordered_match = self.boolean.andb(&ordered, &self.boolean.xorb(&lt, ge));
+        let relation = self.boolean.orb(&eq, &ordered_match);
+
+        self.logic.assert_all(
+            "assert_date_value",
+            &[
+                self.assert_bytes_at(key.len(), key, &K_ELEMENT_VALUE_PREFIX),
+                overflow,
+                self.assert_len_eq(&slice.len, &expected_slice_len),
+                valid_op,
+                self.boolean.assert_true("date_format", &date_format),
+                self.boolean.assert_true("relation", &relation),
+            ],
+        )
+    }
+
     /// Verifies the structural integrity and prefix key matching for a private
     /// layout slot. Specifically:
     /// - Multiplexes the start index (shift) and length of the physical slot mapping.
@@ -358,13 +502,9 @@ where L::F: FieldWrappingSum
     ) -> L::Assertions {
         let zz = self.bv.zero::<8>();
         let slice = self.slot_offset_and_len(slot, field_locator);
-        let got = self.routing.shift_bitvec(
-            3,
-            &slice.offset,
-            K_MAX_ATTR_CBOR_LEN,
-            attribute_preimage,
-            &zz,
-        );
+        let got =
+            self.routing
+                .shift_bitvec(3, &slice.offset, key_id.len() + 2, attribute_preimage, &zz);
         self.logic.assert_all(
             "assert_item_slot_key_only",
             &[

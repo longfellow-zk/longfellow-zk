@@ -46,6 +46,12 @@ pub trait Logic {
     /// Groups assertions under scope `name`. Requires a non-empty name string.
     fn assert_all(&self, name: &str, assertions: &[Self::Assertions]) -> Self::Assertions;
 
+    /// Require the assertions, including any attached to their wires, when
+    /// `enable` is nonzero. The enable wire's own assertions always apply.
+    /// The assertion group is built eagerly, with the usual constant
+    /// folding during its construction.
+    fn assert_when(&self, enable: &Self::Wire, assertions: Self::Assertions) -> Self::Assertions;
+
     /// Evaluates `body(i)` for each index `i` in `range` (`mapi` functional generator),
     /// automatically naming each generated assertion tag `"{name}.{i}"` and grouping under
     /// `"{name}"`.

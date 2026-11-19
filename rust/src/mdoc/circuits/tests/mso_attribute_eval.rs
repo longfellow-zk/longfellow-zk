@@ -130,6 +130,8 @@ where
         disclosed_name_len: 12,
         disclosed_value: vec![0xf5],
         disclosed_value_len: 1,
+        enabled: true,
+        comparison: None,
         preimage_len: 100,
     };
 
@@ -139,12 +141,18 @@ where
     let l = EvalLogic::new_with_tracker(f, tracker);
     let bv = BitvecLogic::new(&l);
 
-    use crate::mdoc::proto::mso_attribute::constants::K_ATTR_PREIMAGE_LEN;
-    let (nblocks, length_bytes, padded_preimage) = pad_sha256_message(&mock.raw_buf, 2).unwrap();
-    let attribute_preimage = padded_preimage
-        .iter()
-        .map(|&b| bv.of_u8(b))
-        .collect::<Vec<_>>();
+    use crate::mdoc::proto::mso_attribute::constants::{
+        K_ATTR_PREIMAGE_LEN, K_ATTR_VALUE_BYTES, K_DATE_ATTR_SHA_BLOCKS, K_MAX_ATTR_SHA_BLOCKS,
+    };
+    let blocks = if mock.comparison.is_some() {
+        K_DATE_ATTR_SHA_BLOCKS
+    } else {
+        K_MAX_ATTR_SHA_BLOCKS
+    };
+    let (nblocks, length_bytes, padded_preimage) =
+        pad_sha256_message(&mock.raw_buf, blocks).unwrap();
+    let attribute_preimage: [V8<L>; K_ATTR_PREIMAGE_LEN] =
+        std::array::from_fn(|i| bv.of_u8(padded_preimage.get(i).copied().unwrap_or(0)));
     let zero_v8 = bv.of_u8(0);
 
     let mut oa_attr = std::array::from_fn(|_| zero_v8.clone());
@@ -153,7 +161,10 @@ where
     }
 
     let mut oa_v1 = std::array::from_fn(|_| zero_v8.clone());
-    for (slot, &b) in oa_v1.iter_mut().zip(mock.disclosed_value.iter().take(64)) {
+    for (slot, &b) in oa_v1
+        .iter_mut()
+        .zip(mock.disclosed_value.iter().take(K_ATTR_VALUE_BYTES))
+    {
         *slot = bv.of_u8(b);
     }
 
@@ -166,6 +177,8 @@ where
             data: oa_v1,
             len: bv.of_u64::<K_ATTR_INDEX_BITS>(mock.disclosed_value_len),
         },
+        enabled: Boolean::new(&l).konst(mock.enabled),
+        comparison: mock.comparison.map(|op| bv.of_u64(op)),
     };
 
     let field_locator = FieldLocator {
@@ -176,9 +189,8 @@ where
         permutation: std::array::from_fn(|i| bv.of_u64::<2>(mock.permutation[i])),
     };
 
-    let preimage_array: [V8<L>; K_ATTR_PREIMAGE_LEN] = attribute_preimage.try_into().unwrap();
     let preimage_bytes = AttrSlice {
-        data: preimage_array,
+        data: attribute_preimage,
         len: bv.of_u64::<K_ATTR_INDEX_BITS>(mock.preimage_len),
     };
 
@@ -201,7 +213,7 @@ where
         length_bytes,
         expected_hash: [0; 8],
     };
-    let concrete_derived = derived(&concrete_given, 2);
+    let concrete_derived = derived(&concrete_given, blocks);
     let sha_derived = concrete_derived.map(|&w| bv.of_u32(w));
 
     let verifier = AttributeVerifier::new(&l);
@@ -221,6 +233,75 @@ fn test_attribute_success() {
     let f = Gf2_128Field::new();
     let tracker = AssertionScope::new();
     run_attribute_test_mock(&f, &tracker, |_| {}).unwrap();
+}
+
+#[test]
+fn test_attribute_comparison() {
+    let f = Gf2_128Field::new();
+    let check = |actual: &[u8], operand: &[u8], comparison, accepts| {
+        let tracker = AssertionScope::new();
+        let result = run_attribute_test_mock(&f, &tracker, |g| {
+            // Replace the final value and use a shorter nonce so long values
+            // still fit in the same two SHA-256 blocks.
+            g.raw_buf.truncate(99);
+            g.raw_buf.extend_from_slice(actual);
+            g.raw_buf.drain(40..56);
+            g.raw_buf[23] = 16;
+            g.raw_buf[3] = (g.raw_buf.len() - 4) as u8;
+            g.slot_position[2] -= 16;
+            g.slot_position[3] -= 16;
+            g.length[1] -= 16;
+            g.length[3] = 13 + actual.len() as u64;
+            g.preimage_len = g.raw_buf.len() as u64;
+            g.disclosed_value = operand.to_vec();
+            g.disclosed_value_len = operand.len() as u64;
+            g.comparison = Some(comparison);
+        });
+        assert_eq!(
+            result.is_ok(),
+            accepts,
+            "{actual:?} op {comparison} {operand:?}"
+        );
+    };
+    for (early, late) in [
+        (
+            &b"\xd9\x03\xec\x6a2000-01-01"[..],
+            &b"\xd9\x03\xec\x6a2000-01-02"[..],
+        ),
+        (
+            &b"\xc0\x742000-01-01T00:00:00Z"[..],
+            &b"\xc0\x742000-01-01T00:00:01Z"[..],
+        ),
+    ] {
+        for op in 0..=3 {
+            check(early, early, op, op != 3);
+            check(early, late, op, op == 1);
+            check(late, early, op, op == 2);
+        }
+        check(early, &vec![0; early.len()], 1, false);
+        check(&vec![0; early.len()], early, 1, false);
+    }
+    let value = b"\x78\x18abcdefghijklmnopqrstuvwx";
+    check(value, value, 0, false);
+    check(value, value, 1, false);
+}
+
+#[test]
+fn test_disabled_date_slot_requires_zero_public_inputs() {
+    let field = Gf2_128Field::new();
+    for (op, accepted) in [(0, true), (1, false), (2, false), (3, false)] {
+        let tracker = AssertionScope::new();
+        let result = run_attribute_test_mock(&field, &tracker, |mock| {
+            mock.enabled = false;
+            mock.disclosed_name.clear();
+            mock.disclosed_name_len = 0;
+            mock.disclosed_value.clear();
+            mock.disclosed_value_len = 0;
+            mock.permutation.fill(0);
+            mock.comparison = Some(op);
+        });
+        assert_eq!(result.is_ok(), accepted, "disabled date slot, op={op}");
+    }
 }
 
 #[test]

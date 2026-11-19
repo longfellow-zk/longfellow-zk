@@ -18,7 +18,7 @@ use crate::{
     core::proto::{archive::CircuitArchive, v2::CircuitReader},
     mdoc::{
         compile,
-        proto::{K_ZSTD_LEVEL, NEXT_MAX_ATTRIBUTES, NEXT_VERSION},
+        proto::{K_ZSTD_LEVEL, NEXT_ATTRIBUTES, NEXT_VERSION},
         v2::{
             domains::with_domains,
             provider::{self, ProvidedCircuit},
@@ -30,29 +30,18 @@ use crate::{
 
 /// Compile the development circuit and return its matching specification.
 /// The saved specification retains the shared proof parameter profile.
-pub fn compile_next(num_attributes: usize) -> Result<ProvidedCircuit, String> {
-    compile_next_impl(num_attributes, true)
+pub fn compile_next() -> Result<ProvidedCircuit, String> {
+    bundle(compile::compile_circuits()?)
 }
 
-/// Compile the original v2 predicate without structural CBOR parsing.
-/// This is the trusted bundle constructor for the single-commitment experiment.
-pub fn compile_parser_free_next(num_attributes: usize) -> Result<ProvidedCircuit, String> {
-    compile_next_impl(num_attributes, false)
+/// Compile the fixed NEXT slots with the experimental structural CBOR circuit.
+pub fn compile_structural_next() -> Result<ProvidedCircuit, String> {
+    bundle(compile::compile_structural_circuits()?)
 }
 
-fn compile_next_impl(num_attributes: usize, structural: bool) -> Result<ProvidedCircuit, String> {
-    if !(1..=NEXT_MAX_ATTRIBUTES).contains(&num_attributes) {
-        return Err(format!(
-            "NEXT supports one to {NEXT_MAX_ATTRIBUTES} attributes"
-        ));
-    }
-    let bytes = if structural {
-        compile::compile_circuits(num_attributes)?
-    } else {
-        compile::compile_parser_free_circuits(num_attributes)?
-    };
+fn bundle(bytes: Vec<u8>) -> Result<ProvidedCircuit, String> {
     let archive = crate::core::proto::v2::archive::from_bytes(&bytes)?;
-    let spec = specification(&archive, num_attributes)?;
+    let spec = specification(&archive)?;
     let compressed =
         zstd::encode_all(bytes.as_slice(), K_ZSTD_LEVEL).map_err(|error| error.to_string())?;
     provider::from_compressed(spec, compressed)
@@ -61,7 +50,7 @@ fn compile_next_impl(num_attributes: usize, structural: bool) -> Result<Provided
 
 /// The compiler supplies IDs and circuit structure; offline selection supplies
 /// K, N, S and T. The runtime derives all remaining geometry from those choices.
-fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSpecStruct, String> {
+fn specification(archive: &CircuitArchive) -> Result<ZkSpecStruct, String> {
     if archive.circuit_version as usize != NEXT_VERSION {
         return Err("Compiler returned a circuit other than NEXT".into());
     }
@@ -77,8 +66,8 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
             .ok_or("Missing signature circuit")?
             .payload,
     )?;
-    // One profile serves both fields and all supported attribute counts, at an
-    // ordinary code rate of 1/7. The checked Hahn bounds keep the shared
+    // One profile serves both fields at an ordinary code rate of 1/7.
+    // The checked Hahn bounds keep the shared
     // opening and parent charges within the same query budget as the frontend.
     // Validate it against each interpolation domain.
     let config = MDOC_JOINT_PROFILE;
@@ -90,7 +79,7 @@ fn specification(archive: &CircuitArchive, num_attributes: usize) -> Result<ZkSp
     }
     Ok(ZkSpecStruct {
         combined_hash: archive.combined_id,
-        num_attributes,
+        num_attributes: NEXT_ATTRIBUTES,
         version: NEXT_VERSION,
         polygero: config,
     })

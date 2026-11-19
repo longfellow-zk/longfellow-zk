@@ -25,7 +25,10 @@ use crate::{
             mdoc::{FieldLocator as MsoFieldLocator, ParsedMdoc},
             structure_prover::ConcreteWitness as StructuralWitness,
         },
-        proto::hash::constants::{K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN},
+        proto::{
+            hash::constants::{K_MAX_SHA_BLOCKS, K_MSO_OFFSET, K_MSO_PREIMAGE_LEN},
+            mso_attribute::constants::attr_sha_blocks,
+        },
     },
 };
 
@@ -106,9 +109,10 @@ pub fn given<const W: usize, N: Nat<W>>(hash_input: HashInput<N>) -> ConcreteGiv
     };
 
     let mut attribute_given = Vec::with_capacity(hash_input.attrs.len());
-    for a in &hash_input.attrs {
+    for (slot, a) in hash_input.attrs.iter().enumerate() {
         let attr_sha_wit =
-            crate::circuits::sha256msg::given(&a.cbor_issuer_signed_item, 2).unwrap();
+            crate::circuits::sha256msg::given(&a.cbor_issuer_signed_item, attr_sha_blocks(slot))
+                .unwrap();
         attribute_given.push(ConcreteAttrGiven {
             padded_preimage: attr_sha_wit.padded_preimage,
             unpadded_preimage_len: a.cbor_issuer_signed_item.len(),
@@ -169,8 +173,9 @@ pub fn derived<const W: usize, N: Nat<W>>(given: &ConcreteGiven<N>) -> Derived<u
         attribute_derived: given
             .attribute_given
             .iter()
-            .map(|a| AttrDerived {
-                sha_derived: message(&a.padded_preimage, 2),
+            .enumerate()
+            .map(|(slot, a)| AttrDerived {
+                sha_derived: message(&a.padded_preimage, attr_sha_blocks(slot)),
             })
             .collect(),
         sha_derived: message(&given.preimage.value, K_MAX_SHA_BLOCKS),

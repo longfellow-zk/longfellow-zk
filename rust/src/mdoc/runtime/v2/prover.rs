@@ -22,7 +22,7 @@ use crate::{
         v2::{
             circuits::Instance,
             domains::with_domains,
-            inputs::{push_witness_hash, push_witness_sig, PublicInputs},
+            inputs::{push_witness_hash_for_width, push_witness_sig, PublicInputs},
             request::{Request, RequestError},
             MdocProverErrorCode, RequestedAttribute, ZkSpecStruct,
         },
@@ -142,7 +142,13 @@ pub(in crate::mdoc::runtime) fn run_mdoc_prover_encoded<RNG: PrivateRandom>(
     // Both witness encoders run before the composition and before any
     // randomness: a false statement (a value, a digest or a signature the circuits would
     // reject) fails here (DESIGN.md I10).
-    let witness_hash = push_witness_hash(&request, &parsed)?;
+    let hash_private_bits = instance
+        .hash()
+        .raw
+        .ninput
+        .checked_sub(instance.hash().raw.npublic_input)
+        .ok_or(MdocProverErrorCode::CircuitParsingFailure)?;
+    let witness_hash = push_witness_hash_for_width(&request, &parsed, hash_private_bits)?;
     let witness_sig = push_witness_sig(&p256, &q256, &secp256r1, &request, &parsed)?;
 
     let gen_err = |_| MdocProverErrorCode::GeneralFailure;

@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::{
     circuits::{
         ecdsa2::{try_witness, Derived, Given},
-        sha256msg::given_and_derived,
+        sha256msg::{given_and_derived, Derived as ShaDerived},
     },
     core::algebra::{
         ec::{Curve, Pt2},
@@ -27,7 +27,7 @@ use crate::{
     },
     mdoc::{
         cbor::{
-            mdoc::{ParsedAttr, ParsedMdoc},
+            mdoc::{FieldLocator, ParsedAttr, ParsedMdoc},
             structure_prover::ConcreteWitness as StructuralWitness,
         },
         proto::{
@@ -37,11 +37,12 @@ use crate::{
             },
             layout,
             mso_attribute::constants::{
-                K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN, K_MAX_ATTR_CBOR_LEN, K_MAX_ATTR_SHA_BLOCKS,
+                attr_sha_blocks, has_ordered_date_encoding, K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN,
+                K_DATE_SLOT, K_SHA256_BLOCK_SIZE, K_SHA256_PADDING_LEN,
             },
         },
         v2::{
-            attribute::RequestedAttribute,
+            attribute::{AttributeOp, RequestedAttribute},
             error::MdocProverErrorCode,
             inputs::builder::{AssignmentBuilder, BinaryAssignmentBuilder},
             request::Request,
@@ -59,20 +60,24 @@ pub(in crate::mdoc::runtime::v2) fn push_witness_hash<N: Nat<4>>(
     request: &Request<'_>,
     parsed: &ParsedMdoc<N>,
 ) -> Result<Vec<bool>, MdocProverErrorCode> {
-    push_witness_hash_impl(request, parsed, true)
+    push_witness_hash_impl(request, parsed, None)
 }
 
-pub(in crate::mdoc::runtime::v2) fn push_witness_hash_without_structure<N: Nat<4>>(
+/// Match the witness to the private width of a validated hash circuit. The
+/// ordinary upstream circuit uses the base witness; the structural experiment
+/// adds its slot-aware suffix. No other final width is accepted.
+pub(in crate::mdoc::runtime::v2) fn push_witness_hash_for_width<N: Nat<4>>(
     request: &Request<'_>,
     parsed: &ParsedMdoc<N>,
+    private_bits: usize,
 ) -> Result<Vec<bool>, MdocProverErrorCode> {
-    push_witness_hash_impl(request, parsed, false)
+    push_witness_hash_impl(request, parsed, Some(private_bits))
 }
 
 fn push_witness_hash_impl<N: Nat<4>>(
     request: &Request<'_>,
     parsed: &ParsedMdoc<N>,
-    structural: bool,
+    expected_width: Option<usize>,
 ) -> Result<Vec<bool>, MdocProverErrorCode> {
     if parsed.cbor_mso.len().saturating_sub(K_MSO_OFFSET) > K_MSO_MAX_BYTES {
         return Err(MdocProverErrorCode::TaggedMsoTooBig);
@@ -180,26 +185,39 @@ fn push_witness_hash_impl<N: Nat<4>>(
     // 6. sha_witnesses (MSO preimage hashing)
     builder.push_sha256msg_derived(&mso_sha_derived);
 
-    if !structural {
+    let Some(private_bits) = expected_width else {
         return Ok(builder.buffer);
+    };
+    if private_bits == builder.buffer.len() {
+        return Ok(builder.buffer);
+    }
+    if private_bits < builder.buffer.len() {
+        return Err(MdocProverErrorCode::WitnessCreationFailure);
     }
     let selected = request
         .attributes()
         .iter()
         .map(|request| {
+            if !request.enabled {
+                return Ok(None);
+            }
             let attr = attributes
                 .iter()
                 .find(|a| a.name == request.id)
                 .ok_or(MdocProverErrorCode::AttributeNotFound)?;
-            Ok((
+            Ok(Some((
                 attr.mso_digest_offset_in_preimage,
                 attr.cbor_issuer_signed_item.as_slice(),
-            ))
+            )))
         })
         .collect::<Result<Vec<_>, MdocProverErrorCode>>()?;
-    let structure = StructuralWitness::derive(&parsed.cbor_mso, namespace.key_offset, &selected)
-        .map_err(|_| MdocProverErrorCode::MsoDecodingFailure)?;
+    let structure =
+        StructuralWitness::derive_slots(&parsed.cbor_mso, namespace.key_offset, &selected)
+            .map_err(|_| MdocProverErrorCode::MsoDecodingFailure)?;
     structure.push(|value, bits| builder.push_bits_len(value, bits));
+    if builder.buffer.len() != private_bits {
+        return Err(MdocProverErrorCode::WitnessCreationFailure);
+    }
     Ok(builder.buffer)
 }
 
@@ -209,20 +227,47 @@ fn push_witness_attrs(
     signed: &[u8],
     builder: &mut BinaryAssignmentBuilder,
 ) -> Result<(), MdocProverErrorCode> {
-    for la in req_attrs {
+    for (slot, la) in req_attrs.iter().enumerate() {
+        let sha_blocks = attr_sha_blocks(slot);
+        let padded_len = sha_blocks * K_SHA256_BLOCK_SIZE;
+        if !la.enabled {
+            push_attribute_witness(
+                builder,
+                &[0; K_ATTR_PREIMAGE_LEN][..padded_len],
+                0,
+                0,
+                &FieldLocator {
+                    slot_position: [0; 4],
+                    length: [0; 4],
+                    permutation: 0,
+                },
+                &ShaDerived::from_fn(sha_blocks, || 0),
+            );
+            continue;
+        }
         let pa = attributes
             .iter()
             .find(|attribute| attribute.name == la.id)
             .ok_or(MdocProverErrorCode::AttributeNotFound)?;
-        if pa.cbor_value != la.cbor_value {
+        let actual = &pa.cbor_value;
+        let operand = &la.cbor_value;
+        let relation = match la.op {
+            AttributeOp::Eq => actual == operand,
+            AttributeOp::Le => actual <= operand,
+            AttributeOp::Ge => actual >= operand,
+        };
+        if !relation
+            || (slot == K_DATE_SLOT
+                && (actual.len() != operand.len() || !has_ordered_date_encoding(actual)))
+        {
             return Err(MdocProverErrorCode::GeneralFailure);
         }
-        if pa.cbor_issuer_signed_item.len() > K_MAX_ATTR_CBOR_LEN {
+        let item = &pa.cbor_issuer_signed_item;
+        if item.len() > padded_len - K_SHA256_PADDING_LEN {
             return Err(MdocProverErrorCode::AttributeTooLong);
         }
-        let (attr_sha_in, attr_sha_derived) =
-            given_and_derived(&pa.cbor_issuer_signed_item, K_MAX_ATTR_SHA_BLOCKS)
-                .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
+        let (attr_sha_in, attr_sha_derived) = given_and_derived(item, sha_blocks)
+            .map_err(|_| MdocProverErrorCode::AttributeTooLong)?;
         // The signed MSO holds `bstr(SHA-256(item))` at the digest offset, as
         // the hash circuit checks; an item the issuer did not sign fails here.
         let digest = signed
@@ -231,34 +276,44 @@ fn push_witness_attrs(
                 tail.strip_prefix(&K_TAG32)
                     .and_then(|digest| digest.get(..32))
             });
-        if digest != Some(Sha256::digest(&pa.cbor_issuer_signed_item).as_slice()) {
+        if digest != Some(Sha256::digest(item).as_slice()) {
             return Err(MdocProverErrorCode::GeneralFailure);
         }
-        let preimage_arr: [u8; K_ATTR_PREIMAGE_LEN] =
-            attr_sha_in.padded_preimage.as_slice().try_into().unwrap();
-
-        for &b in &preimage_arr {
-            builder.push_v8(b);
-        }
-        builder.push_bits_len(pa.cbor_issuer_signed_item.len() as u64, K_ATTR_INDEX_BITS);
-        let preimage_base_offset = K_MSO_OFFSET;
-        let mso_digest_offset_in_preimage = preimage_base_offset + pa.mso_digest_offset_in_preimage;
-        builder.push_bits_len(mso_digest_offset_in_preimage as u64, K_HASH_INDEX_BITS);
-        for &s in &pa.field_locator.slot_position {
-            builder.push_bits_len(s as u64, K_ATTR_INDEX_BITS);
-        }
-        for &l in &pa.field_locator.length {
-            builder.push_bits_len(l as u64, K_ATTR_INDEX_BITS);
-        }
-        let mut perm_val = pa.field_locator.permutation;
-        for _ in 0..4 {
-            let chunk = (perm_val & 3) as u64;
-            builder.push_bits_len(chunk, 2);
-            perm_val >>= 2;
-        }
-        builder.push_sha256msg_derived(&attr_sha_derived);
+        push_attribute_witness(
+            builder,
+            &attr_sha_in.padded_preimage,
+            item.len(),
+            K_MSO_OFFSET + pa.mso_digest_offset_in_preimage,
+            &pa.field_locator,
+            &attr_sha_derived,
+        );
     }
     Ok(())
+}
+
+fn push_attribute_witness(
+    builder: &mut BinaryAssignmentBuilder,
+    preimage: &[u8],
+    preimage_len: usize,
+    digest_offset: usize,
+    locator: &FieldLocator,
+    sha_derived: &ShaDerived<u32>,
+) {
+    for &byte in preimage {
+        builder.push_v8(byte);
+    }
+    builder.push_bits_len(preimage_len as u64, K_ATTR_INDEX_BITS);
+    builder.push_bits_len(digest_offset as u64, K_HASH_INDEX_BITS);
+    for &position in &locator.slot_position {
+        builder.push_bits_len(position as u64, K_ATTR_INDEX_BITS);
+    }
+    for &length in &locator.length {
+        builder.push_bits_len(length as u64, K_ATTR_INDEX_BITS);
+    }
+    for i in 0..4 {
+        builder.push_bits_len(((locator.permutation >> (2 * i)) & 3) as u64, 2);
+    }
+    builder.push_sha256msg_derived(sha_derived);
 }
 
 pub(in crate::mdoc::runtime::v2) fn push_witness_sig(

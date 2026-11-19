@@ -67,6 +67,25 @@ fn test_eval_assert0_panic() {
     run_test_eval_assert0_panic(&field);
 }
 
+#[test]
+fn test_eval_guarded_assertions() {
+    let field = Gf2_128Field::new();
+    let tracker = AssertionScope::new();
+    let logic = EvalLogic::new(&field, &tracker);
+    let zero = logic.zero();
+    let one = logic.one();
+
+    let value = logic.with_assertions(logic.assert0("dependency", &one), &one);
+    let assertions = logic.assert0("value", &value);
+    logic.assert_when(&zero, assertions.clone()).unwrap();
+    let enabled = logic.assert_when(&one, assertions.clone());
+    assert_eq!(enabled.failed_paths(), ["dependency", "value"]);
+
+    let guard = logic.with_assertions(logic.assert0("guard_dependency", &one), &zero);
+    let disabled = logic.assert_when(&guard, assertions);
+    assert_eq!(disabled.failed_paths(), ["guard_dependency"]);
+}
+
 fn run_test_eval_with_assertions_propagation<F: CompileField>(field: &F) {
     type L<'a, F> = EvalLogic<'a, F>;
     let tracker = AssertionScope::new();

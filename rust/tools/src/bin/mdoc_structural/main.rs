@@ -11,13 +11,14 @@ use std::{
 use longfellow_zk::{
     mdoc::{
         development_provider,
-        v2::{self, RequestedAttribute},
+        proto::NEXT_ATTRIBUTES,
+        v2::{self, AttributeOp, RequestedAttribute},
     },
     runtime::random::SecureRandomEngine,
 };
 use serde_json::{json, Value};
 
-const USAGE: &str = "mdoc_structural compile <attribute-count> <bundle>\nmdoc_structural prove <bundle> <request.json> <proof>\nmdoc_structural verify <bundle> <request.json> <proof>";
+const USAGE: &str = "mdoc_structural compile 4 <bundle>\nmdoc_structural prove <bundle> <request.json> <proof>\nmdoc_structural verify <bundle> <request.json> <proof>";
 
 fn read(path: &Path, limit: u64) -> Result<Vec<u8>, String> {
     let mut data = Vec::new();
@@ -71,22 +72,7 @@ impl Request {
             serde_json::from_slice(&read(path, 1 << 20)?).map_err(|e| e.to_string())?;
         let directory = path.parent().unwrap_or(Path::new(".")).to_path_buf();
         let transcript = read(&directory.join(text(&json, "transcript")?), 1 << 20)?;
-        let attrs = json
-            .get("attributes")
-            .and_then(Value::as_array)
-            .ok_or("missing attributes array")?
-            .iter()
-            .map(|attr| {
-                Ok(v2::req_attr(
-                    text(attr, "namespace")?,
-                    text(attr, "id")?,
-                    decode_hex(text(attr, "value_cbor")?)?,
-                ))
-            })
-            .collect::<Result<Vec<_>, String>>()?;
-        if !(1..=4).contains(&attrs.len()) {
-            return Err("request must contain 1..=4 attributes".into());
-        }
+        let attrs = requested_attributes(&json)?;
         Ok(Self {
             issuer_x: text(&json, "issuer_x")?.into(),
             issuer_y: text(&json, "issuer_y")?.into(),
@@ -102,6 +88,58 @@ impl Request {
     }
 }
 
+/// Request entries name fixed slots; omitted trailing slots are disabled.
+fn requested_attributes(json: &Value) -> Result<Vec<RequestedAttribute>, String> {
+    let entries = json
+        .get("attributes")
+        .and_then(Value::as_array)
+        .ok_or("missing attributes array")?;
+    if !(1..=NEXT_ATTRIBUTES).contains(&entries.len()) {
+        return Err(format!(
+            "request must contain 1..={NEXT_ATTRIBUTES} attribute slots"
+        ));
+    }
+    let mut attrs = entries
+        .iter()
+        .map(|entry| {
+            let namespace = text(entry, "namespace")?;
+            let enabled = entry
+                .get("enabled")
+                .map(|value| value.as_bool().ok_or("enabled must be a boolean"))
+                .transpose()?
+                .unwrap_or(true);
+            let mut requested = if enabled {
+                let mut attr = v2::req_attr(
+                    namespace,
+                    text(entry, "id")?,
+                    decode_hex(text(entry, "value_cbor")?)?,
+                );
+                attr.op = match entry.get("op").map(Value::as_str) {
+                    None | Some(Some("eq")) => AttributeOp::Eq,
+                    Some(Some("le")) => AttributeOp::Le,
+                    Some(Some("ge")) => AttributeOp::Ge,
+                    _ => return Err("op must be eq, le or ge".into()),
+                };
+                attr
+            } else {
+                v2::req_attr(namespace, [], [])
+            };
+            requested.enabled = enabled;
+            Ok(requested)
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    if !attrs.iter().any(|attr| attr.enabled) {
+        return Err("request must enable at least one attribute slot".into());
+    }
+    let namespace = attrs[0].namespace_id.clone();
+    while attrs.len() < NEXT_ATTRIBUTES {
+        let mut disabled = v2::req_attr(&namespace, [], []);
+        disabled.enabled = false;
+        attrs.push(disabled);
+    }
+    Ok(attrs)
+}
+
 fn run() -> Result<(), String> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     if args.len() == 1 && matches!(args[0].as_str(), "--help" | "-h") {
@@ -111,8 +149,11 @@ fn run() -> Result<(), String> {
     let started = Instant::now();
     match args.first().map(String::as_str) {
         Some("compile") if args.len() == 3 => {
-            let count = args[1].parse().map_err(|_| "invalid attribute count")?;
-            let provided = development_provider::compile_next(count)?;
+            let count: usize = args[1].parse().map_err(|_| "invalid attribute count")?;
+            if count != NEXT_ATTRIBUTES {
+                return Err(format!("NEXT has {NEXT_ATTRIBUTES} fixed slots; select disclosures with request enable flags"));
+            }
+            let provided = development_provider::compile_structural_next()?;
             development_provider::write_next(
                 File::create(&args[2]).map_err(|e| e.to_string())?,
                 &provided,

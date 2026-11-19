@@ -18,7 +18,8 @@ use super::{Request, RequestError};
 use crate::{
     mdoc::{
         cbor::encode_cbor_string,
-        runtime::tests::specs::v2_spec,
+        proto::mso_attribute::constants::K_ATTR_VALUE_BYTES,
+        runtime::tests::specs::{four_slots, v2_spec},
         testcases::TEST_DATA,
         v2::{
             req_attr, run_mdoc_prover_inner, run_mdoc_verifier, MdocProverErrorCode,
@@ -35,7 +36,7 @@ const SESSION: &[u8] = b"\x66inputs";
 #[test]
 fn session_transcript_must_be_one_cbor_item() {
     let spec = &v2_spec();
-    let attrs = [req_attr("namespace", "a", [0xf5])];
+    let attrs = four_slots([req_attr("namespace", "a", [0xf5])]);
     let now = "2026-10-23T00:00:00Z";
     let valid = TEST_DATA.transcript;
     let mut two_items = valid.to_vec();
@@ -178,18 +179,16 @@ fn request_errors_follow_the_error_table() {
     use MdocVerifierErrorCode as V;
     use RequestError as E;
 
-    use crate::mdoc::proto::{hash::constants::K_NAMESPACE_BYTES, NEXT_MAX_ATTRIBUTES};
-    let mut two = v2_spec();
-    two.num_attributes = 2;
+    use crate::mdoc::proto::hash::constants::K_NAMESPACE_BYTES;
     let valid = Fields {
-        spec: two,
+        spec: v2_spec(),
         pkx: "0x1".into(),
         pky: "2".into(),
         transcript: SESSION.to_vec(),
-        attrs: vec![
+        attrs: four_slots([
             req_attr("namespace", "a", [0xf5]),
             req_attr("namespace", "b", [0x01]),
-        ],
+        ]),
         now: "2026-10-23T00:00:00Z".into(),
         doc_type: "doc".into(),
     };
@@ -229,7 +228,7 @@ fn request_errors_follow_the_error_table() {
         (8, 10)
     );
     // Attribute count differs from the spec.
-    for count in [0, 1, 3] {
+    for count in [0, 1, 2, 3, 5] {
         assert_eq!(
             with(&|r| r.attrs = vec![valid.attrs[0].clone(); count]),
             (
@@ -266,7 +265,7 @@ fn request_errors_follow_the_error_table() {
         }),
         ("long identifier", &|r| r.attrs[0].id = vec![b'a'; 31]),
         ("long value", &|r| {
-            r.attrs[1].cbor_value = encode_cbor_string(&[b'a'; 63]);
+            r.attrs[1].cbor_value = encode_cbor_string(&[b'a'; K_ATTR_VALUE_BYTES - 1]);
         }),
         ("empty document type", &|r| r.doc_type.clear()),
         ("long document type", &|r| r.doc_type = "x".repeat(33)),
@@ -297,29 +296,18 @@ fn request_errors_follow_the_error_table() {
         );
     }
     assert_eq!((P::InvalidInput as u32, V::InvalidInput as u32), (2, 7));
-    // A spec attribute count outside 1..=NEXT_MAX_ATTRIBUTES is a
-    // request-shape failure even with as many attributes; the largest
-    // supported count reaches circuit loading.
-    let attributes = |count: usize| {
-        (0..count)
-            .map(|i| req_attr("namespace", [b'a' + i as u8], [0xf5]))
-            .collect()
-    };
-    for (count, want) in [
-        (
-            NEXT_MAX_ATTRIBUTES,
-            (None, P::CircuitParsingFailure, V::CircuitParsingFailure),
-        ),
-        (
-            NEXT_MAX_ATTRIBUTES + 1,
-            (Some(E::Shape), P::InvalidInput, V::InvalidInput),
-        ),
-    ] {
+    // Only the four-slot layout is a valid spec, even if the request names as
+    // many slots as the incorrect spec declares.
+    for count in [0, 1, 2, 3, 5] {
         let changed = with(&|r| {
             r.spec.num_attributes = count;
-            r.attrs = attributes(count);
+            r.attrs = vec![valid.attrs[0].clone(); count];
         });
-        assert_eq!(changed, want, "spec with {count} attributes");
+        assert_eq!(
+            changed,
+            (Some(E::Shape), P::InvalidInput, V::InvalidInput),
+            "spec with {count} attributes"
+        );
     }
     // Unsupported attribute value.
     for value in [&[0x82, 0x01, 0x02][..], &[0x65, 0x61][..], &[0xf6][..]] {
@@ -359,7 +347,7 @@ fn namespace_capacity_and_encoding_are_checked_before_proving() {
     use crate::mdoc::proto::hash::constants::K_NAMESPACE_BYTES;
     let spec = &v2_spec();
     for namespace in [vec![], vec![b'n'; K_NAMESPACE_BYTES + 1], vec![0xff]] {
-        let attrs = [req_attr(namespace, "a", [0xf5])];
+        let attrs = four_slots([req_attr(namespace, "a", [0xf5])]);
         let mut rng = DeterministicRng::new(42);
         assert_eq!(
             run_mdoc_prover_inner(
@@ -409,7 +397,7 @@ fn rejects_invalid_public_inputs_before_loading_or_sampling() {
     let mut non_utf8_id = valid.clone();
     non_utf8_id.id = vec![b'a', 0xff]; // CBOR text must be UTF-8.
     let mut long_value = valid.clone();
-    long_value.cbor_value = encode_cbor_string(&[b'a'; 63]);
+    long_value.cbor_value = encode_cbor_string(&[b'a'; K_ATTR_VALUE_BYTES - 1]);
     let mut nested_value = valid.clone();
     nested_value.cbor_value = vec![0xc0; 100_000];
     nested_value.cbor_value.push(0x00);
@@ -418,13 +406,13 @@ fn rejects_invalid_public_inputs_before_loading_or_sampling() {
     for (attrs, time, doc_type) in [
         (vec![], now, "doc"),
         (vec![valid.clone(), valid.clone()], now, "doc"),
-        (vec![long_id], now, "doc"),
-        (vec![non_utf8_id], now, "doc"),
-        (vec![long_value], now, "doc"),
-        (vec![nested_value], now, "doc"),
-        (vec![valid.clone()], &now[..19], "doc"),
-        (vec![valid.clone()], long_now.as_str(), "doc"),
-        (vec![valid.clone()], now, long_doc.as_str()),
+        (four_slots([long_id]), now, "doc"),
+        (four_slots([non_utf8_id]), now, "doc"),
+        (four_slots([long_value]), now, "doc"),
+        (four_slots([nested_value]), now, "doc"),
+        (four_slots([valid.clone()]), &now[..19], "doc"),
+        (four_slots([valid.clone()]), long_now.as_str(), "doc"),
+        (four_slots([valid.clone()]), now, long_doc.as_str()),
     ] {
         let mut rng = DeterministicRng::new(42);
         // Deliberately invalid circuit and document bytes: validation must run first.
@@ -457,7 +445,11 @@ fn rejects_invalid_public_inputs_before_loading_or_sampling() {
             Err(expected)
         );
     }
-    let boundary = req_attr("namespace", [b'a'; 30], encode_cbor_string(&[b'a'; 62]));
+    let boundary = req_attr(
+        "namespace",
+        [b'a'; 30],
+        encode_cbor_string(&[b'a'; K_ATTR_VALUE_BYTES - 2]),
+    );
     assert!(super::public_inputs_fit(
         &[boundary],
         now.as_bytes(),
@@ -498,7 +490,7 @@ fn utc_public_input_syntax_is_checked_and_case_is_normalized() {
 fn session_transcript_size_is_capped_in_both_roles() {
     use super::MAX_SESSION_TRANSCRIPT_BYTES;
     let spec = &v2_spec();
-    let attrs = [req_attr("namespace", "a", [0xf5])];
+    let attrs = four_slots([req_attr("namespace", "a", [0xf5])]);
     let now = "2026-10-23T00:00:00Z";
     // One CBOR byte string of `total` bytes: the header 59 hh ll, then data.
     let bstr = |total: usize| {

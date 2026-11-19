@@ -16,7 +16,10 @@
 
 use std::path::Path;
 
-use crate::mdoc::v2::{MdocProverErrorCode, ZkSpecStruct, ZK_SPECS};
+use crate::mdoc::{
+    proto::NEXT_ATTRIBUTES,
+    v2::{MdocProverErrorCode, ZkSpecStruct, ZK_SPECS},
+};
 
 /// A trusted v2 specification and its matching compressed archive.
 /// Construction checks container metadata; decoding always verifies payload IDs.
@@ -86,7 +89,7 @@ pub(in crate::mdoc) fn from_compressed(
     spec: ZkSpecStruct,
     compressed: Vec<u8>,
 ) -> Result<ProvidedCircuit, MdocProverErrorCode> {
-    if !spec.supports_version() {
+    if !spec.supports_version() || spec.num_attributes != NEXT_ATTRIBUTES {
         return Err(MdocProverErrorCode::InvalidZkSpecVersion);
     }
     let archive = super::archive::read(&compressed)

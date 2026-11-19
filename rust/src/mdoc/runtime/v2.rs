@@ -36,7 +36,7 @@ mod transcript;
 mod zk_spec;
 #[cfg(test)]
 pub(in crate::mdoc::runtime) use attribute::{circuit_supports, same_namespace};
-pub use attribute::{req_attr, RequestedAttribute};
+pub use attribute::{req_attr, AttributeOp, RequestedAttribute};
 pub use circuits::decompress_circuits;
 #[cfg(any(test, feature = "prover", feature = "verifier"))]
 pub use circuits::proof_geometry;

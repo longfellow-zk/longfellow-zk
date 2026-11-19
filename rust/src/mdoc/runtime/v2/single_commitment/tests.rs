@@ -6,7 +6,8 @@ use super::{
 use crate::{
     mdoc::{
         cbor::test_utils::parse_test_data,
-        development_provider::compile_parser_free_next,
+        development_provider::tests::fixtures::next_circuit,
+        runtime::tests::specs::four_slots,
         testcases::TEST_DATA,
         v2::{self, decompress_circuits, req_attr},
     },
@@ -18,29 +19,16 @@ use crate::{
 
 #[test]
 fn canonical_single_commitment_roundtrip_and_statement_binding() {
-    let provided = compile_parser_free_next(2).unwrap();
-    let (_, hash) = decompress_circuits(
-        provided.compressed(),
-        &P256Field::new(),
-        &Gf2_128Field::new(),
-    )
-    .unwrap();
-    // The native-arity v2 compiler's parser-free two-attribute circuit ID.
-    assert_eq!(
-        hash.id,
-        [
-            90, 36, 130, 4, 76, 3, 91, 231, 70, 91, 19, 216, 117, 15, 63, 213, 188, 148, 229, 60,
-            158, 74, 213, 132, 42, 148, 220, 31, 52, 201, 143, 199
-        ]
-    );
+    let provided = next_circuit();
     let data = &TEST_DATA;
     let (_, parsed, now) = parse_test_data::<4, RuntimeNat<4>>(data);
-    let attrs = parsed
-        .attrs
-        .iter()
-        .take(2)
-        .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
-        .collect::<Vec<_>>();
+    let attrs = four_slots(
+        parsed
+            .attrs
+            .iter()
+            .take(2)
+            .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value)),
+    );
     let proof = run_mdoc_prover_inner_with_encoding(
         provided.spec(),
         provided.compressed(),
@@ -76,6 +64,9 @@ fn canonical_single_commitment_roundtrip_and_statement_binding() {
     let mut changed_attrs = attrs.clone();
     changed_attrs[0].id.push(b'x');
     assert!(verify(data.transcript, &changed_attrs, &proof).is_err());
+    let mut changed_slots = attrs.clone();
+    changed_slots[1].enabled = false;
+    assert!(verify(data.transcript, &changed_slots, &proof).is_err());
     let mut corrupted = proof.clone();
     *corrupted.last_mut().unwrap() ^= 1;
     assert!(verify(data.transcript, &attrs, &corrupted).is_err());
@@ -100,7 +91,7 @@ fn canonical_single_commitment_roundtrip_and_statement_binding() {
 fn affine_ers_roundtrip_preserves_circuits_and_binds_encoding() {
     use super::{proof_geometry, proof_geometry_with_encoding};
     assert_eq!(SignatureEncoding::default(), SignatureEncoding::AffineErs);
-    let provided = compile_parser_free_next(2).unwrap();
+    let provided = next_circuit();
     let p = P256Field::new();
     let f = Gf2_128Field::new();
     let (signature, hash) = decompress_circuits(provided.compressed(), &p, &f).unwrap();
@@ -129,11 +120,11 @@ fn affine_ers_roundtrip_preserves_circuits_and_binds_encoding() {
     // Pin both composed binary schedules.
     assert_eq!(
         canonical.binary().sumcheck().layers(),
-        &[2, 6, 7, 7, 9, 9, 9, 12, 13, 15, 16, 16, 16, 16, 17, 18, 19, 20, 21, 21]
+        &[6, 7, 8, 8, 9, 9, 11, 13, 14, 15, 16, 16, 16, 17, 18, 19, 20, 20, 21, 22]
     );
     assert_eq!(
         affine.binary().sumcheck().layers(),
-        &[6, 7, 7, 8, 9, 9, 12, 13, 15, 16, 16, 16, 16, 17, 18, 19, 20, 21, 21]
+        &[6, 7, 8, 8, 9, 9, 11, 13, 14, 15, 16, 16, 16, 17, 18, 19, 20, 20, 21, 21]
     );
     assert_eq!(canonical.signature(), affine.signature());
     assert_eq!(
@@ -144,8 +135,6 @@ fn affine_ers_roundtrip_preserves_circuits_and_binds_encoding() {
         affine.binary().sumcheck().layers().iter().sum::<usize>()
             < canonical.binary().sumcheck().layers().iter().sum::<usize>()
     );
-    assert_eq!(canonical.binary().sumcheck().layers().last(), Some(&21));
-    assert_eq!(affine.binary().sumcheck().layers().last(), Some(&21));
     let default = proof_geometry(provided.spec(), &signature, &hash).unwrap();
     assert_eq!(
         default.binary().sumcheck().layers(),
@@ -153,12 +142,13 @@ fn affine_ers_roundtrip_preserves_circuits_and_binds_encoding() {
     );
     let data = &TEST_DATA;
     let (_, parsed, now) = parse_test_data::<4, RuntimeNat<4>>(data);
-    let attrs = parsed
-        .attrs
-        .iter()
-        .take(2)
-        .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
-        .collect::<Vec<_>>();
+    let attrs = four_slots(
+        parsed
+            .attrs
+            .iter()
+            .take(2)
+            .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value)),
+    );
     let proof = run_mdoc_prover_inner(
         provided.spec(),
         provided.compressed(),
@@ -206,12 +196,4 @@ fn affine_ers_roundtrip_preserves_circuits_and_binds_encoding() {
     let mut trailing = proof.clone();
     trailing.push(0);
     assert!(verify(&trailing, SignatureEncoding::AffineErs).is_err());
-    // Current parser-free hash circuit; encoding does not alter it.
-    assert_eq!(
-        hash.id,
-        [
-            90, 36, 130, 4, 76, 3, 91, 231, 70, 91, 19, 216, 117, 15, 63, 213, 188, 148, 229, 60,
-            158, 74, 213, 132, 42, 148, 220, 31, 52, 201, 143, 199
-        ]
-    );
 }

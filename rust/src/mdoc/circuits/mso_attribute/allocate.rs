@@ -13,13 +13,16 @@
 // limitations under the License.
 
 use crate::{
-    circuits::bitvec::{BitvecIO, BitvecLogic},
+    circuits::{
+        bitvec::{BitvecIO, BitvecLogic},
+        boolean::BooleanIO,
+    },
     compile::logic::LogicIO,
     mdoc::{
         circuits::mso_attribute::circuit::{
             AttrSlice, Derived, DisclosedAttribute, FieldLocator, Given,
         },
-        proto::mso_attribute::constants::K_ATTR_INDEX_BITS,
+        proto::mso_attribute::constants::{K_ATTR_INDEX_BITS, K_MAX_ATTR_SHA_BLOCKS},
     },
 };
 
@@ -45,6 +48,8 @@ pub fn allocate_given<L: LogicIO>(bv: &BitvecLogic<L>, pos: &mut usize) -> Given
             data: std::array::from_fn(|_| bitvec_io.next::<8>(pos)),
             len: bitvec_io.next::<K_ATTR_INDEX_BITS>(pos),
         },
+        enabled: BooleanIO::new(bv.logic()).next(pos),
+        comparison: None,
     };
 
     let expected_digest = bitvec_io.next::<256>(pos);
@@ -59,5 +64,5 @@ pub fn allocate_given<L: LogicIO>(bv: &BitvecLogic<L>, pos: &mut usize) -> Given
 
 pub fn allocate_derived<L: LogicIO>(bv: &BitvecLogic<L>, pos: &mut usize) -> Derived<L> {
     let bitvec_io = BitvecIO::new(bv);
-    Derived::from_fn(2, || bitvec_io.next(pos))
+    Derived::from_fn(K_MAX_ATTR_SHA_BLOCKS, || bitvec_io.next(pos))
 }

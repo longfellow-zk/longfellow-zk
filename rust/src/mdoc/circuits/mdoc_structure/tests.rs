@@ -27,6 +27,7 @@ fn structural_claims_reject_wrong_parents_ids_and_counter_witnesses() {
         let logic = EvalLogic::new(&field, &tracker);
         let bv = BitvecLogic::new(&logic);
         let mut wires = evaluate_given(&logic, &bv, &concrete);
+        wires.structure = Some(super::Witness::constant(&logic, &concrete.structure));
         match case {
             0 => {}
             1 => {
@@ -92,6 +93,7 @@ fn exact_capacity_credential_and_one_byte_overflow() {
     let logic = EvalLogic::new(&field, &tracker);
     let bv = BitvecLogic::new(&logic);
     let mut wires = evaluate_given(&logic, &bv, &given);
+    wires.structure = Some(super::Witness::constant(&logic, &given.structure));
     MdocHash::new(&logic)
         .assert_structure(&wires)
         .assert_all_passed();
@@ -104,4 +106,116 @@ fn exact_capacity_credential_and_one_byte_overflow() {
         parse_mdoc::<CompileNat<4>>(&oversized, TEST_DATA.transcript, TEST_DATA.doc_type),
         Err(MdocParseError::TooBig)
     ));
+}
+
+#[test]
+fn disabled_slots_skip_all_attribute_structure_assertions() {
+    use crate::{
+        circuits::boolean::Boolean,
+        mdoc::{cbor::structure_prover::ConcreteWitness, circuits::mdoc_structure::Witness},
+    };
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
+    let mut input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
+    input.attrs = input.attrs.iter().cycle().take(4).cloned().collect();
+    let concrete = given::<4, _>(input);
+    let slots = concrete
+        .hash_input
+        .attrs
+        .iter()
+        .enumerate()
+        .map(|(slot, attr)| {
+            (slot % 2 == 0).then_some((
+                attr.mso_digest_offset_in_preimage,
+                attr.cbor_issuer_signed_item.as_slice(),
+            ))
+        })
+        .collect::<Vec<_>>();
+    let witness = ConcreteWitness::derive_slots(
+        &concrete.hash_input.cbor_mso,
+        concrete.hash_input.namespace_offset,
+        &slots,
+    )
+    .unwrap();
+    let field = Gf2_128Field::new();
+    for enabled in [false, true] {
+        let tracker = AssertionScope::new();
+        let logic = EvalLogic::new(&field, &tracker);
+        let bits = BitvecLogic::new(&logic);
+        let boolean = Boolean::new(&logic);
+        let mut wires = evaluate_given(&logic, &bits, &concrete);
+        wires.structure = Some(Witness::constant(&logic, &witness));
+        for slot in [1, 3] {
+            wires.disclosed_attributes[slot].enabled = boolean.konst(enabled);
+            let attr = &mut wires.attribute_given[slot];
+            attr.mso_digest_offset_in_preimage = bits.of_u64(u16::MAX.into());
+            attr.preimage.len = bits.of_u64(1023);
+            attr.field_locator.slot_position = std::array::from_fn(|_| bits.of_u64(1023));
+            attr.field_locator.length = std::array::from_fn(|_| bits.of_u64(1023));
+        }
+        assert_eq!(
+            MdocHash::new(&logic).assert_structure(&wires).is_ok(),
+            !enabled
+        );
+    }
+}
+
+#[test]
+fn structural_witness_preserves_disabled_slots_and_large_equality_items() {
+    use crate::mdoc::{
+        cbor::{
+            parse::{CborParser, CborValue},
+            structure_prover::ConcreteWitness,
+        },
+        proto::{
+            hash::constants::K_STRUCTURE_ATTR_CAPACITY,
+            mso_attribute::constants::K_MAX_ATTR_CBOR_LEN,
+        },
+    };
+    let (_, parsed, _) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
+    let attr = &parsed.attrs[0];
+    let original = &attr.cbor_issuer_signed_item;
+    let map = CborParser::new(&original[4..]).parse_exact().unwrap();
+    let CborValue::Map(entries) = map.value else {
+        panic!("issuer item map");
+    };
+    let value = &entries
+        .iter()
+        .find(|(key, _)| matches!(&key.value, CborValue::Text(name) if name == "elementValue"))
+        .unwrap()
+        .1;
+    let start = 4 + value.start;
+    let end = 4 + value.end;
+    let payload_len = K_MAX_ATTR_CBOR_LEN - (original.len() - (end - start)) - 2;
+    let mut large = original[..start].to_vec();
+    large.extend([0x58, u8::try_from(payload_len).unwrap()]);
+    large.resize(large.len() + payload_len, 0);
+    large.extend_from_slice(&original[end..]);
+    large[3] = u8::try_from(large.len() - 4).unwrap();
+    assert_eq!(large.len(), K_MAX_ATTR_CBOR_LEN);
+    let namespace = parsed.namespaces().unwrap().remove(0);
+    let witness = ConcreteWitness::derive_slots(
+        &parsed.cbor_mso,
+        namespace.key_offset,
+        &[
+            None,
+            Some((attr.mso_digest_offset_in_preimage, &large)),
+            None,
+            None,
+        ],
+    )
+    .unwrap();
+    assert_eq!(witness.digest_keys.len(), 4);
+    assert_eq!(witness.attributes.len(), 4);
+    assert_eq!(witness.digest_keys[0], 0);
+    assert_eq!(witness.digest_keys[2], 0);
+    assert_eq!(witness.digest_keys[3], 0);
+    assert!(witness.attributes[0]
+        .lexer
+        .remaining
+        .iter()
+        .all(|&n| n == 0));
+    assert_eq!(
+        witness.attributes[1].lexer.remaining.len(),
+        K_STRUCTURE_ATTR_CAPACITY
+    );
 }

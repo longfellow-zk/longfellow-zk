@@ -29,26 +29,28 @@ use longfellow_zk::{
             mdoc::parse_mdoc,
             test_utils::{parse_test_data, with_mso_size},
         },
-        testcases::TEST_DATA,
+        proto::{NEXT_ATTRIBUTES, NEXT_VERSION},
+        testcases::BIRTHDATE_1971_09_01_MDOC_3,
         v2::{self as runtime, req_attr, run_mdoc_prover_inner, run_mdoc_verifier},
     },
     runtime::{random::DeterministicRng, v2::proto::composed::BodySizes},
 };
 fn main() {
-    let attributes = std::env::var("MDOC_BENCH_ATTRIBUTES")
-        .unwrap_or_else(|_| "2".into())
-        .parse::<usize>()
-        .unwrap();
     let samples = std::env::var("MDOC_BENCH_SAMPLES")
         .unwrap_or_else(|_| "8".into())
         .parse::<usize>()
         .unwrap();
-    assert!((1..=4).contains(&attributes));
     assert!(
         samples >= 2,
         "one warmup and at least one measured sample required"
     );
-    let data = &TEST_DATA;
+    let attributes = std::env::var("MDOC_BENCH_ATTRIBUTES")
+        .unwrap_or_else(|_| NEXT_ATTRIBUTES.to_string())
+        .parse::<usize>()
+        .unwrap();
+    assert!((1..=NEXT_ATTRIBUTES).contains(&attributes));
+    let structural = std::env::var("MDOC_BENCH_STRUCTURAL").as_deref() == Ok("1");
+    let data = &BIRTHDATE_1971_09_01_MDOC_3;
     let (issuer_pk, mut parsed, now) = parse_test_data::<4, CompileNat<4>>(data);
     let resized = std::env::var("MDOC_BENCH_MSO_BYTES")
         .ok()
@@ -59,14 +61,14 @@ fn main() {
     if resized.is_some() {
         parsed = parse_mdoc::<CompileNat<4>>(mdoc, data.transcript, data.doc_type).unwrap();
     }
-    let attrs: Vec<_> = parsed
-        .attrs
-        .iter()
-        .cycle()
-        .take(attributes)
-        .map(|a| req_attr("org.iso.18013.5.1", &a.name, &a.cbor_value))
-        .collect();
-    assert_eq!(attrs.len(), attributes);
+    let names: [&[u8]; NEXT_ATTRIBUTES] =
+        [b"family_name", b"height", b"age_over_18", b"birth_date"];
+    let attrs: [_; NEXT_ATTRIBUTES] = std::array::from_fn(|index| {
+        let attr = parsed.get_attribute(names[index]).unwrap();
+        let mut requested = req_attr("org.iso.18013.5.1", &attr.name, &attr.cbor_value);
+        requested.enabled = index < attributes;
+        requested
+    });
     let mut pkx = format!(
         "0x{}",
         num_bigint::BigUint::from_bytes_le(&issuer_pk.0.to_bytes_le()).to_str_radix(16)
@@ -80,11 +82,8 @@ fn main() {
         pky = y.clone();
     }
     let offline = Instant::now();
-    let (spec, circuits) = prepare_circuits(attrs.len());
-    eprintln!(
-        "Longfellow v2 / NEXT v{}; SHA-256 strand transcript.",
-        longfellow_zk::mdoc::proto::NEXT_VERSION
-    );
+    let (spec, circuits) = prepare_circuits(structural);
+    eprintln!("Longfellow v2 / NEXT v{NEXT_VERSION}; SHA-256 strand transcript.");
     eprintln!(
         "Offline circuit preparation: {:.3} ms",
         offline.elapsed().as_secs_f64() * 1000.0
@@ -181,14 +180,22 @@ fn main() {
 }
 
 /// Prepare the spec/archive pair before online timing; decoded archive storage stays here.
-fn prepare_circuits(num_attributes: usize) -> (runtime::ZkSpecStruct, Vec<u8>) {
+fn prepare_circuits(structural: bool) -> (runtime::ZkSpecStruct, Vec<u8>) {
     let provided = if let Some(path) = std::env::var_os("MDOC_BENCH_ARCHIVE") {
+        eprintln!(
+            "Loading NEXT bundle: {}",
+            std::path::Path::new(&path).display()
+        );
         longfellow_zk::mdoc::development_provider::read_next(std::fs::File::open(path).unwrap())
             .unwrap()
+    } else if structural {
+        eprintln!("Compiling NEXT with structural CBOR checks.");
+        longfellow_zk::mdoc::development_provider::compile_structural_next().unwrap()
     } else {
-        longfellow_zk::mdoc::development_provider::compile_next(num_attributes).unwrap()
+        eprintln!("Compiling parser-free NEXT.");
+        longfellow_zk::mdoc::development_provider::compile_next().unwrap()
     };
-    assert_eq!(provided.spec().num_attributes, num_attributes);
+    assert_eq!(provided.spec().num_attributes, NEXT_ATTRIBUTES);
     if let Some(path) = std::env::var_os("MDOC_BENCH_SAVE_ARCHIVE") {
         longfellow_zk::mdoc::development_provider::write_next(
             std::fs::File::create(path).unwrap(),
