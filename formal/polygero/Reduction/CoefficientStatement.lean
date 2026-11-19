@@ -1,5 +1,4 @@
 import polygero.Protocol.Verifier
-import Mathlib.Data.Finset.Sort
 
 /-! Coefficient-vector substitution. Inner statements have only linear
 constraints. Their coefficients and targets are computed from the outer

@@ -3,9 +3,9 @@
 `CertifiedV1.Row`s (`LfzkV1.CertifiedV7`) and two-field rows (`LfzkV1.TwoFieldV7Rows`), with every
 numeral their headline lemmas quote.
 
-The v7 registry (`rust/applications/mdoc_zk/runtime/src/v1/zk_spec.rs`, `ZK_SPECS`, version 7) uses
+The v7 registry (`rust/src/mdoc/runtime/v1/zk_spec.rs`, `ZK_SPECS`, version 7) uses
 `ligero_config(rateinv 7, nreq 132, block_enc)` with hash `block_enc` 4151/4265/4307/4415 for 1-4
-attributes and sig `block_enc` 4096.  The Ligero parameter code (`rust/runtime/ligero/src/param.rs`,
+attributes and sig `block_enc` 4096.  The Ligero parameter code (`rust/src/runtime/v1/ligero/param.rs`,
 `lib/ligero/ligero_param.h`) sets `block = (block_enc + 1) / (2 + rateinv)`,
 `dblock = 2 block - 1`, `block_ext = block_enc - dblock`; the Lean geometry is `k = block`,
 `n = block_ext`, `w = block - nreq`.  `v7-circuit-profiles.json` (recorded from

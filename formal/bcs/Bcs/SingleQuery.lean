@@ -1,5 +1,6 @@
 import Bcs.FinalQuery
 import Bcs.PotentialOracle
+import Mathlib.Tactic.FieldSimp
 
 /-! A single verifier lookup after adaptive oracle search, with rational
 per-answer budgets and an off-coordinate context. -/

@@ -1,4 +1,6 @@
 import polygero.Algebra.FiniteProbability
+import Mathlib.Tactic.Linarith
+import Mathlib.Tactic.FieldSimp
 
 namespace RecursivePolygero.DirectBinomial
 open Finset

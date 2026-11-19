@@ -1,5 +1,4 @@
 import polygero.Local.Candidates
-import polygero.Protocol.Instance
 import polygero.Local.CoreRows
 
 /-! Interfaces from the proved local Polygero bounds to the counting induction.

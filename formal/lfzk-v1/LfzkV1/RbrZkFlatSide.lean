@@ -1,4 +1,3 @@
-import LfzkV1.RbrZkFlatTape
 import LfzkV1.RbrZkPotentialSide
 
 /-!

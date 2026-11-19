@@ -1,0 +1,153 @@
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+use super::{
+    generic::*,
+    transcript::{challenges, finish},
+};
+#[cfg(test)]
+use crate::runtime::v2::transcript::cheat;
+use crate::{
+    core::algebra::{AlgebraicField, SerializableField},
+    runtime::{
+        algebra::packing::{AmbientElement as E, PackingExtension, PackingParameters},
+        v2::{proto::dual_packing::PackingProof, transcript::Bound},
+    },
+};
+impl<E: Clone> Affine<E> {
+    pub(in crate::runtime::v2) fn evaluate<F: AlgebraicField<E = E>>(
+        &self,
+        values: &[E],
+        f: &F,
+    ) -> Result<E, String> {
+        let mut result = self.constant.clone();
+        for (i, k) in &self.terms {
+            f.add(
+                &mut result,
+                &f.mulf(k, values.get(*i).ok_or("packing auxiliary index")?),
+            );
+        }
+        Ok(result)
+    }
+}
+/// Committed cells: t_1,...,t_(m-1),r,b. An identity extension uses no cells.
+/// One sample masks one source claim: the masks are not `Clone`, and
+/// `prove_packed` consumes them (dual packing I8).
+#[derive(PartialEq, Eq)]
+pub(in crate::runtime::v2) struct PackingMasks<E> {
+    pub(super) cells: Vec<E>,
+}
+/// The masks are secret: their `Debug` output omits them.
+impl<E> std::fmt::Debug for PackingMasks<E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PackingMasks").finish_non_exhaustive()
+    }
+}
+impl<E: Clone> PackingMasks<E> {
+    pub(in crate::runtime::v2) fn cells(&self) -> &[E] {
+        &self.cells
+    }
+}
+impl<E: Clone> PackingMasks<E> {
+    /// Honest setup sets b=sigma(r). The verifier deliberately does not add a
+    /// product constraint for this relation. If b is dishonest, sigma(r)-b is
+    /// still a fixed offset before delta; the Lean linear soundness theorem
+    /// counts solutions to that affine equation with the same 1/|F| bound.
+    pub(in crate::runtime::v2) fn sample<X: PackingExtension>(
+        p: &PackingParameters<X>,
+        mut sample: impl FnMut() -> E,
+    ) -> Self
+    where
+        X::Ambient: AlgebraicField<E = E>,
+    {
+        if p.degree() == 1 {
+            return Self { cells: Vec::new() };
+        }
+        let mut cells = (1..p.degree()).map(|_| sample()).collect::<Vec<_>>();
+        let r = sample();
+        cells.push(r.clone());
+        cells.push(p.frobenius(&r));
+        Self { cells }
+    }
+}
+/// Reduce the ZK input claim using the originally committed words. Identity
+/// uses no words. The claim is already determined by the preceding
+/// transcript; both returned rows still require authentication.
+pub(in crate::runtime::v2) fn prove_packed<X: PackingExtension>(
+    ts: &mut Bound<'_, PackingParameters<X>>,
+    c: &SourceClaim<E<X>>,
+    words: &[E<X>],
+    aux: &[E<X>],
+    masks: PackingMasks<E<X>>,
+) -> Result<(PackingProof<E<X>>, Vec<FieldEquation<E<X>>>), String>
+where
+    X::Ambient: SerializableField,
+{
+    let p = ts.part();
+    c.validate()?;
+    if (p.degree() > 1 && words.len() != c.weights.len().div_ceil(p.degree()))
+        || aux.len() != c.auxiliary_count
+        || Some(masks.cells.len()) != mask_cell_count(p.degree())
+    {
+        return Err("packing witness shape".into());
+    }
+    if p.degree() == 1 {
+        let proof = PackingProof::Direct;
+        return Ok((proof, vec![direct(p, c)]));
+    }
+    let f = p.field();
+    let m = p.degree();
+    let target = c.rhs.evaluate(aux, f)?;
+    let mut t = vec![f.zero(); m];
+    t[1..].clone_from_slice(&masks.cells[..m - 1]);
+    // t_0 is dependent, not an extra commitment cell. PackingParameters checks
+    // that {1,beta_1,...,beta_(m-1)} is a basis for this mask construction.
+    for k in 1..m {
+        let v = f.mulf(&p.basis()[k], &t[k]);
+        f.add(&mut t[0], &v);
+    }
+    let mut b = vec![f.zero(); m];
+    for (row, word) in c.weights.chunks(m).zip(words) {
+        for (component, d) in b.iter_mut().zip(coefficients(p, row)) {
+            f.add(component, &f.mulf(&d, word));
+        }
+    }
+    // U_k = B_k - alpha_k*target + sigma(t_k)-t_k.
+    // Frobenius differences have zero trace, and an honest input claim makes
+    // the first two terms' traces cancel coordinate by coordinate.
+    let u = (0..m)
+        .map(|k| {
+            f.addf(
+                &f.subf(&b[k], &f.mulf(&p.dual()[k], &target)),
+                &f.subf(&p.frobenius(&t[k]), &t[k]),
+            )
+        })
+        .collect::<Vec<_>>();
+    // A cheating test prover (`transcript::cheat`) moves each U_k onto the
+    // trace-zero hyperplane instead of stopping, so the verifier's later
+    // checks face the false claim.
+    #[cfg(test)]
+    #[allow(clippy::shadow_reuse, clippy::shadow_unrelated)]
+    let u = if cheat::active() {
+        let unit = p
+            .basis()
+            .iter()
+            .find(|beta| !f.is_zero(&p.trace(beta)))
+            .map(|beta| f.mulf(beta, &f.invert(&p.trace(beta))))
+            .expect("an element of trace one");
+        u.iter()
+            .map(|x| f.subf(x, &f.mulf(&p.trace(x), &unit)))
+            .collect()
+    } else {
+        u
+    };
+    validate_u(p, &u)?;
+    let mut session = ts.transcript();
+    let delta = challenges(p, &u, &mut session);
+    let mut a = masks.cells[m - 1].clone();
+    for (d, mask) in delta.iter().zip(&t) {
+        f.add(&mut a, &f.mulf(d, mask));
+    }
+    finish(p, &a, &mut session);
+    let proof = PackingProof::TraceZero { u, a };
+    let eq = reconstruct_validated(p, c, &proof, &delta)?;
+    Ok((proof, eq))
+}

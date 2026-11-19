@@ -1,5 +1,4 @@
 import polygero.Protocol.ResponseSemantics
-import Mathlib.LinearAlgebra.Lagrange
 
 /-!
 # Shared-column polynomial relations

@@ -16,6 +16,38 @@ their names and contracts form a stable API until explicit further user order.
 [STABLE_API.md](STABLE_API.md) maps the paper results to the protected
 [Lean manifest](StableAPI.lean); the build checks their frozen signatures.
 
+The separate [masked witness-selection protocol](../witness-selection/README.md)
+wraps the nonrecursive backend for the current frontend composition. It changes
+the frontend accounting, not Polygero's verifier or the retained paper theorems.
+[`FiatShamir/WitnessSelection.lean`](FiatShamir/WitnessSelection.lean) supplies
+`selectionError + fixedWitnessError` as the frontend term in
+`committed_composition_le`. The projected list contains the original frontend
+cells and its two dedicated mask cells; duplicate projections are removed.
+Polygero's internal hiding rows can still have several lifts, so its extraction
+and outside-list errors are retained.
+
+For a commitment-fixed projected list of size `L`, collision counting gives
+selection's adaptive Fiat–Shamir charge `Q*choose(L,2)/q²`. The later
+fixed-witness frontend term has no candidate-list multiplier.
+The [chained-transcript theorem](../transcript-v2/README.md) supplies the
+common link/seal exception `(Q+1)/2^256` under its representation and local
+reduction laws. The [current mdoc theorem](../lfzk-v2/LfzkV2/Current/Mdoc/OracleSoundness.lean)
+derives the application, chain and joint-backend bounds from actual adaptive
+runtime acceptance, without a supplied `Execution`. Canonical query bytes,
+the complete joint Merkle encoding and the first-context extractor are
+connected by checked parsers and replay equalities. The ideal-sampler oracle
+assumption and Rust source correspondence are explicit implementation boundaries.
+
+The commitment-only candidate list depends on the committed rows, not on the
+later statement. Early fingerprints select a unique projected frontend witness
+from that list outside the collision event. This is distinct from actual
+transcript-assisted extraction: `scanRecoverAt` needs the statement to identify
+good columns. For a sumcheck frontend, that statement is reconstructed by
+replaying sumcheck verification, including its challenges. The extractor avoids
+the sumcheck prover's large table computations, but does not omit verifier
+replay. The formal noncomputable decoder specifications establish no extractor
+runtime bound.
+
 `Recursion/ProbabilityEvent.lean` contains the event and one-step identities;
 `Recursion/ProbabilityBound.lean` contains the single recursive induction and
 the paper-certificate transport. `Recursion/Probability.lean` retains the
@@ -87,6 +119,11 @@ min(q, L) * choose(n + ℓ − a, t) / choose(n, t)
 ```
 
 The local error remains `θ + (1 − θ)(μ + 1/q)`.
+This is the recursive verifier's per-invocation error. The v2 mdoc runtime
+uses the non-recursive joint verifier instead, and its bound does not use
+this formula: it charges one joint active-family budget over the shared
+query set (`LfzkV2.Current.Soundness.Rate7.parentBudget`), whose column term
+is `choose(866, 84) / choose(2443, 84)` (see the [formal README](../README.md#v2-extraction-soundness)).
 `Protocol.HahnProfileProof.wireExtract_valid` and
 `wire_extraction_failure` prove recursive witness validity and the product
 failure bound, and `soundness_of_extraction` derives false-statement
@@ -158,6 +195,6 @@ lake build RecursivePolygero
 
 `polygero.APITest` checks the public API, concrete proof dependencies, and
 foundational axioms of declarations imported by `polygero`, including private
-proofs and legacy arithmetic helpers. The separate numerical benchmark uses
-`native_decide`, as documented in its benchmark notes. `polygero.APITest` is
-also part of the default `lake build`.
+proofs and legacy arithmetic helpers. The retained numerical benchmark and
+Hahn identities are kernel-checked without native-evaluation axioms.
+`polygero.APITest` is also part of the default `lake build`.

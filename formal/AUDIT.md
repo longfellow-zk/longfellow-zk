@@ -1,166 +1,369 @@
 # Formal security claims and audit
 
-The V2 soundness chain reaches the modeled authenticated verifier with raw
-proofs and a verifier-recomputed MAC key. Its checked all-budget result is
+## Numbered-strand soundness
 
-```text
-Pr[both sides accept and paired extraction fails] <= (1 + N + tA) / 2^117.
-```
+The checked current endpoint is
+[`Mdoc.Soundness.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean).
+It bounds the probability that a finite classical adaptive adversary making at
+most `Q` distinct original SHA queries obtains an accepted proof from which the
+extractor recovers no application-valid witness. The extractor
+(`Mdoc.Soundness.extract`) takes no oracle: it reads the public setup, the
+submitted request and proof, and the adversary's own row trace in the
+wide-oracle model, where a node query returns its digest and its row of PRF
+words; over raw SHA the experiment computes the rows. It decodes uniquely
+from the transcript, as Polygero's `scanRecoverAt` does, and forms no
+candidate list. The exact bound
+`LfzkV2.Current.Soundness.Rate7.failureBound`, its coefficient
+`c = q * LfzkV2.Current.Soundness.Rate7.parentBudget`, the strict `0.97` cap
+(`Mdoc.Soundness.averaged_nonvacuous`) and the all-`Q` corollaries are stated
+once, in the [formal README](README.md#v2-extraction-soundness). The leading
+linear bound (`averaged_linear_ratio_le`) and the saturated bound
+(`averaged_ratio_le`) share one stopped cost and one failure cover. No
+execution or charging certificate is added to the mdoc endpoint.
 
-`N` counts adversarial Fiat–Shamir queries and `tA` counts adversarial
-Merkle-hash queries. The startup constant is one for every pair of query
-budgets. The probability is a finite count over the shared uniform
-transcript oracle and Merkle answer tape. Recommitment, arbitrary query
-order, and adaptive proof selection are allowed.
+`r` counts rounds, one per transcript boundary (the first draw after a message). The rate-1/7 certificate fixes
+`(k,s,n,t)=(349,12,2443,84)`. Both fields share one indexed Merkle tree and
+one extracted tuple from the original commitment cut.
 
-## Checked endpoints
+The proof path has the following checked boundaries, listed bottom-up; the
+[proof map](README.md#proof-map) lists the same chain top-down.
 
-| Claim | Theorem or build target | Scope |
-|---|---|---|
-| V2 authenticated raw-proof extraction, all budgets | [`RawRuntimeExtraction.extraction_117`](lfzk-v2/LfzkV2/RawRuntimeExtraction.lean) | `(1+N+tA)/2^117`, under the model premises below. |
-| V2 numbered leaves, `tA < 87` | `RawRuntimeExtraction.probability_numbered_merkle` | At most `(12992+tA)*(2*tA+1)/2^256`; independent of `N`. Distinct leaf inputs are an explicit premise of this stronger intermediate result. |
-| V2 conservative raw-proof bound, all budgets | `RawRuntimeExtraction.extraction_114` | `(2+N+tA)/2^114`. |
-| V2 annotated-proof bound | [`RuntimeExtraction`](lfzk-v2/LfzkV2/RuntimeExtraction.lean) | `(1+N+tA)/2^114` for all budgets; `(1+N+tA)/2^117` for `N ≥ 11`. The annotation is not a Rust proof field. |
-| Standalone runtime Polygero hash/signature backend | [`Profile.fs_extraction_failure_127`](parameters/polygero/PolygeroRustHahn.lean) | `(N+1)/2^127`, including satisfiable transcript-dependent statements, in the ideal-binding, uniform-sampler model. Frontend, MAC, and Merkle costs are excluded here and included in the V2 composition above. |
-| V1 combined extraction and false-statement soundness, all four v7 hash profiles | [`LfzkV1.FlatV7All`](lfzk-v1/LfzkV1/FlatV7All.lean) | `(1+N+tA)/2^116`, under V1's documented circuit, sampler, transcript, and MAC-key coherence premises. |
-| V2 privacy components | [`PolygeroZk`](lfzk-v2/LfzkV2/PolygeroZk.lean), [`BackendEncoding`](lfzk-v2/LfzkV2/BackendEncoding.lean), [`Mac`](lfzk-v2/LfzkV2/Mac.lean) | Backend response/opening simulation and affine-tag uniformity. A complete joint frontend/backend/Merkle zero-knowledge theorem is not established. |
+1. `Soundness.Recovery.accepted_recovery_or_hash` recovers ordered strand
+   queries, the actual PRF rows and agreement on opened columns, or charges
+   a hash event.
+2. `Soundness.Runtime.accepted_decoded` transports successful physical role
+   reads to the same normalized application and statement.
+3. `Joint.Family.verify_of_indexedAgreement` transfers all backend checks
+   together to the tuple extracted from the original cut.
+4. `Soundness.LocalCharges.prefixCharge_eq_runtime` identifies actual accepted-path
+   tests with explicit prefix state. `prefixOracle_eq_original` preserves the
+   paired original commitment cut; `Survival.QueryOrder` supplies strict ancestors.
+   `Survival.QueryStep.step_le` bounds each transparent test or opaque step.
+5. `Soundness.Runtime.recovered_stopped_charge` retains the original Polygero
+   weights on the stopped trace. `conditioned_cost_mean_le` assigns backend
+   and auxiliary hash costs to disjoint opaque query slots. Residuals are
+   averaged before applying the raw seal/Merkle exception bound.
+6. `Mdoc.RuntimeSoundness.ratio_le` constructs the concrete rate profile,
+   metadata, layout, advice decoder and complete-proof parser.
+7. `Mdoc.OracleSoundness` uses the same SHA function for setup and execution.
+   `setup_merge` and `parameters_merge` preserve public data.
+   `submitted_output`, `original_trace`, `verifier_actual` and
+   `event_verified` identify the original output, filtered original log
+   and actual complete verifier. The complementary oracle marginal is
+   averaged with zero additional error. The common finite coin may correlate
+   complementary setup answers with adversarial choices; it is independent
+   only of the fresh protocol-domain table. The original `Q` bound holds for
+   every coin and every total byte oracle, counts distinct inputs in the full
+   original trace, and is inherited by its protocol-domain restriction.
+8. `Mdoc.Soundness` composes `CanonicalRuntime.decoded_true_at_request`
+   with `MdocWitness.hashValid_of_satisfies`. The same extracted pair satisfies
+   ordinary hash constraints and the signature circuit at the actual request.
+   The extractor rebuilds the statement and challenges from the row trace
+   and the cut from its log, then in each field uniquely decodes the
+   committed rows on the good columns that the backend coin and response
+   identify (`Soundness.Runtime.traceRecover`,
+   `Application.StatementData.recover`). On an accepted proof outside the
+   hash exception this equals decoding the verifier's replay with the oracle
+   (`Soundness.Runtime.traceRecover_eq`); an accepted proof with a path node
+   missing from the trace is the hash exception, already in the bound
+   (the internal failure predicate is `decision ∧ (extractionFails ∨
+   hashException)`). Every recovered pair satisfies the
+   frontend rows (`Application.Authentication.recover_rows`); outside the
+   existing backend events (`Application.Authentication.BackendBad`) it is
+   the fingerprint-selected pair (`Application.Authentication.recover_eq_extract`),
+   whose frontend event the bound already charges, so the bound has no new
+   event. `Tests.EndpointStatements` checks that the extractor reaches
+   Polygero's unique decoder, no list-decoding definition, and no oracle,
+   raw SHA table or verifier replay.
+   Hash read separation is structural: the hash circuit reads only its own
+   input prefix, ahead of R, the quotient pads and the virtual leaves.
+   `HashSeparation` proves it for typed hash topologies
+   (`HashCircuit.readDisjoint`); it is not a premise. No
+   simulator module is imported by this endpoint, and no runtime separation
+   check is added.
 
-## V2 theorem chain
+The input includes trusted circuit descriptions, canonical field codecs,
+static capacity certificates, and a challenge reader with the balanced role
+sampling law (`Protocol.Sampler`); `averaged_ratio_le_rust` fixes it to the
+Rust reader, for which the law is proved. Runtime
+acceptance, query order, column agreement and the final failure cover are
+derived. Axiom checks on the endpoint and correspondence lemmas report only
+`propext`, `Classical.choice` and `Quot.sound`.
 
-1. [`RawRuntimeExtraction.key_coherent`](lfzk-v2/LfzkV2/RawRuntimeExtraction.lean)
-   derives the MAC answer from the verifier lookup. `probability` has no
-   supplied-key coherence conjunct. `probability_eq_annotated` proves that
-   its raw acceptance/failure event equals the annotated experiment.
-2. [`TwoFieldCommitmentFS.extraction_le`](lfzk-v2/LfzkV2/TwoFieldCommitmentFS.lean)
-   reduces both authenticated opening checks to one shared cut-trace
-   context, adding both Merkle explanation errors. The committed oracles'
-   resampling invariants are proved rather than assumed.
-3. [`TwoFieldFS.extraction_le`](lfzk-v2/LfzkV2/TwoFieldFS.lean) applies the
-   adaptive potential compiler to the merged MAC/hash/signature schedule.
-   Each adversarial query pays the maximum local budget across roles.
-4. [`TwoFieldPotential.extract_valid`](lfzk-v2/LfzkV2/TwoFieldPotential.lean)
-   proves that a returned pair satisfies both circuits and agrees on its
-   common message. The V2 MAC is `av*message+ap`; the two private additive
-   pads may differ. A fixed pair of unequal messages collides at at most
-   one multiplier. V1's shifted multiplicative tag is not used as the V2
-   MAC definition.
-5. [`CompiledSide`](lfzk-v2/LfzkV2/CompiledSide.lean),
-   [`CompiledReplay`](lfzk-v2/LfzkV2/CompiledReplay.lean), and
-   [`GradedFS`](lfzk-v2/LfzkV2/GradedFS.lean) connect decoded Polygero
-   witnesses to the actual compiled frontend constraints, their product
-   checks, and the trusted circuit's satisfaction predicate. False
-   statements therefore cannot have a successful extracted pair.
-6. [`RuntimeProfiles`](lfzk-v2/LfzkV2/RuntimeProfiles.lean),
-   [`RuntimeCost`](lfzk-v2/LfzkV2/RuntimeCost.lean), and
-   [`RuntimeSecurity`](lfzk-v2/LfzkV2/RuntimeSecurity.lean) discharge the
-   packing, tail, and rational numerical comparisons. The annotated cost is
-   `737*N/2^128 + 16383/2^128 + 18460/2^255`, before the two Merkle terms.
-   Raw replay adds one verifier lookup to this count. For `tA ≥ 8`,
-   `tsec_117_of_merkle_ge` absorbs that lookup and the startup cost into
-   `(1+N+tA)/2^117`. For `tA < 8`,
-   [`SmallMerkle`](bcs/Bcs/SmallMerkle.lean) bounds authenticated acceptance
-   itself by `(2*tA^2+(12992+tA)*(2*tA+1))/2^256`, at most
-   `195083/2^256`. At fixed transcript oracle, the complete prover is a
-   bounded Merkle program; averaging restores arbitrary transcript
-   queries without an `N` factor. One authentication path requires at
-   least eight distinct queries unless a predictable child digest is hit.
-   This proves the final endpoint without any additional numbering or
-   leaf/node separation premise.
-7. [`NumberedLeaves`](merkle/Merkle/NumberedLeaves.lean) also proves the
-   stronger opening-count argument: 87 distinct leaf inputs require 87
-   distinct queries unless a verifier query hits a predictable digest.
-   The counted event includes the leaf-input distinctness and opening
-   count. `probability_numbered_merkle` derives the count of 87 from
-   compiled acceptance and the runtime hash geometry.
+The oracle assumption is a classical ideal SHA oracle with uniform
+independent answers at distinct byte inputs and consistent repeated answers.
+The role-block sampling law includes nonzero elements and openings without
+replacement. See the
+[full model boundary](README.md#assumptions-and-remaining-correspondence-obligations)
+for trusted circuit/field inputs, the extractor's computability assumption
+and Rust source correspondence.
 
-The extractor is a mathematical search in the two lists associated with
-the committed oracles. The theorem bounds acceptance without a matching
-satisfying pair; it does not claim that decoding the Rust proof bytes alone
-efficiently recovers a witness.
+## Validation and architecture
 
-## Premises and implementation boundary
+Three review passes cover the current soundness path.
 
-The numerical endpoints retain the following explicit premises:
+1. The mathematical review checks acceptance, the original extraction cut,
+   ordered recovery, authenticated column agreement, shared-budget charging
+   and the final one-oracle bound. Endpoint axiom guards check for additional
+   logical assumptions.
+2. The architecture review puts oracle windows, observers, SHA domain routing
+   and finite probability calculations in shared modules. Soundness has no
+   dependency on the ZK assembly. Trace-only replay lemmas avoid reconstructing
+   the verifier result and application bookkeeping to establish acceptance or
+   decoding. Generic algebra and paper-facing component lemmas retain their contracts.
+3. The implementation review compares numbered strand and PRF framing,
+   little-endian indices, indexed Merkle leaves and nodes, 32-byte nonces,
+   canonical proof parsing and the mandatory final seal with Rust. The Rust
+   transcript and adapter bind prover messages and static statements while
+   retaining challenge-derived coefficients in verifier state. Node 0
+   (`TaggedFormat.first`) binds the statement message with the session, every
+   setup message (the three `Circuit` IDs, both `CommitmentLayout`s with their
+   packing descriptors and storage runs, `AdapterLayout`, `JointGeometry`)
+   and both `PublicInputs` vectors, then the `Commitment` root, before the
+   first draw. Later nodes carry only tagged prover messages, with no domain
+   label, setup constant or derived value. The masked quotients are prover
+   messages, absorbed as `P256AdapterQuotients` (tag 65, two `Bits(Q)`); the
+   private unmasked quotients and the derived virtual-leaf definitions and
+   coefficients never are.
 
-- Hash geometry `(n,k,s,t) = (3584,512,18,87)` and signature geometry
-  `(2912,416,15,86)`, with the instance's distinct evaluation points and
-  decoder/column encodings.
-- Hash and MAC fields of size at least `2^128`, signature field size at
-  least `2^255`, and Merkle digest alphabet of size exactly `2^256`.
-- Balanced finite samplers for every frontend block, backend coin,
-  opening-query role, and the MAC multiplier, on one common transcript
-  answer alphabet. These are ideal sampler assumptions, not a claim that
-  every challenge tuple is one 256-bit digest.
-- Trusted circuit layouts and public/private input embeddings. Output
-  dimensions are at most 5 and 3; sharp frontend budgets are at most 655
-  and 552. For every satisfying committed candidate, the two circuit MAC
-  rows agree with the shared public tag. These correspondence premises
-  are not consequences of a backend numerical certificate.
-- The declared Merkle codec and role decoders, and enough finite answer
-  tape for the bounded execution: `TM ≥ tA + 12992`.
+The endpoint tests and native Rust library tests are source-correspondence
+checks. The current composition, transcript and sumcheck test aggregates each
+directly import every test module in their respective test directories;
+the source audit rejects future omissions. `scripts/Audit.lean` imports every
+tracked Lean module, and the source audit fails on any it does not reach; it
+audits the declarations of every module of this package, including generic
+survival, coding-theory, ECDSA and circuit components. Its axiom collection is
+transitive. Application endpoint barrels import the current soundness, privacy and honest
+runtime modules. Standalone sampling, readback, transport and paper components
+remain directly importable and are covered by the retained-source build.
+Application-specific soundness bridges use the `LfzkV2.Current.Soundness`
+namespace; `Survival` contains the reusable chronological bounds and their
+standalone tests. The retained Polygero benchmark table is kernel-checked too;
+native evaluation is allowed only for the documented V1 numerical rows.
+The unused unindexed runtime codec and its wrappers are removed. Generic
+nonce reindexing and Merkle hiding lemmas remain independently available.
+Soundness does not import ZK. Numbered strand tests cover the current PRF keys.
+The numerical composition bound uses the active certificate as its parameter
+source. Generic profile caps express the local role maximum directly; this
+interface cleanup does not tighten the production probability estimate, which
+already uses the exact joint parent budget. The runtime arithmetic bridge
+continues to identify the actual indexed hash correction with that estimate.
+The runtime public input is named `polynomialX` to distinguish the basis
+element from its fixed power used as the adapter generator; both primitive
+order checks and quotient-base component results are preserved.
+The numbered-strand privacy proof is separate from this soundness argument.
+All four current endpoints also exclude the standalone quadratic circuit
+proof modules (`Circuit`, `Soundness`, `AssertedSoundness`, `Program`). Shared
+algebra, messages, input binding and challenge tests have independent modules;
+the old paper APIs remain directly importable. The Rust source audit checks
+these boundaries through the complete local endpoint import closures,
+preventing an unused public helper from reintroducing that dependency.
 
-The runtime's [`polygero/src/hash.rs`](../rust/runtime/polygero/src/hash.rs)
-prefixes leaves with `polygero/root/original-leaf/v1` and internal nodes
-with `polygero/root/node/v1`. Each leaf includes the context, its column
-index as a little-endian `u64`, the salt, and canonical column bytes.
-[`verifier.rs`](../rust/runtime/polygero/src/verifier.rs) hashes each opened
-column with its sampled index before verifying the Merkle paths;
-[`transcript.rs`](../rust/runtime/polygero/src/transcript.rs) samples
-distinct indices. Thus repeated column values do not identify leaf
-preimages at different positions. `OpeningClaim.DistinctLeafInputs` is the
-explicit codec correspondence premise for the stronger 87-query lemma;
-`distinctLeafInputs_of_index` derives it from an index decoder. The final
-all-budget theorem uses the weaker path-depth argument and does not need
-this extra correspondence premise. Neither argument assumes 87 independent
-digest guesses: the bound retains the predictable-target counting factor.
+The current indexed runtime also checks that each arithmetic response is
+zero on its logical mask prefix. `StrandVerifier.prefixZeros` includes this
+deterministic check for both fields; `ZeroKnowledge.BackendPrefix.payload_random` proves it
+for honest responses. Soundness retains the existing Polygero verifier as a
+weaker algebraic predicate, preserving the paper-facing component contracts.
 
-This is end-to-end soundness for the stated mathematical verifier model.
-It is not source-level verification of Rust or C++. Limb arithmetic,
-overflow, allocation bounds, parser validation, serialization, domain/hash
-encodings, and the concrete SHA/AES expansion and rejection samplers remain
-implementation correspondence obligations. The replay model preserves the
-protocol's challenge order and prefixes; byte-level transcript equivalence
-is outside the theorem. The individual registered application's circuit
-semantics must also be related to the modeled trusted circuit.
+## Zero-knowledge boundary
 
-V2 joint-view zero knowledge still needs the frontend's causal transmission
-and commitment-dependent pads combined with the backend simulator and
-Merkle-hiding/oracle-programming hybrids. The documentation makes no full
-V2 privacy claim.
+`Mdoc.ZeroKnowledge.statClose` assembles the complete canonical-view
+privacy bound, including public setup derived from one shared uniform raw
+byte oracle. Independent oracle answers, fresh 256-bit nonces and honest
+private coins give statistical distance at most
+`(Qpre+Qpost)/2^256` from the public simulation. Both raw observer traces,
+adaptive requests, reader/conflict failure branches, canonical proof and
+final seal are retained. `Qpre` and `Qpost` are call bounds, not bounds on
+distinct inputs.
+
+The proof identifies the nonce-independent canonical stage with the generic
+indexed hiding schedule (`stage_eq`). It proves that response-adaptive
+openings read original committed columns (`disclosed_respondHonest`) and
+that ghost completion is precisely the existing canonical completed view
+(`complete_prepared`, `ghost_eq`). One leaf-hiding hop is then followed by
+the exact frontend/backend bijection. The latter is applied independently
+at each fixed oracle/ghost-label/nonce tape, preserving the prior-query
+conflict decision and the installed opened-only oracle. It adds zero error.
+No PRF or final-seal answer is programmed, and no collision-free-output
+assumption is used.
+
+The interfaces expose this as `Real ≈ Ghost ≡ Sim`.
+`StrandCanonicalContext` and `StrandCanonicalExecution` contain the public
+oracle context and honest execution shared with completeness.
+`StrandCanonicalExperiments` defines the guarded
+honest/public views and the three experiments before either privacy hop.
+`StrandCanonicalExactSimulation.simulationEquiv` names the joint coin change;
+`ghost_simulator_view` proves pointwise equality under it, and
+`ghost_sameDistribution` states exact distributional equality.
+`StrandCanonicalCommitmentHiding` proves only the statistical Real-to-Ghost
+step; `StrandCanonicalHiding` assembles the two steps and raw-oracle transport.
+Callers use each declaration's owning namespace; there are no compatibility
+exports. The exact branch does not import the statistical
+commitment theorem. The finite leaf-oracle data lives in `StrandLeafOracle`.
+
+The public simulator has no witness or satisfaction-certificate argument.
+The theorem assumes ordinary hash/signature witness satisfaction only for
+contexts reached by the prior observer under setup derived from the same
+oracle. Unreachable policy branches impose no validity obligation. Ordinary
+hash validity then holds for every assignment of R, the quotient pads and the
+virtual leaves, uniformly over public inputs and private values; this is a
+consequence of structural separation, not a premise. These premises and the
+explicit basis/generator checks derive backend truth inside the coupling. The leaf-table
+permutation preserves actual earlier query/answer traces, including bad
+branches, and does not require a finite type of all byte strings.
+
+The hash circuit is archived at its natural width. The reserved suffix after
+its inputs holds R (256 bits), the two 10-bit quotient pads and the adapter's
+virtual leaves. Each sumcheck component reads only its own input prefix, so the
+hash circuit cannot address the suffix; there is no read-separation
+certificate or test-only suffix check. The adapter is a fixed product-tree
+fragment: its per-proof leaves are virtual inputs, affine functions of
+committed bits that constraint compilation substitutes like public inputs, and
+there is no per-proof adapter circuit. R has no binary range assertion, since
+`Handoff.product_handoff` already covers arbitrary bits of R modulo the prime.
+Structural separation is not a kernel proof of the Rust-to-Lean circuit
+correspondence, which remains a trusted circuit input.
+
+`StrandCanonicalHiding.statClose` first fixes the complementary non-leaf
+oracle. `StrandLeafWindow.statClose_of_extension` reindexes the finite leaf
+table to its raw byte addresses and averages over complementary coordinates
+arising from the complete window, without adding an error term. This preserves
+setup consistency when applying the reached-witness premise.
+`StrandCanonicalByteSupport` derives the support of the actual honest and
+simulated executions: all typed numbered-strand histories and PRF counters,
+all indexed Merkle preimages, and all observer branches. Only contexts
+reachable in the prior observer are enumerated; its private state need not
+be a finite type. `real_extend` and `simulate_extend` prove pointwise that
+answers outside this fixed support cannot affect either complete view,
+including programmed-leaf and failure branches. No support certificate or
+execution hypothesis is passed to the theorem.
+
+Axiom guards on every new bridge and composition endpoint allow only
+`propext`, `Classical.choice` and `Quot.sound`. Some modules raise elaboration
+limits, which bound the elaborator's search and not what the kernel accepts:
+
+- `maxHeartbeats 0` with `maxRecDepth 100000` in the parameter certificates
+  `LfzkV2.Current.Parameters.Rate7` and its `Active`, `Binary` and `Prime`
+  modules, which evaluate certificate tables, as do the certificate modules
+  under `parameters/` and `polygero/Benchmarks/`;
+- file-wide `maxHeartbeats` in `LfzkV2.Current.ZeroKnowledge`:
+  1400000 in `CompleteFrontendSetup`; 1000000 in `FrontendSimulationParsed`,
+  `FrontendSimulationMessages`, `FrontendSimulationWrites`,
+  `FrontendSimulationSystem`, `FrontendFullSatisfaction` and
+  `FrontendSetupAnswerTape`; 800000 in `FrontendRuntimeStatement`,
+  `FrontendBodyWrites` and `FrontendFullCoupling`; and 1000000 in
+  `Bcs.QueryRoleCompiler`;
+- per-declaration `maxHeartbeats` on
+  `Mdoc.Soundness.event_implies_extraction_failure` (400000) and in
+  `ZeroKnowledge.FrontendHonestRunRows` (800000); `Mdoc.Soundness` also sets
+  the default 200000 file-wide;
+- `maxRecDepth` between 2048 and 10000 in 36 other `LfzkV2.Current`
+  modules, among them the mdoc setup, witness and frontend-simulation
+  modules.
+
+The v1, Ligero, Polygero and ECDSA libraries raise limits in their own
+modules. The generic leaf-table lift accepts the caller's equality
+decision, avoiding normalization of two different function-space enumerations.
+Finite supports are used through membership lemmas rather than expanding
+their exhaustive enumerations during theorem matching.
+
+`Mdoc.OracleWindow` covers the leaf domains for every digest-selected public
+setup. Domain separation proves that varying these coordinates preserves
+setup and metadata. `Mdoc.SetupSupport.program_result` identifies the one
+actual setup hash call, the adapter fragment identifier, which the statement
+binds in its `Circuit` message. Its finite support is included in the
+complete window.
+`Mdoc.ZeroKnowledge.real_extend` and `simulate_extend` establish the
+pointwise support property for the setup-derived experiments themselves.
+Averaging the complementary coordinates adds no error. The concrete budget
+corollary proves error at most `2^-128` at `2^128` total raw observer calls.
+
+`StrandVerifierObserver.observe_result` and `optional_result` identify a
+raw-query observer with the actual indexed runtime verifier. Metadata is
+reconstructed from the public setup values and proved equal to the actual
+metadata. `Mdoc.VerifierPrivacy.acceptance_probability` bounds the
+difference in actual acceptance probabilities by the same privacy error;
+rejection and abort outcomes are retained. No successful-verifier or
+always-accepting-simulator premise is used.
+
+The theorem uses a Context-indexed witness policy, valid at actually reached
+contexts, including different witnesses for contexts with the same public
+request. It assumes ordinary hash validity, signature satisfaction,
+basis/generator checks, and trusted field/codec/circuit/layout inputs; hash
+noninterference is derived. Honest private coins and 256-bit
+nonces are independent and uniform. It assumes a classical SHA random oracle,
+not a numerical concrete-SHA indistinguishability bound. Rust correspondence
+is reviewed rather than mechanically refined, and no machine-cost theorem
+is claimed. V1 proofs and generic paper-facing component theorems are preserved.
+
+## Checked endpoints and components
+
+| Result | Endpoint | Scope |
+| --- | --- | --- |
+| Current V2 extraction soundness | [`Mdoc.Soundness.averaged_ratio_le`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean) | Exact parameter-dependent bound for the actual numbered-strand event. |
+| Current V2 uniform soundness cap | [`Mdoc.Soundness.averaged_nonvacuous`](lfzk-v2/LfzkV2/Current/Mdoc/Soundness.lean) | Strictly below 0.97 for `Q < 2^127`. |
+| Current V2 statistical zero knowledge | [`Mdoc.ZeroKnowledge.statClose`](lfzk-v2/LfzkV2/Current/Mdoc/ZeroKnowledge.lean) | Complete current indexed runtime view, error `(Qpre+Qpost)/2^256`. |
+| Simulator acceptance indistinguishability | [`Mdoc.VerifierPrivacy.acceptance_probability`](lfzk-v2/LfzkV2/Current/Mdoc/VerifierPrivacy.lean) | The actual verifier decision, including rejection and abort. |
+| Current V2 completeness | [`Mdoc.Completeness.accepts`](lfzk-v2/LfzkV2/Current/Mdoc/Completeness.lean) | The honest prover returns an accepted proof whenever every boundary samples. |
+| Deployed reader corollaries | [`Mdoc.Rust`](lfzk-v2/LfzkV2/Current/Mdoc/Rust.lean) | The four endpoints at the Rust challenge reader, with no reader premise; completeness fails with probability at most `2^-128`. |
+| Premise inhabitation | [`Tests.MdocInstance`](lfzk-v2/LfzkV2/Current/Tests/MdocInstance.lean), [`Tests.MdocPrivacyInstance`](lfzk-v2/LfzkV2/Current/Tests/MdocPrivacyInstance.lean) | Every premise of the deployed corollaries holds for a toy instance, with positive reader fibers. |
+| Extant V1 runtime | [`LfzkV1.FlatV7All`](lfzk-v1/LfzkV1/FlatV7All.lean) | V1 signature/hash extraction and soundness certificates. |
+| Paper-facing Polygero | [Polygero component library](polygero/README.md) | Original public-coin extraction/soundness and generic algebra, preserved unchanged. |
+| Packing and witness selection | [Dual packing](dual-packing/README.md), [witness selection](witness-selection/README.md) | Current component reductions and shared algebra. |
+
+The default build checks current endpoints and selected component aggregates.
+Some retained standalone or historical modules are outside those import
+closures. The bounded full-source rebuild checks every local Lean source,
+including those modules, independently of whether a current endpoint uses it.
+Being outside the runtime closure is not by itself a reason to delete a
+standalone result. Shared definitions required by current
+verifier/decoder/completeness proofs remain in their existing namespaces.
+Generic Polygero, Merkle coupling, sumcheck, masking and parameter statements
+are preserved. Source correspondence and trusted field/circuit/sampling
+premises remain explicit; the kernel does not certify Rust machine semantics.
 
 ## Reproduce the audit
 
 From `formal/`, after installing the pinned Lean toolchain and Mathlib:
 
 ```sh
-lake build
+lake build SecurityAudit
 rustc --edition 2024 scripts/audit.rs -o /tmp/longfellow-source-audit
 /tmp/longfellow-source-audit
-lake env lean scripts/Audit.lean
 cargo run --release --manifest-path lfzk-v1/scripts/Cargo.toml --bin inspect-v7-profile
 cargo run --release --manifest-path lfzk-v1/scripts/Cargo.toml --bin inspect-v7-assertions
 ```
 
 The default build includes all retained Hahn certificate families, both
-sumcheck libraries, the four V1 116-bit endpoints, the V2 endpoint audit,
+sumcheck libraries, dual packing, the four V1 116-bit endpoints, the V2 endpoint audit,
 and the Polygero API/dependency checks. `scripts/build.sh` uses Lake's default
 concurrency. There is no separate certificate build requirement.
 
-The Rust source scanner strips nested Lean comments and strings before
-rejecting unchecked proof constructs. It also validates local Markdown
-links in the formal and Rust documentation. The Lean audit inspects every
-imported declaration owned by the V1/V2, sumcheck, BCS, Merkle, Polygero,
-runtime-Hahn, and runtime-profile modules, including private helpers.
+The Rust source scanner strips nested Lean comments, strings and character
+literals before rejecting unchecked proof constructs and kernel-check bypass
+options, and, outside the native-evaluation allowance, code the kernel does
+not check (`implemented_by`, `extern`, `csimp`, `opaque` and `partial`, except
+the listed `partial` metaprograms). It fails on a file it cannot lex. It also
+validates local Markdown links in the formal and Rust documentation. The Lean
+audit inspects every imported declaration owned by a module of this package
+(an object file in the package's build directory), including private helpers.
 V2 and the other audited non-V1 modules permit only `propext`,
 `Classical.choice`, and `Quot.sound`. V1 numerical rows retain the documented
 native-evaluation allowance, including their imported legacy numerical
-certificates. V2 and the retained Hahn identities do not depend on that
-allowance.
+certificates in `examples.Ligero.Longfellow`. Other example modules receive
+the standard axiom check. V2 and the retained Hahn identities do not depend
+on that allowance.
 
+`SecurityAudit` builds the audit's complete import closure before running its
+declaration checks; it does not rely on artifacts from a previous build.
 The broad audit is separate from the default build so repeated incremental
 builds keep their short API and certificate checks. These checks establish
 the stated proof dependencies and exact numerical facts; they do not
 discharge the implementation correspondence premises above.
+
+The default V2 API imports only the current implementation and surviving
+shared components. Its axiom audit covers every imported V2 declaration,
+including private helpers, rather than a historical endpoint whitelist.
 
 The V1 Rust inspectors load the frozen archives through the current
 single-crate runtime, recompute archive and circuit IDs, compare the five
@@ -168,3 +371,30 @@ recorded circuit/geometry profiles, and reject violations of the structural
 assertion premises. The older Python launchers targeting the former crate
 layout have been removed. The remaining legacy numerical reporting scripts
 do not participate in the trusted Lean proof chain.
+
+## Import and abstraction boundaries
+
+The current runtime endpoints import `Joint.Pair.Basic`, containing the two-field
+family and coordinate equivalences. Compiled-side replay adapters are separate
+modules. Runtime prefix predicates live in `Current.BackendPrefix`;
+the honest-payload lemma lives in `Current.ZeroKnowledge.BackendPrefix`.
+Exact finite-distribution lemmas are shared through `Bcs.SameDistribution`, with
+the existing declaration names and a V1 compatibility import preserved.
+
+Rust rejects unused imports and unreachable public declarations at the crate
+root. Compiler internals, private encoding helpers, and test utilities use
+restricted visibility. `python3 scripts/check_soundness.py --imports-only` checks
+the soundness/simulator and basic/replay import boundaries; the normal soundness
+check runs these checks as well. These restrictions add no runtime checks.
+
+Remaining placement issues are historical rather than runtime dependencies:
+shared masking/coupling algebra still has `LfzkV1.LigeroZk` module names, and
+`Bcs.StatisticalDistance` imports generic event-counting lemmas from
+`SumcheckV1.Counting`. Generic Merkle coupling helpers under
+`Current.ZeroKnowledge` remain outside the application endpoint closures;
+their obsolete runtime-codec instantiation is removed.
+
+`LfzkV1.ZkSim` also contains the `ZkExample` demonstration and a globally
+registered small-field instance. That example section belongs in a V1 test
+module; current V2 tests use their own local prime instances rather than
+relying on this incidental import.

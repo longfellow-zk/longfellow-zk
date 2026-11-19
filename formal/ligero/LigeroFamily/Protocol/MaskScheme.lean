@@ -1,4 +1,5 @@
 import LigeroFamily.Protocol.Basic
+import LigeroFamily.Protocol.Finite
 
 /-! # Mask-scheme-parametric commitment and verifier machinery -/
 

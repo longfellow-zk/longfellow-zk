@@ -12,28 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Run shared compiler/circuit tests with each compiler entry point.
-#[cfg(test)]
-macro_rules! test_compilers {
-    ($path:literal) => {
-        #[allow(clippy::duplicate_mod)] // Intentionally instantiate each test module twice.
-        mod v1_tests {
-            #[allow(dead_code)]
-            const V2: bool = false;
-            #[allow(unused_imports)]
-            use crate::compile::compiler::compile_v1 as compile;
-            include!($path);
-        }
-        #[allow(clippy::duplicate_mod)]
-        mod v2_tests {
-            #[allow(dead_code)]
-            const V2: bool = true;
-            #[allow(unused_imports)]
-            use crate::compile::compiler::compile_v2 as compile;
-            include!($path);
-        }
-    };
-}
+#![deny(unreachable_pub)]
+#![deny(unused_imports)]
 
 /// Conditionally includes items when `feature = "compiler"` (or `test`) is active.
 macro_rules! cfg_compiler {
@@ -65,6 +45,17 @@ macro_rules! cfg_verifier {
     };
 }
 
+/// Conditionally includes items in every proof role: when `feature = "prover"` or
+/// `feature = "verifier"` (both enable `_role`), or `test`, is active.
+macro_rules! cfg_role {
+    ($($item:item)*) => {
+        $(
+            #[cfg(any(test, feature = "_role"))]
+            $item
+        )*
+    };
+}
+
 /// Conditionally includes items when `feature = "prover"` or `feature = "compiler"` (or `test`) is
 /// active.
 macro_rules! cfg_prover_or_compiler {
@@ -86,149 +77,64 @@ macro_rules! cfg_testonly {
     };
 }
 
-#[path = "../util/src/lib.rs"]
 pub(crate) mod util;
 
-#[path = "../core"]
 pub mod core {
-    #[path = "algebra/src/lib.rs"]
     pub mod algebra;
-    #[path = "proto/src/lib.rs"]
     pub mod proto;
 }
 
-#[path = "../runtime"]
-pub mod runtime {
-    #[path = "algebra/src/lib.rs"]
-    pub mod algebra;
-    #[path = "ligero/src/lib.rs"]
-    pub mod ligero;
-    #[path = "merkle/src/lib.rs"]
-    pub mod merkle;
-    #[path = "polygero/src/lib.rs"]
-    pub mod polygero;
-    #[path = "proto/src/lib.rs"]
-    pub mod proto;
-    #[path = "random/src/lib.rs"]
-    pub mod random;
-    #[path = "sumcheck-v1/src/lib.rs"]
-    pub mod sumcheck_v1;
-    #[path = "sumcheck-v2/src/lib.rs"]
-    pub mod sumcheck_v2;
-    #[path = "zk-v1/src/lib.rs"]
-    pub mod zk_v1;
-    #[path = "zk-v2/src/lib.rs"]
-    pub mod zk_v2;
-}
+pub mod runtime;
 
 cfg_compiler! {
-    #[path = "../compile"]
     pub mod compile {
-        #[path = "algebra/src/lib.rs"]
         pub mod algebra;
-        #[path = "compiler/src/lib.rs"]
         pub mod compiler;
-        #[path = "logic/src/lib.rs"]
+        pub mod debug;
         pub mod logic;
-        #[path = "proto/src/lib.rs"]
-        pub mod proto;
-        #[path = "polygero/src/lib.rs"]
-        pub mod polygero;
-
-        cfg_testonly! {
-            #[path = "eval/src/lib.rs"]
-            pub mod eval;
-        }
     }
 }
 
-#[path = "../circuits"]
 pub mod circuits {
-    #[path = "analog_decoder/src/lib.rs"]
-    pub mod analog_decoder;
-    #[path = "bit_plucker/src/lib.rs"]
-    pub mod bit_plucker;
-
     cfg_prover_or_compiler! {
-        #[path = "ec/src/lib.rs"]
         pub mod ec;
-        #[path = "ecdsa2/src/lib.rs"]
         pub mod ecdsa2;
-        #[path = "mac/src/lib.rs"]
-        pub mod mac;
-        #[path = "sha256/src/lib.rs"]
         pub mod sha256;
-        #[path = "sha256msg/src/lib.rs"]
         pub mod sha256msg;
     }
-
     cfg_compiler! {
-        #[path = "analog_adder/src/lib.rs"]
         pub mod analog_adder;
-        #[path = "arithmetic/src/lib.rs"]
         pub mod arithmetic;
-        #[path = "big_bitvec/src/lib.rs"]
         pub mod big_bitvec;
-        #[path = "bignum/src/lib.rs"]
         pub mod bignum;
-        #[path = "bitvec/src/lib.rs"]
         pub mod bitvec;
-        #[path = "boolean/src/lib.rs"]
         pub mod boolean;
-        #[path = "gf2_128/src/lib.rs"]
-        pub mod gf2_128;
-        #[path = "lookup/src/lib.rs"]
         pub mod lookup;
-        #[path = "mac_gf128/src/lib.rs"]
-        pub mod mac_gf128;
-        #[path = "memcmp/src/lib.rs"]
         pub mod memcmp;
-        #[path = "polynomial/src/lib.rs"]
         pub mod polynomial;
-        #[path = "routing/src/lib.rs"]
         pub mod routing;
     }
-
-    #[cfg(any(
-        test,
-        feature = "testonly",
-        all(
-            feature = "experimental",
-            any(feature = "compiler", feature = "prover")
-        )
-    ))]
-    #[path = "experimental/src/lib.rs"]
-    pub mod experimental;
 }
 
 #[cfg(feature = "mdoc")]
-#[path = "../applications/mdoc_zk"]
 pub mod mdoc {
-    #[path = "circuits/src/lib.rs"]
-    pub mod circuits;
-    #[path = "proto/src/lib.rs"]
+    pub mod cbor;
     pub mod proto;
-    #[path = "runtime/src/lib.rs"]
-    pub mod runtime;
+    mod runtime;
 
-    pub use runtime::{find_zk_spec, find_zk_spec_by_hex, v1, v2, ZkSpecRef};
+    #[cfg(feature = "v1")]
+    pub use runtime::v1;
+    #[cfg(feature = "v1")]
+    pub use runtime::LONGFELLOW_V1;
+    pub use runtime::{find_zk_spec, find_zk_spec_by_hex, v2, ZkSpecRef, LONGFELLOW_V2};
 
     cfg_compiler! {
-        #[path = "artifacts/src/lib.rs"]
-        pub mod artifacts;
-        #[path = "compile/src/lib.rs"]
+        pub mod circuits;
         pub mod compile;
-        #[path = "development_provider/src/lib.rs"]
         pub mod development_provider;
     }
-
     cfg_testonly! {
-        #[path = "testcases/src/lib.rs"]
+        pub mod artifacts;
         pub mod testcases;
     }
 }
-
-/// Checks module dependencies across all source files and inactive feature paths.
-#[cfg(test)]
-#[path = "dependency_tests.rs"]
-mod module_dag_tests;

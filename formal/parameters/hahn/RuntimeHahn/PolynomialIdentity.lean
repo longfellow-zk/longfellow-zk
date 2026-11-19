@@ -1,6 +1,5 @@
 import RuntimeHahn.HahnPolynomial
 import Mathlib.Algebra.Polynomial.Roots
-import Mathlib.Algebra.Polynomial.BigOperators
 
 /-! Polynomial degree bounds used to check Hahn identities at finitely many points. -/
 

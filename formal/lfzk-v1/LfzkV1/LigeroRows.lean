@@ -1,6 +1,3 @@
-import Mathlib
-import LfzkV1.WPoly
-import LfzkV1.Types
 import LfzkV1.Circuit
 
 open SumcheckV1

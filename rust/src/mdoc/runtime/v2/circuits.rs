@@ -1,0 +1,104 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Longfellow v2 circuit loading with mandatory payload ID verification.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+use crate::mdoc::{proto::layout::public, v2::request::Request};
+use crate::{
+    core::proto::v2::{Circuit, CircuitReader},
+    mdoc::v2::ZkSpecStruct,
+    runtime::algebra::{gf2_128::Gf2_128Field, p256::P256Field},
+};
+
+type DecodedCircuits = (Circuit<P256Field>, Circuit<Gf2_128Field>);
+
+/// Load circuits, validating their structure and recomputing their payload IDs.
+pub fn decompress_circuits(
+    compressed: &[u8],
+    p256: &P256Field,
+    gf2: &Gf2_128Field,
+) -> Result<DecodedCircuits, String> {
+    load(compressed, p256, gf2, None)
+}
+
+/// The circuits a checked request's spec names (DESIGN.md I3).
+/// [`Instance::load`] is the only constructor.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub(super) struct Instance {
+    signature: Circuit<P256Field>,
+    hash: Circuit<Gf2_128Field>,
+}
+
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+impl Instance {
+    /// Check the archive's metadata against the request's spec, verify both
+    /// payload identities, and check both circuits' public-input counts
+    /// against the request.
+    pub(super) fn load(
+        request: &Request<'_>,
+        compressed: &[u8],
+        p256: &P256Field,
+        gf2: &Gf2_128Field,
+    ) -> Result<Self, String> {
+        let (signature, hash) = load(compressed, p256, gf2, Some(request.spec()))?;
+        if hash.raw.npublic_input != public::HASH_INPUTS
+            || signature.raw.npublic_input != public::SIGNATURE
+        {
+            return Err("Circuit public-input counts do not match the request".into());
+        }
+        Ok(Self { signature, hash })
+    }
+    pub(super) fn signature(&self) -> &Circuit<P256Field> {
+        &self.signature
+    }
+    pub(super) fn hash(&self) -> &Circuit<Gf2_128Field> {
+        &self.hash
+    }
+}
+
+fn load(
+    compressed: &[u8],
+    p256: &P256Field,
+    gf2: &Gf2_128Field,
+    spec: Option<&ZkSpecStruct>,
+) -> Result<DecodedCircuits, String> {
+    let archive = super::archive::read(compressed)?;
+    let (sig_entry, hash_entry) = super::archive::circuit_entries(&archive, spec)?;
+    let (signature, signature_tail) = CircuitReader::new(p256).from_bytes(&sig_entry.payload)?;
+    if !signature_tail.is_empty() || signature.id != sig_entry.circuit_id {
+        return Err("Signature payload does not match its archive entry".into());
+    }
+    let (hash, hash_tail) = CircuitReader::new(gf2).from_bytes(&hash_entry.payload)?;
+    if !hash_tail.is_empty() || hash.id != hash_entry.circuit_id {
+        return Err("Hash payload does not match its archive entry".into());
+    }
+    Ok((signature, hash))
+}
+
+#[cfg(test)]
+mod tests;
+
+/// Derive the application's proof codec dimensions from its trusted circuits.
+#[cfg(any(test, feature = "prover", feature = "verifier"))]
+pub fn proof_geometry(
+    spec: &ZkSpecStruct,
+    signature: &Circuit<P256Field>,
+    hash: &Circuit<Gf2_128Field>,
+) -> Result<super::MdocProofGeometry, String> {
+    super::domains::with_domains(&Gf2_128Field::new(), &P256Field::new(), |domains| {
+        Ok(super::MdocProofGeometry {
+            body: super::link::composition(spec, signature, hash, domains)?.geometry()?,
+        })
+    })
+}

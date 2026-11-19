@@ -1,4 +1,3 @@
-import SelectedMCA.DoubleAveraging
 import AffineAgreement.Secant
 import AffineAgreement.AffineSupport
 import AffineAgreement.Globalization

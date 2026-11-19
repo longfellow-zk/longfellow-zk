@@ -1,0 +1,281 @@
+import LfzkV2.Current.ApplicationCover
+import LfzkV2.Current.BalancedDecoder
+import LfzkV2.Current.SelectionReplay
+
+/-! Query-local tests for the non-layered parts of the current application.
+All data readers receive only the fixed preimage and its strict ancestors.
+The candidate answer is explicit.  The tests below are the actual fingerprint,
+rescaling, conversion and packing predicates, with their existing
+algebraic counts lifted to the full raw answer alphabet. -/
+noncomputable section
+namespace LfzkV2.Current.ApplicationOracle
+open Finset WitnessSelection SumcheckV2 DualPacking.ArtinSchreier
+open scoped Classical
+
+variable {roles : List Role} {Key Block Link Body C Oracle B N IB IN : Type}
+variable [Field B] [Field N] [Fintype B] [Fintype N] [DecidableEq B] [DecidableEq N]
+  [Fintype IB] [Fintype IN]
+
+local notation "Point" => Input roles Key Block Link Body
+local notation "Pair" => Selection.Pair B N IB IN
+
+/-- The concrete early-selection replay interface.  On an accepted path the
+response reader is instantiated by the already-bound fingerprint response
+prefix, not by a later mutable statement. -/
+structure SelectionSource (roles : List Role) (Key Block Link Body C Oracle B N IB IN : Type)
+    [Field B] [Field N] [DecidableEq B] [DecidableEq N] [Fintype IB] [Fintype IN] where
+  lists : Key → Oracle → Finset (WitnessSelection.Candidate B IB) ×
+    Finset (WitnessSelection.Candidate N IN)
+  coins : C → Coins B IB × Coins N IN
+  responses : Input roles Key Block Link Body → (B × B) × (N × N)
+  oracle : (Input roles Key Block Link Body → Link × C) → Key → Oracle
+  oracle_off : ∀ point H H', Bcs.TotalOracle.AgreeOff point H H' →
+    oracle H point.context = oracle H' point.context
+
+namespace SelectionSource
+variable (S : SelectionSource roles Key Block Link Body C Oracle B N IB IN)
+
+def selected (point : Point) (H : Point → Link × C) : Option Pair :=
+  Selection.atPoint S.lists S.coins S.responses S.oracle point H
+
+omit [Fintype B] [Fintype N] in
+theorem selected_off (point : Point) (H H' : Point → Link × C)
+    (h : Bcs.TotalOracle.AgreeOff point H H') : S.selected point H = S.selected point H' := by
+  exact Selection.atPoint_off S.lists S.coins S.responses S.oracle S.oracle_off point H H' h
+
+/-- This wrapper fixes the selected pair and strict-prefix data before
+testing an explicit current answer.  The concrete tests below instantiate
+`bad` with the existing algebraic predicates. -/
+def test {D : Type} (read : (point : Point) → (Fin point.rank → C) → D)
+    (bad : D → Pair → C → Prop) (point : Point) (H : Point → Link × C) (answer : C) : Prop :=
+  ∃ w, S.selected point H = some w ∧ bad (read point (point.priorAnswers H)) w answer
+
+omit [Fintype B] [Fintype N] in
+theorem test_off {D : Type} (read : (point : Point) → (Fin point.rank → C) → D)
+    (bad : D → Pair → C → Prop) (point : Point) (H H' : Point → Link × C)
+    (h : Bcs.TotalOracle.AgreeOff point H H') (answer : C) :
+    S.test read bad point H answer ↔ S.test read bad point H' answer := by
+  unfold test
+  rw [S.selected_off point H H' h, point.priorAnswers_off h]
+
+def binarySelection (point : Point) (H : Point → Link × C) (answer : C) : Prop :=
+  (S.coins answer).1 ∈ badCoins (S.lists point.context (S.oracle H point.context)).1
+
+def primeSelection (point : Point) (H : Point → Link × C) (answer : C) : Prop :=
+  (S.coins answer).2 ∈ badCoins (S.lists point.context (S.oracle H point.context)).2
+
+omit [Fintype N] in
+theorem binarySelection_off (point : Point) (H H' : Point → Link × C)
+    (h : Bcs.TotalOracle.AgreeOff point H H') (answer : C) :
+    S.binarySelection point H answer ↔ S.binarySelection point H' answer := by
+  unfold binarySelection
+  rw [S.oracle_off point H H' h]
+
+omit [Fintype B] in
+theorem primeSelection_off (point : Point) (H H' : Point → Link × C)
+    (h : Bcs.TotalOracle.AgreeOff point H H') (answer : C) :
+    S.primeSelection point H answer ↔ S.primeSelection point H' answer := by
+  unfold primeSelection
+  rw [S.oracle_off point H H' h]
+
+omit [Fintype N] in
+theorem binarySelection_card_mul_le [Fintype C] [Fintype (Coins B IB)]
+    (decoder : BalancedDecoder C (Coins B IB))
+    (hagrees : ∀ c, decoder.decode c = (S.coins c).1)
+    (point : Point) (H : Point → Link × C) :
+    (univ.filter (S.binarySelection point H)).card * Fintype.card B^2 ≤
+      (S.lists point.context (S.oracle H point.context)).1.card.choose 2 * Fintype.card C := by
+  let candidates := (S.lists point.context (S.oracle H point.context)).1
+  have hcard : Fintype.card (Coins B IB) = Fintype.card B^Fintype.card IB *
+      Fintype.card B^Fintype.card IB := by
+    simpa only [Fintype.card_prod, Fintype.card_fin, Fintype.card_fun] using
+      Fintype.card_congr (show Coins B IB ≃
+        Fin (Fintype.card (IB → B)) × Fin (Fintype.card (IB → B)) from
+        Equiv.prodCongr (Fintype.equivFin (IB → B)) (Fintype.equivFin (IB → B)))
+  have hlocal : (univ.filter fun a => a ∈ badCoins candidates).card * Fintype.card B^2 ≤
+      candidates.card.choose 2 * Fintype.card (Coins B IB) := by
+    simpa [hcard] using list_collision_card_mul_le candidates
+  have h := decoder.bad_card_mul_le (fun a => a ∈ badCoins candidates)
+    (candidates.card.choose 2) (Fintype.card B^2) (by
+      convert! hlocal using 1
+      congr 2
+      ext a
+      simp)
+  convert h using 1
+  congr 2
+  ext c
+  simp only [mem_filter]
+  rw [hagrees]
+  rfl
+
+omit [Fintype B] in
+theorem primeSelection_card_mul_le [Fintype C] [Fintype (Coins N IN)]
+    (decoder : BalancedDecoder C (Coins N IN))
+    (hagrees : ∀ c, decoder.decode c = (S.coins c).2)
+    (point : Point) (H : Point → Link × C) :
+    (univ.filter (S.primeSelection point H)).card * Fintype.card N^2 ≤
+      (S.lists point.context (S.oracle H point.context)).2.card.choose 2 * Fintype.card C := by
+  let candidates := (S.lists point.context (S.oracle H point.context)).2
+  have hcard : Fintype.card (Coins N IN) = Fintype.card N^Fintype.card IN *
+      Fintype.card N^Fintype.card IN := by
+    simpa only [Fintype.card_prod, Fintype.card_fin, Fintype.card_fun] using
+      Fintype.card_congr (show Coins N IN ≃
+        Fin (Fintype.card (IN → N)) × Fin (Fintype.card (IN → N)) from
+        Equiv.prodCongr (Fintype.equivFin (IN → N)) (Fintype.equivFin (IN → N)))
+  have hlocal : (univ.filter fun a => a ∈ badCoins candidates).card * Fintype.card N^2 ≤
+      candidates.card.choose 2 * Fintype.card (Coins N IN) := by
+    simpa [hcard] using list_collision_card_mul_le candidates
+  have h := decoder.bad_card_mul_le (fun a => a ∈ badCoins candidates)
+    (candidates.card.choose 2) (Fintype.card N^2) (by
+      convert! hlocal using 1
+      congr 2
+      ext a
+      simp)
+  convert h using 1
+  congr 2
+  ext c
+  simp only [mem_filter]
+  rw [hagrees]
+  rfl
+
+end SelectionSource
+
+variable {W Raw : Type} [Fintype Raw]
+
+/-- An option-valued extractor selects at most one witness.  There is no
+enumeration of possible witnesses and no candidate-list multiplier here. -/
+theorem selected_card_mul_le (selected : Option W) (bad : W → Raw → Prop)
+    (numerator denominator : ℕ)
+    (hlocal : ∀ w, (univ.filter (bad w)).card * denominator ≤ numerator * Fintype.card Raw) :
+    (univ.filter fun raw => ∃ w, selected = some w ∧ bad w raw).card * denominator ≤
+      numerator * Fintype.card Raw := by
+  cases selected with
+  | none => simp
+  | some w => simpa only [Option.some.injEq, exists_eq_left'] using hlocal w
+
+variable {F Slot Shared Other I J KField : Type} [Field F] [Fintype F] [DecidableEq F]
+
+/-- The split's rescaling test. `eta` is drawn from the prime frontend's
+last answer after alpha and the input weights, so the split claim is a
+function of that same answer, through its full-field coordinates only. -/
+structure RescaleData (F Shared Other W Raw : Type) [Field F] where
+  claim : Raw → Prime.Claim Shared Other F
+  shared : W → Shared → F
+  other : W → Other → F
+  binaryMask : W → F
+  primeMask : W → F
+
+def RescaleData.bad [Fintype Shared] [Fintype Other]
+    (d : RescaleData F Shared Other W Raw) (w : W) (raw : Raw)
+    (eta : Linear.TerminalSampling.Nonzero F) : Prop :=
+  Prime.RescalingBad ((d.claim raw).residual (d.shared w) (d.other w))
+    (d.binaryMask w - d.primeMask w) eta.val
+
+omit [Fintype Raw] in
+/-- The answer's coordinates and its `eta` are jointly uniform; given the
+coordinates, which fix the claim, at most one `eta` repairs a false claim. -/
+theorem RescaleData.bad_card_mul_le [Fintype Raw] [Fintype Shared] [Fintype Other] {V : Type} [Fintype V]
+    (d : RescaleData F Shared Other W Raw) (w : W)
+    (decoder : BalancedDecoder Raw (V × Linear.TerminalSampling.Nonzero F))
+    (hclaim : ∀ a b, (decoder.decode a).1 = (decoder.decode b).1 → d.claim a = d.claim b) :
+    (univ.filter fun raw => d.bad w raw (decoder.decode raw).2).card * (Fintype.card F-1) ≤
+      Fintype.card Raw := by
+  let bad' : V × Linear.TerminalSampling.Nonzero F → Prop := fun p =>
+    ∃ a, (decoder.decode a).1 = p.1 ∧ d.bad w a p.2
+  letI : DecidablePred bad' := fun p => Classical.propDecidable (bad' p)
+  have hsub : (univ.filter fun raw => d.bad w raw (decoder.decode raw).2) ⊆
+      univ.filter fun raw => bad' (decoder.decode raw) := by
+    intro raw hraw
+    exact mem_filter.mpr ⟨mem_univ _, raw, rfl, (mem_filter.mp hraw).2⟩
+  have hinj : Set.InjOn Prod.fst (↑(univ.filter bad') : Set (V × Linear.TerminalSampling.Nonzero F)) := by
+    rintro ⟨v,eta⟩ hp ⟨v',eta'⟩ hq hv
+    obtain ⟨a,ha,hbad⟩ := (mem_filter.mp hp).2
+    obtain ⟨b,hb,hbad'⟩ := (mem_filter.mp hq).2
+    change v = v' at hv
+    subst hv
+    have hc := hclaim a b (ha.trans hb.symm)
+    simp only [RescaleData.bad] at hbad hbad'
+    rw [hc] at hbad
+    have hcard := Prime.rescaling_bad_card ((d.claim b).residual (d.shared w) (d.other w))
+      (d.binaryMask w-d.primeMask w)
+    have he : eta = eta' := card_le_one.mp hcard eta (mem_filter.mpr ⟨mem_univ _, hbad⟩)
+      eta' (mem_filter.mpr ⟨mem_univ _, hbad'⟩)
+    rw [he]
+  have hcount : (univ.filter bad').card ≤ Fintype.card V :=
+    (card_le_card_of_injOn Prod.fst (fun _ _ => mem_univ _) hinj).trans (by simp)
+  have h := decoder.bad_card_mul_le bad' 1 (Fintype.card F-1) (by
+    rw [Fintype.card_prod, Linear.TerminalSampling.nonzero_card, one_mul]
+    exact Nat.mul_le_mul_right (Fintype.card F-1) hcount)
+  rw [one_mul] at h
+  exact (Nat.mul_le_mul_right _ (card_le_card hsub)).trans h
+
+variable {p bits M K : ℕ} [Fact p.Prime]
+
+structure ConversionData (p bits : ℕ) (W : Type) [Fact p.Prime] where
+  weights : Fin bits → ZMod p
+  values : W → Fin bits → Bool
+  target : ZMod p
+
+def ConversionData.bad (d : ConversionData p bits W) (M K : ℕ) (w : W)
+    (alpha : Linear.TerminalSampling.Nonzero (ZMod p) ×
+      Linear.TerminalSampling.Nonzero (ZMod p)) : Prop :=
+  Adapter.residual d.weights (d.values w) d.target ≠ 0 ∧
+    Adapter.Bad d.weights (d.values w) d.target M K alpha.1 ∧
+    Adapter.Bad d.weights (d.values w) d.target M K alpha.2
+
+theorem ConversionData.bad_card_mul_le (d : ConversionData p bits W) (w : W)
+    (hM : 0 < M) (hbits : bits ≤ K)
+    (decoder : BalancedDecoder Raw (Linear.TerminalSampling.Nonzero (ZMod p) ×
+      Linear.TerminalSampling.Nonzero (ZMod p))) :
+    (univ.filter fun raw => d.bad M K w (decoder.decode raw)).card * (p-1)^2 ≤
+      (2*(K*p/M)+1)^2 * Fintype.card Raw := by
+  apply decoder.bad_card_mul_le
+  by_cases hfalse : Adapter.residual d.weights (d.values w) d.target ≠ 0
+  · simpa [ConversionData.bad, hfalse, Fintype.card_prod,
+      Linear.TerminalSampling.nonzero_card, ZMod.card, sq] using
+      Nat.mul_le_mul_right ((p-1)*(p-1)) (Adapter.two_bad_card d.weights (d.values w) d.target hM hbits hfalse)
+  · simp [ConversionData.bad, hfalse]
+
+variable [Field KField] [Fintype KField] [Algebra KField F]
+  [Fintype I] [DecidableEq I] [Fintype J]
+
+structure PackingData (KField F I J Slot W : Type)
+    [Field KField] [Fintype KField] [Field F] [Fintype F]
+    [Algebra KField F] [Fintype I] [DecidableEq I] [Fintype J] where
+  source : Packed.Statement KField F I J Slot
+  values : W → Slot → F
+  U : I → F
+
+def PackingData.bad (d : PackingData KField F I J Slot W) (w : W) (delta : I → F) : Prop :=
+  d.source.Bad (d.values w) d.U delta
+
+theorem PackingData.bad_card_mul_le (d : PackingData KField F I J Slot W) (w : W)
+    (decoder : BalancedDecoder Raw (I → F)) :
+    (univ.filter fun raw => d.bad w (decoder.decode raw)).card * Fintype.card F ≤
+      Fintype.card Raw := by
+  apply (decoder.bad_card_mul_le (d.bad w) 1 (Fintype.card F) ?_).trans_eq (one_mul _)
+  have hdim : 1 ≤ Fintype.card I := Fintype.card_pos_iff.mpr ⟨d.source.pivot⟩
+  calc
+    _ ≤ Fintype.card F^(Fintype.card I-1) * Fintype.card F :=
+      Nat.mul_le_mul_right _ (d.source.bad_card_le (d.values w) d.U)
+    _ = _ := by rw [← pow_succ, Nat.sub_add_cancel hdim]; simp
+
+namespace SelectionSource
+variable [Fintype C]
+variable (S : SelectionSource roles Key Block Link Body C Oracle B N IB IN)
+
+omit [Fintype B] [Fintype N] in
+theorem test_card_mul_le {D : Type}
+    (read : (point : Point) → (Fin point.rank → C) → D)
+    (bad : D → Pair → C → Prop) (point : Point) (H : Point → Link × C)
+    (numerator denominator : ℕ)
+    (hlocal : ∀ d w, (univ.filter (bad d w)).card * denominator ≤
+      numerator * Fintype.card C) :
+    (univ.filter (S.test read bad point H)).card * denominator ≤
+      numerator * Fintype.card C := by
+  simpa only [test] using selected_card_mul_le (S.selected point H)
+    (bad (read point (point.priorAnswers H))) numerator denominator
+    (hlocal (read point (point.priorAnswers H)))
+
+end SelectionSource
+end LfzkV2.Current.ApplicationOracle

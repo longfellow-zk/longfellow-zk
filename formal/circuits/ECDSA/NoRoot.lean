@@ -1,6 +1,7 @@
 module
 
 public import ECDSA.PowMod
+public import Mathlib.Tactic.LinearCombination
 
 /-!
 # Certifying that a depressed cubic has no root in `ZMod p`

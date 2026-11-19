@@ -1,0 +1,149 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use sha2::{Digest, Sha256 as Sha2Reference};
+
+use super::test_support;
+use crate::{
+    circuits::{
+        analog_adder::FieldWrappingSum,
+        bitvec::{BitvecIO, BitvecLogic},
+        sha256msg::{allocate_given, concrete::given, Derived, Sha256Msg},
+    },
+    compile::{
+        algebra::{gf2_128::Gf2_128Field, p256::P256Field, CompileField},
+        compiler::{dump_stats, CompilerLogic},
+        debug::evaluate::eval_circuit_fc,
+        logic::K_FIRST_WIRE_POSITION,
+    },
+    core::{algebra::SerializableField, proto::v2::evaluate::initial_inputs},
+    runtime::algebra::RuntimeField,
+};
+
+fn test_compile_sha256msg_for_field<
+    'a,
+    FC: CompileField + FieldWrappingSum + SerializableField,
+    FR: RuntimeField + SerializableField,
+    const MAX_BLOCKS: usize,
+>(
+    fc: &'a FC,
+    fr: &'a FR,
+    name: &str,
+    message: &[u8],
+) {
+    let mut hasher = Sha2Reference::new();
+    hasher.update(message);
+    let reference_hash = hasher.finalize();
+
+    let (circuit, stats, symbols) = super::compile(fc, |iologic| {
+        let mut pos = K_FIRST_WIRE_POSITION;
+        let sha256msg = Sha256Msg::<_, MAX_BLOCKS>::new(&iologic);
+        let bv = BitvecLogic::new(&iologic);
+        let given_wires = allocate_given::<CompilerLogic<'_, FC>, MAX_BLOCKS>(&bv, &mut pos);
+        let io = BitvecIO::new(&bv);
+        let derived_wires = Derived::from_fn(MAX_BLOCKS, || io.next(&mut pos));
+
+        (
+            sha256msg.assert_message_hash::<MAX_BLOCKS>(&given_wires, &derived_wires),
+            1,
+            0,
+        )
+    });
+
+    let mut given = given(message, MAX_BLOCKS).unwrap();
+    let reference_words = std::array::from_fn(|i| {
+        u32::from_be_bytes(reference_hash[4 * i..4 * i + 4].try_into().unwrap())
+    });
+    assert_eq!(given.expected_hash, reference_words);
+    given.expected_hash = reference_words;
+    let derived = crate::circuits::sha256msg::concrete::derived(&given, MAX_BLOCKS);
+
+    dump_stats(name, &circuit, &stats);
+
+    let mut inputs = initial_inputs(fr);
+    given.push_elements(fr, MAX_BLOCKS, |e| inputs.push(e));
+    derived.push_derived(fr, |e| inputs.push(e));
+
+    // Evaluate circuit
+    eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
+        .unwrap()
+        .assert_all_passed();
+}
+
+#[test]
+fn test_compile_sha256msg() {
+    let p256_c = P256Field::new();
+    let p256_r = crate::runtime::algebra::p256::P256Field::new();
+    test_compile_sha256msg_for_field::<_, _, 1>(&p256_c, &p256_r, "sha256msg_p256_empty", &[]);
+    test_compile_sha256msg_for_field::<_, _, 2>(
+        &p256_c,
+        &p256_r,
+        "sha256msg_p256_hello",
+        b"hello world from Antigravity!",
+    );
+
+    let gf2_c = Gf2_128Field::new();
+    let gf2_r = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    test_compile_sha256msg_for_field::<_, _, 1>(&gf2_c, &gf2_r, "sha256msg_gf2_empty", &[]);
+    test_compile_sha256msg_for_field::<_, _, 2>(
+        &gf2_c,
+        &gf2_r,
+        "sha256msg_gf2_hello",
+        b"hello world from Antigravity!",
+    );
+}
+
+#[test]
+fn test_compile_sha256msg_tampering() {
+    let fc = P256Field::new();
+    let fr = crate::runtime::algebra::p256::P256Field::new();
+    let message = b"hello world";
+    let const_max_blocks = 2;
+    let given_orig = given(message, const_max_blocks).unwrap();
+    let derived_orig = crate::circuits::sha256msg::concrete::derived(&given_orig, const_max_blocks);
+
+    let (circuit, _stats, symbols) = super::compile(&fc, |iologic| {
+        let mut pos = K_FIRST_WIRE_POSITION;
+        let sha256msg = Sha256Msg::<_, 2>::new(&iologic);
+        let bv = BitvecLogic::new(&iologic);
+        let given_wires = allocate_given::<CompilerLogic<'_, P256Field>, 2>(&bv, &mut pos);
+        let io = BitvecIO::new(&bv);
+        let derived_wires = Derived::from_fn(2, || io.next(&mut pos));
+
+        (
+            sha256msg.assert_message_hash::<2>(&given_wires, &derived_wires),
+            1,
+            0,
+        )
+    });
+
+    let corruptors = test_support::all_sha256msg_corruptors();
+
+    for c in corruptors {
+        let mut g = given_orig.clone();
+        let mut d = derived_orig.clone();
+        (c.corrupt)(&mut g, &mut d);
+
+        let mut inputs = initial_inputs(&fr);
+        g.push_elements(&fr, const_max_blocks, |e| inputs.push(e));
+        d.push_derived(&fr, |e| inputs.push(e));
+
+        let eval_res = eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs).unwrap();
+        assert!(
+            eval_res.is_err(),
+            "Corruptor '{}' failed to cause circuit evaluation error",
+            c.name
+        );
+    }
+}

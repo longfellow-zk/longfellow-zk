@@ -1,6 +1,5 @@
 import CodingTheory.ListDecoding.HahnDelsarte
 import Mathlib.RingTheory.Polynomial.Pochhammer
-import Mathlib.Tactic.NormNum
 
 namespace CodingTheory.HahnDelsarte.Fast
 open Finset Polynomial

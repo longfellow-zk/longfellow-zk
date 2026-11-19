@@ -1,22 +1,9 @@
 import polygero.Algebra.FiniteProbability
+import Mathlib.Tactic.Ring
 
 namespace RecursivePolygero.NonrecursiveFS.Balance
 open Finset
 open scoped Classical
-/-- A balanced decoder's fiber count can be removed from a nonnegative
-clipped local budget, even when the un-clipped rational expression has an
-unknown sign.  This gives a context-independent hash-answer budget. -/
-theorem max_zero_nat_mul_le
-    {a b : ℕ} (hab : a ≤ b) (x : ℚ) :
-    max 0 ((a : ℚ) * x) ≤ max 0 ((b : ℚ) * x) := by
-  apply max_le
-  · exact le_max_left _ _
-  · by_cases hx : 0 ≤ x
-    · exact (mul_le_mul_of_nonneg_right (by exact_mod_cast hab) hx).trans
-        (le_max_right _ _)
-    · have hax : (a : ℚ) * x ≤ 0 :=
-        mul_nonpos_of_nonneg_of_nonpos (Nat.cast_nonneg _) (le_of_not_ge hx)
-      exact hax.trans (le_max_left _ _)
 
 theorem decoded_weight_sum_le
     {C X : Type*} [Fintype C] [Fintype X] [DecidableEq X]

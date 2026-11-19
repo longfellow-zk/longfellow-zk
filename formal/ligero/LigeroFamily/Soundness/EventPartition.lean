@@ -1,6 +1,5 @@
 import LigeroFamily.Soundness.FiniteCounting
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
-import Mathlib.Data.Finset.Card
 import Mathlib.Data.Rat.Cast.Order
 
 /-!

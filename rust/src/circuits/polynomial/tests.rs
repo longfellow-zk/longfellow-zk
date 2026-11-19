@@ -1,0 +1,80 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#[allow(unused_imports)]
+use crate::compile::compiler::tests::source_fixture::compile;
+use crate::{
+    circuits::polynomial::Polynomial,
+    compile::{
+        algebra::p256::P256Field,
+        compiler::dump_stats,
+        logic::{AssertionScope, Logic, LogicIO, K_FIRST_WIRE_POSITION},
+    },
+    core::algebra::{SupportsNatConversions, SupportsU64Conversions},
+};
+
+#[test]
+fn test_compile_polynomial() {
+    let f = P256Field::new();
+    let (circuit, stats, _symbols) = compile(&f, |iologic| {
+        let p = Polynomial::new(&iologic);
+
+        let mut pos = K_FIRST_WIRE_POSITION;
+        let cc: Vec<_> = (0..5).map(|_| iologic.next(&mut pos)).collect();
+        let x = iologic.next(&mut pos);
+
+        let res = p.eval(&cc, &x);
+        (iologic.assert0("poly_res", &res), 1, 0)
+    });
+
+    dump_stats("polynomial_eval_compile", &circuit, &stats);
+}
+
+use crate::compile::{
+    algebra::{interpolation::eval_monomial, CompileField},
+    logic::EvalLogic,
+};
+
+fn test_polynomial_evaluation_generic<
+    const W: usize,
+    F: CompileField + SupportsNatConversions<W> + SupportsU64Conversions,
+>(
+    f: &F,
+) {
+    let tracker = AssertionScope::new();
+    let iologic = EvalLogic::new(f, &tracker);
+    let p = Polynomial::new(&iologic);
+
+    let n = 47;
+    let mut poly = Vec::with_capacity(n);
+    for i in 0..n {
+        let val = 7 + (i * i * i) + (i & 0xf) + (i >> 3);
+        poly.push(f.u64_to_element(u64::from(val as u32)));
+    }
+    let poly_wires: Vec<_> = poly.iter().map(|c| iologic.konst(c)).collect();
+
+    for k in 0..1000 {
+        let pt = f.u64_to_element(u64::from(k as u32));
+        let pt_wire = iologic.konst(&pt);
+        let want = eval_monomial(f, &poly, &pt);
+        let got = p.eval(&poly_wires, &pt_wire);
+
+        assert_eq!(want, got.value, "Mismatch at standard eval for k = {k}");
+    }
+}
+
+#[test]
+fn test_polynomial_evaluation() {
+    let f = P256Field::new();
+    test_polynomial_evaluation_generic::<4, _>(&f);
+}

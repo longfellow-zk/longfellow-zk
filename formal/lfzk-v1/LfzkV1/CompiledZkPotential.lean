@@ -1,8 +1,5 @@
 import LfzkV1.CompiledZkTwoField
-import LfzkV1.ZkLigeroV1
-import LfzkV1.RbrZkPotentialData
 import LfzkV1.RbrZkPotentialPoint
-import LfzkV1.ZkPotentialBalance
 import LfzkV1.GradedCost
 
 /-!

@@ -1,5 +1,4 @@
 import Merkle.LazyTape
-import Merkle.FreshHit
 
 /-!
 # Composing bounded executions, and lazy sampling as a total oracle

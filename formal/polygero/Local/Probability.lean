@@ -1,5 +1,4 @@
 import polygero.Local.Parameters
-import polygero.Algebra.Counting.BinomialExcess
 import polygero.Local.Recovery
 import polygero.Algebra.Counting.RandomTarget
 import polygero.Local.OutputTarget

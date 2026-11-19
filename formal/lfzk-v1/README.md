@@ -79,8 +79,8 @@ headline's `hrowSat₁` and `hrowSat₂` hypotheses require every satisfying
 circuit assignment to enforce its own MAC equation and the shared tag.
 
 The Rust implementations are
-[v1/mac.rs](../../rust/applications/mdoc_zk/runtime/src/v1/mac.rs) and
-[v1/verifier.rs](../../rust/applications/mdoc_zk/runtime/src/v1/verifier.rs).
+[v1/mac.rs](../../rust/src/mdoc/runtime/v1/mac.rs) and
+[v1/verifier.rs](../../rust/src/mdoc/runtime/v1/verifier.rs).
 The formal annotation carries the replayed multiplier; it is not an extra
 serialized Rust proof field.
 
@@ -135,7 +135,7 @@ From `formal/`:
 ```sh
 lake build
 lake build LfzkV1.FlatV7All
-lake env lean scripts/Audit.lean
+lake build SecurityAudit
 cargo run --release --manifest-path lfzk-v1/scripts/Cargo.toml --bin inspect-v7-profile
 cargo run --release --manifest-path lfzk-v1/scripts/Cargo.toml --bin inspect-v7-assertions
 ```

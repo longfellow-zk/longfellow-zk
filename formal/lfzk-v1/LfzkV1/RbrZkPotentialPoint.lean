@@ -1,5 +1,4 @@
 import LfzkV1.RbrZkPotentialData
-import LfzkV1.NizkDeployedHash
 import LfzkV1.NizkZkDeployedHash
 import LfzkV1.CompiledZk
 

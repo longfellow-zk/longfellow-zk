@@ -1,5 +1,7 @@
-import Mathlib.Data.Rat.BigOperators
-import Mathlib.Tactic
+import Mathlib.Algebra.BigOperators.Field
+import Mathlib.Data.Fintype.BigOperators
+import Mathlib.Tactic.NormNum
+import Mathlib.Tactic.Positivity
 
 namespace RecursivePolygero
 open Finset
@@ -42,16 +44,6 @@ theorem mean_snd {I J : Type*} [Fintype I] [Nonempty I] [Fintype J] (f : J → �
 @[simp] theorem mean_indicator {I : Type*} [Fintype I] (P : I → Prop) :
     mean (fun i => indicator (P i)) = ((univ.filter P).card : ℚ) / Fintype.card I := by
   simp [mean,indicator]
-
-theorem mean_le {I : Type*} [Fintype I] [Nonempty I] {f : I → ℚ} {b : ℚ}
-    (h : ∀ i, f i ≤ b) : mean f ≤ b := by
-  simpa using mean_mono h
-
-/-- Partition a counted predicate into exceptional and surviving cases. -/
-theorem indicator_le_split (P E : Prop) :
-    indicator P ≤ indicator E+indicator (P ∧ ¬E) := by
-  unfold indicator
-  split_ifs <;> simp_all
 
 theorem indicator_nonneg (P : Prop) : 0 ≤ indicator P := by unfold indicator; split_ifs <;> norm_num
 

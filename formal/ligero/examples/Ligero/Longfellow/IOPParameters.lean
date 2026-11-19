@@ -1,5 +1,4 @@
 import examples.Ligero.Certificate
-import LigeroFamily.Soundness.ExtractionRate
 
 /-! Protocol tags and the actual Reed--Solomon instance bridge shared by the
 coarse and profiled scalar IOP certificates for all three variants. -/

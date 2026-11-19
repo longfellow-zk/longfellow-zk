@@ -16,8 +16,8 @@
 
 module
 
-public import Mathlib
 public import ECDSA.Nat
+public import Mathlib.Algebra.Group.Action.Defs
 
 /-!
 # Elliptic Curve Core Arithmetic and ZK Circuit Specification
@@ -274,22 +274,11 @@ section MathSpec
 
 variable {F : Type} [Field F]
 
-lemma addE_smul_left (p1 p2 : ProjectivePoint F) (params : CurveParameters F) (u : F) :
-    addE (u • p1) p2 params = u^2 • addE p1 p2 params := by
-  unfold addE
-  dsimp [HSMul.hSMul, SMul.smul]
-  ext <;> ring
-
 lemma addE_smul_right (p1 p2 : ProjectivePoint F) (params : CurveParameters F) (u : F) :
     addE p1 (u • p2) params = u^2 • addE p1 p2 params := by
   unfold addE
   dsimp [HSMul.hSMul, SMul.smul]
   ext <;> ring
-
-lemma addE_smul_both (p1 p2 : ProjectivePoint F) (params : CurveParameters F) (u v : F) :
-    addE (u • p1) (v • p2) params = (u^2 * v^2) • addE p1 p2 params := by
-  rw [addE_smul_left, addE_smul_right]
-  ext <;> dsimp [HSMul.hSMul, SMul.smul] <;> ring
 
 lemma doubleE_infinity (params : CurveParameters F) :
     doubleE infinityPoint params = infinityPoint := by
@@ -375,4 +364,3 @@ def bsmul {F : Type} [Field F] (s : List Bool) (P : ProjectivePoint F) (params :
   nsmulFastE (bitsToNat s) P params
 
 end MathSpec
-

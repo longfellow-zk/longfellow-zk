@@ -1,3 +1,4 @@
+import LfzkV1.LigeroZk.Witness
 import LfzkV1.LigeroZk.V1TapeTranslation
 import LfzkV1.LigeroZk.ResponseAdaptiveView
 

@@ -1,11 +1,9 @@
-import Mathlib.Tactic.SetNotationForOrder
 import Mathlib.Data.Finset.Sort
 import Mathlib.Data.Int.ConditionallyCompleteOrder
 import Mathlib.Data.Nat.Log
 import Mathlib.Data.Nat.SuccPred
 import Mathlib.Tactic.Linarith.Frontend
 import Mathlib.Tactic.NormNum.Ineq
-import Mathlib.Topology.Defs.Basic
 import Mathlib.Algebra.Group.Action.Defs
 import Mathlib.Order.Interval.Finset.Nat
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
@@ -13,7 +11,9 @@ import Mathlib.Algebra.Order.BigOperators.Group.Finset
 /-!
 # The binary-heap tree
 
-Models the tree layout of `rust/runtime/merkle/src/heap.rs`: a 1-indexed array
+Models the tree layout in `rust/src/runtime/v1/merkle/heap.rs` and its
+v2 copy in `rust/src/runtime/v2/merkle/` (`heap.rs`, with the prover's heap in
+`prover.rs` and the opening check in `verifier.rs`): a 1-indexed array
 of size `2n`; the root is at position `1`, the leaves at positions `n..2n-1`,
 and node `v < n` has children `2v` and `2v+1`. The layout is defined for every
 `n ≥ 1` (no power-of-two assumption); `SPEC.md` §2 collects the mathematics.

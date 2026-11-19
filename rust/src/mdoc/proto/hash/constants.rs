@@ -1,0 +1,59 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+pub const K_MAX_SHA_BLOCKS: usize = 40;
+pub const K_MSO_PREIMAGE_LEN: usize = K_MAX_SHA_BLOCKS * 64;
+pub const K_HASH_INDEX_BITS: usize = 16;
+/// Maximum UTF-8 byte length of the one namespace shared by all disclosures.
+pub const K_NAMESPACE_BYTES: usize = 64;
+/// Maximum byte length of the expected document type.
+pub const K_DOC_TYPE_BYTES: usize = 32;
+
+pub const K_COSE1_PREFIX: [u8; 18] = [
+    0x84, 0x6A, b'S', b'i', b'g', b'n', b'a', b't', b'u', b'r', b'e', b'1', 0x43, 0xA1, 0x01, 0x26,
+    0x40, 0x59,
+];
+pub const K_COSE1_PREFIX_LEN: usize = 18;
+/// Offset of the MSO map in the hashed preimage: after the COSE prefix, its
+/// two-byte length, tag 24 with a two-byte-length byte string header
+/// (`d8 18 59`) and that length.
+pub const K_MSO_OFFSET: usize = K_COSE1_PREFIX_LEN + 7;
+pub const K_TAG32: [u8; 2] = [0x58, 0x20];
+
+pub const K_DOCTYPE_HEADER_CHECK_CBOR: [u8; 8] = [0x67, b'd', b'o', b'c', b'T', b'y', b'p', b'e'];
+
+pub const K_VALID_FROM_LEN: usize = 12;
+pub const K_VALID_FROM_CHECK_CBOR: [u8; 12] = [
+    0x69, b'v', b'a', b'l', b'i', b'd', b'F', b'r', b'o', b'm', 0xC0, 0x74,
+];
+
+pub const K_VALID_UNTIL_LEN: usize = 13;
+pub const K_VALID_UNTIL_CHECK_CBOR: [u8; 13] = [
+    0x6A, b'v', b'a', b'l', b'i', b'd', b'U', b'n', b't', b'i', b'l', 0xC0, 0x74,
+];
+
+pub const K_DEVICE_KEY_INFO_CHECK_CBOR: [u8; 33] = [
+    0x6D, b'd', b'e', b'v', b'i', b'c', b'e', b'K', b'e', b'y', b'I', b'n', b'f', b'o', 0xA1, 0x69,
+    b'd', b'e', b'v', b'i', b'c', b'e', b'K', b'e', b'y', 0xA4, 0x01, 0x02, 0x20, 0x01, 0x21, 0x58,
+    0x20,
+];
+
+pub const K_VALUE_DIGESTS_CHECK_CBOR: [u8; 13] = [
+    0x6C, b'v', b'a', b'l', b'u', b'e', b'D', b'i', b'g', b'e', b's', b't', b's',
+];
+
+pub const K_TIMESTAMP_LEN: usize = 20;
+/// Positions of YYYYMMDDhhmmss in a well-formed 20-byte UTC timestamp.
+/// Only these bytes enter v2's public input; separators have no ordering meaning.
+pub const K_TIMESTAMP_DIGITS: [usize; 14] = [0, 1, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17, 18];

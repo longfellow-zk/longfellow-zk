@@ -1,9 +1,7 @@
-import Mathlib.Algebra.Polynomial.Div
 import Mathlib.Algebra.Polynomial.Identities
 import Mathlib.Algebra.Polynomial.Roots
 import Mathlib.RingTheory.Nilpotent.Basic
 import Mathlib.RingTheory.Ideal.Operations
-import Mathlib.Tactic.Linarith
 
 /-!
 # §1: stop the Hensel lift after `r + 1` coefficients

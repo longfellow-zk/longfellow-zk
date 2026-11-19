@@ -1,6 +1,5 @@
 import Ligero.V1.ScalarGapProfiled
 import LigeroFamily.Soundness.PolicyPotentialUniform
-import LigeroFamily.Soundness.PotentialPairs
 
 /-!
 # Extraction-first graded potential for Ligero V1

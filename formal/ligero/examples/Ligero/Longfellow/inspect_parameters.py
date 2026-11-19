@@ -45,7 +45,7 @@ class Reader:
   return c
 rows=[]
 for digest,attributes,version,enc_hash,enc_sig in pattern.findall(SPECS.read_text()):
- file=ROOT/'rust/applications/mdoc_zk/artifacts/circuits'/digest
+ file=ROOT/'rust/src/mdoc/artifacts/circuits'/digest
  compressed=file.read_bytes();actual=hashlib.sha256(compressed).hexdigest()
  r=Reader(subprocess.check_output(['zstd','-q','-d','-c',str(file)]))
  circuits=[r.circuit(),r.circuit()];assert r.offset==len(r.data)

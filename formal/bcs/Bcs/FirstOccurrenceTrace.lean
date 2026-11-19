@@ -1,5 +1,4 @@
 import Bcs.Counting
-import Mathlib.Data.List.Basic
 
 /-! First-occurrence slots for two domain-separated defining queries. -/
 set_option autoImplicit false
@@ -29,20 +28,6 @@ namespace FirstOccurrenceTrace
 variable {Ω Query : Type*} [Fintype Ω] [BEq Query] [LawfulBEq Query]
 variable {querySlots : ℕ}
 
-/-- Pull a first-occurrence trace back along a deterministic map of sample
-spaces.  This is used to add independent Merkle randomness without changing
-the two Fiat--Shamir defining queries or their order. -/
-def comap {Ω' : Type*}
-    (F : FirstOccurrenceTrace Ω Query querySlots) (f : Ω' → Ω) :
-    FirstOccurrenceTrace Ω' Query querySlots where
-  trace ω := F.trace (f ω)
-  alphaQuery ω := F.alphaQuery (f ω)
-  subsetQuery ω := F.subsetQuery (f ω)
-  alpha_mem ω := F.alpha_mem (f ω)
-  subset_mem ω := F.subset_mem (f ω)
-  separated ω := F.separated (f ω)
-  trace_length ω := F.trace_length (f ω)
-
 /-- First defining alpha query precedes the defining subset query. -/
 def caseA (F : FirstOccurrenceTrace Ω Query querySlots)
     (listed win bindBreak : Ω → Prop) (i : Fin querySlots) (ω : Ω) : Prop :=
@@ -61,14 +46,6 @@ def caseB (F : FirstOccurrenceTrace Ω Query querySlots)
     (F.trace ω).idxOf (F.subsetQuery ω) = i.val ∧
     (F.trace ω).idxOf (F.subsetQuery ω) <
       (F.trace ω).idxOf (F.alphaQuery ω)
-
-omit [Fintype Ω] in
-/-- The defining queries' first occurrences are different. -/
-theorem idxOf_ne (F : FirstOccurrenceTrace Ω Query querySlots) (ω : Ω) :
-    (F.trace ω).idxOf (F.alphaQuery ω) ≠
-      (F.trace ω).idxOf (F.subsetQuery ω) := by
-  intro heq
-  exact F.separated ω ((List.idxOf_inj (F.alpha_mem ω)).mp heq)
 
 omit [Fintype Ω] in
 /-- The first H2 occurrence is a real slot of the augmented trace. -/
@@ -91,31 +68,6 @@ def alphaSlot (F : FirstOccurrenceTrace Ω Query querySlots) (ω : Ω) :
 def subsetSlot (F : FirstOccurrenceTrace Ω Query querySlots) (ω : Ω) :
     Fin querySlots :=
   ⟨(F.trace ω).idxOf (F.subsetQuery ω), F.subset_idx_lt ω⟩
-
-omit [Fintype Ω] in
-theorem alphaSlot_ne_subsetSlot
-    (F : FirstOccurrenceTrace Ω Query querySlots) (ω : Ω) :
-    F.alphaSlot ω ≠ F.subsetSlot ω := by
-  intro heq
-  exact F.idxOf_ne ω (Fin.ext_iff.mp heq)
-
-omit [Fintype Ω] in
-theorem subsetSlot_eq_of_caseB
-    (F : FirstOccurrenceTrace Ω Query querySlots)
-    (win bindBreak : Ω → Prop) (i : Fin querySlots) (ω : Ω)
-    (hcase : F.caseB win bindBreak i ω) :
-    F.subsetSlot ω = i := by
-  exact Fin.ext hcase.2.2.1
-
-omit [Fintype Ω] in
-theorem alphaSlot_eq_of_caseA_listed
-    (F : FirstOccurrenceTrace Ω Query querySlots)
-    (listed win bindBreak : Ω → Prop) (i : Fin querySlots) (ω : Ω)
-    (hcase : F.caseA listed win bindBreak i ω) (hlisted : listed ω) :
-    F.alphaSlot ω = i := by
-  rcases hcase.2.2.2 with hfloor | hexcess
-  · exact absurd hlisted hfloor.1
-  · exact Fin.ext hexcess.2
 
 omit [Fintype Ω] in
 theorem subsetSlot_eq_of_caseA_floor

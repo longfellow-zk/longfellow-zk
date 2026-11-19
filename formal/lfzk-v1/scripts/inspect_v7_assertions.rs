@@ -4,8 +4,11 @@
 // artifacts exactly as `inspect_v7_circuit_profile.rs` loads them (registry combined hash, entry
 // IDs recomputed from the parsed circuits, the runtime's own `decompress_circuits`). Build with
 // the adjacent Cargo manifest; each structural condition is checked before returning success.
-use core_algebra::field::AlgebraicField;
-use core_proto::{archive::compute_combined_id, circuit::compute_id, reader::CircuitReader};
+use core_algebra::AlgebraicField;
+use core_proto::{
+    archive::compute_combined_id,
+    v1::{compute_id, CircuitReader},
+};
 use longfellow_zk::{
     core::{algebra as core_algebra, proto as core_proto},
     mdoc::v1 as mdoc_zk_runtime,
@@ -46,11 +49,11 @@ fn main() {
 
         let sig_entry = archive.get("sig").expect("sig entry");
         let hash_entry = archive.get("hash").expect("hash entry");
-        let (c_sig, rest) = CircuitReader::new(&p256, core_proto::FieldID::P256)
+        let (c_sig, rest) = CircuitReader::new(&p256, core_algebra::FieldID::P256)
             .from_bytes(&sig_entry.payload, true)
             .expect("sig circuit parses with its ID enforced");
         assert!(rest.is_empty());
-        let (c_hash, rest) = CircuitReader::new(&gf2, core_proto::FieldID::Gf2_128)
+        let (c_hash, rest) = CircuitReader::new(&gf2, core_algebra::FieldID::Gf2_128)
             .from_bytes(&hash_entry.payload, true)
             .expect("hash circuit parses with its ID enforced");
         assert!(rest.is_empty());
@@ -102,11 +105,11 @@ fn main() {
 fn report<F: core_algebra::SerializableField + AlgebraicField>(
     component: &str,
     attributes: usize,
-    raw: &core_proto::circuit::RawCircuit<F>,
+    raw: &core_proto::v1::RawCircuit<F>,
     f: &F,
 ) {
     let nl = raw.layers.len();
-    let terms: Vec<Vec<core_proto::circuit::Term<F>>> =
+    let terms: Vec<Vec<core_proto::v1::Term<F>>> =
         raw.layers.iter().map(|l| l.terms(&raw.constants)).collect();
     let mut assert_wires: Vec<HashSet<u32>> = vec![HashSet::new(); nl + 1];
     let mut per_layer = Vec::new();

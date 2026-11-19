@@ -1,6 +1,5 @@
 import Mathlib.Algebra.Module.Pi
 import Mathlib.Algebra.Module.Submodule.Basic
-import Mathlib.Data.Fintype.Card
 
 /-!
 # Shared coding-theory vocabulary

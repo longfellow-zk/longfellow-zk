@@ -1,0 +1,127 @@
+import LfzkV2.Current.ZeroKnowledge.FrontendSimulationAnswers
+import LfzkV2.Current.ZeroKnowledge.FrontendCompilerTransport
+import LfzkV2.Current.ZeroKnowledge.FrontendHonestBinaryRows
+
+/-! The public simulation's stateful sumcheck compiler sees the same answer
+window as the canonical runtime. The frontend state and its consumed answers
+are constructed by the protocol; no transcript-match or row-equivalence
+certificate is supplied here. -/
+noncomputable section
+namespace LfzkV2.Current.ZeroKnowledge.Frontend.SimulationMessages
+open SumcheckV2 ApplicationSetup ConcreteSetup
+open scoped Classical
+set_option maxRecDepth 4096
+set_option maxHeartbeats 1000000
+variable {B C : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
+local notation "P" => Adapter.Mdoc.P
+variable (binary : BinaryCircuit B) (prime : PrimePublic P 768)
+variable (primePlan : FrontendSchedule.Plan P prime.circuit)
+variable (samples : ConcreteMetadata.Samples B C)
+variable {publicCount : ℕ} (fmt : Format (MdocRuntime.geometry binary.description prime binary.plan primePlan) (MdocRuntime.fields B) MdocAdvice.Value publicCount)
+variable (binaryRequest : (Fin publicCount → Bool) → Fin fmt.binaryPublic → B)
+variable (metadata : fmt.RequestMetadata C)
+variable (request : fmt.Request) (root : Digest)
+variable (H : CompleteSimulation.Point binary prime primePlan
+  (Key := fmt.Key) (Base := fmt.Base) → Digest × C)
+variable (initial : Digest) (coins : CompleteSimulation.Coins binary prime)
+local notation "G" => MdocRuntime.geometry binary.description prime binary.plan primePlan
+local notation "W" => fmt.node binaryRequest metadata request root
+local notation "selected" => CompleteSimulation.selectedState binary prime primePlan samples W H
+  (fmt.context request root) coins.fingerprints
+local notation "result" => CompleteSimulation.simulate binary prime primePlan samples W H
+  (fmt.context request root) coins
+local notation "native" => CompleteSimulation.primePrefix binary prime primePlan samples W H selected
+  (simulateCircuit prime.circuit coins.prime)
+local notation "converted" => CompleteSimulation.conversionPrefix binary prime primePlan samples W H native coins.mu
+local notation "proof" => (Current.Proof.mk (CompleteFrontendBody.body binary prime primePlan root result) (fun _ => 0) :
+  Replay.Output G (MdocRuntime.fields B) MdocAdvice.Value (OpeningBody.Authentication G))
+local notation "point" => TranscriptV2.Chain.point
+  (Replay.Encoding.chain (fmt.encoding binaryRequest metadata request) initial)
+  proof H (Fin.val (Geometry.batchingIndex G))
+
+omit [Fintype B] [DecidableEq B] in
+theorem stage_ranks :
+    (selected).rank.val = (G).primeStart ∧
+      (native).state.rank.val = ApplicationPrefix.conversionIndex (G) ∧
+      (converted).state.rank.val = (G).binaryStart ∧
+      (CompleteSimulation.binaryReplay binary prime primePlan samples W H converted coins.advice
+        (simulateCircuit binary.description.circuit coins.binary)).2.rank.val = ApplicationPrefix.packingIndex (G) := by
+  have first := SimulationWrites.selected_properties binary prime primePlan samples W H
+    (fmt.context request root) coins.fingerprints
+  have cap := SimulationWrites.capacity binary prime primePlan
+  have middle := SimulationWrites.prime_properties binary prime primePlan samples W H selected
+    (simulateCircuit prime.circuit coins.prime) (by rw [first.1,cap]; omega)
+  have next := SimulationWrites.conversion_properties binary prime primePlan samples W H native coins.mu
+    middle.2.2 (by rw [middle.1,first.1,cap]; omega)
+  have last := SimulationWrites.binary_properties binary prime primePlan samples W H converted coins.advice
+    (simulateCircuit binary.description.circuit coins.binary) next.2.2 (by rw [next.1,middle.1,first.1,cap]; omega)
+  refine ⟨first.1,?_,?_,?_⟩
+  · rw [middle.1,first.1,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
+    rfl
+  · rw [next.1,middle.1,first.1,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
+    change 1+(primePlan.frontend.roles .prime).length+1 = (primePlan.frontend.roles .prime).length+2
+    omega
+  · rw [last.1,next.1,middle.1,first.1,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime,
+      Frontend.ScheduleLength.circuitFuel_roles binary.plan .binary]
+    change 1+(primePlan.frontend.roles .prime).length+1+(binary.plan.frontend.roles .binary).length =
+      (primePlan.frontend.roles .prime).length+2+(binary.plan.frontend.roles .binary).length
+    omega
+
+omit [DecidableEq B] in
+theorem prime_messages :
+    messagesFromSetup prime.circuit
+      (readSetup (CompleteTranscript.reader .prime (Equiv.refl P) samples.prime samples.primeNonzero W H)
+        primePlan prime.setup.plan (simulateCircuit prime.circuit coins.prime) selected false).1
+      (simulateCircuit prime.circuit coins.prime) =
+      FrontendReplay.read samples.prime samples.primeNonzero prime.circuit prime.setup.plan
+        (simulateCircuit prime.circuit coins.prime)
+        (ApplicationPrefix.frontendTape point ((point).priorAnswers H) samples.fallback (G).primeStart
+          (FrontendReplay.slots prime.circuit)) := by
+  have rank := (SimulationWrites.selected_properties binary prime primePlan samples W H
+    (fmt.context request root) coins.fingerprints).1
+  have fits : (selected).rank.val+Frontend.ScheduleLength.circuitFuel primePlan false ≤ (G).roles.length := by
+    rw [rank,SimulationWrites.capacity binary prime primePlan]
+    omega
+  have message := CompilerTransport.messages
+    (g := G) (fields := MdocRuntime.fields B) (Authentication := OpeningBody.Authentication (G))
+    .prime (Equiv.refl P) W H samples.prime samples.primeNonzero samples.fallback
+    primePlan prime.setup.plan (simulateCircuit prime.circuit coins.prime) selected (result).state fits
+    (SimulationAnswers.prime_future binary prime primePlan samples W H (fmt.context request root) coins)
+  rw [CanonicalSimulation.batching_tape binary prime primePlan samples fmt
+    binaryRequest metadata request root H initial coins,rank] at message
+  exact message.trans (AnswerTape.frontend_read H samples.prime samples.primeNonzero samples.fallback prime.circuit
+    prime.setup.plan (simulateCircuit prime.circuit coins.prime) point (G).primeStart).symm
+
+omit [DecidableEq B] in
+theorem binary_messages :
+    let circuit := binary.description.circuit
+    let payload := simulateCircuit binary.description.circuit coins.binary
+    let ids := binary.description.padPlan
+    messagesFromSetup circuit
+      (CompleteSimulation.binaryReplay binary prime primePlan samples W H converted coins.advice
+        (simulateCircuit binary.description.circuit coins.binary)).1 payload =
+      FrontendReplay.read samples.binary samples.binaryNonzero circuit ids payload
+        (ApplicationPrefix.frontendTape point ((point).priorAnswers H) samples.fallback (G).binaryStart
+          (FrontendReplay.slots circuit)) := by
+  have rank : (CompleteSimulation.binaryStart binary prime primePlan converted coins.advice).rank.val = (G).binaryStart :=
+    (stage_ranks binary prime primePlan samples fmt binaryRequest metadata request root H coins).2.2.1
+  have fits : (CompleteSimulation.binaryStart binary prime primePlan converted coins.advice).rank.val+
+      Frontend.ScheduleLength.circuitFuel binary.plan false ≤
+        (G).roles.length := by
+    rw [rank,SimulationWrites.capacity binary prime primePlan,Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
+    change (primePlan.frontend.roles .prime).length+2+Frontend.ScheduleLength.circuitFuel binary.plan false ≤
+      (primePlan.frontend.roles .prime).length+Frontend.ScheduleLength.circuitFuel binary.plan false+5
+    omega
+  have message := CompilerTransport.messages
+    (g := G) (fields := MdocRuntime.fields B) (Authentication := OpeningBody.Authentication (G))
+    .binary (Equiv.refl B) W H samples.binary samples.binaryNonzero samples.fallback
+    binary.plan binary.description.padPlan (simulateCircuit binary.description.circuit coins.binary)
+    (CompleteSimulation.binaryStart binary prime primePlan converted coins.advice) (result).state fits
+    (SimulationAnswers.binary_future binary prime primePlan samples W H (fmt.context request root) coins)
+  rw [CanonicalSimulation.batching_tape binary prime primePlan samples fmt
+    binaryRequest metadata request root H initial coins,rank] at message
+  exact message.trans (AnswerTape.frontend_read H samples.binary samples.binaryNonzero samples.fallback
+    binary.description.circuit binary.description.padPlan
+    (simulateCircuit binary.description.circuit coins.binary) point (G).binaryStart).symm
+
+end LfzkV2.Current.ZeroKnowledge.Frontend.SimulationMessages

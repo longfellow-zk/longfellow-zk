@@ -1,6 +1,5 @@
 import LfzkV1.CertifiedHahn
 import LfzkV1.TSec
-import LfzkV1.Mac
 
 /-!
 # Checks behind the soundness audit

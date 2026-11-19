@@ -16,7 +16,11 @@
 
 module
 
-public import Mathlib
+public import Mathlib.Data.Nat.Bits
+public import Mathlib.Data.Nat.Size
+public import Mathlib.Data.List.Basic
+public import Mathlib.Algebra.Order.Group.Nat
+public import Mathlib.Tactic.Ring.RingNF
 
 
 /-!
@@ -153,23 +157,6 @@ lemma bitsToNat_padBits_eq_bitsToNat (l : List Bool) (k : Nat) :
     apply foldl_bitsToNat_replicate_false
     rfl
   rw [h_zero]
-
-/-- General shift homomorphism for bitsToNat folding step -/
-lemma foldl_bitsToNat_general (l : List Bool) (a : Nat) :
-    l.foldl (fun acc b => acc * 2 + (if b then 1 else 0)) a =
-    a * 2^l.length + l.foldl (fun acc b => acc * 2 + (if b then 1 else 0)) 0 := by
-  induction l generalizing a with
-  | nil =>
-    dsimp
-    ring
-  | cons b l' ih =>
-    dsimp
-    rw [Nat.zero_add]
-    rw [ih (a * 2 + (if b then 1 else 0))]
-    rw [ih (if b then 1 else 0)]
-    have h_pow : 2^(l'.length + 1) = 2^l'.length * 2 := rfl
-    rw [h_pow]
-    ring
 
 theorem bitsToNatLSB_bits (n : Nat) : bitsToNatLSB (Nat.bits n) = n := by
   induction n using Nat.binaryRec' with

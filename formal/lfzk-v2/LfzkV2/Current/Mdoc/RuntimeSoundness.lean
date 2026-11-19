@@ -1,0 +1,219 @@
+import LfzkV2.Current.CanonicalRequest
+import LfzkV2.Current.Mdoc.Setup
+import LfzkV2.Current.Soundness.Composition
+import LfzkV2.Current.MdocDefaults
+import LfzkV2.Current.ProofOutput
+import LfzkV2.Current.Soundness.RuntimeRate7
+
+/-! Specialize the strand verifier to the rate-1/7 mdoc configuration.
+The adversary submits arbitrary proof bytes. The complete-proof parser is
+a pure output map, so malformed proofs are rejected without spending an
+oracle query or changing the original query count. -/
+noncomputable section
+namespace LfzkV2.Current.Mdoc.RuntimeSoundness
+open Application ApplicationSetup Bcs.FiniteProbability Merkle.RandomOracle TranscriptV2
+open scoped Classical
+
+-- The frontend role lists are irrelevant here; unfolding them only slows unification.
+attribute [local irreducible] LfzkV2.Current.Frontend.roles
+
+variable {B : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
+variable (binary : ConcreteSetup.BinaryCircuit B) (prime : ConcreteSetup.PrimeCircuit)
+variable (cantor : Module.Basis (Fin 128) (ZMod 2) B) (scalars : MdocRuntime.Scalars B)
+variable (ids : MdocIdentifiers.Identifiers) (bounds : MdocIdentifiers.Bounds binary prime)
+local notation "c" => FixedRate.Rate7.certificate
+local notation "bp" => binary.description
+local notation "pp" => prime.description
+local notation "nodes" => ConcreteSetup.binaryNodes cantor
+local notation "P" => MdocRuntime.binaryBackend bp nodes
+local notation "R" => MdocRuntime.primeBackend pp
+local notation "g" => MdocRuntime.geometry bp pp binary.plan prime.plan
+local notation "repr" => MdocRuntime.representations scalars
+local notation "shape" => MdocRuntime.shape bp pp binary.plan prime.plan bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide)
+local notation "setup" => MdocIdentifiers.setup binary prime cantor scalars ids bounds
+local notation "cfg" => MdocRuntime.configuration bp pp binary.plan prime.plan nodes scalars
+  bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide) setup (MdocRuntime.field_card binary.basis)
+  (MdocRuntime.polynomialX binary.basis)
+local notation "Answer" => MdocRuntime.Answer bp pp binary.plan prime.plan nodes
+local notation "cb" => Geometry.affineRows g Side.binary
+local notation "cp" => Geometry.affineRows g Side.prime
+local notation "bc" => MdocRuntime.binaryCapacity bp binary.plan
+local notation "pc" => MdocRuntime.primeCapacity pp prime.plan
+local notation "Fmt" => MdocRuntime.format bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide) setup
+local notation "metadata" => MdocRuntime.metadata bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits
+  (by change 128 < 2^64; decide) setup (C := Answer)
+local notation "bf" => Nat.le_max_right (BinaryPublic.degree bp) binary.plan.capacity
+local notation "primeFits" => Nat.le_max_right ((Layered.Circuit.layers (PrimePublic.circuit pp))+1) prime.plan.capacity
+local notation "df" => Nat.le_max_left (BinaryPublic.degree bp) binary.plan.capacity
+local notation "rf" => Nat.le_max_left ((Layered.Circuit.layers (PrimePublic.circuit pp))+1) prime.plan.capacity
+local notation "Point" => Format.Point (Fmt)
+local notation "Values" => Protocol.Sampling.values c bp pp P R cb cp bc pc (MdocRuntime.format bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits (by change 128 < 2^64; decide) setup)
+local notation "First" => FieldBackend.participant (FieldBackend.indexed P cb)
+local notation "Second" => FieldBackend.participant (FieldBackend.indexed R cp)
+
+private instance saltInhabited : Inhabited (Fin (c).n × MerkleNonce) :=
+  ⟨⟨⟨0,by decide⟩,fun _ => 0⟩⟩
+
+private instance familyLeafInhabited {k s n t : ℕ} (family : Joint.Family k s n t) : Inhabited family.Leaf :=
+  ⟨fun _ => ⟨⟨fun _ _ => 0,fun _ => 0⟩,0⟩⟩
+
+private def fallbackPath :
+    StrandMerkleMissingQueries.SelectedPath (n := (c).n) (Salt := Fin (c).n × MerkleNonce)
+      (M := (Joint.Pair.family First Second).Leaf) (D := Digest) (Enc := Bytes) where
+  I := {⟨0,by decide⟩}
+  a := fun _ => default
+  pf := ⟨fun column => (column.val,fun _ => 0),fun _ => 0⟩
+  root := 0
+  column := ⟨0,by decide⟩
+  opened := Finset.mem_singleton_self _
+  cut := []
+
+abbrev Request := CanonicalRequest.Request shape (BinaryPublic.nPublic bp)
+abbrev RoundPoint := Point
+abbrev RoundValue (point : Point) := Values point
+
+variable {fuel blocks Q : ℕ}
+variable (body : Tree Bytes Digest (Request binary prime bounds × Bytes) fuel)
+variable (fits : (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan).roles.length < 2^64)
+variable (sample : (point : RoundPoint binary prime cantor scalars ids bounds) →
+  Tree Strand.Word Digest (Option (RoundValue binary prime cantor scalars ids bounds point)) blocks)
+
+local notation "E" => Mdoc.Setup.protocol binary prime cantor scalars ids bounds
+local notation "D" => (Protocol.SamplerData.mk (S := E) sample : Protocol.SamplerData (E) blocks)
+
+def program := body.map (ProofOutput.decode (TaggedFormat.complete repr g) (MdocDefaults.proof g B))
+
+local notation "program" => program binary prime scalars bounds body
+local notation "prog" => (Protocol.Execution.Program.mk program : Protocol.Execution.Program (Protocol.Setup.Output (E)) fuel)
+
+abbrev Raw := Soundness.Runtime.Raw E fits D prog
+
+local notation "Raw" => Mdoc.RuntimeSoundness.Raw binary prime cantor scalars ids bounds body fits sample
+local notation "rawSHA" => Soundness.Runtime.rawOracle E fits D prog
+local notation "failure" => Soundness.Runtime.rawFailure E fits D prog
+def replay := Soundness.Runtime.verifierReplay E D
+
+def observation (G : Raw → Digest) := Soundness.Runtime.rawObservation E fits D prog G
+
+def selectedFailure := Soundness.Runtime.failure E D
+
+def verify := Soundness.Runtime.verify E D
+
+theorem observation_verified (G : Raw → Digest) (SHA : Bytes → Digest)
+    (replayed : (observation binary prime cantor scalars ids bounds body fits sample G).verifier =
+      (replay binary prime cantor scalars ids bounds sample
+        (observation binary prime cantor scalars ids bounds body fits sample G).original.1).run SHA)
+    (failed : selectedFailure binary prime cantor scalars ids bounds sample
+      (observation binary prime cantor scalars ids bounds body fits sample G)) :
+    verify binary prime cantor scalars ids bounds sample SHA
+      (observation binary prime cantor scalars ids bounds body fits sample G).original.1 = true :=
+  Soundness.Runtime.failure_verified E D _ SHA replayed failed
+
+theorem observation_original (G : Raw → Digest) :
+    (observation binary prime cantor scalars ids bounds body fits sample G).original = (program).run (rawSHA G) :=
+  Soundness.Runtime.rawObservation_original E fits D prog G
+
+theorem observation_verifier (G : Raw → Digest) :
+    (observation binary prime cantor scalars ids bounds body fits sample G).verifier =
+      (replay binary prime cantor scalars ids bounds sample ((program).run (rawSHA G)).1).run (rawSHA G) :=
+  Soundness.Runtime.rawObservation_verifier E fits D prog G
+
+theorem replay_domain (output : CanonicalRuntime.Output (Advice := MdocAdvice.Value) bp shape) :
+    OracleDomain.UsesOnly StrandDomains.protocol (replay binary prime cantor scalars ids bounds sample output) :=
+  Soundness.Runtime.verifierReplay_domain E D output
+
+def oracle (G : Raw → Digest) : Bytes → Digest := rawSHA G
+
+def event (G : Raw → Digest) : Prop :=
+  (ProofOutput.read (TaggedFormat.complete repr g) (body.run (rawSHA G)).1.2).isSome ∧ failure G
+
+variable (bodyFits : ProofBodyBounds.bodyBound (MdocRuntime.representations scalars)
+  (MdocRuntime.geometry binary.description prime.description binary.plan prime.plan) ≤ CanonicalPrefix.maxLength)
+variable (fiber : RoundPoint binary prime cantor scalars ids bounds → ℕ)
+variable (uniform : ∀ point value, (Finset.univ.filter fun stream => ((sample point).run stream).1 = some value).card = fiber point)
+local notation "L" => (Protocol.SamplerLaws.mk (data := D) fiber uniform : Protocol.SamplerLaws (D))
+local notation "inputs" => (Soundness.Inputs.mk (protocol := E)
+  (ConcreteSetup.addresses bp pp nodes ConcreteSetup.primeNodes)
+  (by decide) (ConcreteSetup.addresses_eq bp pp nodes ConcreteSetup.primeNodes) bodyFits : Soundness.Inputs (E))
+local notation "S" => (Soundness.Setup.mk (E) inputs fits
+  (fallbackPath binary prime cantor) (MdocRuntime.metadata_setupOnly bp pp binary.plan prime.plan scalars bounds.inputFits bounds.privateFits _ setup)
+  (by intros; rfl) : Soundness.Setup c g (MdocRuntime.fields B) MdocAdvice.Value B)
+variable (queries : ∀ SHA : Bytes → Digest, (seen body SHA).card ≤ Q)
+
+include bodyFits uniform queries in
+/-- Leading linear shared-budget soundness, valid for every Q. The proof
+uses the common stopped cover and cost directly, independently of W. -/
+theorem fixed_setup_linear_ratio_le :
+    density (event binary prime cantor scalars ids bounds body fits sample) ≤
+      LfzkV2.Current.Soundness.Rate7.rate*Q + LfzkV2.Current.Soundness.Rate7.correction Q (g).roles.length := by
+  apply query_bound_or_one Q (2^127)
+    (density_le_one (event binary prime cantor scalars ids bounds body fits sample))
+  · intro budget
+    have support (SHA : Bytes → Digest) : (seen program SHA).card ≤ Q := by
+      simpa only [Mdoc.RuntimeSoundness.program,seen,Bcs.TotalOracle.queried,Tree.run_map] using queries SHA
+    have bound := Soundness.Composition.soundness_linear S (Protocol.Sampler.mk D L)
+      (Protocol.Execution.Adversary.mk prog support) (LfzkV2.Current.Soundness.Rate7.polygeroFraction*LfzkV2.Current.Soundness.Rate7.rate)
+      (mul_nonneg LfzkV2.Current.Soundness.Rate7.polygeroFraction_nonneg LfzkV2.Current.Soundness.Rate7.rate_nonneg)
+      (by
+        change LfzkV2.Current.Soundness.Rate7.polygeroFraction*LfzkV2.Current.Soundness.Rate7.rate ≤ LfzkV2.Current.Soundness.Rate7.rate
+        simpa only [one_mul] using mul_le_mul_of_nonneg_right
+          (LfzkV2.Current.Soundness.Rate7.polygeroFraction_le.trans (by norm_num : (51/100 : ℚ) ≤ 1))
+          LfzkV2.Current.Soundness.Rate7.rate_nonneg)
+      LfzkV2.Current.Soundness.RuntimeRate7.parent_budget
+      (LfzkV2.Current.Soundness.RuntimeRate7.auxiliary_budget Q budget)
+    refine (density_mono (q := failure) (fun _ valid => valid.2)).trans ?_
+    apply bound.trans_eq
+    rw [LfzkV2.Current.Soundness.RuntimeRate7.correction_eq]
+    rfl
+  · intro bounded
+    have castBound : (2^127 : ℚ) ≤ Q := by exact_mod_cast bounded
+    have leading := mul_le_mul_of_nonneg_left castBound LfzkV2.Current.Soundness.Rate7.rate_nonneg
+    have atCutoff : (1 : ℚ) ≤ LfzkV2.Current.Soundness.Rate7.rate*(2^127 : ℚ) := by
+      norm_num [LfzkV2.Current.Soundness.Rate7.rate,LfzkV2.Current.Soundness.Rate7.q, Adapter.Mdoc.binaryOrder]
+    have correction : 0 ≤ LfzkV2.Current.Soundness.Rate7.correction Q (g).roles.length := by
+      unfold LfzkV2.Current.Soundness.Rate7.correction
+      positivity
+    linarith
+
+include bodyFits uniform queries in
+/-- The all-Q leading linear bound for the original runtime failure event. -/
+theorem linear_ratio_le :
+    density (event binary prime cantor scalars ids bounds body fits sample) ≤
+      LfzkV2.Current.Soundness.Rate7.rate*Q + LfzkV2.Current.Soundness.Rate7.correction Q (g).roles.length :=
+  fixed_setup_linear_ratio_le binary prime cantor scalars ids bounds body fits sample bodyFits fiber uniform queries
+
+include bodyFits uniform queries in
+/-- Saturated soundness for the actual rate-1/7 verifier and parser. The
+backend and auxiliary bounds are discharged by the concrete runtime profile. -/
+theorem fixed_setup_ratio_le (budget : Q < 2^127) :
+    density (event binary prime cantor scalars ids bounds body fits sample) ≤
+      LfzkV2.Current.Soundness.Rate7.failureBound Q (g).roles.length := by
+  have support (SHA : Bytes → Digest) : (seen program SHA).card ≤ Q := by
+    simpa only [Mdoc.RuntimeSoundness.program,seen,Bcs.TotalOracle.queried,Tree.run_map] using queries SHA
+  have bound := Soundness.Composition.soundness S (Protocol.Sampler.mk D L)
+      (Protocol.Execution.Adversary.mk prog support) LfzkV2.Current.Soundness.Rate7.polygeroFraction LfzkV2.Current.Soundness.Rate7.polygeroFraction_nonneg
+    (LfzkV2.Current.Soundness.Rate7.polygeroFraction_le.trans (by norm_num))
+    (LfzkV2.Current.Soundness.RuntimeRate7.query_budget Q budget) LfzkV2.Current.Soundness.RuntimeRate7.parent_budget
+    (LfzkV2.Current.Soundness.RuntimeRate7.auxiliary_budget Q budget)
+  refine (density_mono (q := failure) (fun _ valid => valid.2)).trans ?_
+  apply bound.trans_eq
+  rw [LfzkV2.Current.Soundness.RuntimeRate7.correction_eq, LfzkV2.Current.Soundness.Rate7.failureBound_eq]
+  rfl
+
+include bodyFits uniform queries in
+/-- The primary fixed-setup bound uses chronological survival and the
+opaque Polygero/hash allowance, with the original runtime failure event. -/
+theorem ratio_le (budget : Q < 2^127) :
+    density (event binary prime cantor scalars ids bounds body fits sample) ≤
+      LfzkV2.Current.Soundness.Rate7.failureBound Q (g).roles.length :=
+  fixed_setup_ratio_le binary prime cantor scalars ids bounds body fits sample bodyFits fiber uniform queries budget
+
+include bodyFits uniform queries in
+theorem nonvacuous (budget : Q < 2^127) :
+    density (event binary prime cantor scalars ids bounds body fits sample) < 97/100 := by
+  exact lt_of_le_of_lt
+    ((ratio_le binary prime cantor scalars ids bounds body fits sample bodyFits fiber uniform queries budget).trans
+      (LfzkV2.Current.Soundness.Rate7.failureBound_nonvacuous Q (g).roles.length (LfzkV2.Current.Soundness.RuntimeRate7.range Q budget) fits))
+    (by norm_num)
+
+end LfzkV2.Current.Mdoc.RuntimeSoundness

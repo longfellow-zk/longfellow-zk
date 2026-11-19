@@ -1,7 +1,3 @@
-import Mathlib
-import LfzkV1.WPoly
-import LfzkV1.Types
-import LfzkV1.Circuit
 import LfzkV1.LigeroRows
 
 open SumcheckV1
@@ -111,7 +107,7 @@ and the facts about the honest round polynomials that the sumcheck reduction con
 ## Why the wire values answer to the challenges
 
 `betas : ℕ → F` is the run's **beta schedule**: `betas ly` is what `begin_layer` draws at
-layer `ly` (`rust/runtime/zk/src/symbolic_sumcheck_verifier.rs:L73`).  `V` takes it because
+layer `ly` (`rust/src/runtime/v1/sumcheck/verifier.rs:derive_verifier_data`).  `V` takes it because
 the wire values genuinely depend on it.
 
 For a witness that *satisfies* the circuit this is invisible: every assert-zero gate's operand

@@ -1,0 +1,378 @@
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! Read and validate the complete allocation directory before the LFC3 payload.
+use std::io::{BufRead, Read};
+
+use super::CircuitReader;
+use crate::{
+    core::{
+        algebra::SerializableField,
+        proto::{
+            uleb::read_uleb128_max4_u32,
+            v2,
+            v2::{
+                directory,
+                directory::{LayerDirectory, StreamDirectory, REVISION},
+                limits::*,
+                uleb::read_size,
+                Circuit, Constant, Layer, Linear, Quadratic, RawCircuitBuilder, Segments, Stream,
+            },
+        },
+    },
+    util::ceil_log2,
+};
+
+fn bounded<R: BufRead>(input: &mut R, max: usize, what: &str) -> Result<usize, String> {
+    let n = read_size(input)?;
+    if n > max {
+        return Err(format!("LFC3 excessive {what}: {n} > {max}"));
+    }
+    Ok(n)
+}
+fn delta<R: BufRead>(input: &mut R) -> Result<u32, String> {
+    let n = read_uleb128_max4_u32(input)?;
+    Ok((n >> 1) ^ ((n & 1).wrapping_neg()))
+}
+fn array<T>(n: usize) -> Result<Vec<T>, String> {
+    let mut result = Vec::new();
+    result
+        .try_reserve_exact(n)
+        .map_err(|e| format!("LFC3 allocation failed: {e}"))?;
+    Ok(result)
+}
+
+// The directory fixes the final count. For streaming input, reserve only as
+// records arrive; a tiny truncated stream must not trigger its full allocation.
+// A slice with a complete payload still reserves the final capacity at once.
+fn push<T, R: BufRead>(
+    out: &mut Vec<T>,
+    value: T,
+    count: usize,
+    input: &mut R,
+) -> Result<(), String> {
+    if out.len() == out.capacity() {
+        let additional = out
+            .capacity()
+            .max(input.fill_buf().map_err(|e| e.to_string())?.len())
+            .max(1)
+            .min(count - out.len());
+        out.try_reserve_exact(additional)
+            .map_err(|e| format!("LFC3 allocation failed: {e}"))?;
+    }
+    out.push(value);
+    Ok(())
+}
+fn read_array<T, R: BufRead>(
+    input: &mut R,
+    count: usize,
+    mut decode: impl FnMut(&mut R) -> Result<T, String>,
+) -> Result<Vec<T>, String> {
+    let mut out = Vec::new();
+    while out.len() < count {
+        let buffered = input.fill_buf().map_err(|e| e.to_string())?.len();
+        if buffered == 0 {
+            return Err("LFC3 incomplete array".into());
+        }
+        // Complete slices reserve once. Streams grow geometrically, using
+        // buffered input to cap the first reservation. Keep allocation checks
+        // outside the record loop, so valid files retain the simple decoder.
+        let chunk = out.capacity().max(buffered).min(count - out.len());
+        out.try_reserve_exact(chunk)
+            .map_err(|e| format!("LFC3 allocation failed: {e}"))?;
+        for _ in 0..chunk {
+            out.push(decode(input)?);
+        }
+    }
+    Ok(out)
+}
+
+fn read_stream<R: BufRead, T, const N: usize>(
+    input: &mut R,
+    d: StreamDirectory,
+    ends: &[u32],
+    decode: impl Fn(&mut std::io::Take<&mut R>) -> Result<T, String>,
+    coordinates: impl Fn(&T) -> [u32; N],
+    limits: [usize; N],
+) -> Result<Stream<T>, String> {
+    let mut payload = input.take(d.bytes as u64);
+    let deltas = read_array(&mut payload, d.deltas, decode)?;
+    let indices = read_array(&mut payload, d.indices, |r| {
+        let index = read_uleb128_max4_u32(r)?;
+        if index as usize >= deltas.len() {
+            return Err("LFC3 delta index out of bounds".into());
+        }
+        Ok(index)
+    })?;
+    let mut segment_ends = array(ends.len())?;
+    segment_ends.extend_from_slice(ends);
+    let segments = Segments::from_parts(segment_ends, indices)?;
+    let mut summaries = array(d.segments)?;
+    for segment in segments.iter() {
+        let (mut end, mut min, mut max) = ([0i64; N], [i64::MAX; N], [i64::MIN; N]);
+        for &index in segment {
+            for (j, delta) in coordinates(&deltas[index as usize]).into_iter().enumerate() {
+                end[j] += i64::from(delta as i32);
+                min[j] = min[j].min(end[j]);
+                max[j] = max[j].max(end[j]);
+            }
+        }
+        summaries.push((end, min, max));
+    }
+    let mut offset = [0i64; N];
+    let mut terms = 0usize;
+    let tokens = read_array(&mut payload, d.tokens, |r| {
+        let token = read_uleb128_max4_u32(r)?;
+        if token as usize >= segments.len() {
+            return Err("LFC3 segment token out of bounds".into());
+        }
+        let segment = &segments[token as usize];
+        terms = terms
+            .checked_add(segment.len())
+            .ok_or("LFC3 expanded term overflow")?;
+        if terms > d.terms {
+            return Err("LFC3 expanded term count mismatch".into());
+        }
+        if !segment.is_empty() {
+            let (end, min, max) = summaries[token as usize];
+            for j in 0..N {
+                if offset[j] + min[j] < 0 || offset[j] + max[j] >= limits[j] as i64 {
+                    return Err("LFC3 term coordinate out of bounds".into());
+                }
+                offset[j] += end[j];
+            }
+        }
+        Ok(token)
+    })?;
+    if terms != d.terms || payload.limit() != 0 {
+        return Err("LFC3 stream length mismatch".into());
+    }
+    Ok(Stream {
+        deltas,
+        segments,
+        tokens,
+    })
+}
+
+impl<F: SerializableField> CircuitReader<'_, F> {
+    pub fn from_bytes<'b>(&self, bytes: &'b [u8]) -> Result<(Circuit<F>, &'b [u8]), String> {
+        let mut cursor = bytes;
+        let circuit = from_stream(self, &mut cursor, |remaining, required| {
+            if remaining.len() < required {
+                Err("Incomplete LFC3 payload".into())
+            } else {
+                Ok(())
+            }
+        })?;
+        Ok((circuit, cursor))
+    }
+    pub fn from_stream<R: std::io::BufRead>(&self, stream: &mut R) -> Result<Circuit<F>, String> {
+        from_stream(self, stream, |_, _| Ok(()))
+    }
+    /// Test-only: apply every structural check to a payload whose stored ID
+    /// may be stale, and return the circuit under its recomputed ID. Mutation
+    /// tests use this to reach the checks that precede ID verification.
+    #[cfg(test)]
+    pub(crate) fn from_bytes_recomputing_id(&self, bytes: &[u8]) -> Result<Circuit<F>, String> {
+        let mut cursor = bytes;
+        let (raw, _) = read_unverified(self, &mut cursor, |remaining, required| {
+            if remaining.len() < required {
+                Err("Incomplete LFC3 payload".into())
+            } else {
+                Ok(())
+            }
+        })?;
+        Ok(Circuit::from_raw(self.f, raw))
+    }
+}
+
+fn from_stream<R: BufRead, F: SerializableField>(
+    reader: &CircuitReader<'_, F>,
+    input: &mut R,
+    check_remaining: impl FnOnce(&R, usize) -> Result<(), String>,
+) -> Result<Circuit<F>, String> {
+    let (raw, id) = read_unverified(reader, input, check_remaining)?;
+    if v2::compute_id(reader.f, &raw) != id {
+        return Err("LFC3 circuit ID verification failed".into());
+    }
+    Ok(Circuit::new(id, raw))
+}
+
+/// Apply every structural check, but return the stored circuit ID unverified.
+fn read_unverified<R: BufRead, F: SerializableField>(
+    reader: &CircuitReader<'_, F>,
+    input: &mut R,
+    check_remaining: impl FnOnce(&R, usize) -> Result<(), String>,
+) -> Result<(v2::RawCircuit<F>, [u8; 32]), String> {
+    let mut header = [0; 8];
+    input
+        .read_exact(&mut header)
+        .map_err(|e| format!("LFC3 incomplete header: {e}"))?;
+    if &header[..4] != v2::encoding::MAGIC || &header[4..] != REVISION {
+        return Err("expected LFC3 directory revision DIR3".into());
+    }
+    if read_size(input)? != reader.field_id as usize {
+        return Err("LFC3 field ID mismatch".into());
+    }
+    let noutput = bounded(input, MAX_TOTAL_WIRES, "outputs")?;
+    if noutput == 0 {
+        return Err("LFC3 requires at least one output".into());
+    }
+    if read_size(input)? != 1 {
+        return Err("LFC3 requires one circuit copy".into());
+    }
+    let npublic_input = bounded(input, MAX_TOTAL_WIRES, "public inputs")?;
+    let ninput = bounded(input, MAX_TOTAL_WIRES, "inputs")?;
+    if npublic_input > ninput {
+        return Err("LFC3 public inputs exceed total inputs".into());
+    }
+    let nlayers = bounded(input, MAX_LAYERS, "layers")?;
+    let nconstants = bounded(input, MAX_TOTAL_TERMS, "constants")?;
+    let width = reader.f.serialized_size_bytes();
+    if width == 0 || width > MAX_ARCHIVE_BYTES {
+        return Err("LFC3 invalid field width".into());
+    }
+    let constants_bytes = nconstants
+        .checked_mul(width)
+        .ok_or("LFC3 constant size overflow")?;
+    let mut directory = array(nlayers)?;
+    for _ in 0..nlayers {
+        let nw = bounded(input, MAX_TOTAL_WIRES, "layer inputs")?;
+        let mut streams = [StreamDirectory::default(); 3];
+        for stream in &mut streams {
+            let mut counts = [0; 6];
+            for n in &mut counts {
+                *n = read_size(input)?;
+            }
+            *stream = StreamDirectory::from_counts(counts);
+        }
+        directory.push(LayerDirectory { nw, streams });
+    }
+    let totals = directory::validate(
+        &directory,
+        ninput,
+        noutput,
+        nconstants,
+        constants_bytes,
+        reader.max_total_terms,
+    )?;
+    let mut ends = Vec::new();
+    for layer in &directory {
+        for stream in layer.streams {
+            let mut previous = 0usize;
+            for _ in 0..stream.segments {
+                let length = bounded(input, stream.indices, "segment length")?;
+                previous = previous
+                    .checked_add(length)
+                    .filter(|&end| end <= stream.indices)
+                    .ok_or("LFC3 segment lengths exceed index count")?;
+                push(&mut ends, previous as u32, totals[1], input)?;
+            }
+            if previous != stream.indices {
+                return Err("LFC3 segment ends do not cover indices".into());
+            }
+        }
+    }
+    // Slice readers can reject incomplete declared payloads before allocating
+    // any circuit arrays. Streaming readers grow them only after decoding data.
+    check_remaining(
+        input,
+        totals[5]
+            .checked_add(32)
+            .ok_or("LFC3 payload size overflow")?,
+    )?;
+    let f = reader.f;
+    let mut bytes = array(width)?;
+    bytes.resize(width, 0);
+    let constants = read_array(input, nconstants, |r| {
+        r.read_exact(&mut bytes)
+            .map_err(|e| format!("LFC3 incomplete constant: {e}"))?;
+        let k = f.bytes_to_element(&bytes)?;
+        if f.to_bytes(&k) != bytes {
+            return Err("LFC3 noncanonical coefficient encoding".into());
+        }
+        Ok(k)
+    })?;
+    let coefficient = |r: &mut std::io::Take<&mut R>| -> Result<u32, String> {
+        let k = read_uleb128_max4_u32(r)?;
+        if k as usize >= constants.len() {
+            return Err("LFC3 coefficient index out of bounds".into());
+        }
+        Ok(k)
+    };
+    let classes = v2::classify_constants(f, &constants);
+    let mut layers: Vec<Layer> = array(nlayers)?;
+    let mut next_end = 0;
+    for layer in directory {
+        let outputs = layers.last().map_or(noutput, |l| l.nw);
+        let [q, l, c] = layer.streams;
+        let qends = &ends[next_end..next_end + q.segments];
+        next_end += q.segments;
+        let lends = &ends[next_end..next_end + l.segments];
+        next_end += l.segments;
+        let cends = &ends[next_end..next_end + c.segments];
+        next_end += c.segments;
+        let quadratic = read_stream(
+            input,
+            q,
+            qends,
+            |r| {
+                Ok(Quadratic {
+                    g: delta(r)?,
+                    l: delta(r)?,
+                    r: delta(r)?,
+                    k: coefficient(r)?,
+                })
+            },
+            |t| [t.g, t.l, t.r],
+            [outputs, layer.nw, layer.nw],
+        )?;
+        let linear = read_stream(
+            input,
+            l,
+            lends,
+            |r| {
+                Ok(Linear {
+                    g: delta(r)?,
+                    l: delta(r)?,
+                    k: coefficient(r)?,
+                })
+            },
+            |t| [t.g, t.l],
+            [outputs, layer.nw],
+        )?;
+        let constant = read_stream(
+            input,
+            c,
+            cends,
+            |r| {
+                Ok(Constant {
+                    g: delta(r)?,
+                    k: coefficient(r)?,
+                })
+            },
+            |t| [t.g],
+            [outputs],
+        )?;
+        if constant
+            .deltas
+            .iter()
+            .any(|t| classes[t.k as usize] == v2::CoefficientClass::Zero)
+        {
+            return Err("LFC3 constant terms cannot have zero coefficients".into());
+        }
+        layers.push(Layer::new(layer.nw, quadratic, linear, constant));
+    }
+    let raw = RawCircuitBuilder {
+        ninput,
+        npublic_input,
+        noutput,
+        logv: ceil_log2(noutput),
+        constants,
+        layers,
+    }
+    .build();
+    let mut id = [0; 32];
+    input
+        .read_exact(&mut id)
+        .map_err(|e| format!("LFC3 incomplete circuit ID: {e}"))?;
+    Ok((raw, id))
+}

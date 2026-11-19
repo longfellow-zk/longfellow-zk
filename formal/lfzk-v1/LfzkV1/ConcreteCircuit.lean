@@ -1,5 +1,6 @@
 import LfzkV1.Layers
 import LfzkV1.ZkMultilinear
+import Mathlib.Tactic.IntervalCases
 
 /-!
 # The arithmetization, constructed from a deployed layered quadratic circuit

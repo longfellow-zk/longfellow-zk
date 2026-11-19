@@ -1,4 +1,4 @@
-import Mathlib
+import Mathlib.Tactic.LinearCombination
 import LfzkV1.WPoly
 
 open SumcheckV1

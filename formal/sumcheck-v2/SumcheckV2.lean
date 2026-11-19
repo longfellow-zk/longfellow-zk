@@ -3,5 +3,11 @@ import SumcheckV2.Round
 import SumcheckV2.Multi
 import SumcheckV2.DotProduct
 import SumcheckV2.Layer
+import SumcheckV2.Affine
 import SumcheckV2.Masked
-import SumcheckV2.FiatShamir
+import SumcheckV2.Challenges
+import SumcheckV2.WitnessSelection
+import SumcheckV2.ChainedFiatShamir
+import SumcheckV2.LinearTerminal
+import SumcheckV2.LinearTerminalMasking
+import SumcheckV2.AdaptiveTerminalMasking

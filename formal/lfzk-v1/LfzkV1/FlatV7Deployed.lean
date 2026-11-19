@@ -1,5 +1,4 @@
 import LfzkV1.FlatV7TwoField
-import LfzkV1.CompiledZkDeployedHash
 
 /-!
 # The deployed v7 hash1/signature event on a virtual verifier tape

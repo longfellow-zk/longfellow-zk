@@ -1,4 +1,5 @@
-import Mathlib
+import Mathlib.Algebra.BigOperators.Fin
+import Mathlib.Tactic.Abel
 import SumcheckV1.Grinding
 
 /-!

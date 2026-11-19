@@ -15,6 +15,7 @@
 -/
 
 import ECDSA.EcdsaSpec
+import Mathlib.Tactic.IntervalCases
 
 open Classical
 
@@ -215,20 +216,6 @@ noncomputable def ecdsaLoopResultF {F : Type} [Field F] :
   | _, _, _ :: vs@(_::_), wx :: wxs, wy :: wys, wz :: wzs, pk, rx, ry, pre, params =>
     ecdsaLoopResultF { X := wx, Y := wy, Z := wz } false vs wxs wys wzs pk rx ry pre params
   | _, _, _, _, _, _, _, _, _, _, _ => infinityPoint
-
-noncomputable def ecdsaLoopStepExactF (state : ProjectivePoint F × Bool) (v : F) (pk : AffinePoint F) (rx ry : F) (pre : List F) (params : CurveParameters F) : ProjectivePoint F × Bool :=
-  let (acc, is_first) := state
-  let tx := muxPointF v pk rx ry pre params
-  let doubled := if is_first then acc else doubleE acc params
-  let nextAcc := addE doubled tx params
-  (nextAcc, false)
-
-noncomputable def ecdsaPureLoopResultGeneralF {F : Type} [Field F] (acc : ProjectivePoint F) (is_first : Bool) (bi : List F) (pk : AffinePoint F) (rx ry : F) (pre : List F) (params : CurveParameters F) : ProjectivePoint F :=
-  let (finalAcc, _) := bi.foldl (fun state v => ecdsaLoopStepExactF state v pk rx ry pre params) (acc, is_first)
-  finalAcc
-
-noncomputable def ecdsaPureLoopResultF {F : Type} [Field F] (bi : List F) (pk : AffinePoint F) (rx ry : F) (pre : List F) (params : CurveParameters F) : ProjectivePoint F :=
-  ecdsaPureLoopResultGeneralF infinityPoint true bi pk rx ry pre params
 
 /--
   Verification relation for the ZK circuit.

@@ -1,6 +1,5 @@
 import polygero.Local.CoreRows
 import polygero.Local.PuncturedDecoder
-import Mathlib.LinearAlgebra.Lagrange
 
 /-! Bounded-distance recovery on a supplied restriction. The specification is
 finite and exact, and instantiates the generic punctured-code decoder contract. -/

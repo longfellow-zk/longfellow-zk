@@ -1,4 +1,5 @@
 import polygero.Algebra.Counting.Envelope
+import Mathlib.Tactic.FieldSimp
 
 /-! Random target labels, fresh exceptions, and an exact rank-exception charge. -/
 namespace RecursivePolygero.SystemException

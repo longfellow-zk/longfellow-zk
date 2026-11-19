@@ -4,7 +4,6 @@ Edit the hash1 source or the generator, then regenerate and build `LfzkV1.FlatV7
 -/
 
 import LfzkV1.FlatV7Hash3TwoField
-import LfzkV1.CompiledZkDeployedHash
 
 /-!
 # The deployed v7 hash3/signature event on a virtual verifier tape

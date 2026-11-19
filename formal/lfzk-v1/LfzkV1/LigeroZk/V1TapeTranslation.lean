@@ -1,3 +1,4 @@
+import Mathlib.Tactic.Module
 import Ligero.V1.Protocol.Protocol
 import LfzkV1.LigeroZk.CoreTranslation
 

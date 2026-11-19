@@ -1,0 +1,821 @@
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+use super::{
+    generic::*,
+    prover::{prove_packed, PackingMasks},
+    verifier::{reduce, validate_proof},
+};
+use crate::{
+    core::algebra::{
+        AlgebraicField, BareField, FieldID, RegisteredField, Sealed, SerializableField,
+    },
+    runtime::{
+        algebra::{
+            packing::{
+                AmbientElement, BaseElement, IdentityExtension, PackingExtension, PackingField,
+                PackingParameters,
+            },
+            range_interpolation::EvaluationDomain,
+            RuntimeField, SupportsSampling,
+        },
+        random::{DeterministicRng, RandomEngine},
+        v2::{proto::dual_packing::PackingProof, transcript::Transcript},
+    },
+};
+
+impl<E: Clone> FieldEquation<E> {
+    fn residual<F: AlgebraicField<E = E>>(
+        &self,
+        words: &[E],
+        aux: &[E],
+        cells: &[E],
+        f: &F,
+    ) -> Result<E, String> {
+        if (!self.words.is_empty() && words.len() != self.words.len())
+            || cells.len() != self.masks.len()
+        {
+            return Err("packing native witness shape".into());
+        }
+        let mut value = self.constant.clone();
+        for (a, x) in self
+            .words
+            .iter()
+            .zip(words)
+            .chain(self.masks.iter().zip(cells))
+        {
+            f.add(&mut value, &f.mulf(a, x));
+        }
+        for (i, a) in &self.auxiliary {
+            f.add(
+                &mut value,
+                &f.mulf(a, aux.get(*i).ok_or("packing auxiliary index")?),
+            );
+        }
+        Ok(value)
+    }
+}
+impl<E: Clone> PackingMasks<E> {
+    fn from_cells<X: PackingExtension>(
+        p: &PackingParameters<X>,
+        cells: Vec<E>,
+    ) -> Result<Self, String>
+    where
+        X::Ambient: AlgebraicField<E = E>,
+    {
+        if Some(cells.len()) != mask_cell_count(p.degree()) {
+            return Err("packing mask shape".into());
+        }
+        Ok(Self { cells })
+    }
+}
+
+/// Algebraic verifier for explicit independent uniform challenges. Useful for
+/// composition and exhaustive algebra tests; callers must sample after all of U.
+/// A successful reconstruction is not authentication: both rows must still be
+/// enforced against the commitment fixed before the challenge.
+fn reconstruct<X: PackingExtension>(
+    p: &PackingParameters<X>,
+    c: &SourceClaim<AmbientElement<X>>,
+    proof: &PackingProof<AmbientElement<X>>,
+    delta: &[AmbientElement<X>],
+) -> Result<Vec<FieldEquation<AmbientElement<X>>>, String> {
+    validate_proof(p, c, proof)?;
+    reconstruct_validated(p, c, proof, delta)
+}
+fn prove<X: PackingExtension>(
+    p: &PackingParameters<X>,
+    c: &SourceClaim<AmbientElement<X>>,
+    values: &[BaseElement<X>],
+    aux: &[AmbientElement<X>],
+    masks: PackingMasks<AmbientElement<X>>,
+    ts: &mut Transcript,
+) -> Result<
+    (
+        PackingProof<AmbientElement<X>>,
+        Vec<FieldEquation<AmbientElement<X>>>,
+    ),
+    String,
+>
+where
+    X::Ambient: SerializableField,
+{
+    if values.len() != c.weights.len() {
+        return Err("packing witness shape".into());
+    }
+    if p.degree() == 1 {
+        return prove_packed(&mut ts.bound(p), c, &[], aux, masks);
+    }
+    let words = p.pack(values)?;
+    prove_packed(&mut ts.bound(p), c, &words, aux, masks)
+}
+
+#[derive(Clone, Copy)]
+struct Prime<const P: u8>;
+impl<const P: u8> BareField for Prime<P> {
+    type E = u8;
+}
+impl<const P: u8> AlgebraicField for Prime<P> {
+    fn zero(&self) -> u8 {
+        0
+    }
+    fn one(&self) -> u8 {
+        1
+    }
+    fn add(&self, a: &mut u8, b: &u8) {
+        *a = (*a + *b) % P;
+    }
+    fn sub(&self, a: &mut u8, b: &u8) {
+        *a = (*a + P - *b) % P;
+    }
+    fn mul(&self, a: &mut u8, b: &u8) {
+        *a = (*a * *b) % P;
+    }
+    fn invert(&self, a: &u8) -> u8 {
+        assert_ne!(*a, 0);
+        power(self, a, &[P - 2])
+    }
+}
+impl<const P: u8> SupportsSampling for Prime<P> {
+    fn sample<R: FnMut(&mut [u8])>(&self, mut fill: R) -> u8 {
+        let mask = u8::MAX >> (P - 1).leading_zeros();
+        loop {
+            let mut byte = [0u8];
+            fill(&mut byte);
+            let n = byte[0] & mask;
+            if n < P {
+                return n;
+            }
+        }
+    }
+}
+impl<const P: u8> PackingField for Prime<P> {
+    type Packing = IdentityExtension<Self>;
+    fn packing_extension(&self) -> Self::Packing {
+        IdentityExtension::new(*self)
+    }
+
+    fn packing_id(&self) -> Vec<u8> {
+        vec![b'p', P]
+    }
+}
+/// Test-only: the toy fields all have `FieldID::None`, so their transcripts
+/// do not identify them; these tests check packing arithmetic, not Elements.
+impl<const P: u8> Sealed for Prime<P> {}
+impl<const P: u8> RegisteredField for Prime<P> {
+    const ID: FieldID = FieldID::None;
+    const BYTES: usize = 1;
+}
+impl<const P: u8> SerializableField for Prime<P> {
+    fn field_id(&self) -> FieldID {
+        FieldID::None
+    }
+    fn is_binary(&self) -> bool {
+        P == 2
+    }
+    fn serialized_size_bytes(&self) -> usize {
+        1
+    }
+    fn to_bytes_into(&self, x: &u8, b: &mut [u8]) {
+        b[0] = *x;
+    }
+    fn bytes_to_element(&self, b: &[u8]) -> Result<u8, String> {
+        match b {
+            [n] if *n < P => Ok(*n),
+            _ => Err("prime codec".into()),
+        }
+    }
+    fn serialized_mone(&self) -> Vec<u8> {
+        vec![P - 1]
+    }
+}
+/// t²=A*t+B; instantiate GF4, GF9 and GF25 below.
+#[derive(Clone, Copy)]
+struct Quad<const P: u8, const A: u8, const B: u8>;
+impl<const P: u8, const A: u8, const B: u8> BareField for Quad<P, A, B> {
+    type E = [u8; 2];
+}
+impl<const P: u8, const A: u8, const B: u8> AlgebraicField for Quad<P, A, B> {
+    fn zero(&self) -> Self::E {
+        [0, 0]
+    }
+    fn one(&self) -> Self::E {
+        [1, 0]
+    }
+    fn add(&self, a: &mut Self::E, b: &Self::E) {
+        for i in 0..2 {
+            Prime::<P>.add(&mut a[i], &b[i]);
+        }
+    }
+    fn sub(&self, a: &mut Self::E, b: &Self::E) {
+        for i in 0..2 {
+            Prime::<P>.sub(&mut a[i], &b[i]);
+        }
+    }
+    fn mul(&self, a: &mut Self::E, b: &Self::E) {
+        let [x, y] = *a;
+        *a = [
+            (x * b[0] + B * y * b[1]) % P,
+            (x * b[1] + y * b[0] + A * y * b[1]) % P,
+        ];
+    }
+    fn invert(&self, a: &Self::E) -> Self::E {
+        assert_ne!(*a, [0, 0]);
+        power(self, a, &[P * P - 2])
+    }
+}
+impl<const P: u8, const A: u8, const B: u8> SupportsSampling for Quad<P, A, B> {
+    fn sample<R: FnMut(&mut [u8])>(&self, mut fill: R) -> Self::E {
+        let mask = u8::MAX >> (P * P - 1).leading_zeros();
+        loop {
+            let mut byte = [0u8];
+            fill(&mut byte);
+            let n = byte[0] & mask;
+            if n < P * P {
+                return [n % P, n / P];
+            }
+        }
+    }
+}
+impl<const P: u8, const A: u8, const B: u8> PackingField for Quad<P, A, B> {
+    type Packing = Self;
+    fn packing_extension(&self) -> Self {
+        *self
+    }
+
+    fn packing_id(&self) -> Vec<u8> {
+        vec![b'q', P, A, B]
+    }
+}
+impl<const P: u8, const A: u8, const B: u8> Sealed for Quad<P, A, B> {}
+impl<const P: u8, const A: u8, const B: u8> RegisteredField for Quad<P, A, B> {
+    const ID: FieldID = FieldID::None;
+    const BYTES: usize = 1;
+}
+impl<const P: u8, const A: u8, const B: u8> SerializableField for Quad<P, A, B> {
+    fn field_id(&self) -> FieldID {
+        FieldID::None
+    }
+    fn is_binary(&self) -> bool {
+        P == 2
+    }
+    fn serialized_size_bytes(&self) -> usize {
+        1
+    }
+    fn to_bytes_into(&self, x: &Self::E, b: &mut [u8]) {
+        b[0] = x[0] + P * x[1];
+    }
+    fn bytes_to_element(&self, b: &[u8]) -> Result<Self::E, String> {
+        match b {
+            [n] if *n < P * P => Ok([*n % P, *n / P]),
+            _ => Err("quad codec".into()),
+        }
+    }
+    fn serialized_mone(&self) -> Vec<u8> {
+        vec![P - 1]
+    }
+}
+impl<const P: u8, const A: u8, const B: u8> PackingExtension for Quad<P, A, B> {
+    type Base = Prime<P>;
+    type Ambient = Self;
+    fn base(&self) -> &Prime<P> {
+        &Prime::<P>
+    }
+    fn degree(&self) -> usize {
+        2
+    }
+    fn embedding_id(&self) -> Vec<u8> {
+        b"constant/v1".to_vec()
+    }
+    fn embed(&self, _: &Self, x: &u8) -> [u8; 2] {
+        [*x, 0]
+    }
+    fn native_basis(&self, _: &Self) -> Vec<[u8; 2]> {
+        vec![[1, 0], [0, 1]]
+    }
+    fn relative_frobenius(&self, f: &Self, x: &[u8; 2]) -> [u8; 2] {
+        power(f, x, &[P])
+    }
+    fn coordinates_into(&self, _: &Self, x: &[u8; 2], out: &mut [u8]) {
+        out.copy_from_slice(x);
+    }
+}
+fn laws<X: PackingExtension>(p: &PackingParameters<X>, values: &[BaseElement<X>]) {
+    let f = p.field();
+    let b = p.extension().base();
+    let m = p.degree();
+    for i in 0..m {
+        for j in 0..m {
+            assert_eq!(
+                p.trace(&f.mulf(&p.basis()[i], &p.dual()[j])),
+                if i == j { f.one() } else { f.zero() }
+            );
+        }
+    }
+    let words = p.pack(values).unwrap();
+    assert_eq!(p.unpack(&words, values.len()).unwrap(), values);
+    for word in words {
+        let mut orbit = word.clone();
+        for _ in 0..m {
+            orbit = p.frobenius(&orbit);
+        }
+        assert_eq!(orbit, word);
+        assert_eq!(p.trace(&p.frobenius(&word)), p.trace(&word));
+    }
+    for x in values {
+        let embed = p.extension().embed(f, x);
+        assert_eq!(p.frobenius(&embed), embed);
+        assert_eq!(
+            p.extension().embed(f, &b.addf(x, x)),
+            f.addf(&embed, &embed)
+        );
+    }
+}
+fn roundtrip<X: PackingExtension>(
+    p: &PackingParameters<X>,
+    values: &[BaseElement<X>],
+    mut sample: impl FnMut() -> AmbientElement<X>,
+) where
+    X::Ambient: SerializableField,
+{
+    let f = p.field();
+    let weights = (0..values.len()).map(|_| sample()).collect::<Vec<_>>();
+    let aux = vec![sample(), sample()];
+    let terms = vec![(0, sample()), (1, sample()), (0, sample())];
+    let mut constant = f.zero();
+    for (w, x) in weights.iter().zip(values) {
+        f.add(&mut constant, &f.mulf(w, &p.extension().embed(f, x)));
+    }
+    for (i, k) in &terms {
+        f.sub(&mut constant, &f.mulf(k, &aux[*i]));
+    }
+    let claim = SourceClaim {
+        weights,
+        rhs: Affine { constant, terms },
+        auxiliary_count: 2,
+    };
+    let masks = PackingMasks::sample(p, &mut sample);
+    let cells = masks.cells().to_vec();
+    let mut tp = Transcript::for_test(b"generic/test");
+    let mut tv = tp.fork_for_test();
+    let (proof, rows) = prove(p, &claim, values, &aux, masks, &mut tp).unwrap();
+    assert_eq!(reduce(&mut tv.bound(p), &claim, &proof).unwrap(), rows);
+    assert_eq!(tp.u128(), tv.u128());
+    for row in &rows {
+        assert!(f.is_zero(
+            &row.residual(&p.pack(values).unwrap(), &aux, &cells, f)
+                .unwrap()
+        ));
+    }
+    let mut bad = proof.clone();
+    if let PackingProof::TraceZero { u, .. } = &mut bad {
+        u.pop();
+        assert!(reduce(
+            &mut Transcript::for_test(b"generic/test").bound(p),
+            &claim,
+            &bad,
+        )
+        .is_err());
+    }
+    if p.degree() > 1 {
+        // Reconstruction rejects a direct response itself, without relying
+        // on the shape check its callers run first.
+        let delta: Vec<_> = (0..p.degree()).map(|_| sample()).collect();
+        assert_eq!(
+            reconstruct_validated(p, &claim, &PackingProof::Direct, &delta).unwrap_err(),
+            "packing response shape"
+        );
+    }
+}
+#[test]
+fn odd_characteristic_nonnative_basis_and_characteristic_dividing_degree() {
+    let p = PackingParameters::new(Quad::<3, 0, 2>, Quad::<3, 0, 2>).unwrap();
+    laws(&p, &[1, 2, 0, 2, 1]);
+    let mut rng = DeterministicRng::new(17);
+    roundtrip(&p, &[1, 2, 0, 2, 1], || {
+        [rng.bytes(1)[0] % 3, rng.bytes(1)[0] % 3]
+    });
+    let changed =
+        PackingParameters::with_basis(Quad::<5, 0, 2>, Quad::<5, 0, 2>, vec![[1, 0], [2, 1]])
+            .unwrap();
+    assert!(changed.basis() != Quad::<5, 0, 2>.native_basis(&Quad::<5, 0, 2>));
+    laws(&changed, &[1, 3, 4]);
+    roundtrip(&changed, &[1, 3, 4], || {
+        [rng.bytes(1)[0] % 5, rng.bytes(1)[0] % 5]
+    });
+    let even = PackingParameters::new(Quad::<2, 1, 1>, Quad::<2, 1, 1>).unwrap();
+    assert_eq!(even.trace(&[1, 0]), [0, 0]);
+    laws(&even, &[1, 0, 1]);
+    roundtrip(&even, &[1, 0, 1], || {
+        [rng.bytes(1)[0] % 2, rng.bytes(1)[0] % 2]
+    });
+    assert!(
+        PackingParameters::with_basis(Quad::<3, 0, 2>, Quad::<3, 0, 2>, vec![[1, 0], [2, 0]])
+            .is_err()
+    );
+}
+#[test]
+fn identity_has_no_masks_messages_or_challenges() {
+    let p = PackingParameters::with_basis(Prime::<5>, IdentityExtension::new(Prime::<5>), vec![1])
+        .unwrap();
+    laws(&p, &[1, 4, 2]);
+    let mut calls = 0;
+    let masks = PackingMasks::sample(&p, || {
+        calls += 1;
+        0
+    });
+    assert_eq!(calls, 0);
+    assert!(masks.cells().is_empty());
+    let c = SourceClaim {
+        weights: vec![2, 4, 1],
+        rhs: Affine {
+            constant: 0,
+            terms: vec![],
+        },
+        auxiliary_count: 0,
+    };
+    let mut ts = Transcript::for_test(b"identity");
+    let mut before = ts.fork_for_test();
+    let (proof, rows) = prove(&p, &c, &[1, 4, 2], &[], masks, &mut ts).unwrap();
+    assert_eq!(proof, PackingProof::Direct);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(ts.u128(), before.u128());
+    let residual = rows[0]
+        .residual(&p.pack(&[1, 4, 2]).unwrap(), &[], &[], p.field())
+        .unwrap();
+    assert_eq!(residual, 0);
+    assert!(PackingMasks::from_cells(&p, vec![0]).is_err());
+    let extension = p.extension();
+    let values = vec![1, 4, 2];
+    let pointer = values.as_ptr();
+    assert!(matches!(
+        extension.input_elements(p.field(), &values),
+        std::borrow::Cow::Borrowed(_)
+    ));
+    let embedded = extension.into_input_elements(p.field(), values);
+    assert_eq!(pointer, embedded.as_ptr());
+    let mut verifier = Transcript::for_test(b"identity");
+    let mut unchanged = verifier.fork_for_test();
+    assert_eq!(reduce(&mut verifier.bound(&p), &c, &proof).unwrap(), rows);
+    assert_eq!(verifier.u128(), unchanged.u128());
+    assert!(
+        PackingParameters::with_basis(Prime::<5>, IdentityExtension::new(Prime::<5>), vec![2])
+            .is_err()
+    );
+}
+
+#[test]
+fn binary_packing_and_transpose_match_independent_coordinates() {
+    use crate::runtime::algebra::{
+        gf2_128::{Gf2_128, Gf2_128Field},
+        packing::binary::Binary128Extension,
+    };
+    let f = Gf2_128Field::new();
+    let p = PackingParameters::new(f.clone(), Binary128Extension).unwrap();
+    let mut rng = DeterministicRng::new(92);
+    // Check the closed forms against the defining Frobenius orbit, not against
+    // another copy of the coordinate formula. Basis inputs establish the trace
+    // map on the whole field; arbitrary words exercise the field representation.
+    let samples = (0..128)
+        .map(|j| Gf2_128::from(1u128 << j))
+        .chain((0..16).map(|_| rng.elt_field(&f)));
+    for x in samples {
+        let mut conjugate = x;
+        let mut reference = f.zero();
+        for _ in 0..128 {
+            f.add(&mut reference, &conjugate);
+            conjugate = f.mulf(&conjugate, &conjugate);
+        }
+        assert_eq!(p.trace(&x), reference);
+    }
+    for (j, alpha) in p.dual().iter().enumerate() {
+        for (k, beta) in p.basis().iter().enumerate() {
+            assert_eq!(
+                p.trace(&f.mulf(alpha, beta)),
+                if j == k { f.one() } else { f.zero() }
+            );
+        }
+    }
+    for len in [0, 1, 7, 64, 127, 128, 129, 257] {
+        let values: Vec<bool> = (0..len).map(|_| rng.bytes(1)[0] & 1 != 0).collect();
+        let words = p.pack(&values).unwrap();
+        for (word, block) in words.iter().zip(values.chunks(128)) {
+            let expected = block
+                .iter()
+                .enumerate()
+                .fold(0u128, |a, (i, bit)| a | (u128::from(*bit) << i));
+            assert_eq!(*word, Gf2_128::from(expected));
+        }
+        assert_eq!(p.unpack(&words, len).unwrap(), values);
+    }
+    for len in [0, 1, 7, 127, 128] {
+        let weights: Vec<_> = (0..len).map(|_| rng.elt_field(&f)).collect();
+        let actual = coefficients(&p, &weights);
+        for (h, got) in actual.iter().enumerate() {
+            let mut expected = f.zero();
+            for (j, weight) in weights.iter().enumerate() {
+                // Coordinate extraction is independent of the transpose kernel.
+                let digit = Gf2_128::from(u128::from(weight.bit(h)));
+                f.add(&mut expected, &f.mulf(&p.dual()[j], &digit));
+            }
+            assert_eq!(*got, expected, "block length {len}, coordinate {h}");
+        }
+    }
+}
+#[test]
+fn exhaustive_false_claim_error_in_gf9_includes_arbitrary_b() {
+    let p = PackingParameters::new(Quad::<3, 0, 2>, Quad::<3, 0, 2>).unwrap();
+    let f = p.field();
+    let all = (0..9).map(|n| [n % 3, n / 3]).collect::<Vec<_>>();
+    let zero_trace = all
+        .iter()
+        .copied()
+        .filter(|x| p.trace(x) == f.zero())
+        .collect::<Vec<_>>();
+    assert_eq!(zero_trace.len(), 3);
+    let c = SourceClaim {
+        weights: vec![[1, 0], [0, 1]],
+        rhs: Affine {
+            constant: [0, 0],
+            terms: vec![],
+        },
+        auxiliary_count: 0,
+    };
+    let words = p.pack(&[1, 2]).unwrap();
+    let free = [2, 1];
+    let t0 = f.mulf(&p.basis()[1], &free);
+    let r = [1, 1];
+    for b in &all {
+        let cells = vec![free, r, *b];
+        for u0 in &zero_trace {
+            for u1 in &zero_trace {
+                let mut successes = 0;
+                for d0 in &all {
+                    for d1 in &all {
+                        let a = f.addf(&r, &f.addf(&f.mulf(d0, &t0), &f.mulf(d1, &free)));
+                        let proof = PackingProof::TraceZero {
+                            u: vec![*u0, *u1],
+                            a,
+                        };
+                        let rows = reconstruct(&p, &c, &proof, &[*d0, *d1]).unwrap();
+                        if rows
+                            .iter()
+                            .all(|row| row.residual(&words, &[], &cells, f).unwrap() == f.zero())
+                        {
+                            successes += 1;
+                        }
+                    }
+                }
+                assert!(successes <= 9, "{successes}/81, b={b:?}");
+            }
+        }
+    }
+}
+#[test]
+fn gf128_over_gf256_packs_non_boolean_coordinates() {
+    use crate::runtime::algebra::{
+        gf2_128::{Gf2_128 as V, Gf2_128Field},
+        packing::binary::Binary128Over256,
+    };
+    let e = Binary128Over256::new();
+    let values = (0..33)
+        .map(|i| e.base().element((i * 7 + 3) as u8))
+        .collect::<Vec<_>>();
+    let p = PackingParameters::new(Gf2_128Field::new(), e).unwrap();
+    laws(&p, &values);
+    let mut rng = DeterministicRng::new(889);
+    roundtrip(&p, &values, || V::from(rng.u128()));
+}
+
+fn authenticate<X: PackingExtension, D: EvaluationDomain<X::Ambient>>(
+    p: &PackingParameters<X>,
+    domain: &D,
+    values: &[BaseElement<X>],
+) where
+    X::Ambient: RuntimeField + crate::runtime::algebra::SupportsSampling + SerializableField,
+{
+    use crate::runtime::v2::{
+        polygero::{
+            JointPolygeroParam, JointPolygeroProver, JointPolygeroVerifier, LinearStatement,
+            Participant, PolygeroLinearTerm, PolygeroParam,
+        },
+        proto::{polygero::PolygeroConfig, Digest},
+    };
+    let f = p.field();
+    let mut rng = DeterministicRng::new(99876);
+    let packed = p.pack(values).unwrap();
+    let aux = vec![rng.elt_field(f)];
+    let masks = PackingMasks::sample(p, || rng.elt_field(f));
+    let mut witness = packed.clone();
+    witness.extend_from_slice(&aux);
+    witness.extend_from_slice(masks.cells());
+    let field_param = PolygeroParam::try_new(
+        witness.len(),
+        PolygeroConfig {
+            k: 8,
+            s: 2,
+            n: 64,
+            t: 2,
+        },
+        domain,
+    )
+    .unwrap();
+    let param =
+        JointPolygeroParam::new((Participant::new(field_param, domain).unwrap(), ())).unwrap();
+    let mut tp = Transcript::for_test(b"generic/backend");
+    let mut tv = tp.fork_for_test();
+    let (prover, root) =
+        JointPolygeroProver::commit(&mut tp.bound(&param), &(witness, ()), &mut rng).unwrap();
+    let verifier = JointPolygeroVerifier::receive(&mut tv.bound(&param), &root);
+    let weights = (0..values.len())
+        .map(|_| rng.elt_field(f))
+        .collect::<Vec<_>>();
+    let auxiliary_coefficient = rng.elt_field(f);
+    let mut constant = f.neg(&f.mulf(&auxiliary_coefficient, &aux[0]));
+    for (w, x) in weights.iter().zip(values) {
+        f.add(&mut constant, &f.mulf(w, &p.extension().embed(f, x)));
+    }
+    let claim = SourceClaim {
+        weights,
+        rhs: Affine {
+            constant,
+            terms: vec![(0, auxiliary_coefficient)],
+        },
+        auxiliary_count: 1,
+    };
+    let (proof, equations) = prove(p, &claim, values, &aux, masks, &mut tp).unwrap();
+    assert_eq!(reduce(&mut tv.bound(p), &claim, &proof).unwrap(), equations);
+    let mut terms = Vec::new();
+    for (c, row) in equations.iter().enumerate() {
+        for (w, k) in row.words.iter().enumerate() {
+            terms.push(PolygeroLinearTerm { c, w, k: k.clone() });
+        }
+        for (i, k) in &row.auxiliary {
+            terms.push(PolygeroLinearTerm {
+                c,
+                w: packed.len() + i,
+                k: k.clone(),
+            });
+        }
+        for (i, k) in row.masks.iter().enumerate() {
+            terms.push(PolygeroLinearTerm {
+                c,
+                w: packed.len() + aux.len() + i,
+                k: k.clone(),
+            });
+        }
+    }
+    let constants = equations
+        .iter()
+        .map(|e| e.constant.clone())
+        .collect::<Vec<_>>();
+    let statement = Digest {
+        data: tp.bytes(32).try_into().unwrap(),
+    };
+    assert_eq!(statement.data, tv.bytes(32).as_slice());
+    let statements = (LinearStatement::new(terms, constants), ());
+    let backend = prover
+        .prove(&mut tp.bound(&param), statements.clone())
+        .unwrap();
+    verifier
+        .reduce(&mut tv.bound(&param), statements, &backend)
+        .unwrap();
+    assert_eq!(tp.bytes(32), tv.bytes(32));
+}
+#[test]
+fn generic_equations_authenticate_against_the_original_polygero_commitment() {
+    use crate::runtime::algebra::{
+        gf2_128::Gf2_128Field, packing::binary::Binary128Over256,
+        range_interpolation::BinaryInterpolatorFactory,
+    };
+    let f = Gf2_128Field::new();
+    let domain = BinaryInterpolatorFactory::full_field(&f);
+    let extension = Binary128Over256::new();
+    let values = (0..19)
+        .map(|i| extension.base().element((i * 11) as u8))
+        .collect::<Vec<_>>();
+    let p = PackingParameters::new(f.clone(), extension).unwrap();
+    authenticate(&p, &domain, &values);
+    let identity = PackingParameters::new(f.clone(), IdentityExtension::new(f.clone())).unwrap();
+    authenticate(&identity, &domain, &[f.one(), f.mone()]);
+}
+#[test]
+fn sparse_prime_codec_samples_uniformly_without_padding_grinding() {
+    use crate::runtime::algebra::{fp_generic::FpGenericField, limb::LIMBS_PER_U64};
+    struct NonCloneBrand;
+    type SmallPrime =
+        FpGenericField<1, { LIMBS_PER_U64 }, { 2 * LIMBS_PER_U64 + 1 }, NonCloneBrand>;
+    let field = SmallPrime::new_generic([1009]);
+    let mut rng = DeterministicRng::new(217);
+    let mut calls = 0;
+    for _ in 0..100 {
+        let x = field.sample(|out| {
+            calls += 1;
+            rng.fill(out);
+        });
+        assert!(field.bytes_to_element(&field.to_bytes(&x)).is_ok());
+    }
+    assert!(calls < 200);
+}
+
+#[test]
+fn distinguished_mask_coordinate_must_complement_the_base_field() {
+    use std::collections::BTreeSet;
+    let f = Quad::<3, 0, 2>;
+    let x = [0, 1];
+    // With the swapped basis [x,1], witnesses (0,0) and (1,2) both
+    // satisfy the public claim x_0+x_1=0, but their U supports are disjoint.
+    let as_image = |t: &[u8; 2]| f.subf(&power(&f, t, &[3]), t);
+    let mut zero = BTreeSet::new();
+    let mut other = BTreeSet::new();
+    let mut admissible = BTreeSet::new();
+    for a in 0..3 {
+        for b in 0..3 {
+            let t = [a, b];
+            let v = as_image(&t);
+            zero.insert((v, v));
+            other.insert((v, f.addf(&v, &x)));
+            admissible.insert((as_image(&f.mulf(&x, &t)), v));
+        }
+    }
+    assert_eq!(zero.len(), 3);
+    assert!(zero.is_disjoint(&other));
+    assert_eq!(admissible.len(), 9);
+    assert!(PackingParameters::with_basis(f, f, vec![x, f.one()]).is_err());
+    let good = PackingParameters::new(f, f).unwrap();
+    assert_eq!(good.basis(), &[f.one(), x]);
+}
+
+#[test]
+fn every_packing_basis_starts_with_one() {
+    use crate::runtime::algebra::{
+        gf2_128::{Gf2_128, Gf2_128Field},
+        packing::binary::Binary128Extension,
+    };
+    // These bases complement K at coordinate zero (one has a nonzero
+    // zeroth coordinate), but beta_0 != 1, so they are rejected anyway.
+    let f = Quad::<5, 0, 2>;
+    for basis in [
+        vec![[2, 1], [1, 1]],
+        vec![[2, 0], [0, 1]],
+        vec![[1, 1], [0, 1]],
+    ] {
+        assert_eq!(
+            PackingParameters::with_basis(f, f, basis).err().as_deref(),
+            Some("packing basis must start with one")
+        );
+    }
+    assert!(PackingParameters::with_basis(f, f, vec![[1, 0], [1, 1]]).is_ok());
+    let g = Gf2_128Field::new();
+    let mut basis = Binary128Extension.native_basis(&g);
+    assert!(PackingParameters::with_basis(g.clone(), Binary128Extension, basis.clone()).is_ok());
+    basis[0] = Gf2_128::from(3u128);
+    assert_eq!(
+        PackingParameters::with_basis(g, Binary128Extension, basis)
+            .err()
+            .as_deref(),
+        Some("packing basis must start with one")
+    );
+}
+
+// Independent slow exponentiation used only by the algebraic reference tests.
+fn power<F: AlgebraicField>(f: &F, x: &F::E, exponent: &[u8]) -> F::E {
+    let mut value = f.one();
+    for byte in exponent.iter().rev() {
+        for bit in (0..8).rev() {
+            value = f.mulf(&value, &value);
+            if byte >> bit & 1 != 0 {
+                f.mul(&mut value, x);
+            }
+        }
+    }
+    value
+}
+
+mod transcript;
+
+/// Packing masks are used once (dual packing I8, audit D1): they are not
+/// `Clone`, so one sample cannot mask two source claims; `prove_packed`
+/// takes them by value.
+#[test]
+fn packing_masks_are_not_clone() {
+    // Resolves only if exactly one impl applies, that is, if `T` is not Clone.
+    trait AmbiguousIfClone<A> {
+        fn check() {}
+    }
+    impl<T> AmbiguousIfClone<()> for T {}
+    struct IsClone;
+    impl<T: Clone> AmbiguousIfClone<IsClone> for T {}
+    <PackingMasks<u64> as AmbiguousIfClone<_>>::check();
+}
+
+/// The masks' `Debug` output does not print them.
+#[test]
+fn packing_masks_debug_omits_the_cells() {
+    let p = PackingParameters::new(Quad::<3, 0, 2>, Quad::<3, 0, 2>).unwrap();
+    let mut next = 0u8;
+    let masks = PackingMasks::sample(&p, || {
+        next += 1;
+        [next % 3, 2]
+    });
+    assert!(!masks.cells().is_empty());
+    assert_eq!(format!("{masks:?}"), "PackingMasks { .. }");
+}

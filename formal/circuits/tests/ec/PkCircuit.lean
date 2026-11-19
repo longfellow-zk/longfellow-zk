@@ -15,7 +15,7 @@
 -/
 
 module
-public import Mathlib
+public import Mathlib.Algebra.Field.Basic
 public import ECDSA.EC
 
 /-

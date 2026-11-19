@@ -1,0 +1,222 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use super::{compile, test_support};
+use crate::{
+    circuits::ecdsa2::{derived, given, Derived, EcdsaCircuit, Given},
+    compile::{
+        algebra::{p256::P256Field, secp256r1::Secp256r1, CompilePrimeField},
+        compiler::dump_stats,
+        debug::evaluate::eval_circuit_fc,
+        logic::{LogicIO, K_FIRST_WIRE_POSITION},
+    },
+    core::{
+        algebra::{
+            ec::Curve, AlgebraicField, HasLookupPoints, Nat, SerializableField,
+            SupportsNatConversions, SupportsU64Conversions,
+        },
+        proto::v2::evaluate::initial_inputs,
+    },
+    runtime::algebra::{q256::Q256Field, RuntimeField},
+};
+
+fn parse_hex<const W: usize, N: Nat<W>>(s: &str) -> N {
+    let s_clean = s.strip_prefix("0x").unwrap_or(s);
+    let mut bytes = [0u8; 32];
+    let s_padded = format!("{s_clean:0>64}");
+    for (i, byte) in bytes.iter_mut().enumerate() {
+        let high = char_to_digit(s_padded.as_bytes()[2 * i]);
+        let low = char_to_digit(s_padded.as_bytes()[2 * i + 1]);
+        *byte = (high << 4) | low;
+    }
+    bytes.reverse();
+    N::from_bytes_le(&bytes)
+}
+
+fn char_to_digit(c: u8) -> u8 {
+    match c {
+        b'0'..=b'9' => c - b'0',
+        b'a'..=b'f' => c - b'a' + 10,
+        b'A'..=b'F' => c - b'A' + 10,
+        _ => panic!("invalid hex character"),
+    }
+}
+
+fn make_inputs<FR: RuntimeField + SerializableField>(
+    given: &Given<FR::E>,
+    derived: &Derived<FR::E>,
+    fr: &FR,
+) -> Vec<FR::E> {
+    let mut inputs = initial_inputs(fr);
+    given.for_each(|elt| inputs.push(elt.clone()));
+    derived.for_each(|elt| inputs.push(elt.clone()));
+    inputs
+}
+
+fn test_compile_ecdsa_generic<
+    const W: usize,
+    FC: CompilePrimeField
+        + SupportsNatConversions<W>
+        + SerializableField
+        + HasLookupPoints
+        + SupportsU64Conversions,
+    FR: RuntimeField + SerializableField + SupportsNatConversions<W> + HasLookupPoints,
+    Fn: AlgebraicField + SupportsNatConversions<W, N = FR::N>,
+    CC: Curve<W, F = FC, N = FC::N>,
+    CR: Curve<W, F = FR, N = FR::N>,
+>(
+    curve_c: &CC,
+    fc: &FC,
+    curve_r: &CR,
+    fr: &FR,
+    fn_field: &Fn,
+) {
+    let pkx_str = "0x88903e4e1339bde78dd5b3d7baf3efdd72eb5bf5aaaf686c8f9ff5e7c6368d9c";
+    let pky_str = "0xeb8341fc38bb802138498d5f4c03733f457ebbafd0b2fe38e6f58626767f9e75";
+    let e_str = "0x2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae";
+    let r_str = "0xc71bcbfb28bbe06299a225f057797aaf5f22669e90475de5f64176b2612671";
+    let s_str = "0x42ad2f2ec7b6e91360b53427690dddfe578c10d8cf480a66a6c2410ff4f6dd40";
+
+    let pkx_val = parse_hex::<W, FR::N>(pkx_str);
+    let pky_val = parse_hex::<W, FR::N>(pky_str);
+    let e_val = parse_hex::<W, FR::N>(e_str);
+    let r_val = parse_hex::<W, FR::N>(r_str);
+    let s_val = parse_hex::<W, FR::N>(s_str);
+
+    let pkxy_val_r = (fr.reduce_nat(&pkx_val), fr.reduce_nat(&pky_val));
+    let concrete_given_r = given(curve_r, &pkxy_val_r, &e_val, &r_val, &s_val, fr, fn_field);
+    let concrete_derived_r = derived(curve_r, &pkxy_val_r, &e_val, &r_val, &s_val, fr, fn_field);
+
+    let (circuit, stats, symbols) = compile(fc, |iologic| {
+        let mut pos = K_FIRST_WIRE_POSITION;
+
+        let ecdsa = EcdsaCircuit::new(&iologic, curve_c);
+        let circuit_given = Given::from_fn(|| iologic.next(&mut pos));
+        let circuit_derived = Derived::from_fn(|| iologic.next(&mut pos));
+
+        (
+            ecdsa.assert_signature(&circuit_given, &circuit_derived),
+            1,
+            0,
+        )
+    });
+
+    dump_stats("ecdsa2", &circuit, &stats);
+
+    let inputs = make_inputs(&concrete_given_r, &concrete_derived_r, fr);
+
+    eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs)
+        .unwrap()
+        .assert_all_passed();
+}
+
+#[test]
+fn test_compile_ecdsa() {
+    let fc = P256Field::new();
+    let curve_c = Secp256r1::new(&fc);
+    let fr = crate::runtime::algebra::p256::P256Field::new();
+    let curve_r = crate::runtime::algebra::secp256r1::Secp256r1::new(&fr);
+    let fn_field = Q256Field::new();
+    test_compile_ecdsa_generic::<4, _, _, _, _, _>(&curve_c, &fc, &curve_r, &fr, &fn_field);
+}
+
+fn test_compile_ecdsa_signature_tampering_generic<
+    const W: usize,
+    FC: CompilePrimeField
+        + SupportsNatConversions<W>
+        + SerializableField
+        + HasLookupPoints
+        + SupportsU64Conversions,
+    FR: RuntimeField
+        + SerializableField
+        + SupportsNatConversions<W>
+        + HasLookupPoints
+        + Clone
+        + 'static,
+    FnR: AlgebraicField + SupportsNatConversions<W, N = FR::N>,
+    CC: Curve<W, F = FC, N = FC::N>,
+    CR: Curve<W, F = FR, N = FR::N>,
+>(
+    curve_c: &CC,
+    fc: &FC,
+    curve_r: &CR,
+    fr: &FR,
+    fn_field: &FnR,
+) where
+    FR::E: Clone,
+{
+    let d = CR::N::from_u64(123456789u64);
+    let k = CR::N::from_u64(987654321u64);
+    let e = CR::N::from_u64(555555555u64); // Message hash
+
+    let (concrete_given, concrete_derived) =
+        test_support::sign_and_generate_given_derived::<W, _, _, _>(
+            curve_r, fr, fn_field, &d, &k, &e,
+        );
+
+    let (circuit, _stats, symbols) = compile(fc, |iologic| {
+        let mut pos = K_FIRST_WIRE_POSITION;
+
+        let ecdsa = EcdsaCircuit::new(&iologic, curve_c);
+        let circuit_given = Given::from_fn(|| iologic.next(&mut pos));
+        let circuit_derived = Derived::from_fn(|| iologic.next(&mut pos));
+
+        (
+            ecdsa.assert_signature(&circuit_given, &circuit_derived),
+            1,
+            0,
+        )
+    });
+
+    // Verify valid inputs pass
+    {
+        let inputs = make_inputs(&concrete_given, &concrete_derived, fr);
+        let eval_res = eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs).unwrap();
+        eval_res.assert_all_passed();
+    }
+
+    let corruptors = test_support::all_ecdsa_corruptors::<W, _>(fr);
+
+    for c in corruptors {
+        let mut g = concrete_given.clone();
+        let mut cd = concrete_derived.clone();
+        (c.corrupt)(&mut g, &mut cd);
+        let inputs = make_inputs(&g, &cd, fr);
+        let eval_res = eval_circuit_fc(fc, fr, &circuit, &symbols, &inputs).unwrap();
+        assert!(
+            eval_res.is_err(),
+            "Corruptor '{}' failed to cause circuit evaluation error",
+            c.name
+        );
+        let failed = eval_res.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == c.expected_path),
+            "Corruptor '{}' expected exact compiled failure path '{}', actual failures: {failed:?}",
+            c.name,
+            c.expected_path
+        );
+    }
+}
+
+#[test]
+fn test_compile_ecdsa_signature_tampering() {
+    let fc = P256Field::new();
+    let curve_c = Secp256r1::new(&fc);
+    let fr = crate::runtime::algebra::p256::P256Field::new();
+    let curve_r = crate::runtime::algebra::secp256r1::Secp256r1::new(&fr);
+    let fn_field = Q256Field::new();
+    test_compile_ecdsa_signature_tampering_generic::<4, _, _, _, _, _>(
+        &curve_c, &fc, &curve_r, &fr, &fn_field,
+    );
+}

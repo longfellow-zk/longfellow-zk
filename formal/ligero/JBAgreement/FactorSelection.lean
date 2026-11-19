@@ -1,7 +1,6 @@
 import JBAgreement.Counting
 import Mathlib.Algebra.BigOperators.Ring.Finset
 import Mathlib.Data.Nat.ModEq
-import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Ring
 
 /-!

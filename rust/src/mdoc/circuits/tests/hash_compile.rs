@@ -1,0 +1,398 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use super::mdoc_hash_corruptors;
+use crate::{
+    compile::{
+        algebra::{gf2_128::Gf2_128Field, CompileNat},
+        compiler::dump_stats,
+        debug::{evaluate::eval_circuit_fc, CircuitDebugSymbols},
+        logic::K_FIRST_WIRE_POSITION,
+    },
+    core::{
+        algebra::{Nat, SerializableField, SupportsU128Conversions},
+        proto::{
+            v2::{evaluate::initial_inputs, Circuit},
+            CircuitGeometry,
+        },
+    },
+    mdoc::{
+        cbor::{encode_cbor_string, test_utils::parse_test_data},
+        circuits::{
+            hash::{
+                allocate, derived, given, hash_input_of_parsed_mdoc, ConcreteGiven, Derived,
+                MdocHash,
+            },
+            MdocHashCompileField,
+        },
+        proto::{
+            hash::constants::K_NAMESPACE_BYTES,
+            mso_attribute::constants::{K_ATTR_VALUE_BYTES, K_DATE_SLOT, K_DATE_VALUE_BYTES},
+            K_ZSTD_LEVEL,
+        },
+        testcases::{BIRTHDATE_1971_09_01_MDOC_3, TEST_DATA},
+    },
+    runtime::algebra::RuntimeField,
+};
+
+pub(super) fn mdoc_zk_circuits_hash_circuit<FC>(fc: &FC) -> (Circuit<FC>, CircuitGeometry)
+where FC: MdocHashCompileField {
+    let (circuit, stats, _) = compile_hash_circuit(fc);
+    (circuit, stats)
+}
+
+fn compile_hash_circuit<FC>(fc: &FC) -> (Circuit<FC>, CircuitGeometry, CircuitDebugSymbols)
+where FC: MdocHashCompileField {
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
+    let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
+    let mut pos = K_FIRST_WIRE_POSITION;
+    let num_attrs = hash_input.attrs.len();
+
+    super::compile(fc, |iologic| {
+        let mdoc = MdocHash::new(&iologic);
+        let (given_wires, derived_wires, _) = allocate(&iologic, num_attrs, &mut pos);
+
+        (
+            mdoc.assert_valid_presentation(&given_wires, &derived_wires),
+            1,
+            0,
+        )
+    })
+}
+
+fn push_bits<FR: RuntimeField>(inputs: &mut Vec<FR::E>, value: u128, nbits: usize, fr: &FR) {
+    for bit in 0..nbits {
+        inputs.push(if (value >> bit) & 1 == 1 {
+            fr.one()
+        } else {
+            fr.zero()
+        });
+    }
+}
+
+fn push_bytes<FR: RuntimeField>(inputs: &mut Vec<FR::E>, bytes: &[u8], size: usize, fr: &FR) {
+    for idx in 0..size {
+        push_bits(
+            inputs,
+            u128::from(bytes.get(idx).copied().unwrap_or(0)),
+            8,
+            fr,
+        );
+    }
+}
+
+fn push_nat<FR: RuntimeField, N: Nat<4>>(
+    inputs: &mut Vec<FR::E>,
+    value: &N,
+    nbits: usize,
+    fr: &FR,
+) {
+    let bytes = value.to_bytes_le();
+    for bit in 0..nbits {
+        let bit_val = bytes.get(bit / 8).map_or(0, |byte| (byte >> (bit % 8)) & 1);
+        inputs.push(if bit_val == 1 { fr.one() } else { fr.zero() });
+    }
+}
+
+fn make_hash_inputs<FR>(
+    given: &ConcreteGiven<CompileNat<4>>,
+    derived: &Derived<u32>,
+    fr: &FR,
+) -> Vec<FR::E>
+where
+    FR: RuntimeField + SupportsU128Conversions,
+{
+    use crate::mdoc::proto::hash::constants::{K_MSO_PREIMAGE_LEN, K_TIMESTAMP_DIGITS};
+    const EXPECTED_NAME_LEN: usize = 32;
+
+    let mut inputs = initial_inputs(fr);
+
+    for i in K_TIMESTAMP_DIGITS {
+        push_bits(&mut inputs, u128::from(given.hash_input.now[i]), 8, fr);
+    }
+
+    for (slot, attr) in given.hash_input.attrs.iter().enumerate() {
+        push_bytes(&mut inputs, &attr.expected_name, EXPECTED_NAME_LEN, fr);
+        push_bits(&mut inputs, attr.expected_name.len() as u128, 10, fr);
+        push_bytes(
+            &mut inputs,
+            &attr.expected_cbor_value,
+            if slot == K_DATE_SLOT {
+                K_DATE_VALUE_BYTES
+            } else {
+                K_ATTR_VALUE_BYTES
+            },
+            fr,
+        );
+        push_bits(&mut inputs, attr.expected_cbor_value.len() as u128, 10, fr);
+        push_bits(&mut inputs, 1, 1, fr); // enabled
+        if slot == K_DATE_SLOT {
+            push_bits(&mut inputs, 0, 2, fr); // exact date equality
+        }
+    }
+
+    inputs.push(if given.hash_input.suppress_doc_type_check {
+        fr.one()
+    } else {
+        fr.zero()
+    });
+
+    push_bytes(
+        &mut inputs,
+        &given.hash_input.expected_doc_type,
+        EXPECTED_NAME_LEN,
+        fr,
+    );
+    push_bits(
+        &mut inputs,
+        given.hash_input.expected_doc_type.len() as u128,
+        10,
+        fr,
+    );
+    push_bytes(
+        &mut inputs,
+        &given.hash_input.expected_namespace,
+        K_NAMESPACE_BYTES,
+        fr,
+    );
+    push_bits(
+        &mut inputs,
+        given.hash_input.expected_namespace.len() as u128,
+        10,
+        fr,
+    );
+
+    push_nat(&mut inputs, &given.hash_input.issuer_sig_e, 256, fr);
+    push_nat(&mut inputs, &given.hash_input.device_pk.0, 256, fr);
+    push_nat(&mut inputs, &given.hash_input.device_pk.1, 256, fr);
+    push_bytes(&mut inputs, &given.preimage.value, K_MSO_PREIMAGE_LEN, fr);
+    push_bits(&mut inputs, u128::from(given.preimage.len), 16, fr);
+    push_bits(&mut inputs, u128::from(given.nblocks), 8, fr);
+
+    for offset in [
+        given.doc_type_offset_in_preimage,
+        given.valid_from_offset_in_preimage,
+        given.valid_until_offset_in_preimage,
+        given.dev_key_info_offset_in_preimage,
+        given.value_digests_offset_in_preimage,
+        given.namespace_offset_in_preimage,
+    ] {
+        push_bits(&mut inputs, u128::from(offset), 16, fr);
+    }
+
+    for (attr, witness) in given.attribute_given.iter().zip(&derived.attribute_derived) {
+        push_bytes(
+            &mut inputs,
+            &attr.padded_preimage,
+            attr.padded_preimage.len(),
+            fr,
+        );
+        push_bits(&mut inputs, attr.unpadded_preimage_len as u128, 10, fr);
+        push_bits(
+            &mut inputs,
+            attr.mso_digest_offset_in_preimage as u128,
+            16,
+            fr,
+        );
+        for value in attr.field_locator.slot_position {
+            push_bits(&mut inputs, value as u128, 10, fr);
+        }
+        for value in attr.field_locator.length {
+            push_bits(&mut inputs, value as u128, 10, fr);
+        }
+        for idx in 0..4 {
+            push_bits(
+                &mut inputs,
+                ((attr.field_locator.permutation >> (2 * idx)) & 3) as u128,
+                2,
+                fr,
+            );
+        }
+        witness
+            .sha_derived
+            .push_derived(fr, |value| inputs.push(value));
+    }
+
+    derived
+        .sha_derived
+        .push_derived(fr, |value| inputs.push(value));
+    inputs
+}
+
+fn test_mdoc_zk_circuits_hash_for_field<
+    FC: MdocHashCompileField,
+    FR: RuntimeField + SerializableField,
+>(
+    fc: &FC,
+    _fr: &FR,
+) {
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
+    let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
+    let num_attrs = hash_input.attrs.len();
+
+    let (_circuit, stats, _symbols) = super::compile(fc, |iologic| {
+        let mut pos = K_FIRST_WIRE_POSITION;
+        let mdoc = MdocHash::new(&iologic);
+        let (given_wires, derived_wires, _) = allocate(&iologic, num_attrs, &mut pos);
+
+        (
+            mdoc.assert_valid_presentation(&given_wires, &derived_wires),
+            1,
+            0,
+        )
+    });
+
+    dump_stats("mdoc_hash", &_circuit, &stats);
+}
+
+#[test]
+fn test_mdoc_zk_circuits_hash() {
+    let fc = Gf2_128Field::new();
+    let fr = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    test_mdoc_zk_circuits_hash_for_field::<_, _>(&fc, &fr);
+}
+
+#[test]
+fn test_compile_mdoc_hash_corruptors() {
+    let fc = Gf2_128Field::new();
+    let fr = crate::runtime::algebra::gf2_128::Gf2_128Field::new();
+    let (circuit, _, symbols) = compile_hash_circuit(&fc);
+
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&TEST_DATA);
+    let hash_input = hash_input_of_parsed_mdoc(&parsed, &parsed.all_attr_ids(), now);
+
+    let base_given = given::<4, _>(hash_input);
+    let base_derived = derived::<4, _>(&base_given);
+
+    eval_circuit_fc(
+        &fc,
+        &fr,
+        &circuit,
+        &symbols,
+        &make_hash_inputs(&base_given, &base_derived, &fr),
+    )
+    .unwrap()
+    .assert_all_passed();
+
+    for corruptor in mdoc_hash_corruptors::all_mdoc_hash_corruptors() {
+        let mut corrupted = base_given.clone();
+        (corruptor.corrupt)(&mut corrupted);
+        let result = eval_circuit_fc(
+            &fc,
+            &fr,
+            &circuit,
+            &symbols,
+            &make_hash_inputs(&corrupted, &base_derived, &fr),
+        )
+        .unwrap();
+        let failed = result.failed_paths();
+        assert!(
+            failed.iter().any(|path| path == &corruptor.expected_path),
+            "Corruptor '{}' expected exact compiled failure path '{}', actual failures: {failed:?}",
+            corruptor.name,
+            corruptor.expected_path
+        );
+    }
+}
+
+#[test]
+fn test_serialize_and_verify_mdoc_hash_circuit() {
+    use crate::core::proto::v2::CircuitWriter;
+
+    let gf2_c = Gf2_128Field::new();
+    let (circuit, stats) = mdoc_zk_circuits_hash_circuit(&gf2_c);
+
+    dump_stats("mdoc_hash_serialized", &circuit, &stats);
+
+    let expected_id: [u8; 32] = [
+        189, 176, 153, 103, 141, 73, 13, 119, 207, 245, 179, 187, 102, 112, 253, 63, 32, 190, 244,
+        253, 61, 133, 203, 54, 242, 81, 49, 133, 27, 250, 122, 76,
+    ];
+    assert_eq!(
+        circuit.id, expected_id,
+        "Circuit hash changed! Expected {:?}, got {:?}",
+        expected_id, circuit.id
+    );
+
+    let writer = CircuitWriter::new(&gf2_c);
+    let serialized = writer.to_bytes(&circuit);
+    let orig_size = serialized.len();
+
+    let compressed =
+        zstd::bulk::compress(&serialized, K_ZSTD_LEVEL).expect("zstd compression failed");
+    let compressed_size = compressed.len();
+
+    println!("MDOC Hash Circuit serialization stats:");
+    println!("  Original serialized size:   {orig_size} bytes");
+    println!("  Zstd compressed size:       {compressed_size} bytes");
+}
+
+#[test]
+fn test_paranoid_hash_input_subsets_and_permutations() {
+    let (_, parsed, now) = parse_test_data::<4, CompileNat<4>>(&BIRTHDATE_1971_09_01_MDOC_3);
+    let all_ids = parsed.all_attr_ids();
+    assert!(
+        all_ids.len() >= 4,
+        "BIRTHDATE_1971_09_01_MDOC_3 should have at least 4 attributes"
+    );
+    let four_ids = &all_ids[0..4];
+
+    let mut subsets: Vec<Vec<usize>> = Vec::new();
+    for mask in 0..(1 << 4) {
+        let mut subset = Vec::new();
+        for i in 0..4 {
+            if (mask & (1 << i)) != 0 {
+                subset.push(i);
+            }
+        }
+        subsets.push(subset);
+    }
+
+    let mut total_tested = 0;
+    for subset in subsets {
+        fn permute(arr: &mut Vec<usize>, start: usize, perms: &mut Vec<Vec<usize>>) {
+            if start == arr.len() {
+                perms.push(arr.clone());
+                return;
+            }
+            for i in start..arr.len() {
+                arr.swap(start, i);
+                permute(arr, start + 1, perms);
+                arr.swap(start, i);
+            }
+        }
+        let mut perms = Vec::new();
+        let mut sub = subset.clone();
+        permute(&mut sub, 0, &mut perms);
+
+        for p in perms {
+            let req_ids: Vec<&[u8]> = p.iter().map(|&idx| four_ids[idx]).collect();
+            let input = hash_input_of_parsed_mdoc(&parsed, &req_ids, now);
+            assert_eq!(input.attrs.len(), req_ids.len());
+            for (i, &req_id) in req_ids.iter().enumerate() {
+                let attr_name_bytes = &input.attrs[i].expected_name;
+                assert_eq!(
+                    attr_name_bytes,
+                    &encode_cbor_string(req_id),
+                    "Mismatch at permutation {p:?}, index {i}"
+                );
+            }
+            total_tested += 1;
+        }
+    }
+    assert_eq!(
+        total_tested, 65,
+        "Should test exactly 65 subsets and permutations"
+    );
+}

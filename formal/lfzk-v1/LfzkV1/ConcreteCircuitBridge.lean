@@ -1,6 +1,7 @@
 import LfzkV1.ConcreteCircuit
 import LfzkV1.ZkLayers
 import LfzkV1.RbrSplit
+import Mathlib.LinearAlgebra.FiniteDimensional.Lemmas
 
 /-!
 # The constructed arithmetization, against the soundness chain's interfaces

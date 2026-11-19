@@ -1,8 +1,6 @@
-import Mathlib
-import LfzkV1.WPoly
-import LfzkV1.Types
-import LfzkV1.Builder
-import LfzkV1.Circuit
+import Bcs.StatisticalDistance
+import Mathlib.Algebra.Field.ZMod
+import Mathlib.Tactic.NormNum.Prime
 import LfzkV1.LigeroRows
 import LfzkV1.ZkHiding
 import LfzkV1.LigeroSystem

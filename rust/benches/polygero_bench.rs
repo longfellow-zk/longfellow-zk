@@ -1,0 +1,130 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Protocol kernel timings; public preprocessing reported separately.
+use std::time::Instant;
+
+use longfellow_zk::{
+    core::algebra::RegisteredField,
+    runtime::{
+        algebra::{range_interpolation::EvaluationDomain, RuntimeField, SupportsSampling},
+        random::{DeterministicRng, RandomEngine},
+        v2::{polygero::*, proto::polygero::PolygeroConfig, transcript::Transcript},
+    },
+};
+fn run<F: RuntimeField + RegisteredField + SupportsSampling, D: EvaluationDomain<F>>(
+    name: &str,
+    f: &F,
+    d: &D,
+    config: PolygeroConfig,
+    nw: usize,
+) {
+    let mut rng = DeterministicRng::new(42);
+    let witness = rng.elt_field_slice(nw, f);
+    let mut b = vec![f.zero(); 8];
+    let a: Vec<_> = witness
+        .iter()
+        .enumerate()
+        .map(|(w, value)| {
+            let k = rng.elt_field(f);
+            let c = w % 8;
+            f.sub(&mut b[c], &f.mulf(&k, value));
+            PolygeroLinearTerm { c, w, k }
+        })
+        .collect();
+    let preprocessing_start = Instant::now();
+    let param = PolygeroParam::try_new(nw, config, d).unwrap();
+    let param = JointPolygeroParam::new((Participant::new(param, d).unwrap(), ())).unwrap();
+    let statements = (LinearStatement::new(a, b), ());
+    let preprocessing = preprocessing_start.elapsed();
+    // Each role takes its own copy of the statements, made before the timers
+    // start.
+    let prover_statements = statements.clone();
+    // Release the prover's rows and Merkle tree before timing verification.
+    let (com, bytes, commit, prove) = {
+        let mut ts = Transcript::for_test(b"polygero/kernel/bench");
+        let commit_start = Instant::now();
+        let (prover, com) = JointPolygeroProver::commit_for_test(
+            &mut ts.bound_for_test(&param),
+            &(witness, ()),
+            &mut rng,
+        )
+        .unwrap();
+        let commit = commit_start.elapsed();
+        let prove_start = Instant::now();
+        let proof = prover
+            .prove_for_test(&mut ts.bound_for_test(&param), prover_statements)
+            .unwrap();
+        let prove = prove_start.elapsed();
+        let bytes = param.write(&proof, ts).unwrap().into_bytes();
+        (com, bytes, commit, prove)
+    };
+    let verify_start = Instant::now();
+    let decoded_proof = param.read(&mut bytes.as_slice()).unwrap();
+    let mut tv = Transcript::for_test(b"polygero/kernel/bench");
+    let verifier = JointPolygeroVerifier::receive_for_test(&mut tv.bound_for_test(&param), &com);
+    verifier
+        .verify(tv, &param, statements, decoded_proof)
+        .unwrap();
+    let verify = verify_start.elapsed();
+    eprintln!("{name}: config={config:?}, witnesses={nw}, preprocessing(two parties)={:.3} ms, commit={:.3} ms, prove={:.3} ms, decode+verify={:.3} ms, proof={} bytes",preprocessing.as_secs_f64()*1000.0,commit.as_secs_f64()*1000.0,prove.as_secs_f64()*1000.0,verify.as_secs_f64()*1000.0,bytes.len());
+}
+const BENCH_CONFIG: PolygeroConfig = PolygeroConfig {
+    k: 512,
+    s: 64,
+    n: 8192,
+    t: 64,
+};
+
+fn main() {
+    use longfellow_zk::runtime::algebra::{
+        fp2::Fp2Field,
+        gf2_128::Gf2_128Field,
+        p256::P256Field,
+        range_interpolation::{
+            BinaryInterpolatorFactory, QuadraticExtensionFftInterpolatorFactory,
+            ScalarInterpolatorFactory,
+        },
+        SupportsFFT,
+    };
+    eprintln!("UNCERTIFIED PROTOTYPE PARAMETERS; kernel timings exclude witness generation and public preprocessing.");
+    {
+        let f = Gf2_128Field::new();
+        let d = BinaryInterpolatorFactory::full_field(&f);
+        run("binary", &f, &d, BENCH_CONFIG, 8192);
+    }
+    {
+        let f = P256Field::new();
+        let f2 = Fp2Field::new(&f);
+        let d =
+            QuadraticExtensionFftInterpolatorFactory::new(&f, &f2, f2.omega(), f2.omega_order());
+        run("p256", &f, &d, BENCH_CONFIG, 8192);
+    }
+    {
+        let f = P256Field::new();
+        let d = ScalarInterpolatorFactory::new(&f, 128);
+        run(
+            "p256 scalar reference (small workload)",
+            &f,
+            &d,
+            PolygeroConfig {
+                k: 8,
+                s: 2,
+                n: 64,
+                t: 2,
+            },
+            30,
+        );
+    }
+}

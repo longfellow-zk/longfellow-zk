@@ -1,5 +1,4 @@
 import LfzkV1.RbrZkFlatSide
-import Bcs.Counting
 
 /-!
 # Flat extraction accounting for two fixed Longfellow sides

@@ -1,5 +1,4 @@
 import LfzkV1.ZkLigeroV1
-import examples.Ligero.Longfellow.ProfiledExtraction
 
 /-!
 # Flat V1 acceptance at a built Longfellow system

@@ -1,0 +1,105 @@
+import LfzkV2.Current.ZeroKnowledge.FrontendSimulationAnswers
+
+/-! Read back the rescaling, conversion and packing answers
+from the final frontend tape. These are the actual existing squeezes; no
+new query or semantic row correspondence is supplied to this bridge. -/
+noncomputable section
+namespace LfzkV2.Current.ZeroKnowledge.Frontend.SimulationScalarAnswers
+
+open SumcheckV2 ApplicationSetup ConcreteSetup AnswerTape
+open scoped Classical
+variable {B Key Base C : Type} [Field B] [Fintype B] [DecidableEq B] [Algebra (ZMod 2) B]
+local notation "P" => Adapter.Mdoc.P
+variable (binary : BinaryCircuit B) (prime : PrimePublic P 768)
+variable (primePlan : FrontendSchedule.Plan P prime.circuit)
+variable (samples : ConcreteMetadata.Samples B C)
+variable (base : CompleteSimulation.BaseWriter binary prime primePlan (Base := Base) (C := C))
+variable (H : CompleteSimulation.Point binary prime primePlan (Key := Key) (Base := Base) → Digest × C)
+
+omit [Fintype B] [DecidableEq B] in
+/-- The split claim is computed from the prime messages alone; eta is read
+from the prime frontend's last answer, after its coordinates. -/
+theorem prime_values
+    (state future : CompleteSimulation.State binary prime primePlan (Key := Key) (Base := Base) (C := C))
+    (payload : Layered.Replay.Payload prime.circuit)
+    (fits : state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false ≤
+      (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length)
+    (extended : Extends samples.fallback
+      (CompleteSimulation.primePrefix binary prime primePlan samples base H state payload).state future) :
+    let read := readSetup (CompleteTranscript.reader .prime (Equiv.refl P)
+      samples.prime samples.primeNonzero base H) primePlan prime.setup.plan payload state false
+    let native := CompleteSimulation.primePrefix binary prime primePlan samples base H state payload
+    native.claim = CompleteSimulation.primeClaim prime (messagesFromSetup prime.circuit read.1 payload) ∧
+      native.eta = samples.primeNonzero (lookup samples.fallback future
+        (state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false-1)) := by
+  let read := readSetup (CompleteTranscript.reader .prime (Equiv.refl P)
+    samples.prime samples.primeNonzero base H) primePlan prime.setup.plan payload state false
+  have fuel : 0 < Frontend.ScheduleLength.circuitFuel primePlan false := by
+    rw [Frontend.ScheduleLength.circuitFuel_roles primePlan .prime]
+    exact List.length_pos_iff.mpr (primePlan.frontend.roles_ne_nil .prime)
+  have readRank : read.2.rank.val = state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false := by
+    rw [SimulationWrites.read_rank]
+    exact Nat.min_eq_right (by omega)
+  have inside : state.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by
+    omega
+  have readLast : Last samples.fallback read.2 := by
+    change Last samples.fallback (readSetup _ primePlan prime.setup.plan payload state false).2
+    rw [Prefix.circuit_state, Prefix.circuit_open, Prefix.execute]
+    apply execute_last
+    exact step_last_inside base H samples.fallback _ inside
+  have value : read.2.lastAnswer = lookup samples.fallback future
+      (state.rank.val+Frontend.ScheduleLength.circuitFuel primePlan false-1) := by
+    rw [readLast, ← readRank]
+    exact (extended.2 _ (by change read.2.rank.val-1 < read.2.rank.val; omega)).symm
+  change _ = _ ∧ samples.primeNonzero read.2.lastAnswer = _
+  exact ⟨rfl,by rw [value]⟩
+
+omit [Fintype B] [DecidableEq B] in
+theorem conversion_values
+    (native : CompleteSimulation.PrimePrefix binary prime primePlan Key Base C) (mu : P)
+    (future : CompleteSimulation.State binary prime primePlan (Key := Key) (Base := Base) (C := C))
+    (inside : native.state.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length)
+    (extended : Extends samples.fallback
+      (CompleteSimulation.conversionPrefix binary prime primePlan samples base H native mu).state future) :
+    (CompleteSimulation.conversionPrefix binary prime primePlan samples base H native mu).alpha =
+      samples.conversion (lookup samples.fallback future native.state.rank.val) := by
+  let pending := CompleteTranscript.bind native.state fun writes => { writes with mu := some mu }
+  have answer := step_answer_into base H samples.fallback pending future inside extended
+  exact congrArg samples.conversion answer
+
+omit [DecidableEq B] in
+theorem packing_values (context : Key) (coins : CompleteSimulation.Coins binary prime) :
+    let selected := CompleteSimulation.selectedState binary prime primePlan samples base H context coins.fingerprints
+    let native := CompleteSimulation.primePrefix binary prime primePlan samples base H selected
+      (simulateCircuit prime.circuit coins.prime)
+    let converted := CompleteSimulation.conversionPrefix binary prime primePlan samples base H native coins.mu
+    let read := CompleteSimulation.binaryReplay binary prime primePlan samples base H converted coins.advice
+      (simulateCircuit binary.description.circuit coins.binary)
+    let result := CompleteSimulation.simulate binary prime primePlan samples base H context coins
+    result.delta = (fun i => samples.binary (lookup samples.fallback result.state read.2.rank.val) i.val) := by
+  let selected := CompleteSimulation.selectedState binary prime primePlan samples base H context coins.fingerprints
+  let native := CompleteSimulation.primePrefix binary prime primePlan samples base H selected
+    (simulateCircuit prime.circuit coins.prime)
+  let converted := CompleteSimulation.conversionPrefix binary prime primePlan samples base H native coins.mu
+  let read := CompleteSimulation.binaryReplay binary prime primePlan samples base H converted coins.advice
+    (simulateCircuit binary.description.circuit coins.binary)
+  let packing := Packing.simulate binary.basis 0 coins.packing
+  let pending := CompleteTranscript.bind read.2 fun writes => { writes with packingU := some (fun i => (packing.1 i).val) }
+  let packed := CompleteTranscript.step base H pending
+  have finalRank := (SimulationWrites.simulate_properties binary prime primePlan samples base H context coins).1
+  have inside : pending.rank.val < (MdocRuntime.geometry binary.description prime binary.plan primePlan).roles.length := by
+    by_contra outside
+    have stopped : packed.2.rank.val = pending.rank.val := by
+      simp only [packed,CompleteTranscript.step,dif_neg outside]
+    have done : packed.2.rank.val = (MdocRuntime.geometry binary.description prime binary.plan primePlan).batchingIndex.val := finalRank
+    have bound := (MdocRuntime.geometry binary.description prime binary.plan primePlan).batchingIndex.isLt
+    omega
+  have extended : Extends samples.fallback packed.2
+      (CompleteSimulation.simulate binary prime primePlan samples base H context coins).state :=
+    bind_extends samples.fallback packed.2 _
+  have answer := step_answer_into base H samples.fallback pending
+    (CompleteSimulation.simulate binary prime primePlan samples base H context coins).state inside extended
+  funext i
+  exact congrArg (fun value => samples.binary value i.val) answer
+
+end LfzkV2.Current.ZeroKnowledge.Frontend.SimulationScalarAnswers

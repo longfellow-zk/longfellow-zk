@@ -1,0 +1,89 @@
+import Merkle.ExtractionROM
+import LigeroFamily.Protocol.Finite
+import LfzkV2.Current.ReplayPrefix
+import LfzkV2.Current.BackendPositions
+
+/-! The wire opening stores cells and salts in sampled order, with the
+frontier in decreasing heap order. Query positions are reconstructed from
+the opening boundary answer; they are not extra serialized proof data. -/
+noncomputable section
+namespace LfzkV2.Current.OrderedOpening
+open Merkle Merkle.MH LigeroFamily
+open scoped Classical
+
+variable {n t : ℕ} {Salt Nonce Leaf D : Type}
+
+/-- The set underlying the verifier's ordered sample without replacement. -/
+def query (indices : Fin t ↪ Fin n) : QuerySet n t :=
+  ⟨Finset.univ.image indices, Finset.mem_powersetCard.mpr
+    ⟨Finset.subset_univ _, by simp [Finset.card_image_of_injective _ indices.injective]⟩⟩
+
+/-- Reindexing preserves the sampled order even though the algebraic backend
+uses a set. All fields and nonce bytes use this same reindexing. -/
+def order (indices : Fin t ↪ Fin n) : Fin t ≃ ↥(query indices).coordinates :=
+  Equiv.ofBijective (fun i => ⟨indices i, by simp [query, QuerySet.coordinates]⟩)
+    ⟨by intro i j h; exact indices.injective (congrArg Subtype.val h), by
+      rintro ⟨j,hj⟩
+      obtain ⟨i,_,hi⟩ := Finset.mem_image.mp hj
+      exact ⟨i,Subtype.ext hi⟩⟩
+
+@[simp] theorem order_val (indices : Fin t ↪ Fin n) (i : Fin t) :
+    ((order indices) i).val = indices i := rfl
+
+/-- The authentication payload before query-dependent heap addresses are
+reconstructed. A caller supplies the fixed-width tuple leaf decoder. -/
+structure Raw (t : ℕ) (Nonce Leaf D : Type) where
+  values : Fin t → Leaf
+  nonce : Fin t → Nonce
+  frontier : List D
+
+variable [Inhabited Leaf]
+
+/-- Reconstruct the exact indexed claim checked by the mathematical Merkle
+verifier. Position-dependent salt framing adds the public column index here,
+not on the wire. A wrong frontier length is rejected before indexing any bytes. -/
+def decode (bindSalt : Fin n → Nonce → Salt)
+    (indices : Fin t ↪ Fin n) (raw : Raw t Nonce Leaf D) :
+    Option (OpeningClaim n Salt Leaf D) :=
+  if h : raw.frontier.length = (Heap.frontierList n (query indices).coordinates).length then
+    some {
+      I := (query indices).coordinates
+      a := fun j => if hj : j ∈ (query indices).coordinates then
+        raw.values ((order indices).symm ⟨j,hj⟩) else default
+      pf := {
+        nonce := fun j => bindSalt j.val (raw.nonce ((order indices).symm j))
+        frontierValue := fun v =>
+          raw.frontier[(Heap.frontierList n (query indices).coordinates).idxOf v.val]'(by
+            rw [h]
+            exact List.idxOf_lt_length_of_mem (Heap.mem_frontierList.mpr v.property)) } }
+  else none
+
+section Replay
+variable {g : Geometry} {F : Fields} {Advice Auth Context Block C : Type}
+
+/-- Read the shared opening answer from the verifier cache. No transcript
+history is needed. The fallback only totalizes incomplete caches; a completed
+replay always contains this answer. -/
+def openingAnswer {count : ℕ} (fallback : C) (answers : Replay.VerifierState C count) : C :=
+  if h : g.openingIndex.val < count then answers ⟨g.openingIndex.val,h⟩ else fallback
+
+variable (e : Replay.Encoding g F Advice Auth Context Block C) (initialLink : Digest)
+  (proof : Replay.Output g F Advice Auth)
+  (H : Replay.Point g F Advice Auth Context Block → Digest × C)
+
+/-- Reconstruction uses exactly the one shared opening answer. -/
+theorem openingAnswer_replay (fallback : C) :
+    openingAnswer (g := g) fallback ((e.chain initialLink).replay proof H g.roles.length).answers =
+      (H ((e.chain initialLink).point proof H g.openingIndex.val)).2 := by
+  have hr := (e.chain initialLink).point_rank proof H (Nat.le_refl g.roles.length)
+  change ((e.chain initialLink).replay proof H g.roles.length).point.rank = g.roles.length at hr
+  have hlt : g.openingIndex.val <
+      ((e.chain initialLink).replay proof H g.roles.length).point.rank := by
+    rw [hr]
+    exact g.openingIndex.isLt
+  unfold openingAnswer
+  rw [dif_pos hlt]
+  exact e.replay_answer initialLink proof H g.roles.length (by rfl) ⟨_,hlt⟩
+
+end Replay
+end LfzkV2.Current.OrderedOpening

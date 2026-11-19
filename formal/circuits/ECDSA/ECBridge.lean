@@ -16,7 +16,7 @@
 
 module
 
-public import Mathlib
+public import Mathlib.AlgebraicGeometry.EllipticCurve.Projective.Point
 public import ECDSA.EC
 
 /-!
@@ -1243,20 +1243,6 @@ lemma addE_rearrange (A B C D : ProjectivePoint F) (params : CurveParameters F)
   rw [toMathlibPoint_add B D params hB hD]
   abel
 
-lemma addE_rearrange_triple (A B C D E P6 : ProjectivePoint F) (params : CurveParameters F)
-    [h_ell : (params.toMathlib).IsElliptic] [CurveHasNoPointsOfOrder2 params]
-    [NeZero (2 : F)] [NeZero (3 : F)]
-    (hA : A.IsOnCurve params) (hB : B.IsOnCurve params) (hC : C.IsOnCurve params)
-    (hD : D.IsOnCurve params) (hE : E.IsOnCurve params) (hP6 : P6.IsOnCurve params) :
-    ProjectiveEquiv (addE (addE (addE A B params) C params) (addE (addE D E params) P6 params) params)
-    (addE (addE (addE A D params) (addE B E params) params) (addE C P6 params) params) := by
-  have h_AB := addE_on_curve A B params hA hB
-  have h_DE := addE_on_curve D E params hD hE
-  have h_step1 := addE_rearrange (addE A B params) C (addE D E params) P6 params h_AB hC h_DE hP6
-  have h_rearrange_inner := addE_rearrange A B D E params hA hB hD hE
-  have h_step2 := h_rearrange_inner.addE params (ProjectiveEquiv.refl (addE C P6 params))
-  exact ProjectiveEquiv.trans h_step1 h_step2
-
 end ProvenProperties
 
 /-!
@@ -1384,17 +1370,6 @@ lemma bsmul_addE (s : List Bool) (p1 p2 : ProjectivePoint F) (params : CurvePara
   rw [toMathlibPoint_bsmul s p1 params hp1]
   rw [toMathlibPoint_bsmul s p2 params hp2]
   rw [nsmul_add]
-
-lemma bsmul_addE_triple (s : List Bool) (p1 p2 p3 : ProjectivePoint F) (params : CurveParameters F)
-    [CurveHasNoPointsOfOrder2 params] [h_ell : (params.toMathlib).IsElliptic] [NeZero (2 : F)] [NeZero (3 : F)]
-    (hp1 : p1.IsOnCurve params) (hp2 : p2.IsOnCurve params) (hp3 : p3.IsOnCurve params) :
-    ProjectiveEquiv (bsmul s (addE (addE p1 p2 params) p3 params) params)
-    (addE (addE (bsmul s p1 params) (bsmul s p2 params) params) (bsmul s p3 params) params) := by
-  have hp12 := addE_on_curve p1 p2 params hp1 hp2
-  have h_outer := bsmul_addE s (addE p1 p2 params) p3 params hp12 hp3
-  have h_inner := bsmul_addE s p1 p2 params hp1 hp2
-  have h_congr := h_inner.addE params (ProjectiveEquiv.refl (bsmul s p3 params))
-  exact ProjectiveEquiv.trans h_outer h_congr
 
 /--
   Shows that projective scalar multiplication commutes with elliptic curve doubling
@@ -1665,23 +1640,6 @@ lemma bsmul_scale_nat (n : Nat) (val : Nat) (P : ProjectivePoint F) (params : Cu
       exact padBits_scale_double (val * 2^n) n
     rw [h_list_eq] at h_step3
     exact h_step3
-
-lemma bsmul_scale_helper (n : Nat) (b : Bool) (val : Nat) (P : ProjectivePoint F) (params : CurveParameters F)
-    [CurveHasNoPointsOfOrder2 params] [h_ell : (params.toMathlib).IsElliptic] [NeZero (2 : F)] [NeZero (3 : F)]
-    (hp : P.IsOnCurve params) (h_val : val = if b then 1 else 0) :
-    ProjectiveEquiv (bsmul ([true] ++ List.replicate n false) (bsmul [b] P params) params)
-    (bsmul (padBits (natToBits (val * 2^n)) (n+1)) P params) := by
-  have h_eq : bsmul [b] P params = bsmul (padBits (natToBits val) 1) P params := by
-    rw [h_val]
-    exact bsmul_bool_eq_nat b P params
-  have h_equiv : ProjectiveEquiv (bsmul [b] P params) (bsmul (padBits (natToBits val) 1) P params) := by
-    rw [h_eq]
-    exact ProjectiveEquiv.refl _
-  have h_scale := bsmul_scale_nat n val P params hp
-  have h_tx_scaled : ProjectiveEquiv (bsmul ([true] ++ List.replicate n false) (bsmul [b] P params) params)
-                                      (bsmul ([true] ++ List.replicate n false) (bsmul (padBits (natToBits val) 1) P params) params) := by
-    exact h_equiv.bsmul ([true] ++ List.replicate n false) params
-  exact ProjectiveEquiv.trans h_tx_scaled h_scale
 
 end Bsmul
 

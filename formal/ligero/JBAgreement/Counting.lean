@@ -1,6 +1,5 @@
 import Mathlib.Algebra.BigOperators.Group.Finset.Piecewise
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
-import Mathlib.Data.Fintype.Card
 import Mathlib.Tactic.LinearCombination
 import Mathlib.Tactic.Linarith
 

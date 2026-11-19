@@ -1,13 +1,7 @@
 import CodingTheory.ListDecoding.UniformFamily
-import Mathlib.Algebra.BigOperators.Ring.Finset
-import Mathlib.Algebra.Order.BigOperators.Group.Finset
-import Mathlib.Algebra.Order.Floor.Semiring
-import Mathlib.Data.Fintype.Card
 import Mathlib.Data.Rat.Floor
 import Mathlib.Order.Interval.Finset.Nat
-import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Positivity
-import Mathlib.Tactic.Ring
 
 /-!
 # Delsarte's linear-programming bound using Hahn kernels

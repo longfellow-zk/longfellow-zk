@@ -1,0 +1,202 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use crate::core::algebra::Nat;
+
+pub trait FieldElement: Sized + Clone + std::fmt::Debug + Eq + std::hash::Hash {}
+
+impl<T> FieldElement for T where T: Sized + Clone + std::fmt::Debug + Eq + std::hash::Hash {}
+
+pub trait BareField {
+    type E: FieldElement;
+}
+
+pub trait Comparable: BareField {
+    fn compare(&self, a: &Self::E, b: &Self::E) -> std::cmp::Ordering;
+}
+
+pub trait AlgebraicField: BareField {
+    fn zero(&self) -> Self::E;
+    fn one(&self) -> Self::E;
+    fn add(&self, a: &mut Self::E, b: &Self::E);
+    fn sub(&self, a: &mut Self::E, b: &Self::E);
+    fn mul(&self, a: &mut Self::E, b: &Self::E);
+    fn invert(&self, a: &Self::E) -> Self::E;
+
+    #[inline]
+    fn addf(&self, a: &Self::E, b: &Self::E) -> Self::E {
+        let mut res = a.clone();
+        self.add(&mut res, b);
+        res
+    }
+
+    #[inline]
+    fn subf(&self, a: &Self::E, b: &Self::E) -> Self::E {
+        let mut res = a.clone();
+        self.sub(&mut res, b);
+        res
+    }
+
+    #[inline]
+    fn mulf(&self, a: &Self::E, b: &Self::E) -> Self::E {
+        let mut res = a.clone();
+        self.mul(&mut res, b);
+        res
+    }
+
+    #[inline]
+    fn neg(&self, a: &Self::E) -> Self::E {
+        self.subf(&self.zero(), a)
+    }
+
+    #[inline]
+    fn mone(&self) -> Self::E {
+        self.subf(&self.zero(), &self.one())
+    }
+
+    #[inline]
+    fn is_zero(&self, e: &Self::E) -> bool {
+        e == &self.zero()
+    }
+}
+
+/// Canonical, fixed-width field encoding. The width must be positive.
+///
+/// Zero is encoded as all-zero bytes and one as `[1, 0, ...]`. These must
+/// decode to the algebraic identities when `Self` also implements
+/// [`AlgebraicField`]. `serialized_mone()` must encode algebraic minus one.
+/// Circuit coefficient classification relies on this convention even for
+/// fields whose internal representation is not a little-endian integer.
+pub trait SerializableField: BareField {
+    fn is_binary(&self) -> bool;
+
+    // Serialization
+    fn serialized_size_bytes(&self) -> usize;
+    fn to_bytes_into(&self, e: &Self::E, dst: &mut [u8]);
+    #[inline]
+    fn to_bytes(&self, e: &Self::E) -> Vec<u8> {
+        let len = self.serialized_size_bytes();
+        let mut buf = vec![0u8; len];
+        self.to_bytes_into(e, &mut buf);
+        buf
+    }
+    fn bytes_to_element(&self, bytes: &[u8]) -> Result<Self::E, String>;
+
+    // Serialized Constants
+    fn serialized_mone(&self) -> Vec<u8>;
+
+    /// The identifier this field writes into circuit files and binds into v2
+    /// circuit IDs. It must distinguish fields whose arithmetic differs.
+    fn field_id(&self) -> FieldID;
+}
+
+/// The seal of `RegisteredField`. Only this crate can name it, so only this
+/// crate can register a field.
+pub trait Sealed {}
+
+/// A field with a registered `FieldID`: no other field uses its ID, and its
+/// canonical serialization has one fixed width, so the ID alone tells a
+/// reader which field an element belongs to and how to parse it. Only such
+/// a field's elements may be absorbed into a v2 transcript, whose Elements
+/// value names its field by `ID` (transcript I5). The registered fields are
+/// P-256 (`FieldID::P256`, 32 bytes) and GF(2^128) (`FieldID::Gf2_128`, 16
+/// bytes). The trait is sealed; test-only fields of this crate may implement
+/// it with `FieldID::None`, which is never registered and which v2
+/// participants reject. A value whose `field_id()` differs from `ID`, such
+/// as P-256 arithmetic built over another modulus, is rejected as well.
+///
+/// Another crate cannot register a field, even under a registered ID:
+///
+/// ```compile_fail,E0277
+/// use longfellow_zk::core::algebra::{BareField, FieldID, RegisteredField, SerializableField};
+/// struct Byte;
+/// impl BareField for Byte {
+///     type E = u8;
+/// }
+/// impl SerializableField for Byte {
+///     fn is_binary(&self) -> bool {
+///         false
+///     }
+///     fn serialized_size_bytes(&self) -> usize {
+///         1
+///     }
+///     fn to_bytes_into(&self, e: &u8, dst: &mut [u8]) {
+///         dst[0] = *e;
+///     }
+///     fn bytes_to_element(&self, bytes: &[u8]) -> Result<u8, String> {
+///         Ok(bytes[0])
+///     }
+///     fn serialized_mone(&self) -> Vec<u8> {
+///         vec![1]
+///     }
+///     fn field_id(&self) -> FieldID {
+///         FieldID::P256
+///     }
+/// }
+/// impl RegisteredField for Byte {
+///     const ID: FieldID = FieldID::P256;
+///     const BYTES: usize = 1;
+/// }
+/// ```
+pub trait RegisteredField: SerializableField + Sealed {
+    /// The registered ID; `field_id()` returns it.
+    const ID: FieldID;
+    /// The width of the canonical serialization; `serialized_size_bytes()`
+    /// returns it.
+    const BYTES: usize;
+}
+
+/// Identifies the field a circuit's constants and arithmetic belong to. The
+/// numeric values appear in LFC circuit files and in v2 circuit identities.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FieldID {
+    None = 0,
+    P256 = 1,
+    P384 = 2,
+    P521 = 3,
+    Gf2_128 = 4,
+    Gf2_16 = 5,
+    Fp128 = 6,
+    Fp64 = 7,
+    Goldi = 8,
+    Fp64_2 = 9,
+    Secp = 10,
+}
+
+pub type ElementOf<F> = <F as BareField>::E;
+
+pub trait HasLookupPoints: BareField {
+    fn lookup_point(&self, n: usize, i: usize) -> Self::E;
+}
+
+pub trait SupportsNatConversions<const W: usize>: SerializableField {
+    type N: Nat<W>;
+
+    /// Maps a fixed-width natural number into the field using the field's native reduction.
+    ///
+    /// For prime fields this reduces modulo the field modulus. This is not a canonical decoding
+    /// operation; use field deserialization when noncanonical values must be rejected.
+    fn reduce_nat(&self, n: &Self::N) -> Self::E;
+    fn to_nat(&self, e: &Self::E) -> Self::N;
+}
+
+pub trait SupportsU64Conversions: BareField {
+    fn u64_to_element(&self, n: u64) -> Self::E;
+}
+
+pub trait SupportsU128Conversions: BareField {
+    fn u128_to_element(&self, n: u128) -> Self::E;
+}
+
+pub type NatOf<const W: usize, F> = <F as SupportsNatConversions<W>>::N;

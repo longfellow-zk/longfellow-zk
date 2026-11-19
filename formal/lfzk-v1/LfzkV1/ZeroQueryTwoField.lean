@@ -1,5 +1,4 @@
 import Bcs.FixedPathCommit
-import Bcs.Counting
 import LfzkV1.NizkDeployedHashTwoField
 
 /-!

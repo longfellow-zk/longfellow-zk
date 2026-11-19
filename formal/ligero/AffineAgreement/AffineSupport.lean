@@ -1,7 +1,6 @@
 import AffineAgreement.Basic
 import Mathlib.Algebra.BigOperators.Ring.Finset
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
-import Lean.Elab.Tactic.Omega
 
 /-! Shared minimum-distance and sparse affine support lemmas. -/
 

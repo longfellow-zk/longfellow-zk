@@ -5,5 +5,5 @@ rust/target
 formal/.lake
 formal/circuits/quadcert/Gen
 
-# Personal agent instructions
-/AGENTS.md
+# Personal agent instructions; AGENTS.md is shared
+/AGENTS.local.md

@@ -1,5 +1,4 @@
 import JBAgreement.Recenter
-import JBAgreement.Main
 
 /-!
 # Guruswami–Sudan: interpolation with multiplicities, and the root property

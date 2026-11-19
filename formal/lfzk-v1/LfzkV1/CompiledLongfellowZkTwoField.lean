@@ -5,7 +5,8 @@ import LfzkV1.Mac
 /-!
 # Zero knowledge of the two-field mdoc proof (hash over GF(2^128), signature over P-256)
 
-`mdoc_zk`'s prover (`rust/applications/mdoc_zk/runtime/src/prover.rs`) runs two compiled
+The historical `mdoc_zk` prover
+(`de5f949:rust/applications/mdoc_zk/runtime/src/prover.rs`) runs two compiled
 Longfellow arguments on **one** transcript:
 
 1. commit the hash circuit's witness (root `root₁`), then the signature circuit's (root `root₂`);

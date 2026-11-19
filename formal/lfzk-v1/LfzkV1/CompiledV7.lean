@@ -1,5 +1,4 @@
 import LfzkV1.CompiledLongfellowAdaptive
-import LfzkV1.CertifiedV7
 import LfzkV1.TwoFieldV7Rows
 
 /-!

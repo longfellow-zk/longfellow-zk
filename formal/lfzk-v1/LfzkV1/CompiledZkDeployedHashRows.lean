@@ -1,5 +1,4 @@
 import LfzkV1.CompiledZkDeployedHash
-import LfzkV1.CompiledZkRows
 import LfzkV1.CompiledZkTwoFieldRows
 
 /-!

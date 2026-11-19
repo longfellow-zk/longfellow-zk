@@ -1,0 +1,152 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use crate::runtime::algebra::RuntimeField;
+
+/// SUM_{i} x[i] * y[i]
+pub fn dot<F: RuntimeField>(x: &[F::E], y: &[F::E], f: &F) -> F::E {
+    assert_eq!(x.len(), y.len(), "dot: slice size mismatch");
+    dot_pairs(x.iter().zip(y), f)
+}
+
+/// Dot product over borrowed pairs, allowing indexed operands without a gather buffer.
+fn dot_pairs<'a, F: RuntimeField>(
+    pairs: impl IntoIterator<Item = (&'a F::E, &'a F::E)>,
+    f: &F,
+) -> F::E
+where
+    F::E: 'a,
+{
+    let mut r = f.zero();
+    for (xi, yi) in pairs {
+        f.fma(&mut r, xi, yi);
+    }
+    r
+}
+
+/// SUM_{i} x[i]
+pub fn dot1<F: RuntimeField>(x: &[F::E], f: &F) -> F::E {
+    if x.is_empty() {
+        return f.zero();
+    }
+
+    let mut r = f.zero();
+    for xi in x {
+        f.add(&mut r, xi);
+    }
+    r
+}
+
+/// y = a * y
+pub fn scale<F: RuntimeField>(y: &mut [F::E], a: &F::E, f: &F) {
+    for yi in y {
+        f.mul(yi, a);
+    }
+}
+
+/// y = a * x + y
+pub fn axpy<F: RuntimeField>(y: &mut [F::E], a: &F::E, x: &[F::E], f: &F) {
+    assert_eq!(y.len(), x.len(), "axpy: slice size mismatch");
+    for (yi, xi) in y.iter_mut().zip(x) {
+        f.fma(yi, a, xi);
+    }
+}
+
+/// y[i] += a[i] * x[i]
+pub fn vaxpy<F: RuntimeField>(y: &mut [F::E], a: &[F::E], x: &[F::E], f: &F) {
+    assert_eq!(y.len(), a.len(), "vaxpy: slice size mismatch");
+    assert_eq!(y.len(), x.len(), "vaxpy: slice size mismatch");
+
+    for i in 0..y.len() {
+        f.fma(&mut y[i], &a[i], &x[i]);
+    }
+}
+
+/// y[i] -= a[i] * x[i]
+pub fn vymax<F: RuntimeField>(y: &mut [F::E], a: &[F::E], x: &[F::E], f: &F) {
+    assert_eq!(y.len(), a.len(), "vymax: slice size mismatch");
+    assert_eq!(y.len(), x.len(), "vymax: slice size mismatch");
+
+    for i in 0..y.len() {
+        f.fnms(&mut y[i], &a[i], &x[i]);
+    }
+}
+
+/// Checks element-wise equality of two slices
+pub fn equal<T: PartialEq>(x: &[T], y: &[T]) -> bool {
+    assert_eq!(x.len(), y.len(), "equal: slice size mismatch");
+    for i in 0..x.len() {
+        if x[i] != y[i] {
+            return false;
+        }
+    }
+    true
+}
+
+/// Checks if all elements of a slice are zero
+pub fn equal0<F: RuntimeField>(x: &[F::E], f: &F) -> bool {
+    for xi in x {
+        if !f.is_zero(xi) {
+            return false;
+        }
+    }
+    true
+}
+
+/// Returns a Vec containing src[idx[i]] for all idx elements
+pub fn gather<T: Clone>(idx: &[usize], src: &[T]) -> Vec<T> {
+    let mut dst = Vec::with_capacity(idx.len());
+    for &src_idx in idx {
+        assert!(src_idx < src.len(), "src index out of bounds");
+        dst.push(src[src_idx].clone());
+    }
+    dst
+}
+
+/// dst[i] = 0
+pub fn clear<F: RuntimeField>(dst: &mut [F::E], f: &F) {
+    for dsti in dst {
+        *dsti = f.zero();
+    }
+}
+
+/// y[i] += x[i]
+pub fn add<F: RuntimeField>(y: &mut [F::E], x: &[F::E], f: &F) {
+    assert_eq!(y.len(), x.len(), "add: slice size mismatch");
+    for (yi, xi) in y.iter_mut().zip(x) {
+        f.add(yi, xi);
+    }
+}
+
+/// y[i] -= x[i]
+pub fn sub<F: RuntimeField>(y: &mut [F::E], x: &[F::E], f: &F) {
+    assert_eq!(y.len(), x.len(), "sub: slice size mismatch");
+    for (yi, xi) in y.iter_mut().zip(x) {
+        f.sub(yi, xi);
+    }
+}
+
+/// y[i] *= x[i]
+pub fn mul<F: RuntimeField>(y: &mut [F::E], x: &[F::E], f: &F) {
+    assert_eq!(y.len(), x.len(), "mul: slice size mismatch");
+    for (yi, xi) in y.iter_mut().zip(x) {
+        f.mul(yi, xi);
+    }
+}
+
+/// `dst.clone_from_slice(src)`
+pub fn copy<T: Clone>(dst: &mut [T], src: &[T]) {
+    assert_eq!(dst.len(), src.len(), "copy: slice size mismatch");
+    dst.clone_from_slice(src);
+}

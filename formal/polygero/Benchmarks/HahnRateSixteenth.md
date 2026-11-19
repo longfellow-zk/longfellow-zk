@@ -33,8 +33,9 @@ list-size bound, and polynomial coefficients together.
 
 The Hahn column takes the active-set cutoff `a` shown in the table and uses `θ = choose(a-1,t)/choose(n,t)`. Its list-size threshold condition is checked exactly for each row. These five certificates are a selected set of valid fixed-weight Delsarte bounds, not a proof that the optimization is globally strongest. The benchmark assumes an instance with `|F| = 2^128` and does not include recursion or Fiat–Shamir compilation.
 
-The numerical checks use Lean's `native_decide`, as do the existing Ligero
-integer certificates. Their trust base therefore includes Lean's native
-reduction axiom in addition to the ordinary proof kernel. The decimal values
+The numerical checks use kernel evaluation (`decide +kernel`) and checked
+polynomial identities, in the module and in the five certificates. Their
+trust base is the ordinary proof kernel with the standard axioms; no native
+evaluation (`native_decide`, `Lean.ofReduceBool`) is involved. The decimal values
 are display approximations; the exact certified claims are the rational
 inequalities and integer-bit floors in the Lean module.

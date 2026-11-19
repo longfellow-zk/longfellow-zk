@@ -1,6 +1,4 @@
-import Mathlib
-import LfzkV1.WPoly
-import LfzkV1.Types
+import Mathlib.Data.List.GetD
 import LfzkV1.Builder
 
 open SumcheckV1

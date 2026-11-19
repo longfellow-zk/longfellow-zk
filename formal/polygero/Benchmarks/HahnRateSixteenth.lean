@@ -68,7 +68,13 @@ def rowOk (r : Row) : Prop :=
 def rowOkBool (r : Row) : Bool :=
   letI : Decidable (rowOk r) := by unfold rowOk; infer_instance
   decide (rowOk r)
-theorem allRowsBool : rows.all rowOkBool = true := by native_decide
+theorem allRowsBool : rows.all rowOkBool = true := by
+  simp only [rows, List.all_cons, List.all_nil, Bool.and_eq_true, and_true]
+  repeat' apply And.intro
+  all_goals
+    simp only [rowOkBool, decide_eq_true_eq, rowOk, Row.a, Row.L, certificateData,
+      paperTheta, hahnTheta, epsilon, mu, eta, ratio, q, Nat.choose_eq_fast_choose]
+    decide +kernel
 
 theorem allRows (r : Row) (hr : r ∈ rows) : rowOk r := by
   have hb : rowOkBool r = true := (List.all_eq_true.mp allRowsBool) r hr
@@ -125,7 +131,9 @@ theorem construct (I : Instance F) (r : Row) (hr : r ∈ rows)
     rw [hn, hk, hs, hq]
     rfl
   have hfield : profile.rankError + 1 / (Nat.card F : ℚ) < 1 := by
-    have hnum : mu + 1 / (q : ℚ) < 1 := by native_decide
+    have hnum : mu + 1 / (q : ℚ) < 1 := by
+      simp only [mu, q, Nat.choose_eq_fast_choose]
+      decide +kernel
     simpa only [hmu, hq] using hnum
   have hcol : profile.columnFloor = ratio 1087 r.t := by
     simp only [ProfileParameters.columnFloor, ProfileParameters.largeSize,

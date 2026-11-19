@@ -4,8 +4,8 @@
 // checked against the parsed circuits and verifier geometries; nothing is written.
 //
 // For each attribute count `1..=4`:
-//   * `mdoc_zk_runtime::materialize(version, attributes)` finds the `ZK_SPECS` record and reads
-//     `rust/applications/mdoc_zk/artifacts/circuits/<combined_hash>.lfa2` (zstd, LFA2 archive);
+//   * `mdoc_zk_runtime::provider::materialize(version, attributes)` finds the `ZK_SPECS` record and reads
+//     `rust/src/mdoc/artifacts/circuits/<combined_hash>.lfa2` (zstd, LFA2 archive);
 //   * the archive's `combined_id`, and `compute_combined_id` of its entries, must equal the
 //     registry's `combined_hash`;
 //   * both entries are parsed with `enforce_circuit_id = true` (the reader recomputes the circuit
@@ -15,11 +15,17 @@
 //     `dblock`, `block_enc`, `nreq`, `nrow`) and the sumcheck `logw_layers`, which must agree
 //     with the parsed layers.
 // The signature circuit is the same in all four archives (checked by ID) and is reported once.
-use core_proto::{archive::compute_combined_id, circuit::compute_id, reader::CircuitReader};
+use core_proto::{
+    archive::compute_combined_id,
+    v1::{compute_id, CircuitReader},
+};
 use longfellow_zk::{
     core::{algebra as core_algebra, proto as core_proto},
     mdoc::v1 as mdoc_zk_runtime,
-    runtime::{algebra as runtime_algebra, proto::zk_v1 as runtime_proto, zk_v1 as runtime_zk},
+    runtime::{
+        algebra as runtime_algebra,
+        v1::{proto::zk as runtime_proto, subfield::GF2_16_BASIS_V1, zk as runtime_zk},
+    },
 };
 use runtime_algebra::{
     gf2_128::Gf2_128Field,
@@ -46,8 +52,8 @@ fn main() {
         QuadraticExtensionFftInterpolatorFactory::new(&p256, &p256_2, omega, omega_order);
     let gf2 = Gf2_128Field::new();
     let sf_hash =
-        runtime_algebra::subfield::BinarySubfield::new(&core_algebra::proto::GF2_16_BASIS_V1);
-    let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, &sf_hash);
+        longfellow_zk::runtime::v1::subfield::BinarySubfieldV1::new(&GF2_16_BASIS_V1);
+    let make_interpolator_hash = BinaryInterpolatorFactory::new(&gf2, sf_hash.basis());
 
     let mut sig_id: Option<[u8; 32]> = None;
     for attributes in 1..=4 {
@@ -70,11 +76,11 @@ fn main() {
 
         let sig_entry = archive.get("sig").expect("sig entry");
         let hash_entry = archive.get("hash").expect("hash entry");
-        let (c_sig, rest) = CircuitReader::new(&p256, core_proto::FieldID::P256)
+        let (c_sig, rest) = CircuitReader::new(&p256, core_algebra::FieldID::P256)
             .from_bytes(&sig_entry.payload, true)
             .expect("sig circuit parses with its ID enforced");
         assert!(rest.is_empty());
-        let (c_hash, rest) = CircuitReader::new(&gf2, core_proto::FieldID::Gf2_128)
+        let (c_hash, rest) = CircuitReader::new(&gf2, core_algebra::FieldID::Gf2_128)
             .from_bytes(&hash_entry.payload, true)
             .expect("hash circuit parses with its ID enforced");
         assert!(rest.is_empty());
@@ -110,7 +116,7 @@ fn main() {
 
         if sig_id.is_none() {
             let mut row = report("sig", 0, &c_sig.raw, &hex(&sig_entry.circuit_id));
-            let v = runtime_zk::ZkVerifier::<4, _>::new(c_sig, spec.ligero_sig);
+            let v = runtime_zk::ZkVerifier::new(c_sig, spec.ligero_sig);
             let g = v.geometry(&runtime_zk::common::ZkContext {
                 f: &p256,
                 make_interpolator: &make_interpolator_sig,
@@ -133,7 +139,7 @@ fn main() {
             &c_hash.raw,
             &hex(&hash_entry.circuit_id),
         );
-        let v = runtime_zk::ZkVerifier::<2, _>::new(c_hash, spec.ligero_hash);
+        let v = runtime_zk::ZkVerifier::new(c_hash, spec.ligero_hash);
         let g = v.geometry(&runtime_zk::common::ZkContext {
             f: &gf2,
             make_interpolator: &make_interpolator_hash,
@@ -152,10 +158,10 @@ fn main() {
     println!("All five recorded v7 profiles match the registered circuits.");
 }
 
-fn report<F: core_proto::SerializableField>(
+fn report<F: core_algebra::SerializableField>(
     component: &str,
     attributes: usize,
-    raw: &core_proto::circuit::RawCircuit<F>,
+    raw: &core_proto::v1::RawCircuit<F>,
     id: &str,
 ) -> serde_json::Value {
     let logw: Vec<String> = raw.layers.iter().map(|l| l.logw().to_string()).collect();

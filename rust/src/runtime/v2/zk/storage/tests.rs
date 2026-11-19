@@ -1,0 +1,178 @@
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! Storage map unit tests: typed bit groups, dense native cells and runs.
+use super::StorageMap;
+
+#[test]
+fn storage_map_numbers_native_cells_densely() {
+    use super::{Group, Storage};
+    let g = Group { start: 5, width: 1 };
+    let map = StorageMap::new(4, &[(1, g)]).unwrap();
+    assert_eq!(
+        map.entries(),
+        [
+            Storage::Native(0),
+            Storage::Foreign(g),
+            Storage::Native(1),
+            Storage::Native(2)
+        ]
+    );
+    assert_eq!(map.native_cells(), 3);
+    assert!(!map.is_pure_foreign());
+    assert!(StorageMap::new(4, &[(1, g), (1, g)]).is_err());
+    assert!(StorageMap::new(4, &[(4, g)]).is_err());
+}
+
+#[test]
+fn storage_runs_are_maximal_and_canonical() {
+    use super::{Group, Run};
+    // Values 0..3 foreign with consecutive 1-bit groups at 10, 11, 12; value 3
+    // jumps to bit 40; values 4..6 native.
+    let g = |start| Group { start, width: 1 };
+    let map = StorageMap::new(7, &[(0, g(10)), (1, g(11)), (2, g(12)), (3, g(40))]).unwrap();
+    assert_eq!(
+        map.runs(),
+        [
+            Run::Prime {
+                first: 0,
+                count: 3,
+                start: 10,
+                width: 1
+            },
+            Run::Prime {
+                first: 3,
+                count: 1,
+                start: 40,
+                width: 1
+            },
+            Run::Native {
+                first: 4,
+                count: 3,
+                cell: 0
+            },
+        ]
+    );
+    // A change of width ends a run even when the bits are contiguous, and a
+    // foreign value splits the native cells around it into two runs.
+    let w = |start, width| Group { start, width };
+    let map = StorageMap::new(5, &[(1, w(0, 8)), (2, w(8, 8)), (3, w(16, 4))]).unwrap();
+    assert_eq!(
+        map.runs(),
+        [
+            Run::Native {
+                first: 0,
+                count: 1,
+                cell: 0
+            },
+            Run::Prime {
+                first: 1,
+                count: 2,
+                start: 0,
+                width: 8
+            },
+            Run::Prime {
+                first: 3,
+                count: 1,
+                start: 16,
+                width: 4
+            },
+            Run::Native {
+                first: 4,
+                count: 1,
+                cell: 1
+            },
+        ]
+    );
+}
+
+#[test]
+fn groups_reject_ends_that_overflow() {
+    use super::Group;
+    // A group whose end wraps would pass a naive range check of its end.
+    assert!(Group::new(usize::MAX - 2, 4).is_err());
+    assert_eq!(Group::new(usize::MAX - 4, 4).unwrap().end(), usize::MAX);
+}
+
+impl super::Group {
+    /// Every field: start and width. The pattern is exhaustive, so a new
+    /// field does not compile until the statement tests cover it.
+    pub(crate) fn fields_for_test(&self) -> [usize; 2] {
+        let Self { start, width } = *self;
+        [start, width]
+    }
+}
+impl StorageMap {
+    /// Every field: the entries and the native cell count. The pattern is
+    /// exhaustive, so a new field does not compile until the statement tests
+    /// cover it.
+    pub(crate) fn fields_for_test(&self) -> (&[super::Storage], usize) {
+        let Self { entries, native } = self;
+        (entries, *native)
+    }
+}
+
+/// Mixed storage keeps every pad native: over two private inputs and two
+/// pads, a foreign private input is accepted and a foreign pad is rejected.
+#[test]
+fn mixed_storage_keeps_every_pad_native() {
+    use super::{Group, MixedStorage};
+    let g = Group { start: 5, width: 1 };
+    let r = Group {
+        start: 6,
+        width: 256,
+    };
+    let split = |v| MixedStorage::new(StorageMap::new(4, &[(v, g)]).unwrap(), r, 2, 4);
+    assert!(split(1).is_ok());
+    for pad in [2, 3] {
+        assert_eq!(
+            split(pad).err().unwrap(),
+            "mixed storage keeps every pad native"
+        );
+    }
+    // More private inputs than values is an error, not a slice panic.
+    assert_eq!(
+        MixedStorage::new(StorageMap::new(2, &[(1, g)]).unwrap(), r, 3, 2)
+            .err()
+            .unwrap(),
+        "mixed storage has more private inputs than values"
+    );
+    assert!(MixedStorage::new(StorageMap::new(2, &[(1, g)]).unwrap(), r, 2, 2).is_ok());
+}
+
+/// Each split mode takes only maps of its kind: mixed storage needs a native
+/// value, pure-foreign storage stores every value foreign, and neither takes
+/// a map with no foreign value or one that does not cover the values.
+#[test]
+fn split_modes_take_only_maps_of_their_kind() {
+    use super::{Group, MixedStorage};
+    let g = |start| Group { start, width: 1 };
+    let r = Group {
+        start: 100,
+        width: 256,
+    };
+    let pure = StorageMap::new(2, &[(0, g(5)), (1, g(6))]).unwrap();
+    let mixed = StorageMap::new(2, &[(0, g(5))]).unwrap();
+    let native = StorageMap::new(2, &[]).unwrap();
+    assert_eq!(
+        MixedStorage::new(pure.clone(), r, 2, 2).err().unwrap(),
+        "mixed storage needs a native value"
+    );
+    assert!(MixedStorage::new(mixed.clone(), r, 2, 2).is_ok());
+    assert_eq!(
+        mixed.check_pure(2).err().unwrap(),
+        "pure foreign storage stores every value foreign"
+    );
+    assert!(pure.check_pure(2).is_ok());
+    for check in [
+        MixedStorage::new(native.clone(), r, 2, 2).map(drop),
+        native.check_pure(2),
+    ] {
+        assert_eq!(
+            check.err().unwrap(),
+            "storage map has no foreign value; use native storage"
+        );
+    }
+    assert_eq!(
+        pure.check_pure(3).err().unwrap(),
+        "storage map does not cover the participant's values"
+    );
+}

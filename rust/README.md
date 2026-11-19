@@ -62,12 +62,67 @@ behavior, and proof encoding.
 
 **Longfellow v2 is still evolving and is not final.**
 It introduces projective sumcheck and replaces Ligero with nonrecursive
-Polygero. V1 remains supported alongside this development.
+Polygero. A fresh challenge at each sumcheck terminal makes all commitment
+constraints linear, eliminating Polygero's product-copy rows. V1 remains supported.
+V1 retains its SHA-256 transcript accumulator and AES-256 challenge generator.
+Its legacy index and opening samplers live on the v1 transcript, including
+the original extra-bit rejection behavior at power-of-two bounds. Shared
+`RandomEngine` contains no index sampler; its v1 extension is limited to
+legacy subfield sampling.
+V2 provers take their private coins as `PrivateRandom`. Every proof needs
+fresh coins that nobody else can predict: one proof made with predictable
+coins reveals the witness. The trait is sealed, so callers cannot supply their
+own engine; outside the crate only `SecureRandomEngine` (the operating
+system's CSPRNG) implements it. The guarantee holds only in builds without
+`testonly`, which also gives it to the seeded `DeterministicRng`.
+V2 uses SHA-256 strands. A session opens with its statement and then absorbs
+only prover messages, each a u64 tag from the registry `v2::proto::tags`
+followed by length-prefixed values (Bytes, Nats, Elements with their FieldID,
+Bits; every integer u64 little endian). A draw after a message ends the node
+with the terminator u64 0 and continues the strand; a draw with no message
+since reads further from the same stream. A root has id zero and no parents;
+each continuation has one parent and id `parent.id + 1`.
+The node hash binds `u32(STRAND) || u64(id) || u32(parent_count) || parent`
+before the message, and PRF blocks hash
+`u32(PRF) || u64(id) || digest || u64(counter)`. Integers are little endian;
+strand ids and PRF counters are checked against overflow. Distinct node and
+PRF positions therefore have distinct inputs even if digests collide. PRF
+reads do not affect the continuation. Separate executions can replay the same
+inputs. Rounds carry no labels. Finalized states
+stay private, and PRF block zero supplies the first challenge bytes.
+Index sampling uses the minimum bit width for values below its bound,
+so power-of-two bounds require no rejection and a singleton consumes no bytes.
+Sampling without replacement updates that bound after each selected index.
+Complete proofs end with a 32-byte final seal: the first PRF block of the node
+that ends with the `Seal` message, every proof byte before the seal block,
+and the terminator u64 1. Both parties compute it, and verification checks the
+value stored in the proof.
+
+The v2 Merkle codec separately tags leaves and internal nodes. Leaves bind
+their column index; internal nodes bind their heap index, with root 1 and
+children `2*i` and `2*i + 1`. The traversal supplies these indices, which are
+encoded as little-endian u64 values and require no proof bytes. Distinct tree
+positions have distinct hash inputs even when their child digests coincide.
+
+V2 protocol code sends typed messages and draws challenges through a borrowed
+`TranscriptRef`; a draw's reader cannot send. Public
+cloning, resetting, raw-state access, and use as private prover randomness are
+unavailable. Complete-proof encoders own finalization, and decoding returns
+immutable unverified data. Only complete verification returns `VerifiedProof`
+evidence after checking the seal.
+Commitment sessions own the transcript through authentication. Frontends borrow
+a restricted `TranscriptRef` that cannot replace or finalize that session;
+successful authentication releases it for the complete-proof seal.
+
+The [witness-selection protocol](src/runtime/v2/witness_selection/README.md) wraps the
+joint commitment before either mdoc sumcheck. Each field commits two dedicated
+mask cells, receives two independent full coefficient vectors, and sends two
+masked dot products. Its opaque state automatically adds both affine equations
+to the later Polygero statement. These cells are backend auxiliaries, not
+field-valued inputs to the binary circuit.
 
 In particular, the Fiat–Shamir transcript will change to conform to the CFRG
-[Fiat-Shamir Transformation specification](https://datatracker.ietf.org/doc/draft-irtf-cfrg-fiat-shamir/),
-currently `draft-irtf-cfrg-fiat-shamir-03` (an Internet-Draft, not yet a published
-RFC).
+[Fiat-Shamir Transformation specification](https://datatracker.ietf.org/doc/draft-irtf-cfrg-fiat-shamir/).
 
 Polygero is described in
 [Polygero: Proximity Testing From Polynomial Challenges](https://eprint.iacr.org/2026/2481)
@@ -77,56 +132,170 @@ by Matteo Frigo and abhi shelat.
 |---|---|---|
 | Status | Deployed | Under development |
 | Commitment protocol | Ligero | Nonrecursive Polygero |
-| Combined proof implementation | `runtime::zk_v1` | `runtime::zk_v2` |
+| Combined proof implementation | `runtime::v1::zk` | `runtime::v2::zk` |
 | mdoc application API | `mdoc::v1` | `mdoc::v2` |
-| mdoc circuits | Frozen versions 5–7 | NEXT, currently version 8 |
+| mdoc circuits | Frozen versions 5–7 | NEXT, currently version 13 |
 
 Circuit versions have their own numbering: circuit v7 uses Longfellow v1,
-while NEXT circuit v8 uses Longfellow v2.
+while NEXT circuit v13 uses Longfellow v2.
 
 Tests reproduce all twelve saved v1 proofs bit for bit using the same
 inputs and prover randomness. V2 circuits, parameters, and proof encoding
 remain subject to change. There are currently no frozen v2 mdoc circuits.
 
+## Security bounds
+
+The [formal v1 analysis](../formal/lfzk-v1/README.md) establishes 116-bit
+Fiat–Shamir T-security for its modeled v7 composition. The current v2
+numbered-strand model has a checked one-SHA extraction theorem for adaptive
+public requests and arbitrary complete serialized proofs. It includes witness
+selection, layered sumcheck, the cross-field adapter, packing, joint Polygero,
+its shared indexed Merkle commitment and the final seal.
+
+Let $P_{\mathrm{fail}}$ be the probability that the verifier accepts and the
+paired extractor fails to recover a witness satisfying the requested circuits.
+For every integer $0\le Q<2^{127}$, any finite classical adaptive adversary
+making at most $Q$ distinct original SHA queries satisfies
+
+$$
+\begin{aligned}
+P_{\mathrm{fail}}(Q)
+&\le \frac{cQ}{q}
+ + \left(1-\frac{c(q-1)}{2q}\right)
+   \left[1-\left(1-\frac{2}{q-1}\right)^Q\right] \\
+&\quad + \frac{\binom Q2+r+15}{q^2},
+\qquad q=2^{128}.
+\end{aligned}
+$$
+
+Here $c=1.0000012312149082441647508747\ldots$ is the exact parameter-dependent
+Polygero coefficient defined in the [formal README](../formal/README.md#v2-extraction-soundness).
+The full failure probability is **strictly less than 0.97** for $Q<2^{127}$.
+The leading shared-budget bound also holds for every $Q\ge0$:
+
+$$
+P_{\mathrm{fail}}(Q)\le
+\frac{2Q}{2^{128}-1}+\frac{\binom Q2+r+15}{2^{256}}.
+$$
+
+A convenient approximation for the mdoc circuit, valid for every $Q\ge0$, is
+
+$$
+P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
+$$
+
+The NEXT mdoc circuit has 463 transcript boundaries.
+
+Here `r` counts ordinary transcript boundaries, one per draw that follows a
+message; a draw with no message since the last boundary reads further from
+that boundary's stream and opens no node.
+The final seal's node hash and PRF hash are accounted for separately.
+The same SHA function supplies public setup hashes,
+adversarial answers, numbered strand nodes, indexed PRF blocks and indexed
+Merkle authentication. Repeated queries reuse answers. The query budget
+counts the original adversarial program. Verifier replay appears in the
+explicit correction.
+
+The ordinary rate-1/7 profile uses `(k,s,n,t)=(349,12,2443,84)`. Its
+[checked Hahn certificate](../formal/lfzk-v2/LfzkV2/Current/Parameters/Rate7.lean)
+gives the exact joint backend allowance `c/q`, including both fields.
+[Exact numerical checks](src/mdoc/development_provider/next_v2/tests.rs)
+align the implementation geometry and local budgets. The committed
+binary/prime candidate caps are respectively
+`21,898,356,682,154,715,916` and `451,457,457,136,012,100,305`.
+They give a fingerprint-role charge of approximately `0.705/q`.
+
+The [exact endpoint](../formal/lfzk-v2/LfzkV2/Current/Mdoc/OracleSoundness.lean)
+constructs metadata, advice decoding, layouts and frontend plans from trusted
+circuit topology and canonical field representations. It derives ordered
+query recovery, agreement on opened columns, failure coverage and one shared
+query budget. The public setup and complete verifier use the same oracle.
+The [audit](../formal/AUDIT.md) records the proof path and implementation scope.
+
+The cryptographic assumptions are a classical ideal SHA oracle and the
+stated joint successful-sampling law for the physical role readers, including
+nonzero scalars and openings without replacement. The Lean model permits
+sampling failure and rejects that branch. The concrete Rust reader has a
+finite PRF counter and panics on counter exhaustion. Proving that the concrete
+reader, including shared-block consumption and rejection order, satisfies the
+joint successful-sampling law remains a separate implementation obligation.
+The field codecs, circuit semantics and static public resource bounds are
+trusted model inputs. Rust correspondence is established through source audit
+and tests. Machine-level refinement and extractor running-time bounds remain
+open. The `q-1` denominator accounts for the scalars sampled as nonzero: the
+sumcheck terminal scale, the split challenge `eta` and the adapter's conversion
+scalars.
+The other challenge roles have errors `2/q` or `1/q`, which the bound charges
+at the same shared rate. In the Lean proof the terminal soundness count does
+not use the nonzero terminal scale; that requirement serves zero knowledge.
+
+The [complete numbered-strand zero-knowledge theorem](../formal/lfzk-v2/README.md#current-numbered-strand-zero-knowledge)
+gives a witness-free simulator with ideal-model distinguishing error at most
+`(Qpre+Qpost)/2^256`. Public setup and both observer traces use the same SHA
+oracle as the complete proof. `Qpre` and `Qpost` count raw calls before and
+after the proof, including repetitions and verification calls when the
+verifier is observed. The actual verifier's acceptance probabilities obey
+the same comparison, including rejection and simulator-abort outcomes.
+
+The theorem assumes independent uniform private coins, trusted
+fields/codecs/circuits and layout bounds, and a fixed witness policy valid
+at contexts reached using setup derived from the same oracle. Ordinary hash
+witness satisfaction is a separate premise, alongside the basis/generator
+checks; hash-circuit separation is structural (the hash circuit reads only its
+own input prefix) and is proved, not assumed. V2 uses a
+32-byte nonce per committed column, with one `NONCE_LEN` constant shared by
+sampling, codecs and size estimates. At `Qpre+Qpost <= 2^128`, the ideal-model
+error is at most `2^-128`. The 84 opened columns carry 2688 nonce bytes;
+SHA-256 digests are also 32 bytes.
+
+At `2^128` queries, the assumption that SHA-256 behaves as an ideal oracle
+becomes itself questionable. The bound above should therefore not be interpreted
+as 128 bits of hiding for the concrete implementation. The parameters put
+the bottleneck in SHA-256 itself, rather than the rest of the protocol.
+
+The [transcript analysis](../formal/transcript-v2/README.md) proves the logical
+query-accounting interface used by the raw SHA coupling. The soundness endpoint accounts
+for numbered SHA strand nodes and counter-indexed PRF queries directly.
+The [witness-selection analysis](../formal/witness-selection/README.md)
+charges `Q*choose(L,2)/q²` for candidate selection. The full composition
+retains Polygero's extraction/outside-list errors and nonzero-sampling terms.
+
 ## Performance
 
-The [formal v1 analysis](../formal/lfzk-v1/README.md) establishes **116-bit
-Fiat–Shamir T-security** for the modeled v7 composition, under its documented
-assumptions. The [formal v2 composition](../formal/lfzk-v2/README.md) proves
-**117-bit extraction security** for the modeled authenticated
-two-field verifier: `Pr[accept ∧ extraction fails] ≤ (1+N+tA)/2^117`.
-The bound holds for all query budgets, and the circuit/MAC correspondence and
-ideal-sampler premises are documented in the [audit](../formal/AUDIT.md).
-Complete V2 joint-view zero knowledge is not yet proved. For the current Polygero parameters,
-the [checked component certificates](../formal/parameters/polygero/PolygeroRustHahn.lean)
-establish **127 bits** for the hash/signature profiles in the ideal-binding, uniform-sampler
-Fiat–Shamir model. This component bound excludes the Merkle binding reduction
-and the rest of the Longfellow v2 composition.
+Complete NEXT v13 mdoc presentations with all four slots enabled, measured
+on 2026-11-19 with Rust 1.99.1 on one pinned core of a Ryzen 9 9950X with the
+native CPU target. Times are medians of 40 samples in four runs, each after
+one warmup. Heap measurements use separate allocation-tracking runs.
 
-The following measurements cover a complete mdoc presentation disclosing
-two attributes, including both the hash and signature proofs.
+| Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
+|---:|---:|---:|---:|---:|
+| 146.0 ms | 78.5 ms | 140,368 | 48.33 MiB | 35.92 MiB |
 
-| Version | Circuit | Proving | Verification | Complete proof | Prover peak heap | Verifier peak heap |
-|---|---|---:|---:|---:|---:|---:|
-| Longfellow v1 | v7 | 467 ms | 196 ms | 360,428 bytes | 104.1 MiB | 45.1 MiB |
-| Longfellow v2 | NEXT v8 | 269 ms | 131 ms | 213,204 bytes | 74.8 MiB | 38.3 MiB |
+| Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
+|---:|---:|---:|
+| 745,344 | 183,415 | 2.00 MiB |
 
-The experimental ML-DSA verifier circuits use v2/Polygero separately from
-the mdoc application. These runs are outside the 117-bit two-field theorem
-above.
+NEXT uses `(k,s,n,t)=(349,12,2443,84)` for the hash and signature
+circuits, with ordinary code rate `k/n=1/7`. The hash circuit has 20 layers,
+and the adapter fragment joins its input end; the signature has 11.
+Circuit outputs join the assertion block at their own layer. Components are
+ordered by decreasing depth, with original input index breaking ties, so the
+carried claim weights extend in place. Quad fragments introduce no extra rounds.
 
-| Circuit | Proving | Verification | Complete proof | Prover peak heap | Verifier peak heap |
-|---|---:|---:|---:|---:|---:|
-| ML-DSA-44 | 923 ms | 608 ms | 178,338 bytes | 114.8 MiB | 39.2 MiB |
-| ML-DSA-65 | 1,081 ms | 701 ms | 188,386 bytes | 121.9 MiB | 43.0 MiB |
+| Circuit | Inputs | Wires excluding inputs | Terms | Sumcheck rounds |
+|---|---:|---:|---:|---:|
+| Hash | 353,739 | 2,287,521 | 5,198,325 | 276 |
+| Signature | 3,102 | 46,667 | 97,497 | 118 |
 
-Measurements were rerun on 2026-10-26 using Rust 1.99.1 release builds
-with `target-cpu=native` on an AMD Ryzen 9 9950X with boost disabled.
-Benchmarks ran sequentially after builds and tests finished. The mdoc
-comparison uses compressed LFA2 archives. V1 timings are Criterion means
-from ten samples; v2 and ML-DSA timings are medians of three runs.
-The [run data](benches/results/2026-10-26.json) includes individual timings,
-exact heap counts, parameter profiles, and circuit/proof fingerprints.
+The binary circuit packs 128 private input bits per committed GF128 word.
+Its trace-zero packing response occupies 2,064 bytes. The split adds the
+32-byte message `mu`, and the adapter adds two 10-bit masked quotients
+(4 bytes). The prime-field signature side commits its remaining field inputs,
+the split mask R and its sumcheck pads. The 768 shared digest/key bits are committed only
+on the binary side. Proof sizes include the 32-byte final seal and
+the sampled Merkle frontier, whose size varies with the transcript.
+Witness selection adds two backend cells per field and 96 bytes of responses:
+32 bytes over GF128 and 64 bytes over P256. It adds no circuit wires or terms.
 
 Peak heap is the additional live Rust heap allocation during each operation,
 measured in separate runs with `bench-memory` enabled. It excludes allocations
@@ -138,7 +307,9 @@ commitment, proof encoding or decoding, and cleanup. Inputs are already
 memory-resident. Offline circuit compilation and parameter selection are
 excluded.
 
-The comparison includes changes to both the circuit and the proof protocol.
+The signed-MSO bounds and offset-ordering checks change the hash circuit ID.
+Regenerate V2 circuit archives and their matching specifications when upgrading;
+existing archives retain their original circuit checks.
 
 ## Architecture
 
@@ -152,34 +323,165 @@ compiler. Proving and verification do not require the `compiler` feature.
 
 V1 and v2 implementations occupy separate directories and have their own
 application types, specifications, transcripts, and proof codecs. They share
-basic infrastructure such as arithmetic, interpolation, randomness, and
-Merkle trees.
+arithmetic, interpolation and private randomness. Each version owns its Merkle
+tree, hashing, nonce/proof types and wire codecs. Shared implementations live
+directly under `runtime/`; protocol
+implementations live under `runtime/v1/` and `runtime/v2/`. The versions have
+no implementation dependency on each other, and each item has one path:
+`runtime::v1::merkle`, `runtime::v1::proto` and so on, with no aliases.
+V2 uses distinct digest types, internal Merkle operations and canonical field
+decoding; its nonce types and authentication envelope remain internal.
+
+Polygero uses recursive `(Participant, Tail)` tuples ending in `()`. Each
+participant keeps its field, interpolation domain, witness rows, and arithmetic
+responses. Attaching a participant validates both its domain identity and the
+interpolation capacity of the supplied backend. The domain supplies the
+arithmetic field, keeping runtime moduli consistent with interpolation.
+Participants with the same
+`(k,s,n,t)` share one salted column tree
+and one opening query set. All statements are bound before batching challenges,
+and all responses before queries. A single field uses the same protocol through
+`(participant, ())`. Field-specific rank and outside-list errors are combined
+against the shared opening set without assuming independence. The zk-v2 joint
+wrapper owns witness selection and
+authentication for standalone proofs and mdoc. Its opaque prover and verifier
+handles authenticate the fingerprint equations with the frontend statements.
+The mdoc application combines its hash and signature fields in one tuple,
+with one commitment and one opening. A P256-to-binary adapter connects the
+signature claim to the packed digest and device-key bits. V2 uses no MACs.
+
+Within a field, layered sumcheck combines multiple circuits with one shared
+input array. Each intermediate layer has one contiguous wire array, ordered
+by circuit, without padding between circuits. Only the sparse quadratic,
+linear and constant terms are stored in quad fragments; local gate offsets
+address the global arrays. Shorter circuits join later, aligned at their inputs.
+The final shared-input claim uses one packing reduction. The mdoc binary
+side combines the hash circuit and the fixed adapter fragment this way.
+
+The hash circuit reads the credential inputs, including the 768 bits that the
+signature circuit stores in the binary commitment. It is archived at its
+natural width. The split mask R (256 bits), the two 10-bit quotient pads and
+the adapter's virtual leaves follow its inputs, and each sumcheck component
+reads only its own input prefix, so the hash circuit cannot address them.
+The adapter authenticates R modulo the P256 prime, so its binary copy
+needs no range check. The honest prover still samples a uniform field mask
+and writes its canonical bits; packing supplies their Boolean interpretation.
+
+The adapter fragment is a fixed product tree with no challenge-dependent
+coefficients. Its leaves are virtual inputs: per-proof affine functions of
+committed bits, defined from the modular claim and two independent conversion
+challenges and substituted during constraint compilation. Each tree asserts
+`product + 1 = 0`. The composition driver (`runtime::v2::foreign::compose`)
+sequences the joint commitment, prime-field sumcheck and its split, the
+adapter rounds, binary sumcheck with packing, and the joint opening.
+
+V2 binary circuits accept Boolean public and private inputs. Authenticated
+packing enforces their bit representation, so the Boolean layer omits bitness
+assertions on binary input wires. Internal arithmetic uses the full field;
+converting an arbitrary field expression back to a Boolean still checks bitness.
+Nonbinary circuits retain field-element inputs and Boolean input assertions.
+Compilation rejects unused input declarations. The application compiler and
+circuit tests use the same input allocator and witness ordering.
+
+The hash circuit checks that every selected field ends within the unpadded
+signed message. The docType check requires the exact CBOR text type, encoded
+length and value, with explicit suppression retained. Signature1 and tag-24
+wrapper lengths are checked against the signed preimage. IssuerSignedItem
+slots require unsigned digest IDs and byte-string salts, and public slice
+lengths are bounded by their arrays. Carry-save arithmetic lives in the
+arithmetic module and is exposed through bitvec; the existing sum-checking
+primitive checks the wrapper lengths. These checks add no circuit inputs.
+
+Frontend `reduce` methods return equations awaiting authentication; complete
+`verify` methods authenticate them and check the final seal. Revealed-pad
+sumcheck diagnostics are confined to tests.
 
 Sumcheck does not depend on Ligero, Polygero, or the combined ZK
-implementation. The top-level dependency checker enforces these boundaries,
-including code behind inactive feature gates.
+implementation. `dependency_check` (in `tools/`) enforces these boundaries from
+rust-analyzer's index of the `testonly` build on the host target;
+code for other targets and features is covered by the role, feature and
+cross-target builds.
+
+V2 runtime circuits are read-only at the type level, including generated
+adapter instances. `RawCircuitBuilder` owns mutable construction data;
+`build()` transfers it into a `RawCircuit` without allocating or scanning.
+Finalized `Circuit` and `RawCircuit` expose only immutable field access, so
+their constants, gate streams, cached assertion counts, and identity cannot
+be mutated. Editing requires consuming the circuit back into a builder and
+constructing a new circuit. Trusted constructors remain responsible for
+consistent metadata; proving and verification add no validation work.
 
 ### Source layout
 
-This is one Cargo crate, `longfellow-zk`. The directories organize modules;
-they are not separate crates.
+This directory is a Cargo workspace of two crates: the library
+`longfellow-zk` in `src/`, and the offline tools, `longfellow-zk-tools`, in
+`tools/`, whose dependencies (`scip`, `protobuf`, `serde_json`) stay out of
+the library. Cargo commands run here act on the library; `-p
+longfellow-zk-tools` selects the tools. The source tree mirrors the module
+tree: module `foo` lives in `foo.rs`, its submodules in `foo/`, and
+its unit tests in `foo/tests.rs` or `foo/tests/`.
 
-| Directory | Contents |
+| Path under `src/` | Contents |
 |---|---|
+| `lib.rs` | Module assembly and feature gates |
 | `core/` | Basic algebra interfaces, circuit representations, and circuit serialization |
-| `compile/` | Symbolic arithmetic, circuit compilation, and offline parameter selection |
-| `runtime/` | Concrete arithmetic, interpolation, proof protocols, and proof serialization |
-| `circuits/` | Reusable circuit components and native witness generation |
-| `applications/mdoc_zk/` | mdoc circuits, application APIs, specifications, providers, and artifacts |
-| `tools/` | Rust commands for parameter auditing and specification generation |
-| `src/lib.rs` | Module assembly and feature gates |
-| `src/dependency_tests.rs` | Dependency and source-organization checks |
+| `compile/` | Symbolic arithmetic and circuit compilation |
+| `runtime/algebra/`, `runtime/random/` | Shared arithmetic, interpolation and private randomness |
+| `runtime/v1/` | V1 sumcheck, Ligero, ZK orchestration, transcript, compact rows, Merkle tree and proof codecs |
+| `runtime/v2/` | V2 sumcheck, Polygero, witness selection, packing, ZK orchestration, transcript, Merkle tree and proof codecs |
+| `circuits/` | Reusable circuits and native witness generation |
+| `mdoc/` | mdoc circuits, application APIs, specifications, providers, and artifacts |
+| `bin/prover_only.rs`, `bin/verifier_only.rs` | Single-role mdoc binaries |
+
+Benchmarks live in `benches/`. The tools are binaries of `tools/`:
+
+| Path under `tools/src/bin/` | Contents |
+|---|---|
+| `zk_tool/` | Rust commands for parameter auditing and specification generation |
+| `dependency_check/` | Module dependency rules over rust-analyzer's index |
+| `precommit/` | The checks to run before every commit (AGENTS.md) |
 
 Compile-time and runtime code occupy separate directories. Prover and
 verifier implementations also remain separate within each protocol.
 
-The circuit compiler has v1 and v2 backends. The v1 backend preserves
-historical Morton ordering and circuit IDs.
+Circuit representations and codecs live in `core::proto::v1` and
+`core::proto::v2`. Their readers and writers accept their own formats only.
+The v1-only commitment implementation is named `runtime::v1::ligero`; compact
+row sampling, interpolation hints, and element codecs have explicit v1 APIs.
+
+The circuit compiler shares its source frontend, simplification, copy rewriting,
+dictionary compression, and scheduling helpers across v1 and v2 backends.
+V2 represents quadratic, linear, and constant terms explicitly throughout
+lowering and scheduling; each stored operand denotes a real wire. The v1 backend preserves
+historical Morton ordering and circuit IDs. V2 compiles directly to
+[LFC3](src/core/proto/LFC3.md), storing quadratic, linear, and constant terms
+separately with an explicit coefficient table. Its `DIR3` directory declares
+all array sizes before the payload; segment contents use contiguous storage.
+Global limits bound layers, total wires, term data, and segment/token metadata.
+It removes the reserved One wire.
+V2 proof decoding checks canonical full-width elements through one shared
+reader and requires the final transcript seal. Previous V2 proof envelopes are
+rejected. Legacy compact-row interfaces are explicitly named `SubfieldV1` in `runtime::v1::subfield`.
+V2 binary interpolation uses the ambient field's complete 128-vector Cantor
+basis, with transform preprocessing limited to the coordinates it needs.
+The prover reuses one eleven-way execution split for evaluation and sumcheck;
+the verifier builds the same split one layer at a time. Linear and constant
+terms enter sumcheck through public corrections to the running claim.
+
+Prime-field sampling draws only the required bytes, masks unused high bits,
+and rejects out-of-range values. Its parameters are precomputed at field
+construction. Existing GF128/P256 sampling byte contracts are preserved.
+Packing arithmetic is opt-in: adapters provide their base field, basis,
+coordinates, and relative Frobenius. Fp2 supports neither packing nor sampling.
+Packing is internal to ZK. Its prover and verifier return two linear equations
+that Polygero authenticates against the original committed words and masks.
+Its transcript binds a caller-supplied statement, packing profile and cell
+counts. The coefficients and affine RHS are derived from the preceding
+sumcheck on the same transcript and are not absorbed again. The U vector
+precedes the packing challenge; the scalar A precedes backend challenges.
+Degree-one packing performs no transcript operations.
+For GF128, trace uses two polynomial-coordinate bits and the trace-dual basis
+uses the modulus's closed formula. Frobenius remains ordinary field squaring.
 
 Formal proofs and parameter certificates live in [`../formal`](../formal),
 including `../formal/parameters`. There are no Lean source files in the
@@ -193,8 +495,8 @@ Applications select `mdoc::v1` or `mdoc::v2`. Each provides
 A specification identifies a circuit and fixes its commitment parameters.
 The prover and verifier use the same specification and matching archive.
 
-For v2, the hash and signature components each have independent
-`(K, N, s, T)` parameters:
+For v2, the hash and signature circuits share the same
+`(K, N, s, T)` parameters for their joint column commitment:
 
 | Parameter | Meaning |
 |---|---|
@@ -203,9 +505,11 @@ For v2, the hash and signature components each have independent
 | `s` | Batching-polynomial degree bound |
 | `T` | Number of opened columns and random prefix samples per row |
 
-Offline parameter selection lives in `compile::polygero`. The selected
-parameters are saved in the specification. Provers and verifiers derive
-the remaining geometry deterministically; they do not tune parameters.
+The audited Polygero catalog and its tuning live in `zk_tool`. The mdoc
+development provider uses one profile, `mdoc::v2::MDOC_JOINT_PROFILE`,
+checked against both fields' backend budgets. Specifications save these
+choices. Provers and verifiers derive the remaining geometry
+deterministically; they do not tune parameters.
 
 ### Frozen circuits and NEXT
 
@@ -217,56 +521,74 @@ requests to the runtime providers and compiles only an explicit NEXT
 request. The result contains the circuit archive and its matching v2
 specification.
 
-NEXT currently denotes circuit version 8. It is under development and is
+NEXT currently denotes circuit version 13. It is under development and is
 not in the frozen registry. Saving a NEXT bundle preserves both its circuit
 and its selected parameters.
+The circuit has three exact-equality attribute slots with a 247-byte
+signed-item limit, and one date slot with a 119-byte signed-item limit.
+Every slot has a public enable bit, and a disabled slot's public fields are
+all zero.
 
-Freezing a circuit requires publishing its archive, complete specification,
-and compatibility fixtures. Frozen artifacts and parameters remain
-unchanged. Further circuit development requires advancing NEXT.
+Frozen artifacts and parameters are immutable. NEXT bundles store their
+matching circuit archive and complete parameter specification.
 
-Circuit archives are trusted inputs. The v2 loader supports optional
-circuit-ID recomputation through `enforce_circuit_id`.
+Circuit specifications are trusted configuration. Every v2 circuit load
+recomputes its SHA-256 ID from the stored segmented representation and checks
+it against the payload and archive identifiers. There is no enforcement flag.
+Compilation returns an identity-free `RawCircuit`; segmentation finalizes its
+representation and computes its ID. Changing segmentation or coefficient-table
+order changes the ID. Every integer in the ID input has a fixed 64-bit encoding,
+independent of the circuit's storage widths. LFC3 revision `DIR3` uses this
+convention; older NEXT bundles must be regenerated.
+
+To measure circuit-ID computation and checked decoding for NEXT, run
+`cargo bench --bench circuit_id`. The benchmark compiles before timing
+and reports median and 95th-percentile times.
 
 ## Cargo features
 
 Features support builds tailored to the prover, verifier, or offline
-compiler. The default features are `verifier`, `prover`, `compiler`, and
-`mdoc`.
+compiler. The default features are `verifier`, `prover`, `compiler`, `mdoc`, and
+`v1`.
 
 | Feature | Purpose |
 |---|---|
 | `verifier` | Runtime proof verification |
 | `prover` | Witness generation and runtime proving |
-| `compiler` | Symbolic construction, circuit compilation, and parameter selection |
+| `compiler` | Symbolic construction and circuit compilation |
 | `mdoc` | mdoc application and circuit-archive support |
-| `experimental` | Additional arithmetic and circuits under development |
-| `testonly` | Test fixtures and deterministic randomness; also enables both proof roles and the compiler |
-| `tooling` | Offline Rust tools, including compiler and experimental-arithmetic dependencies |
+| `v1` | The deployed v1 protocol: runtime, AES-based transcript, mdoc v1 entry points and the `prover_only`/`verifier_only` tools; on by default. v2-only builds omit it |
+| `testonly` | Test fixtures and deterministic randomness; also enables both proof roles, the compiler and `v1` |
+| `arm-neon` | ARMv7 NEON field arithmetic; also requires the compiler's NEON target flag |
 | `bench-memory` | Benchmark allocation tracking |
 
-V2 itself does not require `experimental`. Neither `experimental` nor
-`tooling` is enabled by default. The `tooling` feature does not enable
-proving or verification.
-
 Feature gates are placed high in the module tree. The `cfg_compiler!`,
-`cfg_prover!`, `cfg_verifier!`, `cfg_prover_or_compiler!`, and
-`cfg_testonly!` macros in `src/lib.rs` group conditional declarations.
+`cfg_prover!`, `cfg_verifier!`, `cfg_role!` (any proof role, through the
+private `_role` feature that `prover` and `verifier` enable),
+`cfg_prover_or_compiler!`, and `cfg_testonly!` macros in `src/lib.rs` group
+conditional declarations. Role and phase gates sit only on module
+declarations: an item that needs a role lives in a file of that role, in its
+own `impl` block or role trait.
 
 ## Building and testing
 
 Run commands from this directory. Normal builds use stable Rust.
-Repository formatting uses nightly Rust.
+Repository formatting uses nightly Rust. Native CPU flags are scoped to the
+local x86-64 Linux target; other cross targets do not inherit the host CPU.
+The local native build is intended for its build machine. Distributed binaries
+must select their deployment CPU features explicitly.
 
 ```sh
 # Default build.
 cargo build --release
 
-# Application verifier without the prover or compiler.
-cargo build --release --no-default-features --features verifier,mdoc
+# Application verifier without the prover or compiler, including the v1
+# verifier_only tool. Omit v1 for a v2-only library without the tool.
+cargo build --release --no-default-features --features verifier,mdoc,v1
 
-# Application prover without the verifier or compiler.
-cargo build --release --no-default-features --features prover,mdoc
+# Application prover without the verifier or compiler, including the v1
+# prover_only tool. Omit v1 for a v2-only library without the tool.
+cargo build --release --no-default-features --features prover,mdoc,v1
 
 # Offline application compiler.
 cargo build --release --no-default-features --features compiler,mdoc
@@ -274,20 +596,28 @@ cargo build --release --no-default-features --features compiler,mdoc
 # Standard test suites.
 cargo test --release --features testonly
 
-# Include experimental components.
-cargo test --release --features testonly,experimental
-
-# Offline-tool tests without proof-role features.
-cargo test --no-default-features --features tooling --bin zk_tool
+# Offline-tool tests. The Polygero catalog tests prove and verify every
+# admitted profile, with the library's testonly features.
+cargo test --release -p longfellow-zk-tools
 ```
 
-Shared compiler and circuit suites exercise both compiler backends.
+Circuit synthesis and tampering tests use the native v2 compiler. Dedicated
+backend tests pin v1 bytes and compare v1/v2 evaluation semantics.
 V1 tests verify saved proofs and reproduce their exact bytes. V2 tests
 cover successful proofs, rejected statements, and malformed proofs.
 
 Standalone `prover_only` and `verifier_only` programs demonstrate v1 mdoc
 execution with separate feature builds. Run either with `--help` for
 circuit-file options.
+
+ARMv7 Linux builds use ARM integer arithmetic and scalar binary-field arithmetic
+by default. `cargo build-armv7-neon --release` selects the NEON field backend and
+sets the required compiler flag; the resulting binary requires a NEON-capable
+CPU. Selection happens at build time. `force-generic-arch` overrides either
+backend. Cross builds require `arm-linux-gnueabihf-gcc`.
+`cargo test-armv7-neon --features testonly` runs the NEON tests on ARM hardware
+or through a locally configured Cargo runner. Rust emits an unstable-feature
+warning for the `+neon` compiler flag; the backend uses stable inline assembly.
 
 ## Benchmarks
 
@@ -296,64 +626,127 @@ circuit-file options.
 MDOC_BENCH_ATTRIBUTES=2 \
   cargo bench --bench mdoc_zk_bench_v1 --features testonly -- lfa2
 
-# V2 with NEXT v8 and two attributes.
+# V2 with NEXT v13 and four attributes.
 cargo bench --bench mdoc_zk_bench_next --features testonly
-
-# Experimental ML-DSA-44 and ML-DSA-65, three runs per circuit.
-MLDSA_BENCH_REPEATS=3 \
-  cargo bench --bench mldsa_bench_v2 --features testonly,experimental
 ```
 
 The NEXT benchmark can save a specification/archive bundle using
 `MDOC_BENCH_SAVE_ARCHIVE`, or load one using `MDOC_BENCH_ARCHIVE`.
 Loading a bundle preserves its saved parameters.
-Repeat the NEXT run three times for the reported median; subsequent runs
-can load the bundle saved by the first run.
+Set `MDOC_BENCH_SAMPLES` to the desired sample count (default 8, including
+one discarded warmup). The fixture enables all four slots, using three
+ordinary disclosures and one date disclosure. Subsequent runs can load the
+bundle saved by the first run.
 
 Timing and allocation tracking run separately. Add `bench-memory` for
 memory measurements. It reports peak additional Rust heap, excluding
 already-resident input buffers; it does not measure process RSS.
 Keep allocation tracking disabled for timing comparisons.
 
+Store benchmark archives and output outside the checkout, for example under
+`/tmp/longfellow-bench/`. Raw results, logs, profiles, and caches are not committed;
+the summary above records the measured code configuration.
+
 ## Offline tools
 
-Parameter selection belongs to the compiler. The standalone `zk_tool`
+`dependency_check` builds the crate's exact file dependency graph from
+rust-analyzer's index and checks it against
+[`tools/src/bin/dependency_check/rules.txt`](tools/src/bin/dependency_check/rules.txt). It checks:
+
+- component edges against the rules, which must name every component and stay
+  acyclic; a component with components below it owns only its root file;
+- that the file graph has no cycles;
+- that v1 and v2 files and rules stay disjoint;
+- that no prover file uses a verifier file or the reverse;
+- the symbol rules in `rules.txt` (for example where transcript framing and
+  the final seal may be used);
+- that a library file without a role gates no item, only module
+  declarations, on a proof role or the compile phase (a few modules are
+  exempt until they are next edited);
+- the compile/run-time split, the prover/verifier contract layers
+  (`runtime::v1::proto`, `runtime::v2::proto`) and the test-only `evaluate`
+  bridges, which are defined in the checker's code rather than in
+  `rules.txt`.
+
+```sh
+cargo run --release -p longfellow-zk-tools --bin dependency_check
+cargo run --release -p longfellow-zk-tools --bin dependency_check -- --dot /tmp/deps   # files.dot, components.dot
+cargo run --release -p longfellow-zk-tools --bin dependency_check -- --current      # current graph as rules
+```
+
+Parameter catalogs and selection belong to the standalone `zk_tool`, which
 provides:
 
 | Command | Purpose |
 |---|---|
 | `check-profiles` | Check parameter budgets with exact arithmetic, optionally using Lean |
 | `certify-hahn` | Check Hahn packing certificates with Lean |
+| `tune-polygero` | Pick the catalog profile with the smallest estimated proof for a witness count and field width |
 | `generate-v2-specs` | Compile NEXT and print candidate specifications for review |
 
 Formal checking reads proof sources from the selected formal project,
 normally `../formal`. Normal Rust builds, parameter selection, proving,
 and verification do not require the Lean toolchain.
 
+The catalog includes the production joint mdoc profile `(349, 12, 2443, 84)`.
+The development provider takes it from `mdoc::v2::MDOC_JOINT_PROFILE`.
+The exact checker checks its shared two-field parent,
+opening and fingerprint charges separately from the universal tuning profiles.
+`certify-hahn` checks the three mdoc Hahn bounds and binds the manifest's
+cutoffs and list caps to `MdocJointProfile.profile`. The certificate modules
+are targets of the formal project: `certify-hahn` and `check-profiles
+--check-lean` run `lake build` on them, which checks only what changed, and
+then check their generated numeric files against `lake env`, with two Lean
+threads, a 4,096 MiB limit and a 60-second deadline per file.
+
+Select that profile for the Lean cross-check with
+`check-profiles --protocol polygero --check-lean ../formal --profile 349,12,2443,84`.
+
 Parameter certificates establish mathematical bounds under their stated
 assumptions; they do not certify the complete Rust implementation.
 
 The tools are written in Rust. Python is not required.
 
-## Development conventions
+## Known limitations
 
-Keep compiler, prover, and verifier responsibilities explicit. Preserve
-v1 compatibility while developing v2.
+NEXT mdoc takes one global namespace from the requested attributes. The
+namespace must be nonempty UTF-8 text of at most 64 bytes, and all requests
+must agree. Its bytes and length are public circuit inputs. The circuit checks
+the exact CBOR text at a private offset in the signed MSO, including the complete
+read range. Honest witness construction selects that namespace once and then
+looks up attributes by name within it. Namespace checking cannot be suppressed.
 
-Tests belong outside production source files. Register new files in the
-top-level dependency checks.
+Private field offsets are checked for matching bytes and complete read bounds,
+but the circuit does not establish their CBOR ancestry. It does not prove that
+selected digests belong to the requested namespace map. Namespace occurrence
+alone is not a proof of that membership.
 
-Before every commit, run:
+Validity comparisons select the fourteen `YYYYMMDDhhmmss` digits from the
+supported 20-byte UTC representation. V2 entry points check ASCII digits and
+`YYYY-MM-DD[Tt]hh:mm:ss[Zz]` syntax, and require a nonempty document type.
+The native prover checks the signed document type and inclusive validity window
+before witness construction. Calendar validity remains an assumption of the
+circuit; neither the syntax check nor the circuit validates calendar ranges.
 
-```sh
-cargo +nightly fmt
-```
+V2 validates device-key COSE type/curve metadata, exact 32-byte canonical
+coordinates and curve membership before fixed-width conversion. Requested
+attribute values are checked before constructing their SHA witnesses. These
+host checks give earlier rejection and do not replace circuit constraints.
 
-## Known limitation
+Native witness preparation and generic field inversion are variable time.
+The formal zero-knowledge theorem concerns protocol and oracle observations;
+it does not establish protection against local timing or cache observation.
 
-NEXT mdoc checks that requested namespace IDs agree with each other,
-but the circuit does not authenticate those namespace IDs. Changing all
-requested namespace IDs can leave a proof valid. This remains unresolved.
+The signature circuit retains its affine precomputation layout. Exceptional
+signatures whose precomputed sums are points at infinity remain unsupported;
+v2 witness construction returns `WitnessCreationFailure` instead of panicking.
+The circuit also requires the signature's nonce point to satisfy `R.x < n`
+and the public key to have a nonzero x-coordinate. Valid signatures with
+`n <= R.x < p` (so `r = R.x - n`) and keys with `x = 0` are therefore
+unprovable. Both are rare. V2 detects the former during native witness
+construction, before composition and any transcript randomness: the native
+signature check finds that `(r, R.y)` is not the recovered nonce point, and
+the prover returns `GeneralFailure`.
 
 ## License
 

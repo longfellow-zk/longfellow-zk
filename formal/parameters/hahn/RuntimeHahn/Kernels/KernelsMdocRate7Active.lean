@@ -1,0 +1,6 @@
+import RuntimeHahn.Kernels.MdocRate7ActiveKernels.Degrees01To12
+import RuntimeHahn.Kernels.MdocRate7ActiveKernels.Degrees13To17
+import RuntimeHahn.Kernels.MdocRate7ActiveKernels.Degrees18To20
+import RuntimeHahn.Kernels.MdocRate7ActiveKernels.Degrees21To22
+import RuntimeHahn.Kernels.MdocRate7ActiveKernels.Degrees23To24
+import RuntimeHahn.Kernels.MdocRate7ActiveKernels.Degree25

@@ -1,6 +1,4 @@
 import polygero.FiatShamir.Nonrecursive
-import Mathlib.Tactic
-import Lean.Util.CollectAxioms
 
 /-!
 Exact counting certificates for the nonrecursive Rust Polygero implementation.

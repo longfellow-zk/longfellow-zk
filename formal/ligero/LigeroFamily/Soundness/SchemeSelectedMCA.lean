@@ -1,4 +1,4 @@
-import SelectedMCA.LineFailure
+import SelectedMCA.DoubleAveraging
 import LigeroFamily.Soundness.SchemeLiftBridge
 import LigeroFamily.Soundness.AgreementProfile
 import LigeroFamily.Soundness.SelectedMCAParameters

@@ -1,4 +1,5 @@
 import polygero.Algebra.Counting.SystemExceptions
+import Mathlib.Tactic.Ring
 
 /-! Fixed response envelopes and local errors. -/
 namespace RecursivePolygero.ProfileAnalysis

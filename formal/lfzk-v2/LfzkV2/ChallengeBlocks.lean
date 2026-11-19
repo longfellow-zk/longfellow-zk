@@ -1,4 +1,4 @@
-import LfzkV2.ChallengeReplay
+import LfzkV2.ChallengePrefix
 import Bcs.TotalOracle
 import LigeroFamily.Protocol.Finite
 
@@ -82,11 +82,6 @@ def Kind.budget : Kind → ℕ
   | .combine => 1
 
 abbrev Kind.Sample (F : Type) (kind : Kind) := Fin kind.dimension → F
-
-omit [Field F] in
-theorem Kind.sample_card [Fintype F] (kind : Kind) :
-    Fintype.card (kind.Sample F) = Fintype.card F ^ kind.dimension := by
-  simp [Sample]
 
 omit [Field F] in
 theorem scalar_bad_card [Fintype F] (event : F → Prop) :

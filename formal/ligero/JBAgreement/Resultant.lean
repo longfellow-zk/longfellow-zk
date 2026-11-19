@@ -1,5 +1,4 @@
 import Mathlib.RingTheory.Polynomial.Resultant.Basic
-import Mathlib.Tactic.Ring
 
 /-!
 # §2: one quotient ring and one resultant lemma

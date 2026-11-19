@@ -15,9 +15,8 @@
 -/
 
 import ECDSA.ECBridge
-import PkCircuit
-import ECDSA.EcdsaSpec
 import ECDSA.EcdsaCircuit
+import Mathlib.Algebra.Field.ZMod
 
 set_option linter.unusedVariables false
 set_option linter.unusedSimpArgs false
@@ -321,10 +320,6 @@ lemma reconstruct_natToBits (n : Nat) (k : Nat) (h : n < 2^k) :
   dsimp at h_aux
   rw [h_aux]
   simp
-
-/-- Helper to calculate the length of left-padded bits of a natural number. -/
-lemma padBits_natToBits_length (n k : Nat) (h : n < 2^k) : (padBits (natToBits n) k).length = k :=
-  padBits_length (natToBits n) k (natToBits_length n k h)
 
 /--
   Reconstruction property for the exponent component `e` of the multiplexed

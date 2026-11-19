@@ -1,5 +1,4 @@
 import polygero.Algebra.PolynomialChallenges.ConsistencyClosure
-import polygero.Algebra.PolynomialChallenges.SelectedColumns
 import polygero.Algebra.PolynomialChallenges.AffineInstance
 
 /-!

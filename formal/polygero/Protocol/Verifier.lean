@@ -1,5 +1,4 @@
 import polygero.Protocol.Rows
-import LigeroFamily.Protocol.Finite
 
 /-!
 # Polygero with an additive polynomial-response mask

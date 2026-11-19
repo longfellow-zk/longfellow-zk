@@ -1,10 +1,9 @@
 import SumcheckV2.DotProduct
-import Mathlib.Algebra.BigOperators.Ring.List
 
 /-!
 # Masked messages and symbolic constraints
 
-This is the algebra of `sumcheck-v2/src/symbolic.rs`. Pads are subtracted from
+This is the algebra of `rust/src/runtime/v2/sumcheck/symbolic.rs`. Pads are subtracted from
 messages and added back when interpreting the claim. Sparse affine terms are
 lists, so repeated pad identifiers and zero coefficients retain their meaning.
 The terminal product can be lowered to an affine row only when the committed

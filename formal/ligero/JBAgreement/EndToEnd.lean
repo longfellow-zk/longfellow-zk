@@ -1,9 +1,7 @@
+import Mathlib.LinearAlgebra.Lagrange
 import JBAgreement.Select
 import JBAgreement.Mutual
 import Mathlib.Data.Real.Basic
-import Mathlib.Tactic.Linarith
-import Mathlib.Tactic.Positivity
-import Mathlib.Tactic.Ring
 
 /-!
 # The end-to-end theorem: correlated agreement from Guruswami–Sudan alone

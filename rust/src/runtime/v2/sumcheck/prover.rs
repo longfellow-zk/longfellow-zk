@@ -1,0 +1,453 @@
+// Copyright 2026 Google LLC. SPDX-License-Identifier: Apache-2.0
+//! Numerical sumcheck over one circuit described by sparse quad fragments.
+//!
+//! All supplied circuits share the same input array. Intermediate wire arrays
+//! concatenate the active circuits' wires, with no padding between them.
+//! Evaluation saves one complete witness array per layer, from inputs to outputs;
+//! proving consumes those arrays in reverse. Shorter circuits join later with
+//! freshly weighted zero outputs, leaving the running claim unchanged.
+//!
+//! The sparse Q, L and K tensors are traversed fragment by fragment, applying
+//! local-to-global offsets through slices. At the input layer every fragment has
+//! offset zero. Once the tensors are bound, ordinary sumcheck operates on one W
+//! array and one q_l array, indexed only by the global wire index.
+//!
+//! For global output weights a[g] and global input witness W, form
+//!
+//! ```text
+//! q_l[l] = sum_g a[g] * (sum_r Q[g,l,r]*W[r] + L[g,l]),
+//! K_a    = sum_g a[g]*K[g],
+//! C - K_a = sum_l q_l[l]*W[l].
+//! ```
+//!
+//! Assertion terms replace their entire weighted coefficient with an independent
+//! challenge, reused in both tensor bindings. Linear terms enter q_l directly;
+//! constants have no witness factor and are subtracted before the rounds.
+//!
+//! Folding global wire bits at u leaves exactly two terminal factors:
+//!
+//! ```text
+//! m(u)[l] = product_j u[j]^l_j,
+//! A = sum_l m(u)[l]*W[l],
+//! B = sum_l m(u)[l]*q_l[l] = sum_r q_r[r]*W[r] + L(u),
+//! q_r[r] = sum_{g,l} a[g]*Q[g,l,r]*m(u)[l],
+//! L(u)   = sum_{g,l} a[g]*L[g,l]*m(u)[l].
+//! ```
+//!
+//! The randomized affine terminal identity checks C=A*B. After both masked
+//! factors are bound, one alpha combines them. The next weights are
+//! a_next[r]=m(u)[r]+alpha*q_r[r], and the next claim is A+alpha*(B-L(u)).
+//! Subtracting alpha*L(u) removes the term with no right-hand witness factor.
+//! Both K_a and L(u) are recorded for the shared symbolic builder's affine rows.
+//! The final dense input weights directly address the common authenticated inputs.
+use super::{
+    classes::ClassifiedLayer,
+    dense::{as_scalar, bind},
+    fragments::{self, ActiveFragment, Schedule},
+    symbolic::{build_constraints, Constraints, LayerChallenges},
+    transcript::{end_layer, round_challenge, StageWeights},
+};
+#[cfg(test)]
+use crate::runtime::v2::transcript::cheat;
+use crate::{
+    core::{
+        algebra::{RegisteredField, SerializableField},
+        proto::v2::Circuit,
+    },
+    runtime::{
+        algebra::{blas, RuntimeField, SupportsSampling},
+        random::PrivateRandom,
+        v2::{
+            proto::sumcheck::{LayerProof, RoundPoly, SumcheckProof, SumcheckProofGeometry},
+            transcript::{Reading, TranscriptRef},
+        },
+    },
+};
+
+/// Single-circuit convenience for tests: prove after the caller has bound
+/// the circuit statement.
+#[cfg(test)]
+pub(crate) fn evaluate_and_prove<F: RuntimeField + RegisteredField + SupportsSampling>(
+    inputs: Vec<F::E>,
+    pads: &SumcheckProof<F>,
+    circuit: &Circuit<F>,
+    t: &mut TranscriptRef<'_>,
+    f: &F,
+) -> Result<(SumcheckProof<F>, Constraints<F::E>), String> {
+    prove_circuits(&[circuit], inputs, pads, t, f)
+}
+
+/// Test convenience: prove after the caller has bound every circuit
+/// statement, with a proof as the pads.
+#[cfg(test)]
+pub(crate) fn prove_circuits<F: RuntimeField + RegisteredField + SupportsSampling>(
+    circuits: &[&Circuit<F>],
+    inputs: Vec<F::E>,
+    pads: &SumcheckProof<F>,
+    t: &mut TranscriptRef<'_>,
+    f: &F,
+) -> Result<(SumcheckProof<F>, Constraints<F::E>), String> {
+    let owned = SumcheckPads::from_proof(pads.clone());
+    evaluate_and_prove_circuits(circuits, inputs, owned, t, f)
+}
+
+/// One proof's additive sumcheck pads, laid out as the proof's round and
+/// claim slots. They are sampled with their committed copy (`sample_pads`)
+/// and used once: proving consumes them, and the type is neither `Clone` nor
+/// a `SumcheckProof`, so the same pads cannot mask two runs (sumcheck I6).
+pub(crate) struct SumcheckPads<F: SerializableField>(SumcheckProof<F>);
+impl<F: SerializableField> SumcheckPads<F> {
+    /// Check that the pads have `geometry`'s shape.
+    pub(crate) fn validate(&self, geometry: &SumcheckProofGeometry) -> std::io::Result<()> {
+        self.0.validate(geometry)
+    }
+    /// Test fixtures: pads with chosen values, such as a proof reused as pads.
+    #[cfg(test)]
+    pub(crate) fn from_proof(pads: SumcheckProof<F>) -> Self {
+        Self(pads)
+    }
+    /// Test diagnostics: the pad values, in proof layout.
+    #[cfg(test)]
+    pub(crate) fn as_proof(&self) -> &SumcheckProof<F> {
+        &self.0
+    }
+}
+
+/// The caller binds all circuit statements and shared public inputs; the top
+/// weights are drawn here, before the first message. Classify each circuit once for both evaluation
+/// and proving; consume its classified layers and witnesses as the shared schedule
+/// advances toward the inputs, and the pads.
+pub(crate) fn evaluate_and_prove_circuits<F: RuntimeField + RegisteredField + SupportsSampling>(
+    circuits: &[&Circuit<F>],
+    inputs: Vec<F::E>,
+    pads: SumcheckPads<F>,
+    t: &mut TranscriptRef<'_>,
+    f: &F,
+) -> Result<(SumcheckProof<F>, Constraints<F::E>), String> {
+    let schedule = Schedule::new(circuits, f)?;
+    pads.validate(&schedule.geometry)
+        .map_err(|e| e.to_string())?;
+    if inputs.len() != schedule.ninput {
+        return Err("shared input width mismatch".into());
+    }
+    // Draw the top weights before the first message (transcript I8).
+    let entering = schedule.draw_top(circuits, t, f);
+    let layers = schedule.classify_layers(circuits);
+    let witnesses = super::eval::eval_circuits(inputs, circuits, &layers, &schedule, f)
+        .map_err(|e| format!("eval_circuit failed: {e}"))?;
+    Ok(prove_layers(
+        circuits, layers, witnesses, pads, schedule, entering, t, f,
+    ))
+}
+
+/// Prove the classified layers of `circuits` on their witnesses. The caller
+/// has checked that `pads` have `schedule.geometry`'s shape
+/// (`evaluate_and_prove_circuits` does, before the top weights).
+#[allow(clippy::too_many_arguments)]
+fn prove_layers<F: RuntimeField + RegisteredField + SupportsSampling>(
+    circuits: &[&Circuit<F>],
+    layers: Vec<Vec<ClassifiedLayer<'_>>>,
+    witnesses: Vec<Vec<F::E>>,
+    pads: SumcheckPads<F>,
+    schedule: Schedule,
+    mut entering: StageWeights<F::E>,
+    t: &mut TranscriptRef<'_>,
+    f: &F,
+) -> (SumcheckProof<F>, Constraints<F::E>) {
+    assert_eq!(layers.len(), circuits.len());
+    assert_eq!(witnesses.len(), schedule.layers.len());
+    let mut layers: Vec<_> = layers.into_iter().map(Vec::into_iter).collect();
+    let mut input_assertions = Vec::new();
+    let mut weights = Vec::new();
+    if schedule.layers.is_empty() {
+        weights = std::mem::take(&mut entering.outputs);
+    }
+    let mut claim = f.zero();
+    let layer_pads = pads.0.layers;
+    let mut proof_layers = Vec::with_capacity(layer_pads.len());
+    let mut challenges = Vec::with_capacity(layer_pads.len());
+    for ((stage, w), pp) in witnesses.into_iter().enumerate().zip(&layer_pads) {
+        let layout = &schedule.layers[stage];
+        assert_eq!(w.len(), layout.nw);
+        let mut active: Vec<_> = layout
+            .fragments
+            .iter()
+            .map(|s| ActiveFragment::new(s, layers[s.circuit].next().expect("scheduled fragment")))
+            .collect();
+        schedule.enter(
+            stage,
+            std::mem::take(&mut entering),
+            &mut weights,
+            &mut active,
+        );
+        // Every fragment accumulates into its slice of one q_l. At the shared
+        // input boundary those slices overlap intentionally, combining the gates.
+        let mut q = vec![f.zero(); layout.nw];
+        for a in &active {
+            let s = &a.fragment;
+            super::quad::bind_r_into(
+                &a.layer,
+                &circuits[s.circuit].raw.constants,
+                &weights[s.output_range.clone()],
+                &a.assertions,
+                &w[s.input_range.clone()],
+                &mut q[s.input_range.clone()],
+                f,
+            );
+        }
+        let constant = fragments::constant(circuits, &weights, &active, f);
+        let (proof, mut c, mut next) =
+            prove_dot_product(w, q, pp, f.subf(&claim, &constant), t, f, |r| {
+                schedule.after_combine(stage, circuits, r, f, &mut entering, &mut input_assertions)
+            });
+        let (next_weights, linear) = fragments::transition(
+            circuits, &weights, &active, layout.nw, &c.point_l, &c.alpha, f,
+        );
+        weights = next_weights;
+        f.fnms(&mut next, &c.alpha, &linear);
+        claim = next;
+        c.constant = constant;
+        c.linear = linear;
+        proof_layers.push(proof);
+        challenges.push(c);
+    }
+    schedule.finish_inputs(&mut weights, input_assertions, f);
+    let proof = SumcheckProof {
+        layers: proof_layers,
+    };
+    let constraints = build_constraints(&proof, challenges, weights, f);
+    (proof, constraints)
+}
+
+/// Reduce `claim = sum_l q_l[l] W[l]`.
+/// Each round binds one bit of `l` in both arrays; `point_l` is the final `u`.
+/// The final scalars A = W(u), B = q_l(u) must multiply to the last round claim.
+/// Return this layer's masked messages, sampled challenges, and the unmasked
+/// combined claim A + alpha*B for the next layer. The caller may extend the
+/// same combine answer with input assertion coefficients, using only a reader.
+pub(super) fn prove_dot_product<F: RuntimeField + RegisteredField + SupportsSampling>(
+    mut w: Vec<F::E>,
+    mut q_l: Vec<F::E>,
+    pads: &LayerProof<F>,
+    initial_claim: F::E,
+    transcript: &mut TranscriptRef<'_>,
+    f: &F,
+    after_alpha: impl FnOnce(&mut Reading<'_>),
+) -> (LayerProof<F>, LayerChallenges<F::E>, F::E) {
+    let mut claim = initial_claim;
+    let mut rounds = Vec::with_capacity(pads.rounds.len());
+    let mut point_l = Vec::with_capacity(pads.rounds.len());
+    for round_pads in &pads.rounds {
+        let (m, z, claim_next) = round(&mut w, &mut q_l, round_pads, claim, transcript, f);
+        claim = claim_next;
+        rounds.push(m);
+        point_l.push(z);
+    }
+    // Both arrays now contain one scalar: claims[0] = A and claims[1] = B.
+    let claims = [as_scalar::<F>(&w), as_scalar::<F>(&q_l)];
+    let holds = claim == f.mulf(&claims[0], &claims[1]);
+    #[cfg(test)]
+    #[allow(clippy::shadow_reuse)]
+    let holds = holds || cheat::active();
+    assert!(holds, "single-hand terminal product mismatch");
+    // Hide the cross coefficient independently, before choosing the scale.
+    let mut cross = f.mulf(&claims[0], &pads.claims[1]);
+    f.fma(&mut cross, &claims[1], &pads.claims[0]);
+    f.sub(&mut cross, &pads.cross);
+    let terminal = super::transcript::terminal_challenge(&cross, transcript, f);
+    let mut masked = claims.clone();
+    blas::axpy(&mut masked, &terminal, &pads.claims, f);
+    // Bind both masked claims before drawing their combination challenge.
+    let alpha = end_layer(&masked, transcript, f, after_alpha);
+    claim = claims[0].clone();
+    f.fma(&mut claim, &alpha, &claims[1]);
+    (
+        LayerProof {
+            rounds,
+            cross,
+            claims: masked,
+        },
+        LayerChallenges {
+            point_l,
+            alpha,
+            terminal,
+            constant: f.zero(),
+            linear: f.zero(),
+        },
+        claim,
+    )
+}
+
+/// Send one round's masked coefficients and bind its challenge into both arrays.
+/// On entry, claim = sum_i q_l[i]*w[i]. Binding the low variable at x gives
+/// p(x) = c0 + c1*x + c2*x^2, with c0 + c2 = claim. Send c0-s0,c1-s1 before
+/// sampling z, then set
+///
+/// ```text
+/// claim' = p(z) = z^2*claim + (1-z^2)*c0 + z*c1.
+/// ```
+///
+/// After binding, claim' = sum_i q_l'[i]*w'[i], with one fewer index bit.
+/// Return the masked message, z, and the next claim.
+///
+/// It stays out of line, so the code of its kernels (the round polynomial and
+/// the two binds, the prover's hot loops) does not depend on what the stage
+/// loop around it inlines.
+#[inline(never)]
+fn round<F: RuntimeField + RegisteredField + SupportsSampling>(
+    w: &mut Vec<F::E>,
+    q_l: &mut Vec<F::E>,
+    pads: &RoundPoly<F>,
+    claim: F::E,
+    transcript: &mut TranscriptRef<'_>,
+    f: &F,
+) -> (RoundPoly<F>, F::E, F::E) {
+    let p = quad_round_poly(q_l, w, &claim, f);
+    let (m, z, claim_next) = mask_round(p, pads, claim, transcript, f);
+    bind(w, &z, f);
+    bind(q_l, &z, f);
+    (m, z, claim_next)
+}
+/// Shared masking, challenge sampling and claim update for every numerical kernel.
+pub(super) fn mask_round<F: RuntimeField + RegisteredField + SupportsSampling>(
+    p: RoundPoly<F>,
+    pads: &RoundPoly<F>,
+    claim: F::E,
+    transcript: &mut TranscriptRef<'_>,
+    f: &F,
+) -> (RoundPoly<F>, F::E, F::E) {
+    let mut m = p.clone();
+    // The transcript receives m[j] = c_j - s_j for j = 0,1; p retains the
+    // unmasked coefficients used to compute the next claim.
+    blas::sub(&mut m.coefficients, &pads.coefficients, f);
+    let z = round_challenge(&m, transcript, f);
+
+    // The constant and quadratic coefficients partition the incoming sum:
+    // c0 = sum_i q_l[2i]*w[2i], c2 = sum_i q_l[2i+1]*w[2i+1].
+    // Thus claim = c0 + c2 supplies the missing coefficient c2 = claim - c0.
+    // Evaluating p(x) = c0 + c1*x + c2*x^2 at z gives
+    // claim' = c0 + z*c1 + z^2*(claim - c0)
+    //        = z^2*claim + (1-z^2)*c0 + z*c1.
+    let z2 = f.mulf(&z, &z);
+    let one_minus_z2 = f.subf(&f.one(), &z2);
+    let [c0, c1] = &p.coefficients;
+    let mut claim_next = claim;
+    f.mul(&mut claim_next, &z2);
+    f.fma(&mut claim_next, &one_minus_z2, c0);
+    f.fma(&mut claim_next, &z, c1);
+
+    (m, z, claim_next)
+}
+
+/// Compute the constant and linear coefficients of the round polynomial.
+///
+/// ```text
+/// p(x) = sum_i (q_l[2i] + x*q_l[2i+1]) (w[2i] + x*w[2i+1])
+///      = c0 + c1*x + c2*x^2,
+/// claim = c0 + c2.
+/// ```
+///
+/// Accumulate c0 and p(1) together, then obtain c1 = p(1) - claim.
+/// This uses two products per pair; missing odd coefficients are zero.
+#[inline]
+pub(super) fn quad_round_poly<F: RuntimeField + SerializableField>(
+    q_l: &[F::E],
+    w: &[F::E],
+    claim: &F::E,
+    f: &F,
+) -> RoundPoly<F> {
+    assert_eq!(q_l.len(), w.len());
+    let n = q_l.len();
+    let pairs = n / 2;
+    let mut accum_c0 = f.zero_accum();
+    let mut accum_p1 = f.zero_accum();
+
+    for i in 0..pairs {
+        let idx = 2 * i;
+        f.mac(&mut accum_c0, &q_l[idx], &w[idx]);
+        let q_sum = f.addf(&q_l[idx], &q_l[idx + 1]);
+        let w_sum = f.addf(&w[idx], &w[idx + 1]);
+        f.mac(&mut accum_p1, &q_sum, &w_sum);
+    }
+
+    if !n.is_multiple_of(2) {
+        // With zero odd coefficients, the unpaired product is constant in x
+        // and contributes equally to c0 and p(1).
+        let last = n - 1;
+        f.mac(&mut accum_c0, &q_l[last], &w[last]);
+        f.mac(&mut accum_p1, &q_l[last], &w[last]);
+    }
+
+    let c0 = f.accum_reduce(&accum_c0);
+    let p1 = f.accum_reduce(&accum_p1);
+    // p(1) = c0 + c1 + c2; subtract claim = c0 + c2 to isolate c1.
+    let c1 = f.subf(&p1, claim);
+    RoundPoly {
+        coefficients: [c0, c1],
+    }
+}
+
+/// Sample additive sumcheck pads and their flattened commitment witness.
+/// The structured copy matches the proof's round and claim slots for masking.
+/// The flat copy follows the codec's committed-pad layout: two pads per round,
+/// then p_A,p_B,p_AB,p_D for each layer. The honest prover sets p_AB=p_A*p_B,
+/// but Polygero enforces only affine equations on these cells. The cross message
+/// and fresh terminal scale check a random-point identity instead.
+pub(crate) fn sample_pads<
+    F: RuntimeField + RegisteredField + SupportsSampling,
+    R: PrivateRandom,
+>(
+    geometry: &SumcheckProofGeometry,
+    rng: &mut R,
+    f: &F,
+) -> (SumcheckPads<F>, Vec<F::E>) {
+    let mut witness = Vec::with_capacity(geometry.pad_count());
+    let mut proof_layers = Vec::with_capacity(geometry.layers().len());
+    for &logw in geometry.layers() {
+        let mut rounds = Vec::with_capacity(logw);
+        for _ in 0..logw {
+            let round_pads = [rng.elt_field(f), rng.elt_field(f)];
+            witness.extend(round_pads.clone());
+            rounds.push(RoundPoly {
+                coefficients: round_pads,
+            });
+        }
+        let claim_pads = [rng.elt_field(f), rng.elt_field(f)];
+        witness.extend(claim_pads.clone());
+        witness.push(f.mulf(&claim_pads[0], &claim_pads[1]));
+        let cross = rng.elt_field(f);
+        witness.push(cross.clone());
+        proof_layers.push(LayerProof {
+            rounds,
+            cross,
+            claims: claim_pads,
+        });
+    }
+    (
+        SumcheckPads(SumcheckProof {
+            layers: proof_layers,
+        }),
+        witness,
+    )
+}
+
+/// Test fixtures: `sample_pads`, with the pads as proof-shaped values for
+/// the fixtures and diagnostics that take them so.
+#[cfg(test)]
+pub(crate) fn sample_pads_for_test<
+    F: RuntimeField + RegisteredField + SupportsSampling,
+    R: PrivateRandom,
+>(
+    geometry: &SumcheckProofGeometry,
+    rng: &mut R,
+    f: &F,
+) -> (SumcheckProof<F>, Vec<F::E>) {
+    let (pads, witness) = sample_pads(geometry, rng, f);
+    (pads.0, witness)
+}
+
+#[cfg(test)]
+pub(crate) use tests::fixtures::{prove, prove_core};
+
+#[cfg(test)]
+mod tests;

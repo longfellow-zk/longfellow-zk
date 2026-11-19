@@ -4,8 +4,6 @@ Edit the hash1 source or the generator, then regenerate and build `LfzkV1.FlatV7
 -/
 
 import LfzkV1.FlatV7Hash2Deployed
-import LfzkV1.SoundnessAudit
-import LfzkV1.CompiledZkProfileSepMac
 import LfzkV1.GradedCircuitV7
 
 /-!

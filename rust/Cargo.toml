@@ -1,3 +1,14 @@
+# The library and, in tools/, the offline tools (zk_tool, dependency_check,
+# precommit), whose dependencies stay out of the library.
+[workspace]
+members = [".", "tools"]
+
+[workspace.lints.clippy]
+shadow_same = "warn"
+shadow_reuse = "warn"
+shadow_unrelated = "warn"
+type_complexity = "allow"
+
 [package]
 name = "longfellow-zk"
 version = "0.1.0"
@@ -6,141 +17,134 @@ description = "Longfellow v1/v2 Zero-Knowledge proof system and ISO 18013-5 mdoc
 license = "Apache-2.0"
 repository = "https://github.com/google/longfellow-zk"
 exclude = [
-    "applications/mdoc_zk/artifacts/circuits/*",
-    "applications/mdoc_zk/artifacts/proofs/*",
-    "applications/mdoc_zk/prover_only/*",
-    "applications/mdoc_zk/verifier_only/*",
+    "src/mdoc/artifacts/circuits/*",
+    "src/mdoc/artifacts/proofs/*",
+    "src/bin/prover_only.rs",
+    "src/bin/verifier_only.rs",
     "*.vir",
     "*.rlib",
 ]
 
 [features]
-default = ["verifier", "prover", "compiler", "mdoc"]
-verifier = []
-prover = []
+default = ["verifier", "prover", "compiler", "mdoc", "v1"]
+# The deployed v1 protocol: its runtime, transcript (AES-256 challenges) and mdoc entry points.
+v1 = ["dep:aes"]
+verifier = ["_role"]
+# OS randomness for private coins is needed only to prove.
+prover = ["dep:getrandom", "_role"]
+# Any proof role (`cfg_role!`): enabled by `prover` and `verifier`; do not enable it alone.
+_role = []
 compiler = ["dep:bumpalo", "dep:num-bigint", "dep:num-traits", "dep:rustc-hash"]
 mdoc = ["dep:zstd"]
-testonly = ["verifier", "prover", "compiler"]
+testonly = ["verifier", "prover", "compiler", "v1"]
 force-32bit-limbs = []
 limb32 = ["force-32bit-limbs"]
 force-generic-arch = []
+# Build-time selection for 32-bit ARM Linux. Also enable -C target-feature=+neon;
+# cargo build-armv7-neon supplies both and requires a NEON-capable CPU.
+# Stable Rust does not expose ARM NEON through cfg(target_feature).
+arm-neon = []
 # Benchmark-only allocation tracking; keep it off for timing measurements.
 bench-memory = []
-# Opt-in arithmetic and circuits under development; never enabled by default.
-experimental = []
-# Offline audits and specification generation; never a proof-role dependency.
-tooling = ["compiler", "experimental", "dep:serde_json"]
 
 [dependencies]
-aes = "0.8.4"
+aes = { version = "0.8.4", optional = true }
 bumpalo = { version = "3.16.0", optional = true }
-getrandom = "0.3"
+getrandom = { version = "0.3", optional = true }
 num-bigint = { version = "0.4", optional = true }
 num-traits = { version = "0.2", optional = true }
 rustc-hash = { version = "2.1.0", optional = true }
+# Keep "asm" forced: on aarch64 it is what enables sha2's hardware SHA-256
+# backend (without it SHA-256 falls back to software), and on x86 it supplies
+# the fallback for CPUs without SHA extensions. An opt-out feature would
+# silently slow role-specific builds made with --no-default-features.
 sha2 = { version = "0.10.8", features = ["asm"] }
-zstd = { version = "0.13", optional = true }
-
-serde_json = { version = "1.0", features = ["arbitrary_precision"], optional = true }
+zstd = { version = "0.13", default-features = false, optional = true }
 
 [dev-dependencies]
 criterion = "0.5"
 hex = "0.4.3"
 num-bigint = "0.4"
 num-traits = "0.2"
-serde_json = "1.0"
 
 [[bin]]
 name = "prover_only"
-path = "applications/mdoc_zk/prover_only/src/main.rs"
-required-features = ["prover", "mdoc"]
+path = "src/bin/prover_only.rs"
+required-features = ["prover", "mdoc", "v1"]
 
 [[bin]]
 name = "verifier_only"
-path = "applications/mdoc_zk/verifier_only/src/main.rs"
-required-features = ["verifier", "mdoc"]
-
-[[bin]]
-name = "convert_circuits_v1"
-path = "applications/mdoc_zk/runtime/src/bin/convert_circuits_v1.rs"
-required-features = ["compiler", "mdoc"]
+path = "src/bin/verifier_only.rs"
+required-features = ["verifier", "mdoc", "v1"]
 
 [[bench]]
 name = "p256_benchmark"
-path = "runtime/algebra/benches/p256_benchmark.rs"
+path = "benches/p256_benchmark.rs"
 harness = false
 
 [[bench]]
 name = "q256_benchmark"
-path = "runtime/algebra/benches/q256_benchmark.rs"
+path = "benches/q256_benchmark.rs"
 harness = false
 
 [[bench]]
 name = "fft_benchmark"
-path = "runtime/algebra/benches/fft_benchmark.rs"
+path = "benches/fft_benchmark.rs"
 harness = false
 
 [[bench]]
 name = "rfft_benchmark"
-path = "runtime/algebra/benches/rfft_benchmark.rs"
+path = "benches/rfft_benchmark.rs"
 harness = false
 
 [[bench]]
 name = "lch14_benchmark"
-path = "runtime/algebra/benches/lch14_benchmark.rs"
+path = "benches/lch14_benchmark.rs"
 harness = false
 
 [[bench]]
 name = "sumcheck_bench_v1"
-path = "runtime/sumcheck-v1/benches/sumcheck_bench_v1.rs"
+path = "benches/sumcheck_bench_v1.rs"
 harness = false
+required-features = ["v1"]
+
+[[bench]]
+name = "circuit_id"
+path = "benches/circuit_id.rs"
+harness = false
+required-features = ["compiler", "mdoc"]
 
 [[bench]]
 name = "sumcheck_bench_v2"
-path = "runtime/sumcheck-v2/benches/sumcheck_bench_v2.rs"
+path = "benches/sumcheck_bench_v2.rs"
 harness = false
 required-features = ["prover"]
 
 [[bench]]
 name = "mdoc_zk_bench_v1"
-path = "applications/mdoc_zk/runtime/benches/mdoc_zk_bench_v1.rs"
+path = "benches/mdoc_zk_bench_v1.rs"
 harness = false
 required-features = ["prover", "verifier", "compiler", "mdoc", "testonly"]
 
 [[bench]]
 name = "mdoc_zk_bench_next"
-path = "applications/mdoc_zk/runtime/benches/mdoc_zk_bench_next.rs"
+path = "benches/mdoc_zk_bench_next.rs"
 harness = false
 required-features = ["prover", "verifier", "compiler", "mdoc", "testonly"]
 
 [[bench]]
-name = "fp24_benchmark"
-path = "runtime/algebra/benches/fp24_benchmark.rs"
-harness = false
-required-features = ["experimental"]
-
-[[bench]]
-name = "mldsa_bench_v2"
-path = "circuits/experimental/benches/mldsa_bench_v2.rs"
-harness = false
-required-features = ["experimental", "testonly"]
-
-[[bench]]
 name = "polygero_bench"
-path = "runtime/polygero/benches/polygero_bench.rs"
+path = "benches/polygero_bench.rs"
 harness = false
 required-features = ["testonly"]
 
 [[bench]]
 name = "range_interpolation_benchmark"
-path = "runtime/algebra/benches/range_interpolation_benchmark.rs"
+path = "benches/range_interpolation_benchmark.rs"
 harness = false
 
-[lints.clippy]
-shadow_same = "warn"
-shadow_reuse = "warn"
-shadow_unrelated = "warn"
-type_complexity = "allow"
+[lints]
+workspace = true
 
 [profile.release]
 opt-level = 3
@@ -151,8 +155,3 @@ panic = "abort"
 [profile.dev]
 opt-level = 2
 lto = false
-
-[[bin]]
-name = "zk_tool"
-path = "tools/zk_tool/main.rs"
-required-features = ["tooling"]

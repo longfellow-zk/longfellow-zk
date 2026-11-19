@@ -8,8 +8,8 @@ import LfzkV1.MacSep
 full-view statistical form `CompiledLongfellowZkStat.twofield_zk_stat`) models the tags as the
 **v8** MAC, `macTag av ap msg = av · msg + ap`, with uniform blinds `ap`: the tags are a translate
 of the blinds (`tagEquiv`), so they are uniform and the simulator samples them.  The registered
-**v7** circuits and the deployed `version < 8` prover (`push_legacy_macs` in
-`rust/applications/mdoc_zk/runtime/src/mac.rs`, `assert_mac` in `lib/circuits/mac/mac_circuit.h`)
+**v7** circuits and the deployed v1 prover (`push_macs` in
+`rust/src/mdoc/runtime/v1/mac.rs`, `assert_mac` in `lib/circuits/mac/mac_circuit.h`)
 use instead
 
 ```text
@@ -62,7 +62,7 @@ No step of `twofield_zk` is redone, and the bound is exactly its bound.
 the two 128-bit halves of its 32-byte little-endian encoding (`bytes[..16]`, `bytes[16..]`):
 
 * `issuer_sig_e` is `issuer_sig_digest`, the SHA-256 digest of the COSE `Sig_structure` of the
-  MSO (`circuits/src/cbor/mdoc.rs`), read big-endian as an integer;
+  MSO (`rust/src/mdoc/cbor/mdoc/prover.rs`), read big-endian as an integer;
 * `device_pk.x`, `device_pk.y` are the device key's P-256 affine coordinates (`deviceKeyInfo`).
 
 A zero block **is possible for honest inputs**: there are P-256 points with `x < 2^128` (high half

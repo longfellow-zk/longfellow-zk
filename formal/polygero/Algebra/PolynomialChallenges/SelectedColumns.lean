@@ -1,5 +1,4 @@
 import polygero.Algebra.PolynomialChallenges.Consistency
-import polygero.Algebra.PolynomialChallenges.CountingCore
 
 /-! Restriction to arbitrary column sets and exact consistency counts. -/
 namespace RecursivePolygero.Local

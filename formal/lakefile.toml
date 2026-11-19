@@ -1,7 +1,9 @@
 
 name = "formal_circuits"
 version = "0.1.0"
-defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "LigeroLocalCounts", "SumcheckV1", "SumcheckV2.APITest", "polygero.APITest", "RustPolygeroProfiles", "RuntimeHahn.APITest", "polygero.Benchmarks.HahnRateSixteenth", "LfzkV1", "LfzkV1.FlatV7All", "LfzkV2.APITest"]
+# Bound each Lean worker without changing proof heartbeats or cache traces.
+weakLeanArgs = ["-j2", "-M4096"]
+defaultTargets = ["ECDSA", "pk_circuit", "JBAgreement", "Merkle", "Bcs", "Ligero.APITest", "LigeroLocalCounts", "SumcheckV1", "SumcheckV2.APITest", "DualPacking", "WitnessSelection.APITest", "TranscriptV2.APITest", "polygero.APITest", "RustPolygeroProfiles", "RuntimeHahn.APITest", "polygero.Benchmarks.HahnRateSixteenth", "LfzkV1", "LfzkV1.FlatV7All", "LfzkV2.APITest", "LfzkV2.Current.Tests.APITest", "Survival", "Survival.Tests", "Survival.Axioms"]
 
 [leanOptions]
 autoImplicit = false
@@ -66,17 +68,33 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsErro
 [[lean_lib]]
 name = "SumcheckV1"
 srcDir = "sumcheck-v1"
-leanOptions = { autoImplicit = false, relaxedAutoImplicit = false }
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
 [[lean_lib]]
 name = "SumcheckV2"
 srcDir = "sumcheck-v2"
 leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
+[[lean_lib]]
+name = "DualPacking"
+srcDir = "dual-packing"
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
+
+[[lean_lib]]
+name = "WitnessSelection"
+srcDir = "witness-selection"
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
+
+[[lean_lib]]
+name = "TranscriptV2"
+srcDir = "transcript-v2"
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
+
 
 [[lean_lib]]
 name = "Merkle"
 srcDir = "merkle"
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
 
 [[lean_lib]]
@@ -98,6 +116,12 @@ name = "LfzkV1"
 srcDir = "lfzk-v1"
 leanOptions = { autoImplicit = true, relaxedAutoImplicit = true }
 
+# Chronological survival and stopped-charge composition for current soundness.
+[[lean_lib]]
+name = "Survival"
+srcDir = "survival"
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
+
 [[lean_lib]]
 name = "LfzkV2"
 srcDir = "lfzk-v2"
@@ -106,12 +130,14 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsErro
 [[lean_lib]]
 name = "ECDSA"
 srcDir = "circuits"
-globs = ["ECDSA.+"]
+globs = ["ECDSA", "ECDSA.+"]
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
 [[lean_lib]]
 name = "pk_circuit"
 srcDir = "circuits/tests/ec"
-roots = ["PkCircuit", "PkCircuitPoly"]
+roots = ["PkCircuit"]
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
 
 [[lean_lib]]
 name = "RecursivePolygero"
@@ -131,6 +157,14 @@ leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsErro
 [[lean_lib]]
 name = "RustPolygeroProfiles"
 srcDir = "parameters/polygero"
-roots = ["PolygeroRustHahn", "TunedProfiles"]
-globs = ["PolygeroRustHahn", "TunedProfiles"]
+roots = ["PolygeroRustHahn", "TunedProfiles", "MdocJointProfile"]
+globs = ["PolygeroRustHahn", "TunedProfiles", "MdocJointProfile"]
+leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
+
+# Build the audit and its complete import closure explicitly, independently
+# of the smaller default endpoints. Invoke with `lake build SecurityAudit`.
+[[lean_lib]]
+name = "SecurityAudit"
+srcDir = "."
+roots = ["scripts.Audit"]
 leanOptions = { autoImplicit = false, relaxedAutoImplicit = false, warningAsError = true }
