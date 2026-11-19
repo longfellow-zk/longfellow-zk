@@ -251,12 +251,14 @@ fn v2_product_assertions_keep_both_factors_and_debug_paths() {
         let alias = logic.assert0("alias", &logic.mulk(&fc.u64_to_element(5), &yx));
         let square = logic.mul(&z, &z);
         let fourth = logic.mul(&square, &square);
-        let deep = logic.assert_eq("deep", &fourth, &expected);
+        let xyz = logic.mul(&xy, &z);
+        let xyzz = logic.mul(&xy, &square);
+        let value = logic.add(&fourth, &logic.add(&xyz, &xyzz));
+        let deep = logic.assert_eq("deep", &value, &expected);
         (logic.assert_all("root", &[product, alias, deep]), 1)
     });
-    // The duplicate product is one assertion. Its zero-coefficient encoding
-    // must still retain both factors and enforce their product, at an earlier
-    // layer than the independent fourth-power constraint.
+    // The scaled and swapped product checks share an assertion and preserve
+    // both names. Its factors are needed earlier than the value constraint.
     assert_eq!(geometry.nassertions, 2);
     assert_eq!(symbols.assertion_count(), 2);
     let circuit = segment_circuit_v2(&fc, raw);
@@ -271,12 +273,50 @@ fn v2_product_assertions_keep_both_factors_and_debug_paths() {
             .unwrap()
             .assert_all_passed();
     }
-    eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs([1, 1, 2, 16]))
-        .unwrap()
-        .assert_any_failed_at("root/product");
+    // With a nonzero product, both aliases fail while the separate value
+    // constraint still evaluates 2^4 + (3*5)*2 + (3*5)*2^2 = 106.
+    let mut product_failures =
+        eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs([3, 5, 2, 106]))
+            .unwrap()
+            .failed_paths();
+    product_failures.sort_unstable();
+    assert_eq!(product_failures, ["root/alias", "root/product"]);
     eval_circuit_fc(&fc, &fr, &circuit, &symbols, &inputs([0, 7, 2, 17]))
         .unwrap()
         .assert_any_failed_at("root/deep");
+}
+
+#[test]
+fn v2_assertions_that_coalesce_during_copy_keep_both_paths() {
+    let fc = crate::compile::algebra::p256::P256Field::new();
+    let fr = crate::runtime::algebra::p256::P256Field::new();
+    let (raw, geometry, symbols) = compile_v2(&fc, |logic| {
+        let sum = logic.add(&logic.input(1), &logic.input(2));
+        let plain = logic.assert0("plain", &sum);
+        let precious = logic.assert0("precious", &logic.precious(&sum));
+        (logic.assert_all("root", &[plain, precious]), 1)
+    });
+    assert_eq!(geometry.nassertions, 1);
+    let circuit = segment_circuit_v2(&fc, raw);
+    let one = fr
+        .bytes_to_element(&fc.to_bytes(&fc.u64_to_element(1)))
+        .unwrap();
+    let mut failures = eval_circuit_fc(&fc, &fr, &circuit, &symbols, &[one; 2])
+        .unwrap()
+        .failed_paths();
+    failures.sort_unstable();
+    assert_eq!(failures, ["root/plain", "root/precious"]);
+}
+
+#[test]
+fn v2_assertion_only_product_uses_one_layer() {
+    let field = crate::compile::algebra::p256::P256Field::new();
+    let (raw, geometry, _) = compile_v2(&field, |logic| {
+        let product = logic.mul(&logic.input(1), &logic.input(2));
+        (logic.assert0("product", &product), 1)
+    });
+    assert_eq!(geometry.nlayers, 1);
+    assert_eq!(raw.layers[0].quadratic.num_terms(), 1);
 }
 
 #[test]

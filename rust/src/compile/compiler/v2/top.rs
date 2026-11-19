@@ -56,7 +56,7 @@ fn lower<F, Build>(
     f: &F,
     build: Build,
 ) -> (
-    super::terms::CircuitGraph<F>,
+    Vec<super::terms::Node<F>>,
     Vec<(usize, AssertionId)>,
     usize,
     usize,
@@ -90,10 +90,10 @@ where
                     .expect("circuit has no inputs");
                 (simplified, npublic_input, declared_inputs)
             };
-            let copied = super::copy::rewrite(&copy_arena, f, simplified);
+            let copied = super::copy::rewrite(&copy_arena, f, simplified, &source_tracker);
             (copied, npublic_input, declared_inputs)
         };
-        let (quad_circuit, quad_asserts) = super::ir_to_terms::rewrite(f, copied, &source_tracker);
+        let (quad_circuit, quad_asserts) = super::ir_to_terms::rewrite(f, copied);
         (quad_circuit, quad_asserts, npublic_input, declared_inputs)
     };
 

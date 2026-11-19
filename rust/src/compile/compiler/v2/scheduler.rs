@@ -14,13 +14,16 @@
 
 //! Longfellow v2 wire scheduling and circuit encoding.
 
-use super::terms::{CircuitGraph, Node, Term as NativeTerm};
+use super::terms::{Node, Term as NativeTerm};
 use crate::{
     compile::{
         algebra::CompileField,
-        compiler::scheduling::{
-            extract_debug_symbols, validate_and_count_inputs, RenamedNode, RenamedTerm, WireId,
-            INVALID_WIRE_ID,
+        compiler::{
+            graph::{Graph, Node as GraphNode},
+            scheduling::{
+                extract_debug_symbols, validate_and_count_inputs, RenamedNode, RenamedTerm, WireId,
+                INVALID_WIRE_ID,
+            },
         },
         debug::CircuitDebugSymbols,
         logic::{AssertionId, AssertionScope},
@@ -35,8 +38,10 @@ use crate::{
     util::ceil_log2,
 };
 
+type ScheduledNode<F> = GraphNode<NativeTerm<F>>;
+
 // Assert that all nodes in the circuit are needed
-fn assert_all_needed<F: CompileField>(f: &F, nodes: &[Node<F>]) {
+fn assert_all_needed<F: CompileField>(nodes: &[Node<F>]) {
     let mut needed = vec![false; nodes.len()];
     for i in (0..nodes.len()).rev() {
         match &nodes[i] {
@@ -47,10 +52,12 @@ fn assert_all_needed<F: CompileField>(f: &F, nodes: &[Node<F>]) {
                 needed[i] = true;
                 needed[*w] = true;
             }
+            Node::Assert0q([left, right]) => {
+                needed[i] = true;
+                needed[*left] = true;
+                needed[*right] = true;
+            }
             Node::Sum(terms) => {
-                if terms.len() == 1 && f.is_zero(terms[0].coefficient()) {
-                    needed[i] = true;
-                }
                 assert!(needed[i]);
                 for term in terms {
                     for &wire in term.inputs() {
@@ -67,6 +74,7 @@ fn depth_of_node<F: CompileField>(depth: &[usize], node: &Node<F>) -> usize {
     match node {
         Node::Input { .. } => 0,
         Node::Assert0(w) => depth[*w],
+        Node::Assert0q([left, right]) => 1 + depth[*left].max(depth[*right]),
         Node::Sum(terms) => {
             assert!(!terms.is_empty(), "empty quad in circuit!");
             terms
@@ -82,12 +90,16 @@ fn assert_layering<F: CompileField>(f: &F, depth: &[usize], i: usize, node: &Nod
     match node {
         Node::Input { .. } => assert_eq!(depth[i], 0),
         Node::Assert0(w) => assert_eq!(depth[i], depth[*w]),
+        Node::Assert0q([left, right]) => {
+            assert_eq!(depth[i], depth[*left] + 1);
+            assert_eq!(depth[i], depth[*right] + 1);
+        }
         Node::Sum(terms) => {
             assert!(!terms.is_empty(), "empty quad in circuit!");
             for term in terms {
                 assert!(
-                    !f.is_zero(term.coefficient()) || terms.len() == 1,
-                    "zero coefficient outside assertion"
+                    !f.is_zero(term.coefficient()),
+                    "zero coefficient in a value-producing term"
                 );
                 for &wire in term.inputs() {
                     assert_eq!(depth[i], depth[wire] + 1);
@@ -97,27 +109,42 @@ fn assert_layering<F: CompileField>(f: &F, depth: &[usize], i: usize, node: &Nod
     }
 }
 
-// Materialize all in-circuit assertions into quad nodes. Assertions
-// in the last layer become outputs and are not instantiated.
+// Encode assertions using reserved zero coefficients. Linear checks on
+// final-layer wires reuse those wires as outputs.
 fn materialize_assertions<F: CompileField>(
     f: &F,
-    nodes: &mut [Node<F>],
+    nodes: Vec<Node<F>>,
     depth: &mut [usize],
     max_depth: usize,
-) {
-    for i in 0..nodes.len() {
-        if let Node::Assert0(w) = nodes[i] {
-            if depth[i] < max_depth {
-                nodes[i] = Node::Sum(vec![NativeTerm::Linear(f.zero(), w)]);
+) -> Graph<NativeTerm<F>> {
+    let scheduled_nodes = nodes
+        .into_iter()
+        .enumerate()
+        .map(|(i, node)| match node {
+            Node::Input {
+                position_in_input_array,
+            } => GraphNode::Input {
+                position_in_input_array,
+            },
+            Node::Sum(terms) => GraphNode::Sum(terms),
+            Node::Assert0(wire) if depth[i] < max_depth => {
                 depth[i] += 1;
+                GraphNode::Sum(vec![NativeTerm::Linear(f.zero(), wire)])
             }
-        }
+            Node::Assert0(wire) => GraphNode::Assert0(wire),
+            Node::Assert0q(operands) => {
+                GraphNode::Sum(vec![NativeTerm::Quadratic(f.zero(), operands)])
+            }
+        })
+        .collect();
+    Graph {
+        nodes: scheduled_nodes,
     }
 }
 
 fn assign_wire_ids<F: CompileField + SerializableField>(
     f: &F,
-    nodes: &[Node<F>],
+    nodes: &[ScheduledNode<F>],
     nodes_by_depth: &[Vec<usize>],
     max_depth: usize,
 ) -> Vec<WireId> {
@@ -126,7 +153,7 @@ fn assign_wire_ids<F: CompileField + SerializableField>(
     // Depth 0: Inputs
     if !nodes_by_depth.is_empty() {
         for &i in &nodes_by_depth[0] {
-            if let Node::Input {
+            if let GraphNode::Input {
                 position_in_input_array,
             } = &nodes[i]
             {
@@ -141,7 +168,7 @@ fn assign_wire_ids<F: CompileField + SerializableField>(
     for nodes_at_d in nodes_by_depth.iter().take(max_depth + 1).skip(1) {
         let mut layer_nodes = Vec::new();
         for &i in nodes_at_d {
-            if let Node::Sum(terms) = &nodes[i] {
+            if let GraphNode::Sum(terms) = &nodes[i] {
                 layer_nodes.push((i, terms));
             }
         }
@@ -202,7 +229,7 @@ struct ScheduledTerm<F: CompileField> {
 }
 
 fn collect_terms<F: CompileField + SerializableField>(
-    nodes: &[Node<F>],
+    nodes: &[ScheduledNode<F>],
     nodes_by_depth: &[Vec<usize>],
     max_depth: usize,
     ids: &[WireId],
@@ -220,7 +247,7 @@ fn collect_terms<F: CompileField + SerializableField>(
         let level = d - 1;
         let mut layer_nodes = Vec::new();
         for &i in nodes_at_d {
-            if let Node::Sum(terms) = &nodes[i] {
+            if let GraphNode::Sum(terms) = &nodes[i] {
                 layer_nodes.push((i, terms));
             }
         }
@@ -276,7 +303,7 @@ fn check_connectivity<F: CompileField + SerializableField>(
     }
 }
 
-fn compute_node_depths<F: CompileField>(f: &F, nodes: &mut [Node<F>]) -> (Vec<usize>, usize) {
+fn compute_node_depths<F: CompileField>(f: &F, nodes: &[Node<F>]) -> (Vec<usize>, usize) {
     let mut depth = vec![0; nodes.len()];
     for i in 0..nodes.len() {
         depth[i] = depth_of_node(&depth, &nodes[i]);
@@ -297,7 +324,6 @@ fn compute_node_depths<F: CompileField>(f: &F, nodes: &mut [Node<F>]) -> (Vec<us
     } else {
         raw_max_depth
     };
-    materialize_assertions(f, nodes, &mut depth, max_depth);
     (depth, max_depth)
 }
 
@@ -312,7 +338,7 @@ struct Scheduled<F: CompileField> {
 
 fn schedule_graph<F: CompileField + SerializableField>(
     f: &F,
-    c: CircuitGraph<F>,
+    nodes: Vec<Node<F>>,
     quad_asserts: &[(usize, AssertionId)],
     npublic_input: usize,
     tracker: AssertionScope,
@@ -320,32 +346,37 @@ fn schedule_graph<F: CompileField + SerializableField>(
     let npublic_input = npublic_input
         .checked_sub(1)
         .expect("source public-input boundary must be at least 1");
-    let mut nodes = c.nodes;
     let nassertions = nodes
         .iter()
-        .filter(|node| {
-            matches!(node, Node::Assert0(_))
-                || matches!(node,Node::Sum(t) if t.len()==1 && f.is_zero(t[0].coefficient()))
-        })
+        .filter(|node| matches!(node, Node::Assert0(_) | Node::Assert0q(_)))
         .count();
     assert_eq!(
         quad_asserts.len(),
         nassertions,
         "debug assertion records do not cover all circuit assertions"
     );
-    assert_all_needed(f, &nodes);
+    assert_all_needed(&nodes);
 
-    let (depth, max_depth) = compute_node_depths(f, &mut nodes);
+    let (mut depth, max_depth) = compute_node_depths(f, &nodes);
+    let Graph {
+        nodes: scheduled_nodes,
+    } = materialize_assertions(f, nodes, &mut depth, max_depth);
 
     let mut nodes_by_depth = vec![Vec::new(); max_depth + 1];
     for (i, &d) in depth.iter().enumerate() {
         nodes_by_depth[d].push(i);
     }
 
-    let wire_ids = assign_wire_ids(f, &nodes, &nodes_by_depth, max_depth);
+    let wire_ids = assign_wire_ids(f, &scheduled_nodes, &nodes_by_depth, max_depth);
 
-    let symbols =
-        extract_debug_symbols(&nodes, quad_asserts, &wire_ids, &depth, max_depth, tracker);
+    let symbols = extract_debug_symbols(
+        &scheduled_nodes,
+        quad_asserts,
+        &wire_ids,
+        &depth,
+        max_depth,
+        tracker,
+    );
     assert_eq!(
         symbols.assertion_count(),
         nassertions,
@@ -353,9 +384,9 @@ fn schedule_graph<F: CompileField + SerializableField>(
     );
 
     let (terms_in_layer, nwires_in_layer) =
-        collect_terms(&nodes, &nodes_by_depth, max_depth, &wire_ids);
+        collect_terms(&scheduled_nodes, &nodes_by_depth, max_depth, &wire_ids);
 
-    let ninput = validate_and_count_inputs(&nodes);
+    let ninput = validate_and_count_inputs(&scheduled_nodes);
     assert!(
         npublic_input <= ninput,
         "npublic_input ({npublic_input}) exceeds ninput ({ninput})"
@@ -387,12 +418,12 @@ fn schedule_graph<F: CompileField + SerializableField>(
 
 pub(super) fn schedule<F: CompileField>(
     f: &F,
-    c: CircuitGraph<F>,
+    nodes: Vec<Node<F>>,
     assertions: &[(usize, AssertionId)],
     npublic_input: usize,
     tracker: AssertionScope,
 ) -> (RawCircuit<F>, CircuitGeometry, CircuitDebugSymbols) {
-    let graph = schedule_graph(f, c, assertions, npublic_input, tracker);
+    let graph = schedule_graph(f, nodes, assertions, npublic_input, tracker);
     let layers = v2_layers(
         f,
         graph.terms,

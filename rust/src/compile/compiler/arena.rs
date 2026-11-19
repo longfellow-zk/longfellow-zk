@@ -153,12 +153,29 @@ impl<'a, F: CompileField> CompilerArena<'a, F> {
     }
 }
 
-/// Recursively walks the expression/assertion tree from input arena ('a) to target arena ('b).
+/// Rewrite the assertion roots, retaining the first root for each expression ID.
 pub(super) fn walk<'a, 'b, F: CompileField, NEXT: RewriteT<'b, F>>(
     arena: &'b CompilerArena<'b, F>,
     assertions: Assertions<'a, F>,
     rewriter: &NEXT,
 ) -> Assertions<'b, F> {
+    let mut seen = rustc_hash::FxHashSet::default();
+    let mut roots = Vec::new();
+    walk_roots(arena, assertions, rewriter, |item| {
+        if seen.insert(item.expr.id) {
+            roots.push(item);
+        }
+    });
+    arena.alloc_slice(&roots)
+}
+
+/// Rewrite the expression DAG and emit each normalized root with its diagnostic ID.
+pub(super) fn walk_roots<'a, 'b, F: CompileField, NEXT: RewriteT<'b, F>>(
+    arena: &'b CompilerArena<'b, F>,
+    assertions: Assertions<'a, F>,
+    rewriter: &NEXT,
+    mut emit: impl FnMut(AssertionItem<'b, F>),
+) {
     fn children<F: CompileField>(node: ExprNode<'_, F>) -> Vec<ExprNode<'_, F>> {
         match &node.v {
             Expr::Input(_) | Expr::One | Expr::Constant(_) => Vec::new(),
@@ -241,18 +258,12 @@ pub(super) fn walk<'a, 'b, F: CompileField, NEXT: RewriteT<'b, F>>(
 
     // Normalize retained roots just like nested assertions: stripping attached
     // assertions can turn a root into zero or a scalar multiple of another root.
-    let mut seen = rustc_hash::FxHashSet::default();
-    let mut walked_list = Vec::new();
     for item in assertions.iter() {
         let walked = cache[item.expr.id].unwrap();
         for &expr in rewriter.assert0(&walked) {
-            if seen.insert(expr.id) {
-                walked_list.push(AssertionItem { expr, id: item.id });
-            }
+            emit(AssertionItem { expr, id: item.id });
         }
     }
-
-    arena.alloc_slice(&walked_list)
 }
 
 #[cfg(test)]

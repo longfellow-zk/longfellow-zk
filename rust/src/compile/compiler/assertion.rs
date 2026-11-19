@@ -23,9 +23,9 @@ use crate::compile::{
     logic::AssertionScope,
 };
 
-fn dedup_assertions<'a, F: CompileField>(
+pub(super) fn dedup_assertions<'a, F: CompileField>(
     arena: &'a CompilerArena<'a, F>,
-    assertions: &[AssertionItem<'a, F>],
+    assertions: impl IntoIterator<Item = AssertionItem<'a, F>>,
     tracker: &AssertionScope,
 ) -> Assertions<'a, F> {
     // Keep the first occurrence of each expression, in input order. The map
@@ -38,7 +38,7 @@ fn dedup_assertions<'a, F: CompileField>(
             tracker.union(existing, item.id);
         } else {
             first.insert(item.expr.id, item.id);
-            unique.push(*item);
+            unique.push(item);
         }
     }
     arena.alloc_slice(&unique)
@@ -135,14 +135,14 @@ fn strip_all<'src, 'dst, F: CompileField>(
     let new_sub_exprs = rewriter.collected.replace(Vec::new());
 
     if new_sub_exprs.is_empty() {
-        return dedup_assertions(arena, stripped_slice, tracker);
+        return dedup_assertions(arena, stripped_slice.iter().copied(), tracker);
     }
 
     let mut current_items = stripped_slice.to_vec();
     current_items.extend(new_sub_exprs);
 
     loop {
-        let unique_items = dedup_assertions(arena, &current_items, tracker);
+        let unique_items = dedup_assertions(arena, current_items.iter().copied(), tracker);
         let next_stripped = walk(arena, unique_items, &rewriter);
         let next_sub_exprs = rewriter.collected.replace(Vec::new());
 
@@ -156,7 +156,7 @@ fn strip_all<'src, 'dst, F: CompileField>(
         current_items = next_items;
     }
 
-    dedup_assertions(arena, &current_items, tracker)
+    dedup_assertions(arena, current_items, tracker)
 }
 
 /// Rewrite function performing algebraic simplification with CSE after
@@ -172,5 +172,5 @@ pub fn rewrite<'src, 'dst, F: CompileField>(
     let cse = Cse::new(arena);
     let algebraic = AlgebraicRewriter::with_bilinear_expansion(f, cse, expand_bilinear);
     let rewritten = walk(arena, stripped, &algebraic);
-    dedup_assertions(arena, rewritten, tracker)
+    dedup_assertions(arena, rewritten.iter().copied(), tracker)
 }
