@@ -682,6 +682,7 @@ provides:
 | `check-profiles` | Check parameter budgets with exact arithmetic, optionally using Lean |
 | `certify-hahn` | Check Hahn packing certificates with Lean |
 | `tune-polygero` | Pick the catalog profile with the smallest estimated proof for a witness count and field width |
+| `tune-next-proof` | Write a smaller-proof development NEXT bundle at rate 1/7 and 84 openings |
 | `generate-v2-specs` | Compile NEXT and print candidate specifications for review |
 
 Formal checking reads proof sources from the selected formal project,
@@ -701,6 +702,14 @@ threads, a 4,096 MiB limit and a 60-second deadline per file.
 
 Select that profile for the Lean cross-check with
 `check-profiles --protocol polygero --check-lean ../formal --profile 349,12,2443,84`.
+
+`tune-next-proof --bundle INPUT --output OUTPUT` compares the installed
+profile with `(347, 12, 2429, 84)` for the circuit in `INPUT`. It verifies the
+candidate's Hahn bounds and checks that each joint charge stays within the
+installed budget. It writes a new development bundle only when the expected
+serialized proof is smaller, accounting for the actual unpadded Merkle tree.
+The output uses the same circuit bytes and ID. The default profile and the
+concrete Lean verification model use the installed geometry.
 
 Parameter certificates establish mathematical bounds under their stated
 assumptions; they do not certify the complete Rust implementation.

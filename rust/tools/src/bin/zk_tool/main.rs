@@ -18,6 +18,7 @@ mod cli;
 mod exact;
 mod generate;
 mod lean;
+mod next_size;
 mod profiles;
 use cli::{require, root, Args, Result};
 
@@ -25,7 +26,7 @@ fn run() -> Result<()> {
     let (command, args) = Args::parse()?;
     match command.as_str() {
         "help" => {
-            println!("zk_tool commands:\n  check-profiles --protocol polygero [--check-lean PROJECT] [--profile k,s,n,t]\n  certify-hahn --formal PROJECT\n  tune-polygero --witnesses N --field-bytes B [--rate 4|7] [--max-n N]\n  generate-v2-specs (requires compiler,mdoc features)");
+            println!("zk_tool commands:\n  check-profiles --protocol polygero [--check-lean PROJECT] [--profile k,s,n,t]\n  certify-hahn --formal PROJECT\n  tune-polygero --witnesses N --field-bytes B [--rate 4|7] [--max-n N]\n  tune-next-proof --bundle FILE --output FILE\n  generate-v2-specs (requires compiler,mdoc features)");
             Ok(())
         }
         "check-profiles" => {
@@ -84,6 +85,13 @@ fn run() -> Result<()> {
         "generate-v2-specs" => {
             args.validate(&[])?;
             generate::run()
+        }
+        "tune-next-proof" => {
+            args.validate(&["--bundle", "--output"])?;
+            next_size::run(
+                &args.required_path("--bundle")?,
+                &args.required_path("--output")?,
+            )
         }
         _ => Err(format!("unknown command {command}").into()),
     }

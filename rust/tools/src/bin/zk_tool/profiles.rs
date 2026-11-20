@@ -265,20 +265,42 @@ pub(crate) fn joint_manifest() -> Result<Value> {
 /// opening contract. `--check-lean` additionally binds these caps to Lean's
 /// production certificate; `certify-hahn` checks its three Hahn proofs.
 pub(crate) fn check_joint(row: &Value) -> Result<PolygeroConfig> {
+    Ok(checked_joint(row)?.0)
+}
+
+fn checked_joint(row: &Value) -> Result<(PolygeroConfig, JointCharges)> {
     require(
         row["name"] == "MdocJoint" && row["certificate"] == "MdocJointProfile.profile",
         "unexpected production mdoc certificate reference",
     )?;
+    let (p, charges) = joint_charges(row)?;
+    require(
+        p == MDOC_JOINT_PROFILE,
+        "joint mdoc geometry differs from production",
+    )?;
+    let ordinary = Q::new(2.into(), pow2(128) - 1);
+    require(charges.opening <= ordinary, "joint opening budget failed")?;
+    require(charges.parent < ordinary, "joint parent budget failed")?;
+    require(
+        charges.fingerprint <= ordinary,
+        "joint fingerprint budget failed",
+    )?;
+    Ok((p, charges))
+}
+
+struct JointCharges {
+    opening: Q,
+    parent: Q,
+    fingerprint: Q,
+}
+
+fn joint_charges(row: &Value) -> Result<(PolygeroConfig, JointCharges)> {
     let p = PolygeroConfig {
         k: small(row, "k")?,
         s: small(row, "s")?,
         n: small(row, "n")?,
         t: small(row, "t")?,
     };
-    require(
-        p == MDOC_JOINT_PROFILE,
-        "joint mdoc geometry differs from production",
-    )?;
     let active = small(row, "active_cutoff")?;
     let binary = small(row, "binary_cutoff")?;
     let prime = small(row, "prime_cutoff")?;
@@ -288,7 +310,14 @@ pub(crate) fn check_joint(row: &Value) -> Result<PolygeroConfig> {
     let q = pow2(128);
     let prime_order = pow2(256) - pow2(224) + pow2(192) + pow2(96) - 1;
     require(
-        p.k > 2 * p.t && p.s > 0 && p.t > 0 && p.n == 7 * p.k,
+        p.n <= 1 << 28
+            && p.s <= p.n
+            && p.k <= p.n
+            && p.t <= p.n
+            && p.k > 2 * p.t
+            && p.s > 0
+            && p.t > 0
+            && p.n == 7 * p.k,
         "invalid joint mdoc profile",
     )?;
     require(
@@ -307,7 +336,6 @@ pub(crate) fn check_joint(row: &Value) -> Result<PolygeroConfig> {
         "invalid joint list caps",
     )?;
     let tail = |columns| Q::new(choose(columns, p.t), choose(p.n, p.t));
-    let ordinary = Q::new(2.into(), &q - 1);
     require(
         Q::new(active_list.clone(), 2.into()).mul(&tail(p.k + 2 * p.s - 1)) <= tail(active - 1),
         "joint active threshold condition failed",
@@ -315,7 +343,6 @@ pub(crate) fn check_joint(row: &Value) -> Result<PolygeroConfig> {
     let opening = tail(active - 1)
         .add(&tail(binary + p.s - 1))
         .add(&tail(prime + p.s - 1));
-    require(opening <= ordinary, "joint opening budget failed")?;
     let rows = choose(p.n, p.k + 2 * p.s + 1);
     let rank = |field: &BigInt| Q::new(rows.clone(), field.pow((p.s + 1) as u32));
     let mass = Q::int(1).add(&Q::int(&active_list - 1).mul(&tail(active - 1)));
@@ -324,7 +351,6 @@ pub(crate) fn check_joint(row: &Value) -> Result<PolygeroConfig> {
             .add(&Q::new(1.into(), prime_order.clone()))
             .mul(&mass),
     );
-    require(parent < ordinary, "joint parent budget failed")?;
     let fingerprint = Q::new(
         &binary_list * (&binary_list - 1),
         BigInt::from(2) * q.pow(2),
@@ -333,7 +359,57 @@ pub(crate) fn check_joint(row: &Value) -> Result<PolygeroConfig> {
         &prime_list * (&prime_list - 1),
         BigInt::from(2) * prime_order.pow(2),
     ));
-    require(fingerprint <= ordinary, "joint fingerprint budget failed")?;
+    Ok((
+        p,
+        JointCharges {
+            opening,
+            parent,
+            fingerprint,
+        },
+    ))
+}
+
+/// Check the exact Hahn certificates and compare each joint charge against
+/// the installed profile. This check covers an offline candidate only.
+pub(crate) fn next_size_profile() -> Result<PolygeroConfig> {
+    let record: Value = serde_json::from_str(include_str!("parameters/hahn/next_size.json"))?;
+    let (p, candidate) = joint_charges(&record)?;
+    let manifest: Value = serde_json::from_str(include_str!("parameters/hahn/profiles.json"))?;
+    let (_, baseline) = checked_joint(&manifest["mdoc_joint"])?;
+    require(
+        p.t == MDOC_JOINT_PROFILE.t,
+        "candidate opening count changed",
+    )?;
+    require(
+        p.n <= MDOC_JOINT_PROFILE.n,
+        "candidate column count increased",
+    )?;
+    require(
+        candidate.opening <= baseline.opening,
+        "candidate opening budget increased",
+    )?;
+    require(
+        candidate.parent <= baseline.parent,
+        "candidate parent budget increased",
+    )?;
+    require(
+        candidate.fingerprint <= baseline.fingerprint,
+        "candidate fingerprint budget increased",
+    )?;
+    for (name, overlap) in [
+        ("active", p.k + 2 * p.s - 1),
+        ("binary", p.k - 1),
+        ("prime", p.k - 1),
+    ] {
+        let cutoff = small(&record, &format!("{name}_cutoff"))?;
+        let cap = integer(&record[format!("{name}_list")])?;
+        require(
+            overlap < cutoff && cutoff <= p.n / 2,
+            "invalid candidate Hahn geometry",
+        )?;
+        verify_polynomial(&record[name], p.n, cutoff, overlap, &cap)
+            .map_err(|error| format!("{name} Hahn certificate: {error}"))?;
+    }
     Ok(p)
 }
 pub(crate) fn catalog(protocol: Protocol) -> Vec<PolygeroConfig> {
