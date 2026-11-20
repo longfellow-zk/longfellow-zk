@@ -1250,7 +1250,7 @@ fn next_circuit_hashes() {
     assert_eq!(provided.spec().num_attributes, NEXT_ATTRIBUTES);
     assert_eq!(
         hex::encode(provided.spec().combined_hash),
-        "a85d9c6141bf765cff931d4b5613ba58cf9ddd3f1392fe1a2ee3445f8476eae0"
+        "4761b330cfd7f07c9d82af84bd77e9dd347818f39e34770b1f0ef8d74c874842"
     );
     let bytes = zstd::decode_all(provided.compressed()).unwrap();
     let archive = CircuitArchive::from_bytes(&bytes).unwrap();
@@ -1297,7 +1297,7 @@ fn next_measured_round_counts() {
         &mut DeterministicRng::new(42),
     )
     .unwrap();
-    assert_eq!(proof.round_count_for_test(), 463);
+    assert_eq!(proof.round_count_for_test(), 447);
     let verified = run_mdoc_verifier(
         provided.spec(),
         provided.compressed(),
@@ -1310,7 +1310,7 @@ fn next_measured_round_counts() {
         proof.as_bytes(),
     )
     .unwrap();
-    assert_eq!(verified.round_count_for_test(), 463);
+    assert_eq!(verified.round_count_for_test(), 447);
     check_mdoc_trace(&provided, &proof);
     // Prover and verifier run one schedule (transcript I9).
     assert_eq!(proof.trace, verified.trace);
@@ -1404,7 +1404,7 @@ fn check_mdoc_trace(
     ));
     assert_eq!(
         hex::encode(<sha2::Sha256 as sha2::Digest>::digest(node)),
-        "78019c41e60d6c3ae22287d8f8cc926d17e2acfc74a3a437d44b903c9eb2ff82"
+        "cb113678daae2832f50b578e9fe0480546c1e708a1c3a1a6361a4336d1111b69"
     );
 }
 

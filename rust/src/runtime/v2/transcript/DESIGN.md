@@ -293,7 +293,7 @@ draws after it read further from the node that precedes it; a zero-layer
 frontend of packing degree above one still sends its packing messages.
 Pure-foreign storage (no native cells) adds its row weights, drawn by the
 pure split step at the frontend's last boundary, before the conversion pair.
-The NEXT mdoc circuit has `394 + 2*31 + 7 = 463` boundaries.
+The NEXT mdoc circuit has `380 + 2*30 + 7 = 447` boundaries.
 The boundary count enters the soundness bound only as r/2^256.
 
 ### Draw kinds

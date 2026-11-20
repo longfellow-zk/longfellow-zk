@@ -16,16 +16,17 @@ use super::shape::Derived;
 use crate::{
     circuits::{
         analog_adder::AnalogAdder,
+        arithmetic::Arithmetic,
         bitvec::{Bitvec, BitvecLogic, V256, V32, V8},
         boolean::{Bitw, Boolean},
         memcmp::Memcmp,
         routing::Routing,
-        sha256msg::Sha256Msg,
+        sha256msg::{pack_digest, Sha256Msg},
     },
-    compile::logic::{Logic, LogicIO},
+    compile::logic::{Eltw, Logic, LogicIO},
     mdoc::{
         circuits::{
-            mso_attribute::{AttrSlice, AttributeVerifier, FieldLocator},
+            mso_attribute::{AttrSlice, AttributeVerifier, FieldLocator, PackedRead},
             MdocHashCompileField,
         },
         proto::{
@@ -33,8 +34,7 @@ use crate::{
                 K_COSE1_PREFIX, K_COSE1_PREFIX_LEN, K_DEVICE_KEY_INFO_CHECK_CBOR,
                 K_DOCTYPE_HEADER_CHECK_CBOR, K_DOC_TYPE_BYTES, K_HASH_INDEX_BITS, K_MAX_SHA_BLOCKS,
                 K_MSO_OFFSET, K_MSO_PREIMAGE_LEN, K_NAMESPACE_BYTES, K_TAG32,
-                K_VALID_FROM_CHECK_CBOR, K_VALID_FROM_LEN, K_VALID_UNTIL_CHECK_CBOR,
-                K_VALID_UNTIL_LEN, K_VALUE_DIGESTS_CHECK_CBOR,
+                K_VALID_FROM_CHECK_CBOR, K_VALID_UNTIL_CHECK_CBOR, K_VALUE_DIGESTS_CHECK_CBOR,
             },
             mso_attribute::constants::{K_ATTR_INDEX_BITS, K_ATTR_PREIMAGE_LEN},
         },
@@ -42,6 +42,8 @@ use crate::{
 };
 
 pub(super) type HashIndex<L> = Bitvec<L, K_HASH_INDEX_BITS>;
+
+const MSO_SHIFT_GROUPS: [usize; 4] = [4, 3, 3, 2];
 
 #[derive(Clone)]
 pub struct HashBytes<L: Logic, const N: usize> {
@@ -93,6 +95,7 @@ where L::F: MdocHashCompileField
     pub(in crate::mdoc::circuits) routing: Routing<'a, L>,
     pub(in crate::mdoc::circuits) boolean: Boolean<'a, L>,
     pub(in crate::mdoc::circuits) bv: BitvecLogic<'a, L>,
+    pub(in crate::mdoc::circuits) arith: Arithmetic<'a, L>,
     pub(in crate::mdoc::circuits) cmp_helper: Memcmp<'a, L>,
     pub(in crate::mdoc::circuits) attribute_verifier: AttributeVerifier<'a, L>,
 }
@@ -107,6 +110,7 @@ where L::F: MdocHashCompileField
             routing: Routing::new(logic),
             boolean: Boolean::new(logic),
             bv: BitvecLogic::new(logic),
+            arith: Arithmetic::new(logic),
             cmp_helper: Memcmp::new(logic),
             attribute_verifier: AttributeVerifier::new(logic),
         }
@@ -159,7 +163,7 @@ where L::F: MdocHashCompileField
             padded_preimage: preimage.to_vec(),
             nblocks: nblocks_ext,
             length_bytes: preimage_len_64,
-            expected_hash: given.issuer_sig_e.clone(),
+            expected_hash: pack_digest(self.logic, &given.issuer_sig_e),
         };
 
         self.shamsg_mso
@@ -221,20 +225,26 @@ where L::F: MdocHashCompileField
         prefix: &[u8],
         preimage: &[V8<L>],
     ) -> [L::Assertions; 5] {
-        let zz = self.bv.zero::<8>();
         // Lookahead covers both supported text headers. Only the bytes consumed
         // by the selected header and value must be inside the signed message.
-        let shifted = self
-            .routing
-            .shift_bitvec(7, offset, prefix.len() + N + 2, preimage, &zz);
+        let read = PackedRead::new(
+            self.logic,
+            &MSO_SHIFT_GROUPS,
+            offset,
+            prefix.len() + N + 2,
+            preimage,
+            1,
+        );
+        let w = read.w();
+        let header_check = self.arith.assert_units_eq_when(
+            "cbor_header",
+            enabled,
+            read.units(0..prefix.len()),
+            &read.const_units(prefix),
+            w,
+        );
 
-        let header_check = self.logic.assert_mapi("cbor_header", 0..prefix.len(), |i| {
-            let eq_bit = self.bv.eqb(&shifted[i], &self.bv.of_u8(prefix[i]));
-            let cond_eq = self.boolean.impliesb(enabled, &eq_bit);
-            self.boolean.assert_true("header_byte", &cond_eq)
-        });
-
-        let head_byte = &shifted[prefix.len()];
+        let head_byte = &read.bits(prefix.len());
         let is_two_byte_header = self.bv.eqb(head_byte, &self.bv.of_u8(0x78));
         let (short_length, _): (Bitvec<L, 5>, Bitvec<L, 3>) = self.bv.split(head_byte);
         let short_text = self.boolean.andb(
@@ -246,7 +256,7 @@ where L::F: MdocHashCompileField
             &is_two_byte_header,
             &self
                 .bv
-                .zext::<8, K_ATTR_INDEX_BITS>(&shifted[prefix.len() + 1]),
+                .zext::<8, K_ATTR_INDEX_BITS>(&read.bits(prefix.len() + 1)),
             &self.bv.zext::<5, K_ATTR_INDEX_BITS>(&short_length),
         );
         let matching_length = self.boolean.andb(
@@ -306,16 +316,20 @@ where L::F: MdocHashCompileField
             let in_bounds = self.bv.lt(&i_wire, &expected.len);
             let active = self.boolean.andb(enabled, &in_bounds);
 
-            let byte_if_1 = &shifted[prefix.len() + 1 + i];
-            let byte_if_2 = &shifted[prefix.len() + 2 + i];
-            let got = self
-                .bv
-                .select::<8>(&is_two_byte_header, byte_if_2, byte_if_1);
-
-            let want = &expected.data[i];
-            let eq_bit = self.bv.eqb(&got, want);
-            let cond_eq = self.boolean.impliesb(&active, &eq_bit);
-            self.boolean.assert_true("text_byte", &cond_eq)
+            let start = prefix.len() + 1 + i;
+            let two = self.boolean.as_eltw(&is_two_byte_header);
+            let got: Vec<_> = read
+                .units(start..start + 1)
+                .iter()
+                .zip(read.units(start + 1..start + 2))
+                .map(|(if_1, if_2)| {
+                    self.logic
+                        .add(if_1, &self.logic.mul(&two, &self.logic.sub(if_2, if_1)))
+                })
+                .collect();
+            let want = read.byte_units(std::slice::from_ref(&expected.data[i]));
+            self.arith
+                .assert_units_eq_when("text_byte", &active, &got, &want, w)
         });
 
         [
@@ -372,77 +386,58 @@ where L::F: MdocHashCompileField
     }
 
     fn assert_mso_validity(&self, given: &Given<L>, preimage: &[V8<L>]) -> L::Assertions {
-        let zz = self.bv.zero::<8>();
         // Well-formed 20-byte UTC dates sort by their digits. Separators have
         // no ordering meaning, and RFC 3339 permits both T/t and Z/z.
-        let digits = |timestamp: &[V8<L>]| K_TIMESTAMP_DIGITS.map(|i| timestamp[i].clone());
-
-        let (valid_from_shifted, from_assertions) = self.shift_preimage(
-            &given.valid_from_offset_in_preimage,
-            &given.preimage.len,
-            3,
-            K_VALID_FROM_LEN + K_TIMESTAMP_LEN,
-            preimage,
-            &zz,
-        );
-        let cmp_from = self.cmp_helper.leq(
-            &digits(&valid_from_shifted[K_VALID_FROM_LEN..K_VALID_FROM_LEN + K_TIMESTAMP_LEN]),
-            &given.now,
-        );
-
-        let (valid_until_shifted, until_assertions) = self.shift_preimage(
-            &given.valid_until_offset_in_preimage,
-            &given.preimage.len,
-            3,
-            K_VALID_UNTIL_LEN + K_TIMESTAMP_LEN,
-            preimage,
-            &zz,
-        );
-        let cmp_until = self.cmp_helper.leq(
-            &given.now,
-            &digits(&valid_until_shifted[K_VALID_UNTIL_LEN..K_VALID_UNTIL_LEN + K_TIMESTAMP_LEN]),
-        );
-
-        let from_assertion = self.logic.assert_all(
-            "valid_from",
+        let check = |name: &str, offset: &HashIndex<L>, key: &[u8], before: bool| {
+            let len = key.len() + K_TIMESTAMP_LEN;
+            let range = self.assert_preimage_range(
+                offset,
+                &given.preimage.len,
+                &self.bv.of_u64::<K_HASH_INDEX_BITS>(len as u64),
+            );
+            let read = PackedRead::new(self.logic, &MSO_SHIFT_GROUPS, offset, len, preimage, 1);
+            let digits = K_TIMESTAMP_DIGITS.map(|i| read.bits(key.len() + i));
+            let ordered = if before {
+                self.cmp_helper.leq(&digits, &given.now)
+            } else {
+                self.cmp_helper.leq(&given.now, &digits)
+            };
+            self.logic.assert_all(
+                name,
+                &[
+                    range,
+                    read.assert_bytes_at("assert_bytes_at", 0, key),
+                    self.boolean
+                        .assert_true(if before { "cmp_from" } else { "cmp_until" }, &ordered),
+                ],
+            )
+        };
+        self.logic.assert_all(
+            "assert_mso_validity",
             &[
-                from_assertions,
-                self.assert_bytes_at(
-                    K_VALID_FROM_LEN,
-                    &valid_from_shifted[0..K_VALID_FROM_LEN],
+                check(
+                    "valid_from",
+                    &given.valid_from_offset_in_preimage,
                     &K_VALID_FROM_CHECK_CBOR,
+                    true,
                 ),
-                self.boolean.assert_true("cmp_from", &cmp_from),
-            ],
-        );
-
-        let until_assertion = self.logic.assert_all(
-            "valid_until",
-            &[
-                until_assertions,
-                self.assert_bytes_at(
-                    K_VALID_UNTIL_LEN,
-                    &valid_until_shifted[0..K_VALID_UNTIL_LEN],
+                check(
+                    "valid_until",
+                    &given.valid_until_offset_in_preimage,
                     &K_VALID_UNTIL_CHECK_CBOR,
+                    false,
                 ),
-                self.boolean.assert_true("cmp_until", &cmp_until),
             ],
-        );
-
-        self.logic
-            .assert_all("assert_mso_validity", &[from_assertion, until_assertion])
+        )
     }
 
     fn assert_mso_device_key(&self, given: &Given<L>, preimage: &[V8<L>]) -> L::Assertions {
-        let zz = self.bv.zero::<8>();
-
-        let (dev_key_info_shifted, shift_assertions) = self.shift_preimage(
+        let info = K_DEVICE_KEY_INFO_CHECK_CBOR.len();
+        let (shifted, shift_assertions) = self.shift_preimage_packed(
             &given.dev_key_info_offset_in_preimage,
             &given.preimage.len,
-            4,
-            K_DEVICE_KEY_INFO_CHECK_CBOR.len() + 32 + 3 + 32,
+            info + 32 + 3 + 32,
             preimage,
-            &zz,
         );
         let dpky_check = [0x22, 0x58, 0x20];
 
@@ -450,51 +445,26 @@ where L::F: MdocHashCompileField
             "assert_mso_device_key",
             &[
                 shift_assertions,
-                self.assert_bytes_at(
-                    K_DEVICE_KEY_INFO_CHECK_CBOR.len(),
-                    &dev_key_info_shifted[0..K_DEVICE_KEY_INFO_CHECK_CBOR.len()],
-                    &K_DEVICE_KEY_INFO_CHECK_CBOR,
-                ),
-                self.assert_key(
-                    &given.device_pk.0,
-                    &dev_key_info_shifted[K_DEVICE_KEY_INFO_CHECK_CBOR.len()
-                        ..K_DEVICE_KEY_INFO_CHECK_CBOR.len() + 32],
-                ),
-                self.assert_bytes_at(
-                    3,
-                    &dev_key_info_shifted[K_DEVICE_KEY_INFO_CHECK_CBOR.len() + 32
-                        ..K_DEVICE_KEY_INFO_CHECK_CBOR.len() + 32 + 3],
-                    &dpky_check,
-                ),
-                self.assert_key(
-                    &given.device_pk.1,
-                    &dev_key_info_shifted[K_DEVICE_KEY_INFO_CHECK_CBOR.len() + 32 + 3
-                        ..K_DEVICE_KEY_INFO_CHECK_CBOR.len() + 32 + 3 + 32],
-                ),
+                self.assert_packed_at(&shifted[0..info], &K_DEVICE_KEY_INFO_CHECK_CBOR),
+                self.assert_key(&given.device_pk.0, &shifted[info..info + 32]),
+                self.assert_packed_at(&shifted[info + 32..info + 35], &dpky_check),
+                self.assert_key(&given.device_pk.1, &shifted[info + 35..info + 67]),
             ],
         )
     }
 
     fn assert_mso_value_digests(&self, given: &Given<L>, preimage: &[V8<L>]) -> L::Assertions {
-        let zz = self.bv.zero::<8>();
-
-        let (value_digests_shifted, shift_assertions) = self.shift_preimage(
+        let (shifted, shift_assertions) = self.shift_preimage_packed(
             &given.value_digests_offset_in_preimage,
             &given.preimage.len,
-            4,
             K_VALUE_DIGESTS_CHECK_CBOR.len(),
             preimage,
-            &zz,
         );
         self.logic.assert_all(
             "assert_mso_value_digests",
             &[
                 shift_assertions,
-                self.assert_bytes_at(
-                    K_VALUE_DIGESTS_CHECK_CBOR.len(),
-                    &value_digests_shifted[0..K_VALUE_DIGESTS_CHECK_CBOR.len()],
-                    &K_VALUE_DIGESTS_CHECK_CBOR,
-                ),
+                self.assert_packed_at(&shifted, &K_VALUE_DIGESTS_CHECK_CBOR),
             ],
         )
     }
@@ -505,8 +475,6 @@ where L::F: MdocHashCompileField
         derived: &Derived<V32<L>>,
         preimage: &[V8<L>],
     ) -> L::Assertions {
-        let zz = self.bv.zero::<8>();
-
         self.logic.assert_mapi(
             "assert_attributes",
             0..given.disclosed_attributes.len(),
@@ -516,26 +484,15 @@ where L::F: MdocHashCompileField
                 let disclosed = &given.disclosed_attributes[i];
                 let enabled = self.boolean.as_eltw(&disclosed.enabled);
 
-                let (mso_digest_shifted, shift_assertions) = self.shift_preimage(
+                let (mso_digest_shifted, shift_assertions) = self.shift_preimage_packed(
                     &attr_given.mso_digest_offset_in_preimage,
                     &given.preimage.len,
-                    3,
                     K_TAG32.len() + 32,
                     preimage,
-                    &zz,
                 );
-
-                let expected_digest = self.bv.from_fn::<256, _>(|j| {
-                    let byte_idx = K_TAG32.len() + (255 - j) / 8;
-                    let bit_idx = j % 8;
-                    mso_digest_shifted[byte_idx].as_array()[bit_idx].clone()
-                });
-
-                let tag32_header_assertion = self.assert_bytes_at(
-                    K_TAG32.len(),
-                    &mso_digest_shifted[0..K_TAG32.len()],
-                    &K_TAG32,
-                );
+                let (tag, digest) = mso_digest_shifted.split_at(K_TAG32.len());
+                let expected_digest = std::array::from_fn(|byte| digest[byte].clone());
+                let tag32_header_assertion = self.assert_packed_at(tag, &K_TAG32);
 
                 let verifier_given = crate::mdoc::circuits::mso_attribute::Given {
                     attribute_preimage: attr_given.preimage.clone(),
@@ -591,23 +548,28 @@ where L::F: MdocHashCompileField
         )
     }
 
-    fn shift_preimage(
+    /// Read a field that is only compared: the bytes are shifted as packed
+    /// field elements, one term per byte and selector, after checking that
+    /// the whole field lies inside the signed message.
+    fn shift_preimage_packed(
         &self,
         offset: &HashIndex<L>,
         preimage_length_bytes: &HashIndex<L>,
-        shift_base_bits: usize,
         len_bytes: usize,
         preimage: &[V8<L>],
-        zz: &V8<L>,
-    ) -> (Vec<V8<L>>, L::Assertions) {
+    ) -> (Vec<Eltw<L>>, L::Assertions) {
         let assertions = self.assert_preimage_range(
             offset,
             preimage_length_bytes,
             &self.bv.of_u64::<K_HASH_INDEX_BITS>(len_bytes as u64),
         );
-        let shifted = self
-            .routing
-            .shift_bitvec(shift_base_bits, offset, len_bytes, preimage, zz);
+        let packed: Vec<_> = preimage
+            .iter()
+            .map(|byte| self.arith.pack_byte(byte.as_array()))
+            .collect();
+        let shifted =
+            self.routing
+                .shift_eltw_grouped(&MSO_SHIFT_GROUPS, offset, len_bytes, &packed);
         (shifted, assertions)
     }
 
@@ -661,13 +623,18 @@ where L::F: MdocHashCompileField
         })
     }
 
-    fn assert_key(&self, key: &V256<L>, buf_be: &[V8<L>]) -> L::Assertions {
-        let m_bits = self.bv.from_fn::<256, _>(|i| {
-            let byte_idx = 31 - (i / 8);
-            let bit_idx = i % 8;
-            buf_be[byte_idx].as_array()[bit_idx].clone()
-        });
+    fn assert_key(&self, key: &V256<L>, buf_be: &[Eltw<L>]) -> L::Assertions {
+        let bytes_le: Vec<_> = buf_be.iter().rev().cloned().collect();
+        self.arith
+            .assert_eq_packed_bytes("key_eq", key.as_array(), &bytes_le)
+    }
 
-        self.bv.assert_eq("key_eq", &m_bits, key)
+    fn assert_packed_at(&self, buf: &[Eltw<L>], want: &[u8]) -> L::Assertions {
+        let packed: Vec<_> = want
+            .iter()
+            .map(|&byte| self.arith.pack_byte(self.bv.of_u8(byte).as_array()))
+            .collect();
+        self.arith
+            .assert_packed_bytes_eq("assert_bytes_at", buf, &packed)
     }
 }

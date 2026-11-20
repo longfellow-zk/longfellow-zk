@@ -14,6 +14,7 @@
 
 mod circuit;
 
+pub(in crate::mdoc::circuits) use circuit::PackedRead;
 pub use circuit::{
     AttrIndex, AttrSlice, AttributeVerifier, Derived, DisclosedAttribute, FieldLocator, Given,
     Slice,

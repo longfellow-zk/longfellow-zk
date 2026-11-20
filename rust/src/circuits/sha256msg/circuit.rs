@@ -16,18 +16,29 @@ use super::shape::Derived;
 use crate::{
     circuits::{
         analog_adder::FieldWrappingSum,
+        arithmetic::Arithmetic,
         bitvec::{Bitvec, BitvecLogic, V256, V32, V64, V8},
-        boolean::Boolean,
+        boolean::{Bitw, Boolean},
         sha256::{Derived as Sha256Derived, Sha256},
     },
-    compile::logic::Logic,
+    compile::logic::{Eltw, Logic},
 };
 
 pub struct Given<L: Logic, const S: usize> {
     pub padded_preimage: Vec<V8<L>>,
     pub nblocks: Bitvec<L, S>,
     pub length_bytes: V64<L>,
-    pub expected_hash: V256<L>,
+    /// The expected digest in big-endian byte order. Each entry must be
+    /// a packing of eight Boolean values, as produced by `pack_digest`.
+    pub expected_hash: [Eltw<L>; 32],
+}
+
+/// A digest given as 256 bits, least significant first, as the 32 packed
+/// bytes of its big-endian encoding.
+pub fn pack_digest<L: Logic>(logic: &L, bits: &V256<L>) -> [Eltw<L>; 32] {
+    let arith = Arithmetic::new(logic);
+    let le = bits.as_array();
+    std::array::from_fn(|m| arith.pack_byte(&le[8 * (31 - m)..8 * (32 - m)]))
 }
 
 pub struct Sha256Msg<'a, L: Logic, const MAX_BLOCKS: usize>
@@ -96,44 +107,44 @@ where L::F: FieldWrappingSum
             })
     }
 
+    /// `selector[b]` is true exactly when `nblocks == b + 1`, that is, when
+    /// block `b` ends the message. At most one selector is true.
+    fn block_selector<const S: usize>(&self, nblocks: &Bitvec<L, S>) -> Vec<Bitw<L>> {
+        (0..MAX_BLOCKS)
+            .map(|b| self.bv.eqb(nblocks, &self.bv.of_u64((b + 1) as u64)))
+            .collect()
+    }
+
     /// Asserts that the SHA-256 hash output of the active message
     /// (located at the end of block `nblocks - 1`) matches the expected
     /// hash `expected_hash`.
+    ///
+    /// Each block's chaining value is compared under its selector, so no
+    /// multiplexer waits for the selector while every block's chaining value
+    /// is carried up the circuit. `assert_nblocks` requires one selector to
+    /// be true.
     fn assert_final_hash<const S: usize>(
         &self,
-        expected_hash: &V256<L>,
+        expected_hash: &[Eltw<L>; 32],
         nblocks: &Bitvec<L, S>,
         derived: &[Sha256Derived<V32<L>>],
     ) -> L::Assertions {
-        // Create a selector vector where the b-th bit is true if and
-        // only if nblocks == b + 1.  Because the number of blocks
-        // `nblocks` is 1-indexed, this creates a one-hot selector
-        // indicating which block index (0..MAX_BLOCKS) is the final
-        // block of the message.
-        let mut selector = Vec::with_capacity(MAX_BLOCKS);
-        for b in 0..MAX_BLOCKS {
-            let b1_wire = self.bv.of_u64((b + 1) as u64);
-            selector.push(self.bv.eqb(nblocks, &b1_wire));
-        }
-
-        let mut x = Vec::with_capacity(8);
-        for i in 0..8 {
-            x.push(
-                self.bv
-                    .one_hot_mux(&selector, &|b| derived[b].h1[i].clone()),
-            );
-        }
-
-        // Unpack the hash into a v256 in reverse byte-order.
-        let mut mm_bits = vec![self.boolean.falseb(); 256];
-        for j in 0..8 {
-            for k in 0..32 {
-                mm_bits[(7 - j) * 32 + k] = x[j][k].clone();
-            }
-        }
-        let mm = V256::new(mm_bits);
-
-        self.bv.assert_eq("hash_eq", &mm, expected_hash)
+        let arith = Arithmetic::new(self.logic);
+        let expected_le: Vec<_> = expected_hash.iter().rev().cloned().collect();
+        let selector = self.block_selector(nblocks);
+        self.logic.assert_mapi("hash_eq", 0..MAX_BLOCKS, |b| {
+            // The chaining value as a v256 in reverse word order.
+            let h1 = &derived[b].h1;
+            let hash = self
+                .bv
+                .from_fn::<256, _>(|i| h1[7 - i / 32][i % 32].clone());
+            arith.assert_eq_packed_bytes_when(
+                "block_hash_eq",
+                &selector[b],
+                hash.as_array(),
+                &expected_le,
+            )
+        })
     }
 
     /// Asserts that `nblocks` is within valid range limits: 0 <
@@ -191,33 +202,27 @@ where L::F: FieldWrappingSum
 
     /// Asserts that the actual message length matches the encoded
     /// length field embedded inside the SHA-256 padded message.
+    ///
+    /// Pair this with `assert_nblocks`, as in `assert_message_hash`.
+    /// The comparisons are conditional and require a valid final block.
     pub fn assert_length<const S: usize>(
         &self,
         nblocks: &Bitvec<L, S>,
         length_bytes: &V64<L>,
         input_bytes: &[V8<L>],
     ) -> L::Assertions {
-        // block_selector[b] is true if and only if nblocks == b + 1
-        let mut block_selector = Vec::with_capacity(MAX_BLOCKS);
-        for b in 0..MAX_BLOCKS {
-            let b1_wire = self.bv.of_u64((b + 1) as u64);
-            block_selector.push(self.bv.eqb(nblocks, &b1_wire));
-        }
-
-        let encoded_len = self.bv.one_hot_mux(&block_selector, &|b| {
-            // Extract the length field from the end of block `b`.
-            let mut len_from_blocks = Vec::with_capacity(64);
-            for j in 0..64 {
-                let byte_idx = b * 64 + 63 - j / 8;
-                let bit_idx = j % 8;
-                len_from_blocks.push(self.boolean.b(&input_bytes[byte_idx][bit_idx]));
-            }
-            Bitvec::new(len_from_blocks)
-        });
+        let selector = self.block_selector(nblocks);
         // The encoded length field in SHA-256 padding is in bits,
         // so we must compare it to length_bytes * 8.
         let (length_bits, shl_assertion) = self.bv.shl_safe(3, length_bytes);
-        let eq_assertion = self.bv.assert_eq("len_eq", &encoded_len, &length_bits);
+        let eq_assertion = self.logic.assert_mapi("len_eq", 0..MAX_BLOCKS, |b| {
+            // Extract the length field from the end of block `b`.
+            let encoded_len = self
+                .bv
+                .from_fn::<64, _>(|j| input_bytes[b * 64 + 63 - j / 8][j % 8].clone());
+            self.bv
+                .assert_eq_when("block_len_eq", &selector[b], &encoded_len, &length_bits)
+        });
         self.logic
             .assert_all("assert_length", &[eq_assertion, shl_assertion])
     }
@@ -226,57 +231,80 @@ where L::F: FieldWrappingSum
     /// separator, followed by zero bytes up to the length field, and
     /// that all blocks beyond the active blocks `nblocks` are
     /// completely zeroed.
+    ///
+    /// Pair this with `assert_nblocks`, as in `assert_message_hash`.
+    /// With `length_bytes + 9 <= 64 *
+    /// nblocks <= 64 * MAX_BLOCKS`, the length and the block count fit the
+    /// low bits read here, and the bytes after the message other than the
+    /// last block's length field are exactly those that must be zero.
+    /// Each byte is checked as one packed field element, multiplied by the
+    /// indicator of its required value.
     pub fn assert_sha_padding<const S: usize>(
         &self,
         nblocks: &Bitvec<L, S>,
         length_bytes: &V64<L>,
         input_bytes: &[V8<L>],
     ) -> L::Assertions {
-        // Zero-extend nblocks to 64 bits to prevent shift overflow
-        let nblocks_64 = self.bv.zext(nblocks);
+        let arith = Arithmetic::new(self.logic);
+        let block_bits = (MAX_BLOCKS.next_power_of_two().trailing_zeros() as usize).max(1);
+        let length = length_bytes.as_array();
+        // length = 64 * block + offset.
+        let (offset, block) = (&length[..6], &length[6..6 + block_bits]);
+        let block_eq: Vec<_> = (0..MAX_BLOCKS)
+            .map(|q| arith.eqb(block, &arith.of_u64(block_bits, q as u64)))
+            .collect();
+        let offset_eq: Vec<_> = (0..64)
+            .map(|r| arith.eqb(offset, &arith.of_u64(6, r as u64)))
+            .collect();
+        // [block < q] and [offset < r], as sums of the disjoint equalities.
+        let prefix = |eq: &[Bitw<L>], n: usize| -> Vec<Eltw<L>> {
+            (0..n)
+                .map(|i| {
+                    let below: Vec<_> = eq[..i].iter().map(|e| self.boolean.as_eltw(e)).collect();
+                    self.logic.precious(&self.logic.sum(&below))
+                })
+                .collect()
+        };
+        let block_lt = prefix(&block_eq, MAX_BLOCKS);
+        let offset_lt = prefix(&offset_eq, 64);
+        let selector = self.block_selector(nblocks);
+        let sep = self.bv.as_eltw_field(&self.bv.of_u8(0x80));
 
-        // nblocks_times_64 = nblocks << 6
-        let (nblocks_times_64, shl_assertion) = self.bv.shl_safe(6, &nblocks_64);
-
-        let u8_80 = self.bv.of_u8(0x80);
-        let u8_00 = self.bv.of_u8(0x00);
-
-        let byte_padding_assertions =
-            self.logic
-                .assert_mapi("byte_padding", 0..(MAX_BLOCKS * 64), |byte_idx| {
-                    let byte_idx_wire = self.bv.of_u64(byte_idx as u64);
-                    let byte_idx_plus_8_wire = self.bv.of_u64((byte_idx + 8) as u64);
-
-                    let is_separator = self.bv.eqb(length_bytes, &byte_idx_wire);
-
-                    let is_after_msg = self.bv.lt(length_bytes, &byte_idx_wire);
-                    let is_before_len_field = self.bv.gt(&nblocks_times_64, &byte_idx_plus_8_wire);
-                    let is_padding_zero = self.boolean.andb(&is_after_msg, &is_before_len_field);
-
-                    let is_beyond_active = self.bv.leq(&nblocks_times_64, &byte_idx_wire);
-
-                    let is_80 = self.bv.eqb(&input_bytes[byte_idx], &u8_80);
-                    let is_00 = self.bv.eqb(&input_bytes[byte_idx], &u8_00);
-
-                    let sep_ok = self.boolean.impliesb(&is_separator, &is_80);
-                    let pad_zero_ok = self.boolean.impliesb(&is_padding_zero, &is_00);
-                    let beyond_active_zero_ok = self.boolean.impliesb(&is_beyond_active, &is_00);
-
-                    self.logic.assert_all(
-                        "byte_step",
-                        &[
-                            self.boolean.assert_true("separator", &sep_ok),
-                            self.boolean.assert_true("pad_zero", &pad_zero_ok),
-                            self.boolean
-                                .assert_true("beyond_active", &beyond_active_zero_ok),
-                        ],
-                    )
-                });
-
-        self.logic.assert_all(
-            "assert_sha_padding",
-            &[shl_assertion, byte_padding_assertions],
-        )
+        self.logic
+            .assert_mapi("byte_padding", 0..(MAX_BLOCKS * 64), |byte_idx| {
+                let (q, r) = (byte_idx / 64, byte_idx % 64);
+                let byte = self
+                    .logic
+                    .precious(&self.bv.as_eltw_field(&input_bytes[byte_idx]));
+                let is_block = self.boolean.as_eltw(&block_eq[q]);
+                // [length == byte_idx]
+                let is_separator = self.logic.precious(
+                    &self
+                        .logic
+                        .mul(&is_block, &self.boolean.as_eltw(&offset_eq[r])),
+                );
+                // [length < byte_idx]
+                let mut after = vec![
+                    block_lt[q].clone(),
+                    self.logic.mul(&is_block, &offset_lt[r]),
+                ];
+                // Minus the last block's length field, which follows the
+                // message.
+                if r >= 56 {
+                    after.push(self.logic.neg(&self.boolean.as_eltw(&selector[q])));
+                }
+                let is_zero = self.logic.precious(&self.logic.sum(&after));
+                let not_separator = self.logic.precious(&self.logic.sub(&byte, &sep));
+                self.logic.assert_all(
+                    "byte_step",
+                    &[
+                        self.logic
+                            .assert0("separator", &self.logic.mul(&is_separator, &not_separator)),
+                        self.logic
+                            .assert0("pad_zero", &self.logic.mul(&is_zero, &byte)),
+                    ],
+                )
+            })
     }
 
     /// Verifies the full SHA-256 process of a message of byte length

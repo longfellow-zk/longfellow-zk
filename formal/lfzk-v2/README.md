@@ -28,7 +28,7 @@ top-down [proof map](../README.md#proof-map). The endpoints are
 `Mdoc.Soundness.averaged_ratio_le_rust` at the Rust challenge reader; the exact
 rational bound is `LfzkV2.Current.Soundness.Rate7.failureBound`.
 
-The four-slot NEXT mdoc circuit has 463 rounds. `MdocRoundShape.rounds_eq`
+The four-slot NEXT mdoc circuit has 447 rounds. `MdocRoundShape.rounds_eq`
 derives that total from the per-layer schedules.
 [`check_mdoc_round_shapes.rs`](../scripts/check_mdoc_round_shapes.rs)
 checks the schedules and total against the current Rust compiler. The
@@ -191,7 +191,7 @@ A frontend with layers has `sum(logw)+2*depth+1` boundaries. A frontend without
 layers has one input-assertion boundary. Besides both frontends there are four
 ordinary boundaries (witness selection, conversion, joint Polygero batching and
 shared opening), one optional packing boundary, and the final seal. There is no row-batching boundary; it remains only for pure foreign
-storage, which mdoc does not use. A four-slot NEXT presentation has 463
+storage, which mdoc does not use. A four-slot NEXT presentation has 447
 ordinary boundaries. The Rust `next_measured_round_counts` test counts the
 boundaries of the complete prover and verifier sessions (`round_count_for_test`)
 and checks that value independently of the geometry-derived schedule. Finalization

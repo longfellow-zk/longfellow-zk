@@ -59,7 +59,7 @@ P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
 $$
 
 The four-slot NEXT mdoc circuit has
-`276 + 118 + 2*(20 + 11) + 7 = 463` rounds, so `r+15 = 478 < 2^10`.
+`262 + 118 + 2*(19 + 11) + 7 = 447` rounds, so `r+15 = 462 < 2^10`.
 The proof rounds the constant correction up to $2^{-246}$.
 `Mdoc.Soundness.averaged_mdoc_approximation` proves this all-budget consequence.
 

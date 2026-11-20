@@ -184,7 +184,7 @@ $$
 P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
 $$
 
-The NEXT mdoc circuit has 463 transcript boundaries.
+The NEXT mdoc circuit has 447 transcript boundaries.
 
 Here `r` counts ordinary transcript boundaries, one per draw that follows a
 message; a draw with no message since the last boundary reads further from
@@ -263,20 +263,20 @@ retains Polygero's extraction/outside-list errors and nonzero-sampling terms.
 ## Performance
 
 Complete NEXT v13 mdoc presentations with all four slots enabled, measured
-on 2026-11-19 with Rust 1.99.1 on one pinned core of a Ryzen 9 9950X with the
+on 2026-11-20 with Rust 1.99.1 on one pinned core of a Ryzen 9 9950X with the
 native CPU target. Times are medians of 40 samples in four runs, each after
 one warmup. Heap measurements use separate allocation-tracking runs.
 
 | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---:|---:|---:|---:|---:|
-| 146.0 ms | 78.5 ms | 140,368 | 48.33 MiB | 35.92 MiB |
+| 134.04 ms | 74.88 ms | 138,272 | 41.86 MiB | 34.08 MiB |
 
 | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---:|---:|---:|
-| 745,344 | 183,415 | 2.00 MiB |
+| 578,896 | 130,203 | 1.51 MiB |
 
 NEXT uses `(k,s,n,t)=(349,12,2443,84)` for the hash and signature
-circuits, with ordinary code rate `k/n=1/7`. The hash circuit has 20 layers,
+circuits, with ordinary code rate `k/n=1/7`. The hash circuit has 19 layers,
 and the adapter fragment joins its input end; the signature has 11.
 Circuit outputs join the assertion block at their own layer. Components are
 ordered by decreasing depth, with original input index breaking ties, so the
@@ -284,7 +284,7 @@ carried claim weights extend in place. Quad fragments introduce no extra rounds.
 
 | Circuit | Inputs | Wires excluding inputs | Terms | Sumcheck rounds |
 |---|---:|---:|---:|---:|
-| Hash | 353,739 | 2,287,521 | 5,198,325 | 276 |
+| Hash | 353,739 | 1,838,662 | 4,458,345 | 262 |
 | Signature | 3,102 | 46,667 | 97,497 | 118 |
 
 The binary circuit packs 128 private input bits per committed GF128 word.
