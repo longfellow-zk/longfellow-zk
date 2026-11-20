@@ -19,7 +19,7 @@ use crate::{
     circuits::{
         bitvec::{BitvecLogic, V8},
         boolean::Boolean,
-        sha256msg::{derived, pad_sha256_message, ConcreteGiven},
+        sha256msg::{derived, pack_digest, pad_sha256_message, ConcreteGiven},
     },
     compile::{
         algebra::gf2_128::Gf2_128Field,
@@ -222,7 +222,7 @@ where
         attribute_preimage: preimage_bytes,
         field_locator,
         disclosed_attribute: da,
-        expected_digest,
+        expected_digest: pack_digest(&l, &expected_digest),
     };
 
     verifier.assert_attribute(&verifier_args, &sha_derived)

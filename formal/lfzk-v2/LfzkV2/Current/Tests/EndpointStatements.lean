@@ -59,7 +59,7 @@ def pinned : List (Name × UInt64) := [
   (``Current.Mdoc.Soundness.averaged_linear_ratio_le, 4865304750125696021),
   (``Current.Mdoc.Soundness.averaged_nonvacuous, 82060277669800425),
   (``Current.Mdoc.Soundness.averaged_polynomial_ratio_le, 12966774689929099418),
-  (``Current.Mdoc.Soundness.averaged_mdoc_approximation, 3234738553336565357),
+  (``Current.Mdoc.Soundness.averaged_mdoc_approximation, 14360432891672436510),
   (``Current.Mdoc.ZeroKnowledge.statClose, 11089277535653201106),
   (``Current.Mdoc.ZeroKnowledge.statClose_at_query_budget, 3608117319759410495),
   (``Current.Mdoc.VerifierPrivacy.acceptance_probability, 17334613443263901531),

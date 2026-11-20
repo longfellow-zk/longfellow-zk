@@ -26,7 +26,7 @@ cfg_compiler! {
 
     pub use self::{
         allocate::allocate_given,
-        circuit::{Given, Sha256Msg},
+        circuit::{pack_digest, Given, Sha256Msg},
     };
 }
 

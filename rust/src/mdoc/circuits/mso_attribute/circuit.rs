@@ -15,13 +15,18 @@
 use crate::{
     circuits::{
         analog_adder::FieldWrappingSum,
-        bitvec::{Bitvec, BitvecLogic, V256, V32, V8},
+        arithmetic::Arithmetic,
+        bitvec::{Bitvec, BitvecLogic, V32, V8},
         boolean::{Bitw, Boolean},
         memcmp::Memcmp,
         routing::Routing,
         sha256msg::{Given as ShaGiven, Sha256Msg},
     },
-    compile::logic::Logic,
+    compile::{
+        algebra::CompileField,
+        logic::{Eltw, Logic},
+    },
+    core::algebra::AlgebraicField,
     mdoc::{
         circuits::cbor_decoder::CborByteDecoder,
         proto::mso_attribute::constants::{
@@ -34,6 +39,8 @@ use crate::{
 };
 
 pub type AttrIndex<L> = Bitvec<L, K_ATTR_INDEX_BITS>;
+
+const ATTR_SHIFT_GROUPS: [usize; 4] = [2, 2, 2, 2];
 
 #[cfg(test)]
 mod tests;
@@ -113,10 +120,126 @@ pub struct Given<L: crate::compile::logic::Logic> {
     pub attribute_preimage: AttrSlice<L, K_ATTR_PREIMAGE_LEN>,
     pub field_locator: FieldLocator<L>,
     pub disclosed_attribute: DisclosedAttribute<L>,
-    pub expected_digest: V256<L>,
+    /// The expected SHA-256 digest, in digest byte order. Each byte packs
+    /// eight Boolean bits as in `pack_digest`.
+    pub expected_digest: [Eltw<L>; 32],
 }
 
 pub type Derived<L> = crate::circuits::sha256msg::Derived<V32<L>>;
+
+/// Bytes read at a private offset as packed units of `w` bits each, `8 / w`
+/// units per byte, least significant first: `w = 8` for bytes that are only
+/// compared, which cost one term per byte and selector, and `w = 1` for
+/// bytes whose bits are parsed.
+pub(in crate::mdoc::circuits) struct PackedRead<'a, L: Logic> {
+    logic: &'a L,
+    arith: Arithmetic<'a, L>,
+    boolean: Boolean<'a, L>,
+    units: Vec<Eltw<L>>,
+    w: usize,
+}
+
+impl<'a, L: Logic> PackedRead<'a, L> {
+    /// Read `k` bytes of `source` from `offset` with the shift stages
+    /// `groups`, as units of `w` bits.
+    pub(in crate::mdoc::circuits) fn new<const M: usize>(
+        logic: &'a L,
+        groups: &[usize],
+        offset: &Bitvec<L, M>,
+        k: usize,
+        source: &[V8<L>],
+        w: usize,
+    ) -> Self {
+        assert!(matches!(w, 1 | 2 | 4 | 8));
+        let arith = Arithmetic::new(logic);
+        if w == 1 {
+            let f = logic.field();
+            assert!(
+                f.pseudo_basis(0) == f.one(),
+                "bit reads require basis element zero to be one",
+            );
+        }
+        let routing = Routing::new(logic);
+        let per_byte = 8 / w;
+        let packed: Vec<Vec<_>> = source
+            .iter()
+            .map(|byte| arith.pack_byte_units(byte.as_array(), w))
+            .collect();
+        let planes: Vec<_> = (0..per_byte)
+            .map(|u| {
+                let plane: Vec<_> = packed.iter().map(|units| units[u].clone()).collect();
+                routing.shift_eltw_grouped(groups, offset, k, &plane)
+            })
+            .collect();
+        let units = (0..k)
+            .flat_map(|m| planes.iter().map(move |plane| plane[m].clone()))
+            .collect();
+        Self {
+            logic,
+            arith,
+            boolean: Boolean::new(logic),
+            units,
+            w,
+        }
+    }
+
+    pub(in crate::mdoc::circuits) fn w(&self) -> usize {
+        self.w
+    }
+
+    /// The units of bytes `range`.
+    pub(in crate::mdoc::circuits) fn units(&self, range: std::ops::Range<usize>) -> &[Eltw<L>] {
+        let per_byte = 8 / self.w;
+        &self.units[per_byte * range.start..per_byte * range.end]
+    }
+
+    /// Constant bytes as units of this read's width.
+    pub(in crate::mdoc::circuits) fn const_units(&self, bytes: &[u8]) -> Vec<Eltw<L>> {
+        let bv = BitvecLogic::new(self.logic);
+        bytes
+            .iter()
+            .flat_map(|&b| self.arith.pack_byte_units(bv.of_u8(b).as_array(), self.w))
+            .collect()
+    }
+
+    /// Byte values as units of this read's width.
+    pub(in crate::mdoc::circuits) fn byte_units(&self, bytes: &[V8<L>]) -> Vec<Eltw<L>> {
+        bytes
+            .iter()
+            .flat_map(|b| self.arith.pack_byte_units(b.as_array(), self.w))
+            .collect()
+    }
+
+    /// Assert that bytes `start..` equal the constants `want`.
+    pub(in crate::mdoc::circuits) fn assert_bytes_at(
+        &self,
+        name: &str,
+        start: usize,
+        want: &[u8],
+    ) -> L::Assertions {
+        self.arith.assert_units_eq(
+            name,
+            self.units(start..start + want.len()),
+            &self.const_units(want),
+            self.w,
+        )
+    }
+
+    /// The bits of byte `m` of a bit-level (`w = 1`) read.
+    pub(in crate::mdoc::circuits) fn bits(&self, m: usize) -> V8<L> {
+        assert_eq!(self.w, 1, "only a bit-level read has bits");
+        // A one-hot selection of input bits is a bit.
+        Bitvec::new(
+            self.units(m..m + 1)
+                .iter()
+                .map(|x| {
+                    self.boolean
+                        .of_eltw_with_assertion(x.clone(), self.logic.ok())
+                })
+                .collect(),
+        )
+    }
+}
 
 pub struct AttributeVerifier<'a, L: Logic>
 where L::F: FieldWrappingSum
@@ -387,12 +510,13 @@ where L::F: FieldWrappingSum
     ) -> L::Assertions {
         let want = self.format_element(max_len, prefix, &str_val.data);
         let slice = self.slot_offset_and_len(slot, field_locator);
-        let got = self.routing.shift_bitvec(
-            3,
+        let got = PackedRead::new(
+            self.logic,
+            &ATTR_SHIFT_GROUPS,
             &slice.offset,
             max_len,
             attribute_preimage,
-            &self.bv.zero::<8>(),
+            8,
         );
         let prefix_len = self.bv.of_u64::<K_ATTR_INDEX_BITS>(prefix.len() as u64);
         let (expected_slice_len, overflow_assertion) =
@@ -408,7 +532,13 @@ where L::F: FieldWrappingSum
                         .bv
                         .leq(&str_val.len, &self.bv.of_u64::<K_ATTR_INDEX_BITS>(N as u64)),
                 ),
-                self.assert_prefix_equal(max_len, &got, &want, &expected_slice_len),
+                self.assert_prefix_equal_units(
+                    max_len,
+                    got.units(0..max_len),
+                    &got.byte_units(&want),
+                    &expected_slice_len,
+                    got.w(),
+                ),
                 self.assert_len_eq(&slice.len, &expected_slice_len),
             ],
         )
@@ -423,15 +553,19 @@ where L::F: FieldWrappingSum
     ) -> L::Assertions {
         let slice = self.slot_offset_and_len(3, field_locator);
         let key_bytes = K_ELEMENT_VALUE_PREFIX.len();
-        let aligned = self.routing.shift_bitvec(
-            3,
+        let read = PackedRead::new(
+            self.logic,
+            &ATTR_SHIFT_GROUPS,
             &slice.offset,
             key_bytes + K_DATE_VALUE_BYTES,
             attribute_preimage,
-            &self.bv.zero::<8>(),
+            1,
         );
-        let (key, got) = aligned.split_at(key_bytes);
-        let key_len = self.bv.of_u64::<K_ATTR_INDEX_BITS>(key.len() as u64);
+        let date_bits: Vec<_> = (key_bytes..key_bytes + K_DATE_VALUE_BYTES)
+            .map(|m| read.bits(m))
+            .collect();
+        let got = &date_bits[..];
+        let key_len = self.bv.of_u64::<K_ATTR_INDEX_BITS>(key_bytes as u64);
         let (expected_slice_len, overflow) = self.bv.checked_add(&key_len, &want.len);
 
         let le = comparison.bit(0);
@@ -475,7 +609,7 @@ where L::F: FieldWrappingSum
         self.logic.assert_all(
             "assert_date_value",
             &[
-                self.assert_bytes_at(key.len(), key, &K_ELEMENT_VALUE_PREFIX),
+                read.assert_bytes_at("assert_bytes_at", 0, &K_ELEMENT_VALUE_PREFIX),
                 overflow,
                 self.assert_len_eq(&slice.len, &expected_slice_len),
                 valid_op,
@@ -500,15 +634,23 @@ where L::F: FieldWrappingSum
         key_id: &[u8],
         is_unsigned: bool,
     ) -> L::Assertions {
-        let zz = self.bv.zero::<8>();
         let slice = self.slot_offset_and_len(slot, field_locator);
-        let got =
-            self.routing
-                .shift_bitvec(3, &slice.offset, key_id.len() + 2, attribute_preimage, &zz);
+        let read = PackedRead::new(
+            self.logic,
+            &ATTR_SHIFT_GROUPS,
+            &slice.offset,
+            key_id.len() + 2,
+            attribute_preimage,
+            1,
+        );
+        // Only the header bytes after the key are parsed.
+        let mut got = vec![self.bv.zero::<8>(); key_id.len()];
+        got.push(read.bits(key_id.len()));
+        got.push(read.bits(key_id.len() + 1));
         self.logic.assert_all(
             "assert_item_slot_key_only",
             &[
-                self.assert_bytes_at(key_id.len(), &got[0..key_id.len()], key_id),
+                read.assert_bytes_at("assert_bytes_at", 0, key_id),
                 // The general CBOR helper classifies lengths for many types;
                 // these two schema slots require unsigned IDs and byte salts.
                 self.boolean.assert_true(
@@ -615,13 +757,33 @@ where L::F: FieldWrappingSum
         want: &[V8<L>],
         len: &AttrIndex<L>,
     ) -> L::Assertions {
+        let arith = Arithmetic::new(self.logic);
+        let pack = |bytes: &[V8<L>]| -> Vec<_> {
+            bytes
+                .iter()
+                .map(|b| arith.pack_byte(b.as_array()))
+                .collect()
+        };
+        self.assert_prefix_equal_units(max, &pack(&got[..max]), &pack(&want[..max]), len, 8)
+    }
+
+    /// `assert_prefix_equal` on bytes packed as `w`-bit units: one
+    /// product-zero check per byte.
+    fn assert_prefix_equal_units(
+        &self,
+        max: usize,
+        got: &[Eltw<L>],
+        want: &[Eltw<L>],
+        len: &AttrIndex<L>,
+        w: usize,
+    ) -> L::Assertions {
+        let arith = Arithmetic::new(self.logic);
+        let per_byte = 8 / w;
         self.logic.assert_mapi("assert_prefix_equal", 0..max, |j| {
             let j_wire = self.bv.of_u64::<K_ATTR_INDEX_BITS>(j as u64);
             let ll = self.bv.lt(&j_wire, len);
-            let ll_vec = self.bv.of_bit::<8>(&ll);
-            let eqb_vec = self.bv.eq(&got[j], &want[j]);
-            let imp_vec = self.bv.impliesb(&ll_vec, &eqb_vec);
-            self.bv.assert_true("prefix_imp", &imp_vec)
+            let units = per_byte * j..per_byte * (j + 1);
+            arith.assert_units_eq_when("prefix_imp", &ll, &got[units.clone()], &want[units], w)
         })
     }
 

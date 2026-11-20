@@ -50,6 +50,226 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
     }
 
     pub fn assert_eq(&self, name: &str, a: &[Bitw<L>], b: &[Bitw<L>]) -> L::Assertions {
+        self.assert_eq_chunks(name, a, b, |elt_a, elt_b| {
+            self.logic.assert_eq("chunk_eq", elt_a, elt_b)
+        })
+    }
+
+    /// Assert that `a` and `b` are equal when `cond` is true. Each chunk is
+    /// one product-zero check, `cond * (pack(a) - pack(b)) = 0`, whose
+    /// packed difference is zero exactly when the bits agree.
+    #[must_use]
+    pub(crate) fn assert_eq_when(
+        &self,
+        name: &str,
+        cond: &Bitw<L>,
+        a: &[Bitw<L>],
+        b: &[Bitw<L>],
+    ) -> L::Assertions {
+        let cond_elt = self.boolean.as_eltw(cond);
+        self.assert_eq_chunks(name, a, b, |elt_a, elt_b| {
+            let difference = self.logic.precious(&self.logic.sub(elt_a, elt_b));
+            self.logic
+                .assert0("chunk_eq_when", &self.logic.mul(&cond_elt, &difference))
+        })
+    }
+
+    /// `w` little-endian bits as one field element: an injective packing
+    /// whose differences are zero exactly when the bits are equal. The
+    /// element is kept as one wire, so a selector multiplies it with one
+    /// term.
+    fn pack_unit(&self, bits: &[Bitw<L>]) -> Eltw<L> {
+        self.logic.precious(&self.as_eltw_field(bits))
+    }
+
+    /// A byte as `8 / w` units of `w` bits, least significant first.
+    pub fn pack_byte_units(&self, byte: &[Bitw<L>], w: usize) -> Vec<Eltw<L>> {
+        assert!(byte.len() == 8 && matches!(w, 1 | 2 | 4 | 8));
+        byte.chunks(w).map(|unit| self.pack_unit(unit)).collect()
+    }
+
+    /// One byte as a single unit.
+    pub(crate) fn pack_byte(&self, bits: &[Bitw<L>]) -> Eltw<L> {
+        assert_eq!(bits.len(), 8);
+        self.pack_unit(bits)
+    }
+
+    fn units_per_chunk(&self, w: usize) -> usize {
+        let dimension = self.logic.field().pseudo_dimension();
+        assert!((1..=dimension).contains(&w), "invalid packed unit width");
+        dimension / w
+    }
+
+    /// Concatenate little-endian units previously packed from `w` bits.
+    /// Unit `m` contributes its packing times basis element `w * m`.
+    fn concat_units(&self, units: &[Eltw<L>], w: usize) -> Eltw<L> {
+        let f = self.logic.field();
+        assert!(units.len() <= self.units_per_chunk(w));
+        if !units.is_empty() {
+            assert!(f.pseudo_basis(0) == f.one());
+        }
+        if units.len() > 1 {
+            let base = f.pseudo_basis(1);
+            assert!(
+                (1..w * units.len() - 1)
+                    .all(|i| f.mulf(&f.pseudo_basis(i), &base) == f.pseudo_basis(i + 1)),
+                "the pseudo-basis must be multiplicative"
+            );
+        }
+        let terms: Vec<_> = units
+            .iter()
+            .enumerate()
+            .map(|(m, unit)| self.logic.mulk(&f.pseudo_basis(w * m), unit))
+            .collect();
+        self.logic.sum(&terms)
+    }
+
+    /// Assert that the `w`-bit units `a` and `b` are equal, with one
+    /// assertion per chunk of units that fits a field element. Each unit
+    /// must be a packing of `w` Boolean values on the pseudo-basis.
+    #[must_use]
+    pub fn assert_units_eq(
+        &self,
+        name: &str,
+        a: &[Eltw<L>],
+        b: &[Eltw<L>],
+        w: usize,
+    ) -> L::Assertions {
+        self.assert_units_eq_with(name, a, b, w, |x, y| {
+            self.logic.assert_eq("packed_eq", x, y)
+        })
+    }
+
+    /// `assert_units_eq` when `cond` is true: one product-zero check per
+    /// chunk.
+    #[must_use]
+    pub fn assert_units_eq_when(
+        &self,
+        name: &str,
+        cond: &Bitw<L>,
+        a: &[Eltw<L>],
+        b: &[Eltw<L>],
+        w: usize,
+    ) -> L::Assertions {
+        let cond_elt = self.boolean.as_eltw(cond);
+        self.assert_units_eq_with(name, a, b, w, |x, y| {
+            let difference = self.logic.precious(&self.logic.sub(x, y));
+            self.logic
+                .assert0("packed_eq_when", &self.logic.mul(&cond_elt, &difference))
+        })
+    }
+
+    fn assert_units_eq_with(
+        &self,
+        name: &str,
+        a: &[Eltw<L>],
+        b: &[Eltw<L>],
+        w: usize,
+        check: impl Fn(&Eltw<L>, &Eltw<L>) -> L::Assertions,
+    ) -> L::Assertions {
+        assert_eq!(a.len(), b.len(), "assert_units_eq: lengths must match");
+        let per_chunk = self.units_per_chunk(w);
+        self.logic
+            .assert_mapi(name, 0..a.len().div_ceil(per_chunk), |c| {
+                let range = per_chunk * c..(per_chunk * (c + 1)).min(a.len());
+                check(
+                    &self.concat_units(&a[range.clone()], w),
+                    &self.concat_units(&b[range], w),
+                )
+            })
+    }
+
+    /// Assert that the packed bytes `a` and `b` are equal.
+    #[must_use]
+    pub fn assert_packed_bytes_eq(
+        &self,
+        name: &str,
+        a: &[Eltw<L>],
+        b: &[Eltw<L>],
+    ) -> L::Assertions {
+        self.assert_units_eq(name, a, b, 8)
+    }
+
+    /// Assert that the bits `a` equal the little-endian packed bytes
+    /// `bytes`, chunked like `assert_eq`. Every entry of `bytes` must
+    /// encode eight Boolean values on the pseudo-basis.
+    #[must_use]
+    pub fn assert_eq_packed_bytes(
+        &self,
+        name: &str,
+        a: &[Bitw<L>],
+        bytes: &[Eltw<L>],
+    ) -> L::Assertions {
+        self.assert_eq_packed_bytes_with(name, a, bytes, |elt_a, elt_b| {
+            self.logic.assert_eq("chunk_eq", elt_a, elt_b)
+        })
+    }
+
+    /// `assert_eq_packed_bytes` when `cond` is true, with one product-zero
+    /// check per chunk, like `assert_eq_when`.
+    #[must_use]
+    pub(crate) fn assert_eq_packed_bytes_when(
+        &self,
+        name: &str,
+        cond: &Bitw<L>,
+        a: &[Bitw<L>],
+        bytes: &[Eltw<L>],
+    ) -> L::Assertions {
+        let cond_elt = self.boolean.as_eltw(cond);
+        self.assert_eq_packed_bytes_with(name, a, bytes, |elt_a, elt_b| {
+            let difference = self.logic.precious(&self.logic.sub(elt_a, elt_b));
+            self.logic
+                .assert0("chunk_eq_when", &self.logic.mul(&cond_elt, &difference))
+        })
+    }
+
+    fn assert_eq_packed_bytes_with(
+        &self,
+        name: &str,
+        a: &[Bitw<L>],
+        bytes: &[Eltw<L>],
+        check: impl Fn(&Eltw<L>, &Eltw<L>) -> L::Assertions,
+    ) -> L::Assertions {
+        assert_eq!(a.len(), 8 * bytes.len());
+        // Chunks of whole bytes, of sizes as equal as possible, like
+        // `assert_eq_chunks_with` in units of bytes.
+        let n = bytes.len();
+        let k = n.div_ceil(self.units_per_chunk(8));
+        let mut start = 0;
+        self.logic.assert_mapi(name, 0..k, |c| {
+            let range = start..start + (n - start) / (k - c);
+            start = range.end;
+            let chunk = &a[8 * range.start..8 * range.end];
+            check(
+                &self.as_eltw_field(chunk),
+                &self.concat_units(&bytes[range], 8),
+            )
+        })
+    }
+
+    /// Pack `a` and `b` into chunks of at most one field element each and
+    /// assert `check` on each pair of packed chunks.
+    fn assert_eq_chunks(
+        &self,
+        name: &str,
+        a: &[Bitw<L>],
+        b: &[Bitw<L>],
+        check: impl Fn(&Eltw<L>, &Eltw<L>) -> L::Assertions,
+    ) -> L::Assertions {
+        self.assert_eq_chunks_with(name, a, b, |chunk_a, chunk_b| {
+            check(&self.as_eltw_field(chunk_a), &self.as_eltw_field(chunk_b))
+        })
+    }
+
+    /// Split `a` and `b` into chunks of at most one field element each, of
+    /// sizes as equal as possible, and assert `check` on each pair.
+    fn assert_eq_chunks_with(
+        &self,
+        name: &str,
+        a: &[Bitw<L>],
+        b: &[Bitw<L>],
+        mut check: impl FnMut(&[Bitw<L>], &[Bitw<L>]) -> L::Assertions,
+    ) -> L::Assertions {
         let f = self.logic.field();
         let dim = f.pseudo_dimension();
         assert_eq!(a.len(), b.len(), "assert_eq: slice lengths must match");
@@ -73,9 +293,7 @@ impl<'a, F: CompileField, L: Logic<F = F>> Arithmetic<'a, L> {
             remaining_n -= chunk_size;
             remaining_k -= 1;
 
-            let elt_a = self.as_eltw_field(chunk_a);
-            let elt_b = self.as_eltw_field(chunk_b);
-            self.logic.assert_eq("chunk_eq", &elt_a, &elt_b)
+            check(chunk_a, chunk_b)
         })
     }
 

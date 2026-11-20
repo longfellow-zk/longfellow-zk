@@ -23,7 +23,7 @@ use crate::mdoc::runtime::v1;
 use crate::mdoc::runtime::v2;
 mod cache_v2;
 mod next_v2;
-pub use cache_v2::{read_next, write_next};
+pub use cache_v2::{read_next, write_next, write_next_with_profile};
 pub use next_v2::compile_next;
 
 /// Explicit selection keeps development compilation distinct from frozen lookup.

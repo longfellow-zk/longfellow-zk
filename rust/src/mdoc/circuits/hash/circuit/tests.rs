@@ -13,6 +13,7 @@ use crate::{
     mdoc::{
         cbor::test_utils::parse_test_data,
         circuits::hash::{concrete, evaluate_derived, evaluate_given},
+        proto::hash::constants::{K_VALID_FROM_LEN, K_VALID_UNTIL_LEN},
         testcases::TEST_DATA,
     },
 };
@@ -81,24 +82,22 @@ fn fixed_field_reads_fit_the_entire_unpadded_range() {
         let end = bits.of_u64::<16>((26 + count) as u64);
         let short = bits.of_u64::<16>((25 + count) as u64);
         assert!(hash
-            .shift_preimage(&offset, &end, 3, count, &preimage, &bits.of_u8(0))
+            .shift_preimage_packed(&offset, &end, count, &preimage)
             .1
             .is_ok());
         assert!(
-            hash.shift_preimage(&offset, &short, 3, count, &preimage, &bits.of_u8(0))
+            hash.shift_preimage_packed(&offset, &short, count, &preimage)
                 .1
                 .is_err(),
             "field of {count} bytes must not read past its signed range"
         );
     }
     assert!(
-        hash.shift_preimage(
+        hash.shift_preimage_packed(
             &bits.of_u64::<16>(65530),
             &bits.of_u64::<16>(65535),
-            3,
             34,
-            &preimage,
-            &bits.of_u8(0)
+            &preimage
         )
         .1
         .is_err(),

@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{circuit::Given as WireGiven, concrete::ConcreteGiven};
+use super::{
+    circuit::{pack_digest, Given as WireGiven},
+    concrete::ConcreteGiven,
+};
 use crate::{
     circuits::{bitvec::BitvecLogic, boolean::Boolean},
     compile::logic::Logic,
@@ -39,6 +42,6 @@ pub fn evaluate_given<L: Logic, const S: usize>(
         padded_preimage,
         nblocks,
         length_bytes,
-        expected_hash,
+        expected_hash: pack_digest(bv.logic(), &expected_hash),
     }
 }

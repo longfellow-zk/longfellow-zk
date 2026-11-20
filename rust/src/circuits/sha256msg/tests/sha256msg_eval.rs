@@ -19,7 +19,7 @@ use crate::{
         boolean::Boolean,
         sha256msg::{
             concrete::{given, ConcreteGiven},
-            Derived, Given, Sha256Msg,
+            pack_digest, Derived, Given, Sha256Msg,
         },
     },
     compile::{
@@ -65,7 +65,7 @@ pub(super) fn run_corruptor_test<'a, const MAX_BLOCKS: usize>(
         padded_preimage: input_bytes,
         nblocks: nblocks_wire,
         length_bytes,
-        expected_hash,
+        expected_hash: pack_digest(&l, &expected_hash),
     };
     sha256msg.assert_message_hash(&given_wires, &sha_derived)
 }
@@ -129,7 +129,7 @@ fn test_exploit_nblocks_too_large() {
         padded_preimage: input_bytes,
         nblocks: nblocks_wire,
         length_bytes,
-        expected_hash,
+        expected_hash: pack_digest(&l, &expected_hash),
     };
     let assertion = sha256msg.assert_message_hash(&given_wires, &wit_wires);
     assertion.assert_any_failed_at("assert_message_hash/assert_nblocks/nblocks_max");
@@ -162,7 +162,7 @@ fn test_exploit_nblocks_zero() {
         padded_preimage: input_bytes,
         nblocks: nblocks_wire,
         length_bytes,
-        expected_hash,
+        expected_hash: pack_digest(&l, &expected_hash),
     };
     let assertion = sha256msg.assert_message_hash(&given_wires, &wit_wires);
     assertion.assert_any_failed_at("assert_message_hash/assert_nblocks/nblocks_nz");

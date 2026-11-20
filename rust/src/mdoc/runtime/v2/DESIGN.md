@@ -395,8 +395,8 @@ its conversion pair; the table marks these draws *leading*, in the row of
 the message that closes their node. The joint opening draws the batching
 weights itself, right where it takes both fields' statements. Boundaries:
 the sumcheck rounds of both frontends, plus 2 per layer, plus 7 others; the
-seal is not counted. The binary frontend has 276 sumcheck rounds in 20
-layers and the prime frontend has 118 in 11 layers, giving 463 boundaries.
+seal is not counted. The binary frontend has 262 sumcheck rounds in 19
+layers and the prime frontend has 118 in 11 layers, giving 447 boundaries.
 
 ### Verifier checks
 
@@ -701,7 +701,7 @@ c*Q/q + (1 - c*(q-1)/(2q)) * (1 - (1 - 2/(q-1))^Q) + (C(Q,2) + r + 15)/q^2
 ```
 
 `c = 1.00000123121...` is the Polygero coefficient for `(349, 12, 2443, 84)`
-and `r = 463` the NEXT boundary count, so `r + 15 = 478 < 2^10`.
+and `r = 447` the NEXT boundary count, so `r + 15 = 462 < 2^10`.
 `averaged_nonvacuous` gives a strict cap of 0.97, and
 `averaged_mdoc_approximation` the all-`Q` form
 `Q*2^-127 + Q^2*2^-257 + 2^-246`. `MdocRoundShape.rounds_eq` derives `r`

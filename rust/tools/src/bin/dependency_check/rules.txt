@@ -22,7 +22,7 @@
 
 mdoc/artifacts:
 mdoc/cbor: core/algebra mdoc/proto mdoc/testcases
-mdoc/circuits: mdoc/cbor mdoc/proto circuits/analog_adder circuits/bitvec circuits/boolean circuits/memcmp circuits/routing circuits/sha256 circuits/sha256msg compile/algebra compile/logic core/algebra
+mdoc/circuits: mdoc/cbor mdoc/proto circuits/analog_adder circuits/arithmetic circuits/bitvec circuits/boolean circuits/memcmp circuits/routing circuits/sha256 circuits/sha256msg compile/algebra compile/logic core/algebra
 mdoc/compile: core/algebra mdoc/circuits mdoc/proto circuits/arithmetic circuits/bitvec circuits/boolean circuits/ecdsa2 compile/algebra compile/compiler compile/logic core/proto
 mdoc/development_provider: mdoc/compile mdoc/proto mdoc/runtime/v1 mdoc/runtime/v2 core/proto runtime/algebra runtime/v2/polygero runtime/v2/proto/polygero
 mdoc/proto:
@@ -35,7 +35,7 @@ mdoc/runtime/zk_spec: mdoc/runtime/v1 mdoc/runtime/v2
 mdoc/testcases:
 bin/verifier_only: mdoc/runtime/v1
 circuits/analog_adder: circuits/bitvec circuits/boolean compile/algebra compile/logic core/algebra
-circuits/arithmetic: circuits/boolean compile/algebra compile/logic util
+circuits/arithmetic: circuits/boolean compile/algebra compile/logic core/algebra util
 circuits/big_bitvec: circuits/bignum circuits/bitvec compile/algebra compile/logic core/algebra
 circuits/bignum: circuits/boolean compile/algebra compile/logic core/algebra util
 circuits/bitvec: circuits/arithmetic circuits/boolean compile/algebra compile/logic core/algebra runtime/algebra util
@@ -47,7 +47,7 @@ circuits/memcmp: circuits/arithmetic circuits/bitvec circuits/boolean compile/lo
 circuits/polynomial: compile/logic
 circuits/routing: circuits/arithmetic circuits/bitvec circuits/boolean compile/logic
 circuits/sha256: circuits/analog_adder circuits/bitvec compile/logic core/algebra runtime/algebra
-circuits/sha256msg: circuits/analog_adder circuits/bitvec circuits/boolean circuits/sha256 compile/logic core/algebra runtime/algebra
+circuits/sha256msg: circuits/analog_adder circuits/arithmetic circuits/bitvec circuits/boolean circuits/sha256 compile/logic core/algebra runtime/algebra
 compile/algebra: core/algebra
 compile/compiler: compile/algebra compile/logic compile/debug core/algebra core/proto util
 
