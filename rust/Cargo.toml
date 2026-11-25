@@ -54,12 +54,13 @@ getrandom = { version = "0.3", optional = true }
 num-bigint = { version = "0.4", optional = true }
 num-traits = { version = "0.2", optional = true }
 rustc-hash = { version = "2.1.0", optional = true }
-# Keep "asm" forced: on aarch64 it is what enables sha2's hardware SHA-256
-# backend (without it SHA-256 falls back to software), and on x86 it supplies
-# the fallback for CPUs without SHA extensions. An opt-out feature would
-# silently slow role-specific builds made with --no-default-features.
-sha2 = { version = "0.10.8", features = ["asm"] }
+sha2 = "0.10.8"
 zstd = { version = "0.13", default-features = false, optional = true }
+
+[target.'cfg(not(windows))'.dependencies]
+# sha2-asm rejects Windows. Elsewhere, keep asm enabled for aarch64 hardware
+# SHA-256 and for the x86 fallback on CPUs without SHA extensions.
+sha2 = { version = "0.10.8", features = ["asm"] }
 
 [dev-dependencies]
 criterion = "0.5"
