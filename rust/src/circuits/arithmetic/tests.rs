@@ -418,3 +418,4 @@ fn test_muxb_length_mismatch() {
 }
 
 mod carry_save;
+mod packed_eq;

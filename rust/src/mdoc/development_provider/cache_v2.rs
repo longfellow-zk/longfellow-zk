@@ -35,8 +35,30 @@ use crate::{
 const MAGIC: &[u8; 9] = b"MDOCNEXT2";
 
 /// Save a trusted NEXT bundle for reuse by development tools and benchmarks.
-pub fn write_next(mut writer: impl Write, circuit: &ProvidedCircuit) -> Result<(), String> {
-    let spec = circuit.spec();
+pub fn write_next(writer: impl Write, circuit: &ProvidedCircuit) -> Result<(), String> {
+    write_bundle(writer, circuit.spec(), circuit.compressed())
+}
+
+/// Save a development bundle with an explicit profile selected by an offline tool.
+/// The caller checks security and compatibility with the circuit and fields.
+/// This writer checks container geometry and carries over the circuit bytes and ID.
+pub fn write_next_with_profile(
+    writer: impl Write,
+    circuit: &ProvidedCircuit,
+    polygero: PolygeroConfig,
+) -> Result<(), String> {
+    let spec = ZkSpecStruct {
+        polygero,
+        ..*circuit.spec()
+    };
+    write_bundle(writer, &spec, circuit.compressed())
+}
+
+fn write_bundle(
+    mut writer: impl Write,
+    spec: &ZkSpecStruct,
+    compressed: &[u8],
+) -> Result<(), String> {
     validate(spec)?;
     writer.write_all(MAGIC).map_err(|error| error.to_string())?;
     writer
@@ -49,7 +71,7 @@ pub fn write_next(mut writer: impl Write, circuit: &ProvidedCircuit) -> Result<(
             .map_err(|error| error.to_string())?;
     }
     writer
-        .write_all(circuit.compressed())
+        .write_all(compressed)
         .map_err(|error| error.to_string())
 }
 

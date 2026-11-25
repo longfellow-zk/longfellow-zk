@@ -49,8 +49,7 @@ and `Row.adaptive_rhs_le_of_slack`. For bounds of other shapes (for example one 
 list factor at the field slots only), the three parts of `R.bound` are certified separately:
 `_fieldDensity_le`, `_ligeroDensity_le` (per candidate) and `_merkleTerm_le`. Every theorem of
 `CertifiedV1`, `NizkGrinding`, `NizkAdaptive`, `CompiledLongfellow` and `CompiledLongfellowAdaptive`
-that is stated for an abstract `R : Row` with `h : R.Valid` applies at these rows verbatim;
-`LfzkV1.CompiledV7` states the headlines.
+that is stated for an abstract `R : Row` with `h : R.Valid` applies at these rows verbatim.
 
 Nothing here is a hypothesis: the numerals are closed `native_decide` facts. The modelling premises
 of the theorems these rows instantiate are those theorems' (see `CertifiedV1`,

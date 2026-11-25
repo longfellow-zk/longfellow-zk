@@ -145,10 +145,15 @@ remain subject to change. There are currently no frozen v2 mdoc circuits.
 
 ## Security bounds
 
-The [formal v1 analysis](../formal/lfzk-v1/README.md) establishes 116-bit
-Fiat–Shamir T-security for its modeled v7 composition. The current v2
-numbered-strand model has a checked one-SHA extraction theorem for adaptive
-public requests and arbitrary complete serialized proofs. It includes witness
+The [formal v1 analysis](../formal/lfzk-v1/README.md) bounds acceptance at
+the replayed MAC multiplier with failed extraction by `(N + tA) / 2^125`
+when `N + tA > 0` in the annotated v7 ideal-oracle model. The
+zero-query bound is `33628000 / 2^256`. With independent typed Merkle
+oracles, the two-field simulator receives the MAC zero pattern and has
+distinguishing advantage at most `Q / 2^256 + 2^-360`.
+
+The current v2 numbered-strand model has a checked one-SHA extraction
+theorem for adaptive public requests and arbitrary complete serialized proofs. It includes witness
 selection, layered sumcheck, the cross-field adapter, packing, joint Polygero,
 its shared indexed Merkle commitment and the final seal.
 
@@ -184,7 +189,7 @@ $$
 P_{\mathrm{fail}}(Q)\le Q\,2^{-127}+Q^2\,2^{-257}+2^{-246}.
 $$
 
-The NEXT mdoc circuit has 463 transcript boundaries.
+The NEXT mdoc circuit has 447 transcript boundaries.
 
 Here `r` counts ordinary transcript boundaries, one per draw that follows a
 message; a draw with no message since the last boundary reads further from
@@ -263,20 +268,20 @@ retains Polygero's extraction/outside-list errors and nonzero-sampling terms.
 ## Performance
 
 Complete NEXT v13 mdoc presentations with all four slots enabled, measured
-on 2026-11-19 with Rust 1.99.1 on one pinned core of a Ryzen 9 9950X with the
+on 2026-11-20 with Rust 1.99.1 on one pinned core of a Ryzen 9 9950X with the
 native CPU target. Times are medians of 40 samples in four runs, each after
 one warmup. Heap measurements use separate allocation-tracking runs.
 
 | Prover | Verifier | Proof bytes | Prover heap | Verifier heap |
 |---:|---:|---:|---:|---:|
-| 146.0 ms | 78.5 ms | 140,368 | 48.33 MiB | 35.92 MiB |
+| 134.04 ms | 74.88 ms | 138,272 | 41.86 MiB | 34.08 MiB |
 
 | Raw archive bytes | Zstd archive bytes | Decoded circuit heap |
 |---:|---:|---:|
-| 745,344 | 183,415 | 2.00 MiB |
+| 578,896 | 130,203 | 1.51 MiB |
 
 NEXT uses `(k,s,n,t)=(349,12,2443,84)` for the hash and signature
-circuits, with ordinary code rate `k/n=1/7`. The hash circuit has 20 layers,
+circuits, with ordinary code rate `k/n=1/7`. The hash circuit has 19 layers,
 and the adapter fragment joins its input end; the signature has 11.
 Circuit outputs join the assertion block at their own layer. Components are
 ordered by decreasing depth, with original input index breaking ties, so the
@@ -284,7 +289,7 @@ carried claim weights extend in place. Quad fragments introduce no extra rounds.
 
 | Circuit | Inputs | Wires excluding inputs | Terms | Sumcheck rounds |
 |---|---:|---:|---:|---:|
-| Hash | 353,739 | 2,287,521 | 5,198,325 | 276 |
+| Hash | 353,739 | 1,838,662 | 4,458,345 | 262 |
 | Signature | 3,102 | 46,667 | 97,497 | 118 |
 
 The binary circuit packs 128 private input bits per committed GF128 word.
@@ -682,6 +687,7 @@ provides:
 | `check-profiles` | Check parameter budgets with exact arithmetic, optionally using Lean |
 | `certify-hahn` | Check Hahn packing certificates with Lean |
 | `tune-polygero` | Pick the catalog profile with the smallest estimated proof for a witness count and field width |
+| `tune-next-proof` | Write a smaller-proof development NEXT bundle at rate 1/7 and 84 openings |
 | `generate-v2-specs` | Compile NEXT and print candidate specifications for review |
 
 Formal checking reads proof sources from the selected formal project,
@@ -701,6 +707,14 @@ threads, a 4,096 MiB limit and a 60-second deadline per file.
 
 Select that profile for the Lean cross-check with
 `check-profiles --protocol polygero --check-lean ../formal --profile 349,12,2443,84`.
+
+`tune-next-proof --bundle INPUT --output OUTPUT` compares the installed
+profile with `(347, 12, 2429, 84)` for the circuit in `INPUT`. It verifies the
+candidate's Hahn bounds and checks that each joint charge stays within the
+installed budget. It writes a new development bundle only when the expected
+serialized proof is smaller, accounting for the actual unpadded Merkle tree.
+The output uses the same circuit bytes and ID. The default profile and the
+concrete Lean verification model use the installed geometry.
 
 Parameter certificates establish mathematical bounds under their stated
 assumptions; they do not certify the complete Rust implementation.

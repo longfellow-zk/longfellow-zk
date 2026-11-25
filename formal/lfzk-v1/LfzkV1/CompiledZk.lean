@@ -131,6 +131,30 @@ theorem chainS_step_index {S Cand : Type} (steps : StepsS C S nl w) (Wrong : Can
   rw [indexEquiv_symm_index]
 
 omit [DecidableEq Q] in
+/-- The input-binding transition checks that the system fits the code. -/
+theorem zkBuilt_fits (V : ZkCode C F X Q Msg Gpt M ninp logw logc) (ms : ℕ → Msg)
+    (tape : Fin (Rounds.Role.length nl w) → C) {sys : LigeroSystem ninp M F}
+    (h : zkBuilt V ms tape = some sys) : Fits V sys := by
+  let ch := zkRun (nl := nl) (w := w) V ms fun _ _ _ _ => ∅
+  let role : Rounds.Role nl w := .inputBind
+  have hb := builtOf_eq_some.mp h
+  have hs := state_trunc_succ ch tape role.index
+  change ch.state (role.slot + 1) (Bcs.trunc tape _ fieldLen_le) =
+      ch.step role.index _ (tape role.index) (ch.state role.slot (Bcs.trunc tape _ role.slot_lt.le)) at hs
+  rw [show ch.state (role.slot + 1) (Bcs.trunc tape _ fieldLen_le) = .built sys from hb] at hs
+  dsimp only [ch] at hs
+  rw [chainS_step_index] at hs
+  let before := ch.state role.slot (Bcs.trunc tape _ role.slot_lt.le)
+  change .built sys = zkInputBind nl w V (V.closeOf (ms role.slot)) (tape role.index) before at hs
+  cases he : before with
+  | running zs =>
+    rw [he, zkInputBind] at hs
+    split_ifs at hs with guard
+    rw [ZkState.built.inj hs]
+    exact guard.2.2
+  | _ => rw [he, zkInputBind] at hs; cases hs
+
+omit [DecidableEq Q] in
 /-- **Before the query slot, the run does not read the query test.** -/
 theorem zk_state_acc_congr (V : ZkCode C F X Q Msg Gpt M ninp logw logc) (ms : ℕ → Msg)
     (acc acc' : ∀ m : ℕ, (Fin m → C) → LigeroSystem ninp M F → X → Finset Q) (j : ℕ)

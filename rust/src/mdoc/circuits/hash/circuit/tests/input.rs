@@ -9,6 +9,7 @@ use crate::{
     mdoc::{
         cbor::{encode_cbor_string, test_utils::parse_test_data},
         circuits::hash::{concrete, evaluate_derived, evaluate_given},
+        proto::hash::constants::{K_VALID_FROM_LEN, K_VALID_UNTIL_LEN},
         testcases::TEST_DATA,
     },
 };
@@ -95,7 +96,7 @@ fn namespace_check_is_independent_of_doc_type_suppression() {
             &evaluate_derived(&logic, &bits, &derived),
         )
         .assert_any_failed_at(
-            "assert_valid_presentation/assert_mso_namespace/value_bytes/value_bytes.0/text_byte",
+            "assert_valid_presentation/assert_mso_namespace/value_bytes/value_bytes.0/text_byte/text_byte.0/packed_eq_when",
         );
 }
 

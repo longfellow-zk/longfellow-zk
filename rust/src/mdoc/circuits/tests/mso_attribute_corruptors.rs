@@ -41,7 +41,7 @@ pub(super) fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
         (0..8).map(move |bit_idx| MsoAttributeCorruptor {
             name: format!("disclosed_name[{byte_idx}].bit[{bit_idx}]"),
             expected_path: format!(
-                "assert_attribute/assert_item_slot_key_value/assert_prefix_equal/assert_prefix_equal.{}/prefix_imp/prefix_imp.{bit_idx}/bit.{bit_idx}",
+                "assert_attribute/assert_item_slot_key_value/assert_prefix_equal/assert_prefix_equal.{}/prefix_imp/prefix_imp.0/packed_eq_when",
                 18 + byte_idx
             ),
             corrupt: Box::new(move |g| {
@@ -57,7 +57,7 @@ pub(super) fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
         (0..8).map(move |bit_idx| MsoAttributeCorruptor {
             name: format!("disclosed_value[{byte_idx}].bit[{bit_idx}]"),
             expected_path: format!(
-                "assert_attribute/assert_item_slot_key_value/assert_prefix_equal/assert_prefix_equal.{}/prefix_imp/prefix_imp.{bit_idx}/bit.{bit_idx}",
+                "assert_attribute/assert_item_slot_key_value/assert_prefix_equal/assert_prefix_equal.{}/prefix_imp/prefix_imp.0/packed_eq_when",
                 13 + byte_idx
             ),
             corrupt: Box::new(move |g| {
@@ -91,7 +91,7 @@ pub(super) fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
         MsoAttributeCorruptor {
             name: "preimage_len_zero".into(),
             expected_path:
-                "assert_attribute/attribute_digest/assert_message_hash/assert_length/len_eq/len_eq.0/chunk_eq"
+                "assert_attribute/attribute_digest/assert_message_hash/assert_length/len_eq/len_eq.0/block_len_eq/block_len_eq.0/chunk_eq_when"
                     .into(),
             corrupt: Box::new(|g| {
                 g.preimage_len = 0;
@@ -173,7 +173,7 @@ pub(super) fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
         MsoAttributeCorruptor {
             name: "bad_preimage_digest_id_key".into(),
             expected_path:
-                "assert_attribute/assert_item_slot_key_only/assert_bytes_at/assert_bytes_at.1/bytes_at/bytes_at.0/chunk_eq"
+                "assert_attribute/assert_item_slot_key_only/assert_bytes_at/assert_bytes_at.0/packed_eq"
                     .into(),
             corrupt: Box::new(|g| {
                 g.raw_buf[6] = 99; // Corrupt 'd' in "digestID"
@@ -182,7 +182,7 @@ pub(super) fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
         MsoAttributeCorruptor {
             name: "bad_preimage_content_byte".into(),
             expected_path:
-                "assert_attribute/assert_item_slot_key_only/assert_bytes_at/assert_bytes_at.5/bytes_at/bytes_at.0/chunk_eq"
+                "assert_attribute/assert_item_slot_key_only/assert_bytes_at/assert_bytes_at.0/packed_eq"
                     .into(),
             corrupt: Box::new(|g| {
                 g.raw_buf[10] = 0;
@@ -191,7 +191,7 @@ pub(super) fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
         MsoAttributeCorruptor {
             name: "bad_preimage_len".into(),
             expected_path:
-                "assert_attribute/attribute_digest/assert_message_hash/assert_length/len_eq/len_eq.0/chunk_eq"
+                "assert_attribute/attribute_digest/assert_message_hash/assert_length/len_eq/len_eq.1/block_len_eq/block_len_eq.0/chunk_eq_when"
                     .into(),
             corrupt: Box::new(|g| {
                 g.preimage_len = 99;
@@ -200,7 +200,7 @@ pub(super) fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
         MsoAttributeCorruptor {
             name: "bad_disclosed_name_data".into(),
             expected_path:
-                "assert_attribute/assert_item_slot_key_value/assert_prefix_equal/assert_prefix_equal.22/prefix_imp/prefix_imp.0/bit.0"
+                "assert_attribute/assert_item_slot_key_value/assert_prefix_equal/assert_prefix_equal.22/prefix_imp/prefix_imp.0/packed_eq_when"
                     .into(),
             corrupt: Box::new(|g| {
                 g.disclosed_name[4] = b'x';
@@ -218,7 +218,7 @@ pub(super) fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
         MsoAttributeCorruptor {
             name: "bad_disclosed_value_data".into(),
             expected_path:
-                "assert_attribute/assert_item_slot_key_value/assert_prefix_equal/assert_prefix_equal.13/prefix_imp/prefix_imp.0/bit.0"
+                "assert_attribute/assert_item_slot_key_value/assert_prefix_equal/assert_prefix_equal.13/prefix_imp/prefix_imp.0/packed_eq_when"
                     .into(),
             corrupt: Box::new(|g| {
                 g.disclosed_value[0] = 0xf4; // False instead of True
@@ -262,7 +262,7 @@ pub(super) fn all_mso_attribute_corruptors() -> Vec<MsoAttributeCorruptor> {
         MsoAttributeCorruptor {
             name: "bad_permutation_swap".into(),
             expected_path:
-                "assert_attribute/assert_item_slot_key_only/assert_bytes_at/assert_bytes_at.0/bytes_at/bytes_at.0/chunk_eq"
+                "assert_attribute/assert_item_slot_key_only/assert_bytes_at/assert_bytes_at.0/packed_eq"
                     .into(),
             corrupt: Box::new(|g| {
                 g.permutation[0] = 1;

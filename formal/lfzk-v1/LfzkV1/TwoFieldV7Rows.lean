@@ -25,8 +25,7 @@ What is proved, per pair: `TwoFieldRowV1.Valid` (all twelve conjuncts, both side
 `_commitFuel_lt_tape`, `_fuel`, `_premises_satisfiable`) at the pair; the composed statement at
 Protocol 3.8's schedule `_nizk_ratio_le_keyFirst` (`≤ 2^-115`); and the numerals of the
 re-committing two-field headline (`_len2`, `_adaptive_slack_bound`, `_adaptive_slack_coeff`,
-`_adaptive_rhs_le`) through the generic `TwoFieldRowV1.adaptive_rhs_le_of_slack`. `LfzkV1.CompiledV7`
-states the compiled-verifier headlines.
+`_adaptive_rhs_le`) through the generic `TwoFieldRowV1.adaptive_rhs_le_of_slack`.
 
 What remains a hypothesis is exactly what `TwoFieldRowV1.nizk_ratio_le` /
 `NizkAdaptiveTwoField.twofield_adaptive_ratio_le` take (per side a `V1Family` / `Side`: `hfalse`,

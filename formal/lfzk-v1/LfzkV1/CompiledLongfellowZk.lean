@@ -69,9 +69,8 @@ witness-free — that is what the Ligero swap buys.
 * **Query-bounded, hence computational.**  Every predicate on the distinguisher's output is
   allowed (`StatClose`), but the distinguisher makes at most `f` Merkle-oracle queries and the
   bound grows with `f` (`2·d·f/|Salt|`: guessing an unopened leaf's 256-bit nonce).  It is a
-  statement about attackers bounded by their SHA-256 work, not a statistical one.  With nonces long
-  enough (`|Digest| ≤ 4ε²|Salt|`), `LfzkV1.CompiledLongfellowZkStat` proves the statistical version
-  against a distinguisher that receives the Merkle oracle in full.
+  query-bound statement in the typed random-oracle model. The registered v7 composition uses
+  the joint hiding proof in `LfzkV1.V7ZkProfile`.
 * **Programmable random oracles, independent.**  The Merkle hash is a lazily sampled random
   oracle (`Merkle.RandomOracle.lazyRun` on a uniform tape); the round challenges and the two
   Ligero challenges are read from two further, independent, uniformly random functions `Gr` and
@@ -172,9 +171,10 @@ structure Frontend (F : Type) [Field F] (nw nq w : ℕ) (Equations : Type)
   honest_sat : ∀ (wit : Wit) (Gr : RO) (κ : Ctx) (b : Blind), Valid wit κ →
     (stmt Gr κ (transmit wit Gr κ b)).Satisfies (msgs wit b)
 
-/-- **The two Ligero hash inputs**: the prefix after the sumcheck transcript, and that prefix
-followed by the raw challenge and the response.  They are distinct (domain separation by
-length/role), which is all programming needs. -/
+/-- The two Ligero hash inputs are the batch prefix and the opening prefix.
+In deployed v1, the opening prefix extends the batch prefix by the serialized response.
+The deployed address function ignores the raw challenge argument. Programming needs
+the two addresses to be distinct. -/
 structure Points (Ctx Tr Coin Resp LQ : Type) where
   first : Ctx → Tr → LQ
   second : Ctx → Tr → Coin → Resp → LQ

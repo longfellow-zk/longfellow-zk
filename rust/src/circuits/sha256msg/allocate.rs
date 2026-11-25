@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::circuit::Given;
+use super::circuit::{pack_digest, Given};
 use crate::{
     circuits::bitvec::{BitvecIO, BitvecLogic},
     compile::logic::LogicIO,
@@ -32,7 +32,7 @@ pub fn allocate_given<L: LogicIO, const MAX_BLOCKS: usize>(
         padded_preimage.push(bitvec_io.next(pos));
     }
 
-    let expected_hash = bitvec_io.next(pos);
+    let expected_hash = pack_digest(bv.logic(), &bitvec_io.next(pos));
 
     Given {
         padded_preimage,

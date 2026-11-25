@@ -28,7 +28,7 @@ includes equality with `ro (key point)`. The Rust verifier recomputes `av` direc
 separately serialized in `MdocProof`. This annotation makes hash inputs functions of the formal
 output alone, which is what
 `Bcs.TotalOracle` needs.  In the deployed mdoc pairing, side 1 is the `GF(2^128)` hash circuit and
-side 2 the `P-256` signature circuit (instantiated in `NizkDeployedHashV7`).
+side 2 the `P-256` signature circuit.
 
 ## What is proved
 
@@ -315,24 +315,26 @@ theorem pget_side2_prefix (dflt : C)
   funext j
   exact pget_side2 dflt ro p j
 
-/-- **The deployed two-field reading of a re-committing prover.** -/
-noncomputable def setup2 [Nonempty C] {Enc : Type} {tA N : ℕ}
-    (body : TwoOracleTree Enc D (Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w₂) C Out tA N)
+/-- **The deployed two-field reading of a re-committing prover.** The
+transcript carries the decoded key share, while the oracle may answer with
+a larger alphabet from which all roles can sample. -/
+noncomputable def setup2 {Answer : Type} [Nonempty Answer] {Enc : Type} {tA N : ℕ}
+    (body : TwoOracleTree Enc D (Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w₂) Answer Out tA N)
     (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
     (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂) :
-    TotalOracleCommit.Setup Enc D (Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w₂) C Out (D × D) tA N
+    TotalOracleCommit.Setup Enc D (Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w₂) Answer Out (D × D) tA N
       (1 + Rounds.Role.length nl₁ w₁ + Rounds.Role.length nl₂ w₂) where
   body := body
   hashInput := hash2 rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂
-  dflt := Classical.arbitrary C
+  dflt := Classical.arbitrary Answer
   key := key2
   keyOut out := (rootOf₁ out, rootOf₂ out)
   hkey := key2_hash2 rootOf₁ rootOf₂ avOf pubOf msgOf₁ msgOf₂
 
 /-- The concrete two-field setup satisfies the injective-schedule premise
 of the graded potential compiler. -/
-theorem setup2_hashInput_injective [Nonempty C] {Enc : Type} {tA N : ℕ}
-    (body : TwoOracleTree Enc D (Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w₂) C Out tA N)
+theorem setup2_hashInput_injective {Answer : Type} [Nonempty Answer] {Enc : Type} {tA N : ℕ}
+    (body : TwoOracleTree Enc D (Pt2 D C X Msg₁ Msg₂ nl₁ nl₂ w₁ w₂) Answer Out tA N)
     (rootOf₁ rootOf₂ : Out → D) (avOf : Out → C) (pubOf : Out → X)
     (msgOf₁ : Out → ℕ → Msg₁) (msgOf₂ : Out → ℕ → Msg₂) :
     ∀ out, Function.Injective (fun i : Fin (1 + Rounds.Role.length nl₁ w₁ +

@@ -13,15 +13,15 @@
 // limitations under the License.
 use crate::{
     circuits::{
-        bitvec::Bitvec,
+        bitvec::{Bitvec, BitvecLogic},
         boolean::{Bitw, Boolean},
         routing::Routing,
     },
     compile::{
         algebra::{p256::P256Field, CompileField},
-        logic::{AssertionScope, EvalLogic},
+        logic::{AssertionScope, EvalLogic, Logic},
     },
-    core::algebra::SupportsNatConversions,
+    core::algebra::{AlgebraicField, SupportsNatConversions, SupportsU64Conversions},
 };
 
 fn int_to_bits(val: usize, bits: usize) -> Vec<bool> {
@@ -115,6 +115,115 @@ fn test_routing_evaluation() {
                     for unroll in 1..=4 {
                         run_eval_test_bitvec_generic::<4, _>(&f, logn, n, k, shift, unroll);
                     }
+                }
+            }
+        }
+    }
+}
+
+fn amount_bitvec<L: Logic>(boolean: &Boolean<'_, L>, amount: usize) -> Bitvec<L, 8> {
+    Bitvec::new(
+        int_to_bits(amount, 8)
+            .into_iter()
+            .map(|b| if b { boolean.trueb() } else { boolean.falseb() })
+            .collect(),
+    )
+}
+
+/// The reference result: `a` shifted left by `amount`, zero-filled.
+fn shifted(a: &[u8], amount: usize, k: usize) -> Vec<u8> {
+    (0..k)
+        .map(|i| a.get(i + amount).copied().unwrap_or(0))
+        .collect()
+}
+
+const GROUPINGS: [&[usize]; 7] = [
+    &[4],
+    &[1, 3],
+    &[2, 2],
+    &[3, 1],
+    &[1, 1, 1, 1],
+    &[2, 1],
+    &[1],
+];
+
+#[test]
+#[should_panic(expected = "shift groups must be nonempty and have positive widths")]
+fn grouped_shift_rejects_empty_schedule() {
+    let f = P256Field::new();
+    let tracker = AssertionScope::new();
+    let logic = EvalLogic::new(&f, &tracker);
+    let bv = BitvecLogic::new(&logic);
+    let routing = Routing::new(&logic);
+    routing.shift_bitvec_grouped(&[], &bv.of_u8(1), 1, &[bv.of_u8(42)]);
+}
+
+#[test]
+fn test_shift_bitvec_grouped() {
+    let f = P256Field::new();
+    let tracker = AssertionScope::new();
+    let iologic = EvalLogic::new(&f, &tracker);
+    let boolean = Boolean::new(&iologic);
+    let bv = BitvecLogic::new(&iologic);
+    let routing = Routing::new(&iologic);
+    for groups in GROUPINGS {
+        let total: usize = groups.iter().sum();
+        for n in 1..=1 << total {
+            let a_vals: Vec<u8> = (0..n).map(|i| (i * 37 + 5) as u8).collect();
+            let a: Vec<_> = a_vals.iter().map(|&v| bv.of_u8(v)).collect();
+            for k in 1..=n + 2 {
+                // Amounts beyond `1 << total` exercise the high-bit check.
+                for amount in 0..=(1 << total) + 3 {
+                    let res = routing.shift_bitvec_grouped(
+                        groups,
+                        &amount_bitvec(&boolean, amount),
+                        k,
+                        &a,
+                    );
+                    let got: Vec<u8> = res
+                        .iter()
+                        .map(|r| {
+                            (0..8)
+                                .filter(|&j| boolean.as_eltw(r.bit(j)).value == f.one())
+                                .fold(0u8, |acc, j| acc | 1 << j)
+                        })
+                        .collect();
+                    assert_eq!(
+                        got,
+                        shifted(&a_vals, amount, k),
+                        "groups={groups:?} n={n} k={k} amount={amount}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn test_shift_eltw_grouped() {
+    let f = P256Field::new();
+    let tracker = AssertionScope::new();
+    let iologic = EvalLogic::new(&f, &tracker);
+    let boolean = Boolean::new(&iologic);
+    let routing = Routing::new(&iologic);
+    for groups in GROUPINGS {
+        let total: usize = groups.iter().sum();
+        for n in 1..=1 << total {
+            let a_vals: Vec<u8> = (0..n).map(|i| (i * 37 + 5) as u8).collect();
+            let a: Vec<_> = a_vals
+                .iter()
+                .map(|&v| iologic.konst(&f.u64_to_element(v.into())))
+                .collect();
+            for k in 1..=n + 2 {
+                for amount in 0..=(1 << total) + 3 {
+                    let res =
+                        routing.shift_eltw_grouped(groups, &amount_bitvec(&boolean, amount), k, &a);
+                    let want: Vec<_> = shifted(&a_vals, amount, k)
+                        .into_iter()
+                        .map(|v| f.u64_to_element(v.into()))
+                        .collect();
+                    let got: Vec<_> = res.into_iter().map(|r| r.value).collect();
+                    assert_eq!(got, want, "groups={groups:?} n={n} k={k} amount={amount}");
                 }
             }
         }

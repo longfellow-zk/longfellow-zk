@@ -5,14 +5,14 @@ scripts/mdoc_round_shapes.rs. Entries are log wire widths, one per sumcheck laye
 namespace LfzkV2.Current.MdocRoundShape
 
 def binaryRounds : List ℕ :=
-  [6, 7, 8, 8, 9, 9, 11, 13, 14, 15, 16, 16, 16, 16, 17, 18, 19, 19, 20, 19]
+  [6, 7, 8, 8, 9, 11, 12, 14, 15, 16, 16, 15, 16, 16, 17, 18, 19, 20, 19]
 
 def primeRounds : List ℕ := [4, 5, 6, 11, 11, 13, 14, 14, 14, 14, 12]
 
 def roundCount : ℕ :=
   binaryRounds.sum + primeRounds.sum + 2 * (binaryRounds.length + primeRounds.length) + 7
 
-theorem roundCount_eq : roundCount = 463 := by decide
+theorem roundCount_eq : roundCount = 447 := by decide
 
 structure Supported (g : Geometry) : Prop where
   binary : g.binary.stages.map Stage.rounds = binaryRounds

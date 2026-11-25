@@ -16,6 +16,7 @@ use crate::{
     circuits::{
         bitvec::{BitvecIO, BitvecLogic},
         boolean::BooleanIO,
+        sha256msg::pack_digest,
     },
     compile::logic::LogicIO,
     mdoc::{
@@ -52,7 +53,7 @@ pub fn allocate_given<L: LogicIO>(bv: &BitvecLogic<L>, pos: &mut usize) -> Given
         comparison: None,
     };
 
-    let expected_digest = bitvec_io.next::<256>(pos);
+    let expected_digest = pack_digest(bv.logic(), &bitvec_io.next::<256>(pos));
 
     Given {
         attribute_preimage,

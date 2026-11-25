@@ -314,6 +314,19 @@ impl<'a, Fld: CompileField, L: Logic<F = Fld>> BitvecLogic<'a, L> {
         self.arith.assert_eq(name, &a.bits, &b.bits)
     }
 
+    /// Assert that `a == b` when `cond` is true, with one product-zero
+    /// check per packed chunk.
+    #[must_use]
+    pub(crate) fn assert_eq_when<const N: usize>(
+        &self,
+        name: &str,
+        cond: &Bitw<L>,
+        a: &Bitvec<L, N>,
+        b: &Bitvec<L, N>,
+    ) -> L::Assertions {
+        self.arith.assert_eq_when(name, cond, &a.bits, &b.bits)
+    }
+
     pub fn assert_neq<const N: usize>(
         &self,
         name: &str,
