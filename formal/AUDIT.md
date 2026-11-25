@@ -307,7 +307,8 @@ is claimed. V1 proofs and generic paper-facing component theorems are preserved.
 | Current V2 completeness | [`Mdoc.Completeness.accepts`](lfzk-v2/LfzkV2/Current/Mdoc/Completeness.lean) | The honest prover returns an accepted proof whenever every boundary samples. |
 | Deployed reader corollaries | [`Mdoc.Rust`](lfzk-v2/LfzkV2/Current/Mdoc/Rust.lean) | The four endpoints at the Rust challenge reader, with no reader premise; completeness fails with probability at most `2^-128`. |
 | Premise inhabitation | [`Tests.MdocInstance`](lfzk-v2/LfzkV2/Current/Tests/MdocInstance.lean), [`Tests.MdocPrivacyInstance`](lfzk-v2/LfzkV2/Current/Tests/MdocPrivacyInstance.lean) | Every premise of the deployed corollaries holds for a toy instance, with positive reader fibers. |
-| Extant V1 runtime | [`LfzkV1.FlatV7All`](lfzk-v1/LfzkV1/FlatV7All.lean) | V1 signature/hash extraction and soundness certificates. |
+| V1 knowledge soundness | [`V7Soundness125.annotated_fs_knowledge_soundness_125`](lfzk-v1/LfzkV1/V7Soundness125.lean) | Annotated v7 ideal-oracle model. Acceptance at the replayed MAC multiplier with failed extraction has probability at most `(N + tA) / 2^125` for positive budgets and `33628000 / 2^256` at zero. |
+| V1 zero-knowledge simulation | [`V7ZkProfile.v7mac_twofield_zk_deployed_padding`](lfzk-v1/LfzkV1/V7ZkProfile.lean) | Distinguishing advantage at most `Q / 2^256 + 2^-360` with independent typed Merkle oracles and the MAC zero pattern as leakage. |
 | Paper-facing Polygero | [Polygero component library](polygero/README.md) | Original public-coin extraction/soundness and generic algebra, preserved unchanged. |
 | Packing and witness selection | [Dual packing](dual-packing/README.md), [witness selection](witness-selection/README.md) | Current component reductions and shared algebra. |
 
@@ -335,7 +336,7 @@ cargo run --release --manifest-path lfzk-v1/scripts/Cargo.toml --bin inspect-v7-
 ```
 
 The default build includes all retained Hahn certificate families, both
-sumcheck libraries, dual packing, the four V1 116-bit endpoints, the V2 endpoint audit,
+sumcheck libraries, dual packing, the V1 v7 endpoints, the V2 endpoint audit,
 and the Polygero API/dependency checks. `scripts/build.sh` uses Lake's default
 concurrency. There is no separate certificate build requirement.
 

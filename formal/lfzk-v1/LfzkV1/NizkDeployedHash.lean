@@ -53,9 +53,8 @@ challenge for round `k` is read at round `k`'s prefix (`msgPoint ctx msgOf out k
   `CertifiedV1.Row.fs_ratio_le_bound`, unchanged); `row_fs_ratio_le_bits` the same at any certified
   bit levels.
 
-The re-committing (adaptive) and compiled forms are in `LfzkV1.NizkDeployedHashAdaptive`, the
-two-field composition in `LfzkV1.NizkDeployedHashTwoField`, and the v7 restatements in
-`LfzkV1.NizkDeployedHashV7`.
+The re-committing and compiled forms are in `LfzkV1.NizkDeployedHashAdaptive`.
+The two-field composition is in `LfzkV1.NizkDeployedHashTwoField`.
 -/
 
 set_option autoImplicit false

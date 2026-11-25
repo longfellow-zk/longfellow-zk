@@ -47,7 +47,6 @@ import LfzkV1.CompiledLongfellowAdaptive
 import LfzkV1.LigeroV1RowsV7
 import LfzkV1.CertifiedV7
 import LfzkV1.TwoFieldV7Rows
-import LfzkV1.CompiledV7
 -- the zero-knowledge verifier's rows and the pad (ported from `proofs/lfzk-v1`)
 import LfzkV1.ZkHiding
 import LfzkV1.ZkSim
@@ -65,7 +64,6 @@ import LfzkV1.LigeroZk.V1ResponseAdaptive
 import LfzkV1.FromLigeroZKV1
 import LfzkV1.ZkFiatShamir
 import LfzkV1.ZkMerkle
-import LfzkV1.ZkMerkleStat
 import LfzkV1.ZkProgram
 import LfzkV1.ZkLongfellow
 import LfzkV1.CompiledLigeroZk
@@ -75,19 +73,15 @@ import LfzkV1.CompiledLongfellowZk
 import LfzkV1.ZkFrontendOfSetup
 import LfzkV1.ZkTwoTape
 import LfzkV1.CompiledLongfellowZkTwoField
-import LfzkV1.CompiledLongfellowZkV7
-import LfzkV1.CompiledLongfellowZkStat
 -- Fiat–Shamir with hash inputs as deployed: message prefixes only, challenges never re-absorbed
 import LfzkV1.NizkDeployedHash
 import LfzkV1.NizkDeployedHashAdaptive
 import LfzkV1.NizkDeployedHashTwoField
-import LfzkV1.NizkDeployedHashV7
 -- the list factor charged at the field slots only (no list factor at the two Ligero slots)
 import LfzkV1.RbrLayerStepS
 import LfzkV1.RbrSplitS
 import LfzkV1.NizkAdaptiveS
 import LfzkV1.CompiledLongfellowAdaptiveS
-import LfzkV1.CompiledV7S
 -- soundness against the deployed zero-knowledge verifier (padded rounds, statement built from the
 -- transcript, `begin_circuit`'s point drawn, per-layer betas, dead-end assertions; no `hfalse`)
 import LfzkV1.ZkMultilinear
@@ -123,6 +117,8 @@ import LfzkV1.NizkZkDeployedHashSepMac
 import LfzkV1.TwoFieldSepMacRows
 import LfzkV1.CompiledZkProfileSepMac
 import LfzkV1.CompiledLongfellowZkV7Mac
+import LfzkV1.V7ZkProfile
+import LfzkV1.V7Soundness125
 
 /-!
 # Longfellow NIZK knowledge soundness

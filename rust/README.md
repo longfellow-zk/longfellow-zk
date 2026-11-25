@@ -145,10 +145,15 @@ remain subject to change. There are currently no frozen v2 mdoc circuits.
 
 ## Security bounds
 
-The [formal v1 analysis](../formal/lfzk-v1/README.md) establishes 116-bit
-Fiat–Shamir T-security for its modeled v7 composition. The current v2
-numbered-strand model has a checked one-SHA extraction theorem for adaptive
-public requests and arbitrary complete serialized proofs. It includes witness
+The [formal v1 analysis](../formal/lfzk-v1/README.md) bounds acceptance at
+the replayed MAC multiplier with failed extraction by `(N + tA) / 2^125`
+when `N + tA > 0` in the annotated v7 ideal-oracle model. The
+zero-query bound is `33628000 / 2^256`. With independent typed Merkle
+oracles, the two-field simulator receives the MAC zero pattern and has
+distinguishing advantage at most `Q / 2^256 + 2^-360`.
+
+The current v2 numbered-strand model has a checked one-SHA extraction
+theorem for adaptive public requests and arbitrary complete serialized proofs. It includes witness
 selection, layered sumcheck, the cross-field adapter, packing, joint Polygero,
 its shared indexed Merkle commitment and the final seal.
 

@@ -19,7 +19,7 @@ open Finset LfzkV1.RbrZkLongfellow LfzkV1.RbrZkSplit
   LfzkV1.CompiledZk LfzkV1.CompiledLongfellow LfzkV1.NizkDeployedHash
 open scoped Classical
 
-private theorem accepting_eq_of_prefix
+theorem accepting_eq_of_prefix
     {C Msg S X Q : Type}
     (acc : ∀ m : ℕ, (Fin m → C) → Msg → S → X → Finset Q)
     {m n : ℕ} (hm : m = n) (p : Fin m → C) (q : Fin n → C)

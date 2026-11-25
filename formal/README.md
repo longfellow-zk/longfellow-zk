@@ -507,11 +507,15 @@ algebra, completeness, masking, query-accounting and sampling results remain
 available. Shared helpers keep their existing namespaces; obsolete V2
 implementation endpoints are no longer public or registered as current tests.
 
-The extant V1 runtime retains its checked 116-bit extraction and false-statement
-soundness bounds. [`LfzkV1.FlatV7All`](lfzk-v1/LfzkV1/FlatV7All.lean) checks the
-signature and SHA geometries for one through four attributes. The
-[V1 README](lfzk-v1/README.md) states their premises. V1's generic statistical
-couplings remain shared dependencies of current V2 privacy.
+For all four v7 hash profiles, the annotated V1 model bounds acceptance at
+the replayed MAC multiplier with failed witness extraction by
+`(N + tA) / 2^125` when `N + tA > 0`. The zero-query bound is
+`33628000 / 2^256`. The V1 simulator's distinguishing advantage is at most
+`Q / 2^256 + 2^-360`
+with independent typed Merkle oracles and MAC zero-pattern leakage.
+The [V1 README](lfzk-v1/README.md) gives both statements and their premises.
+V1's generic statistical couplings remain shared dependencies of current
+V2 privacy.
 
 The [Ligero development](ligero/README.md) contains Reed–Solomon distance,
 agreement/list bounds, Delsarte/Hahn certificates, response-assisted extraction,

@@ -18,7 +18,12 @@ It is named after the bridge outside the Google Cambridge office.
 Earlier versions of this project have completed several independent security reviews by panels of academic and industry experts in the field. Their reports are available in the [Project documentation/Reviews](https://longfellow-zk.github.io/longfellow-zk/docs/reviews/) page; those reviews do not cover all subsequent Rust V2 changes.
 
 The [Lean development](formal/README.md) proves security bounds for the
-mathematical protocol models. V1 retains its 116-bit T-security result.
+mathematical protocol models. In the [annotated V1 model](formal/lfzk-v1/README.md),
+the probability of acceptance at the replayed MAC multiplier and failed
+witness extraction is at most `(N + tA) / 2^125` when `N + tA > 0`.
+The zero-query bound is `33628000 / 2^256`. With independent typed Merkle
+oracles, the two-field simulator has distinguishing advantage at most
+`Q / 2^256 + 2^-360` and receives the MAC zero pattern.
 The current SHA-256 strand model of V2 has a checked Fiat–Shamir extraction
 bound for original raw-query budgets `0 <= Q < 2^127`. At rate 1/7, put
 $q=2^{128}$ and $c=1.0000012312149082441647508747\ldots$ (defined exactly
