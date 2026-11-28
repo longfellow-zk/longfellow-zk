@@ -371,10 +371,12 @@ establish that a cryptographic implementation satisfies their premises.
   canonical encoding and injectivity properties. The ZK specialization
   explicitly requires binary basis coordinate zero equal to one and that
   the adapter's fixed base X, the polynomial-basis element encoded as 2,
-  pass the primitive-generator check (`Adapter.Mdoc.generatorCheck`). X is
+  pass the primitive-generator check (`Adapter.Mdoc.generatorCheck`). For the
+  concrete field `F_2[X] / (X^128 + X^7 + X^2 + X + 1)` with its polynomial
+  basis, `ConcreteGF128.generatorCheck_true` and `ConcreteGF128.polynomialX_order`
+  prove this directly in the Lean kernel without `native_decide`. X is
   fixed, so the runtime does not repeat the check per proof: the Rust unit
-  test `adapter_base_is_primitive` checks it, and runs on every arithmetic
-  backend.
+  test `adapter_base_is_primitive` also checks it on every arithmetic backend.
   Rust limb arithmetic, finite-machine operations and compiler correctness
   are source-correspondence obligations, not additional Lean theorems.
 - **Trusted application circuits and archives.** Extraction returns a

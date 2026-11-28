@@ -3,3 +3,4 @@ import LfzkV2.Current.Mdoc.ZeroKnowledge
 import LfzkV2.Current.Mdoc.VerifierPrivacy
 import LfzkV2.Current.Mdoc.Completeness
 import LfzkV2.Current.Mdoc.Rust
+import LfzkV2.Current.ConcreteGF128
