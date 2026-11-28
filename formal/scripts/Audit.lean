@@ -31,7 +31,9 @@ import LfzkV1.SoundnessCompose125
 import LfzkV1.TwoFieldCover125
 import LfzkV1.V7SamplerAudit125
 import LfzkV1.V7Soundness125
+import LfzkV1.V7Soundness125Instance
 import LfzkV1.V7ZkProfile
+import LfzkV1.V7ZkProfileInstance
 import Survival
 import Survival.Tests
 import Survival.Axioms

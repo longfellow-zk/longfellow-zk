@@ -20,7 +20,7 @@ use crate::{
         cbor::mdoc::compute_transcript_hash,
         v1::{
             attribute::same_namespace,
-            inputs::{push_input_hash, push_input_sig},
+            inputs::{push_input_hash, push_input_sig, HashInputError},
             key::parse_pk_coordinate,
             MdocProof, MdocProofGeometry, MdocVerifierErrorCode, RequestedAttribute, ZkSpecStruct,
         },
@@ -129,7 +129,13 @@ pub fn run_mdoc_verifier(
     let av_val = u128::from_le_bytes(av_buf.try_into().unwrap());
 
     let pub_inputs_hash =
-        push_input_hash(version, &gf2, attrs, now.as_bytes(), &proof.macs, av_val);
+        push_input_hash(version, &gf2, attrs, now.as_bytes(), &proof.macs, av_val).map_err(
+            |err| match err {
+                HashInputError::AttributeTooLong | HashInputError::InvalidNow => {
+                    MdocVerifierErrorCode::InvalidInput
+                }
+            },
+        )?;
 
     if pub_inputs_hash.len() != verifier_hash.circuit.raw.npublic_input {
         return Err(MdocVerifierErrorCode::AttributeNumberMismatch);

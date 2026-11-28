@@ -19,18 +19,20 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <string>
 
-#include "file/base/helpers.h"
-#include "file/base/options.h"
-#include "file/base/path.h"
 #include "circuits/mdoc/mdoc_examples.h"
 #include "circuits/mdoc/mdoc_test_attributes.h"
 #include "circuits/mdoc/mdoc_zk.h"
 #include "util/crypto.h"
 #include "util/log.h"
-#include "testing/base/public/gmock.h"
 #include "gtest/gtest.h"
+
+#ifndef MDOC_CIRCUITS_DIR
+#define MDOC_CIRCUITS_DIR "circuits/mdoc/circuits"
+#endif
 
 namespace proofs {
 namespace {
@@ -107,10 +109,12 @@ TEST(ZkSpecTest, CorrectSpecFor4Attributes) { test_circuit_hash(4); }
 
 void test_proof_creation_and_verification(const ZkSpecStruct& zk_spec) {
   // Read the circuit file from circuits/hash.
-  auto cp = file::JoinPath("circuits/mdoc/circuits/",
-                           zk_spec.circuit_hash);
-  std::string circuit_bytes;
-  EXPECT_OK(file::GetContents(cp, &circuit_bytes, file::Defaults()));
+  std::string cp = std::string(MDOC_CIRCUITS_DIR) + "/" + zk_spec.circuit_hash;
+  std::ifstream in(cp, std::ios::binary);
+  ASSERT_TRUE(in.is_open()) << "Failed to open circuit file: " << cp;
+  std::string circuit_bytes((std::istreambuf_iterator<char>(in)),
+                            std::istreambuf_iterator<char>());
+  ASSERT_FALSE(circuit_bytes.empty());
 
   const MdocTests* test = &mdoc_tests[3]; /* Sprind example w/4 attributes  */
   RequestedAttribute claims[4] = {test::age_over_18,

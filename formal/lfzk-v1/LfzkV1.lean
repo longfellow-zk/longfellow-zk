@@ -118,7 +118,9 @@ import LfzkV1.TwoFieldSepMacRows
 import LfzkV1.CompiledZkProfileSepMac
 import LfzkV1.CompiledLongfellowZkV7Mac
 import LfzkV1.V7ZkProfile
+import LfzkV1.V7ZkProfileInstance
 import LfzkV1.V7Soundness125
+import LfzkV1.V7Soundness125Instance
 
 /-!
 # Longfellow NIZK knowledge soundness

@@ -28,8 +28,10 @@ add_library(mdoc_static STATIC
 proofs_add_test(mdoc_signature_test)
 target_link_libraries(mdoc_signature_test mdoc)
 
-#proofs_add_test(zk_spec_test)
-#target_link_libraries(zk_spec_test mdoc)
+proofs_add_test(zk_spec_test)
+target_link_libraries(zk_spec_test mdoc)
+target_compile_definitions(
+    zk_spec_test PRIVATE MDOC_CIRCUITS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/circuits")
 
 # link mdoc_zk_test explicitly against the static library
 # so that we know that the static library works

@@ -167,7 +167,13 @@ pub fn run_mdoc_prover_inner<RNG: RandomEngine>(
         &mac_ap,
     );
     let hash_pub_inputs =
-        super::inputs::push_input_hash(version, &gf2, attrs, now.as_bytes(), &macs, av_val);
+        super::inputs::push_input_hash(version, &gf2, attrs, now.as_bytes(), &macs, av_val)
+            .map_err(|err| match err {
+                super::inputs::HashInputError::AttributeTooLong => {
+                    MdocProverErrorCode::AttributeTooLong
+                }
+                super::inputs::HashInputError::InvalidNow => MdocProverErrorCode::InvalidInput,
+            })?;
     let sig_pub_inputs =
         super::inputs::push_input_sig(&p256, &issuer_pk, &parsed.device_sig_digest, &macs, av_val);
 

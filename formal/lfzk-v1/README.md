@@ -10,7 +10,9 @@ with 132 opened columns and are linked by the v7 MAC.
 | Result | Bound and scope | Endpoint |
 |---|---|---|
 | Knowledge soundness | **125-bit T-security** for all four v7 hash profiles in the annotated ideal-oracle model. Acceptance at the replayed MAC multiplier with failed extraction has probability at most `(N + tA) / 2^125` when `N + tA > 0`, and `33628000 / 2^256` at zero. | [`V7Soundness125.annotated_fs_knowledge_soundness_125`](LfzkV1/V7Soundness125.lean) |
+| Knowledge soundness premise inhabitation | Direct toy instantiation discharging every hypothesis of `annotated_fs_knowledge_soundness_125` at all four registered v7 hash profiles (non-vacuity check). | [`V7Soundness125Instance.v7_soundness_125_inhabited`](LfzkV1/V7Soundness125Instance.lean) |
 | Zero knowledge with 256-bit nonces | Distinguishing advantage at most `Q / 2^256 + 2^-360` at all four registered v7 Ligero geometries with independent typed Merkle oracles. The simulator receives the common message blocks' zero pattern. | [`V7ZkProfile.v7mac_twofield_zk_deployed_padding`](LfzkV1/V7ZkProfile.lean) |
+| Zero knowledge premise inhabitation | Direct toy instantiation discharging every hypothesis of `v7mac_twofield_zk_deployed_padding` at all four registered v7 hash profiles (non-vacuity check). | [`V7ZkProfileInstance.v7_zk_deployed_padding_inhabited`](LfzkV1/V7ZkProfileInstance.lean) |
 
 `N` counts adversarial transcript-oracle queries and `tA` counts adversarial
 Merkle-hash queries. They are separate budgets in the experiment.
