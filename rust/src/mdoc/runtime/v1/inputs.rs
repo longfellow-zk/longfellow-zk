@@ -16,9 +16,12 @@
 
 mod builder;
 mod public;
-pub(super) use public::{push_input_hash, push_input_sig};
+pub(super) use public::{push_input_hash, push_input_sig, HashInputError};
 
 cfg_prover! {
     mod private;
     pub(super) use private::{push_witness_hash, push_witness_sig};
 }
+
+#[cfg(test)]
+mod tests;

@@ -15,7 +15,7 @@
 //! Longfellow v1 assignment builder; preserves its own field encodings.
 
 use crate::{
-    core::algebra::{AlgebraicField, BareField, Nat},
+    core::algebra::{AlgebraicField, BareField},
     mdoc::runtime::fields::{MdocHashRuntimeField, MdocSigRuntimeField},
 };
 
@@ -75,11 +75,8 @@ impl<F: MdocHashRuntimeField> AssignmentBuilder<'_, F> {
 }
 
 impl<F: MdocSigRuntimeField> AssignmentBuilder<'_, F> {
-    pub(super) fn push_nat_elt<const W_NAT: usize, N: Nat<W_NAT>>(&mut self, val: &N) {
-        let mut bytes = val.to_bytes_le();
-        bytes.resize(32, 0);
-        let el = self.field.bytes_to_element(&bytes).unwrap();
-        self.buffer.push(el);
+    pub(super) fn push_nat_elt(&mut self, val: &F::N) {
+        self.buffer.push(self.field.reduce_nat(val));
     }
 }
 

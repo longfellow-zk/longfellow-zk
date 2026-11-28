@@ -15,7 +15,7 @@
 //! Longfellow v1 public assignment encoding.
 
 use crate::{
-    core::algebra::{AlgebraicField, Nat, SupportsU64Conversions},
+    core::algebra::{AlgebraicField, SupportsU64Conversions},
     mdoc::{
         cbor::encode_cbor_string_into,
         v1::{attribute::RequestedAttribute, inputs::builder::AssignmentBuilder},
@@ -23,19 +23,29 @@ use crate::{
     runtime::algebra::{
         gf2_128::{Gf2_128, Gf2_128Field},
         p256::{P256Element, P256Field},
+        RuntimeNat,
     },
 };
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::mdoc::runtime::v1) enum HashInputError {
+    AttributeTooLong,
+    InvalidNow,
+}
 
 fn push_input_attrs(
     builder: &mut AssignmentBuilder<'_, Gf2_128Field>,
     version: usize,
     attrs: &[RequestedAttribute],
-) {
+) -> Result<(), HashInputError> {
     let zero = builder.field.zero();
     for la in attrs {
         if version >= 7 {
             let mut vbuf = Vec::with_capacity(3 + la.id.len());
             encode_cbor_string_into(&la.id, &mut vbuf);
+            if vbuf.len() > 32 || la.cbor_value.len() > 64 {
+                return Err(HashInputError::AttributeTooLong);
+            }
 
             builder.push_raw_bytes(&vbuf);
             builder.push_pad(zero, (32 - vbuf.len()) * 8);
@@ -53,11 +63,15 @@ fn push_input_attrs(
             vbuf.extend_from_slice(&la.cbor_value);
 
             let len = vbuf.len();
+            if len > 96 {
+                return Err(HashInputError::AttributeTooLong);
+            }
             builder.push_raw_bytes(&vbuf);
             builder.push_pad(zero, (96 - len) * 8);
             builder.push_bits_len(len as u64, 8);
         }
     }
+    Ok(())
 }
 
 pub(in crate::mdoc::runtime::v1) fn push_input_hash(
@@ -67,10 +81,13 @@ pub(in crate::mdoc::runtime::v1) fn push_input_hash(
     now_bytes: &[u8],
     macs: &[u128; 6],
     av: u128,
-) -> Vec<Gf2_128> {
+) -> Result<Vec<Gf2_128>, HashInputError> {
+    if now_bytes.len() > 20 {
+        return Err(HashInputError::InvalidNow);
+    }
     let mut builder = AssignmentBuilder::new(gf2);
     builder.push_elt(&gf2.one());
-    push_input_attrs(&mut builder, version, attrs);
+    push_input_attrs(&mut builder, version, attrs)?;
 
     builder.push_raw_bytes(now_bytes);
     builder.push_pad(Gf2_128::from(2u128), (20 - now_bytes.len()) * 8);
@@ -79,13 +96,13 @@ pub(in crate::mdoc::runtime::v1) fn push_input_hash(
         builder.push_u128(m);
     }
     builder.push_u128(av);
-    builder.into_inner()
+    Ok(builder.into_inner())
 }
 
-pub(in crate::mdoc::runtime::v1) fn push_input_sig<N: Nat<4>>(
+pub(in crate::mdoc::runtime::v1) fn push_input_sig(
     p256: &P256Field,
     issuer_pk: &(P256Element, P256Element),
-    device_sig_e: &N,
+    device_sig_e: &RuntimeNat<4>,
     macs: &[u128; 6],
     av: u128,
 ) -> Vec<P256Element> {

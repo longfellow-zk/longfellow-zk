@@ -313,4 +313,67 @@ mod tests {
         println!("Successfully executed {total_count} prover/verifier combinations across v1 circuits v5, v6 and v7!");
         assert!(total_count > 0);
     }
+
+    #[test]
+    fn verifier_rejects_oversized_public_inputs_without_panicking() {
+        let test_data = &crate::mdoc::testcases::BIRTHDATE_1971_09_01_MDOC_3;
+        let provided = provider::materialize(7, 1).unwrap();
+        let spec = &provided.spec;
+        let compressed = &provided.compressed;
+        let proof = crate::mdoc::artifacts::load_prior_proof(&spec.combined_hash_hex());
+        let ok_attr = req_attr(
+            "org.iso.18013.5.1",
+            "family_name",
+            [
+                0x6a, b'M', b'u', b's', b't', b'e', b'r', b'm', b'a', b'n', b'n',
+            ],
+        );
+
+        let long_id = req_attr("org.iso.18013.5.1", "a".repeat(31), [0x61, b'x']);
+        assert_eq!(
+            run_mdoc_verifier(
+                spec,
+                compressed,
+                test_data.pkx,
+                test_data.pky,
+                test_data.transcript,
+                &[long_id],
+                test_data.now,
+                "org.iso.18013.5.1.mDL",
+                &proof,
+            ),
+            Err(MdocVerifierErrorCode::InvalidInput)
+        );
+
+        let long_val = req_attr("org.iso.18013.5.1", "family_name", [0u8; 65]);
+        assert_eq!(
+            run_mdoc_verifier(
+                spec,
+                compressed,
+                test_data.pkx,
+                test_data.pky,
+                test_data.transcript,
+                &[long_val],
+                test_data.now,
+                "org.iso.18013.5.1.mDL",
+                &proof,
+            ),
+            Err(MdocVerifierErrorCode::InvalidInput)
+        );
+
+        assert_eq!(
+            run_mdoc_verifier(
+                spec,
+                compressed,
+                test_data.pkx,
+                test_data.pky,
+                test_data.transcript,
+                &[ok_attr],
+                "2025-04-30T00:00:00Z!",
+                "org.iso.18013.5.1.mDL",
+                &proof,
+            ),
+            Err(MdocVerifierErrorCode::InvalidInput)
+        );
+    }
 }
